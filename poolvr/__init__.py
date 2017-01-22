@@ -66,6 +66,7 @@ def main(window_size=(800,600), novr=False):
                                          scale=2*game.ball_radius,
                                          color=np.array([[(c & 0xff0000) / 0xff0000, (c & 0x00ff00) / 0x00ff00, (c & 0x0000ff) / 0x0000ff] for c in game.ball_colors], dtype=np.float32),
                                          translate=game.ball_positions)
+    ball_positions = ball_billboards.primitive.attributes['translate']
     meshes = [ball_billboards, cue]
     for mesh in meshes:
         mesh.init_gl()
@@ -121,15 +122,18 @@ def main(window_size=(800,600), novr=False):
                     cue.world_matrix[3,:3] = poses[-1][:,3]
                     cue.velocity = velocities[-1]
                     # cue.angular_velocity = angular_velocities[-1]
-                    # contact = pool_game.cue_contact(cue_pose, cue_radius, cue_length)
-                    # if contact is not None:
-                    #     vr_renderer.vr_system.triggerHapticPulse(vr_renderer._controller_indices[-1], 0, 2000)
-                    #     i, poc = contact
-                    #     if i == 0:
-                    #         cue.world_matrix[:3,:3].dot(poc, out=poc)
-                    #         poc += cue.world_matrix[3,:3]
-                    #     else:
-                    #         print('scratch (touched %d)' % i)
+                    for i, intersects in enumerate(cue.aabb_check(ball_positions, game.ball_radius)):
+                        if not intersects:
+                            continue
+                        renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1], 0, 2000)
+                        # contact = cue.contact(ball_positions[i])
+                        # if contact is not None:
+                        #     i, poc = contact
+                        #     if i == 0:
+                        #         cue.world_matrix[:3,:3].dot(poc, out=poc)
+                        #         poc += cue.world_matrix[3,:3]
+                        #     else:
+                        #         print('scratch (touched %d)' % i)
             else:
                 pass
         if nframes == 0:
