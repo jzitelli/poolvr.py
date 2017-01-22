@@ -16,7 +16,9 @@ try:
     from .pyopenvr_renderer import OpenVRRenderer
 except ImportError as err:
     OpenVRRenderer = None
+from .billboards import BillboardParticles
 from .cue import Cue
+from .game import PoolGame
 
 
 MOVE_SPEED = 0.3
@@ -59,7 +61,9 @@ def main(window_size=(800,600), novr=False):
     cue_world_matrix = cue.world_matrix
     cue_position = cue_world_matrix[3,:3]
     cue_rotation_matrix = cue_world_matrix[:3,:3].T
-    meshes = [cue]
+    game = PoolGame()
+    ball_billboards = BillboardParticles(Texture('textures/ball.png'), num_particles=game.num_balls, color=game.ball_colors, translate=game.ball_positions)
+    meshes = [ball_billboards, cue]
     for mesh in meshes:
         mesh.init_gl()
     gl.glViewport(0, 0, window_size[0], window_size[1])

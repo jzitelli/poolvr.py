@@ -14,3 +14,8 @@ class Cue(Mesh):
         cylinder = CylinderPrimitive(radius=radius, height=length)
         cylinder.attributes['a_position'] = cylinder.attributes['vertices']
         Mesh.__init__(self, {Material(EGA_TECHNIQUE): [cylinder]})
+        self._positions = None
+    def aabb_check(self, positions, radius):
+        if self._positions is None:
+            self._positions = positions.copy()
+        R, r = self.radius, radius
