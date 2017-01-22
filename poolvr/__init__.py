@@ -11,7 +11,7 @@ import OpenGL.GL as gl
 import cyglfw3 as glfw
 
 
-from .gl_rendering import OpenGLRenderer
+from .gl_rendering import OpenGLRenderer, Texture
 try:
     from .pyopenvr_renderer import OpenVRRenderer
 except ImportError as err:
@@ -62,7 +62,10 @@ def main(window_size=(800,600), novr=False):
     cue_position = cue_world_matrix[3,:3]
     cue_rotation_matrix = cue_world_matrix[:3,:3].T
     game = PoolGame()
-    ball_billboards = BillboardParticles(Texture('textures/ball.png'), num_particles=game.num_balls, color=game.ball_colors, translate=game.ball_positions)
+    ball_billboards = BillboardParticles(Texture('textures/ball.png'), num_particles=game.num_balls,
+                                         scale=2*game.ball_radius,
+                                         color=np.array([[(c & 0xff0000) / 0xff0000, (c & 0x00ff00) / 0x00ff00, (c & 0x0000ff) / 0x0000ff] for c in game.ball_colors], dtype=np.float32),
+                                         translate=game.ball_positions)
     meshes = [ball_billboards, cue]
     for mesh in meshes:
         mesh.init_gl()
