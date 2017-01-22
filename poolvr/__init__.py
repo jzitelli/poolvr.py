@@ -2,7 +2,6 @@ import sys
 import os.path
 import logging
 from collections import defaultdict
-import argparse
 import numpy as np
 import OpenGL
 OpenGL.ERROR_CHECKING = False
@@ -12,11 +11,12 @@ import OpenGL.GL as gl
 import cyglfw3 as glfw
 
 
-from gl_rendering import *
+from .gl_rendering import OpenGLRenderer
 try:
-    from pyopenvr_renderer import OpenVRRenderer
+    from .pyopenvr_renderer import OpenVRRenderer
 except ImportError as err:
     OpenVRRenderer = None
+from .cue import Cue
 
 
 MOVE_SPEED = 0.3
@@ -25,6 +25,7 @@ TURN_SPEED = 1.2
 MOUSE_MOVE_SPEED = 0.04
 MOUSE_CUE_MOVE_SPEED = 0.08
 BG_COLOR = (0.0, 0.0, 0.0, 0.0)
+
 
 _logger = logging.getLogger(__name__)
 
@@ -40,20 +41,27 @@ def setup_glfw(width=800, height=600, double_buffered=False):
         glfw.Terminate()
         raise Exception('failed to create glfw window')
     glfw.MakeContextCurrent(window)
-    print('GL_VERSION: %s' % gl.glGetString(gl.GL_VERSION))
+    _logger.info('GL_VERSION: %s' % gl.glGetString(gl.GL_VERSION))
     return window
 
 
 def main(window_size=(800,600), novr=False):
     window = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=novr)
+    renderer = OpenGLRenderer(window_size=window_size, znear=0.1, zfar=1000)
+    camera_world_matrix = renderer.camera_matrix
     if not novr and OpenVRRenderer is not None:
         try:
             renderer = OpenVRRenderer(window_size=window_size)
         except openvr.OpenVRError as err:
-            print('could not initialize OpenVRRenderer: %s' % err)
-            renderer = OpenGLRenderer(window_size=window_size)
-    else:
-        renderer = OpenGLRenderer(window_size=window_size, znear=0.1, zfar=1000)
+            _logger.error('could not initialize OpenVRRenderer: %s' % err)
+    camera_position = camera_world_matrix[3,:3]
+    cue = Cue()
+    cue_world_matrix = cue.world_matrix
+    cue_position = cue_world_matrix[3,:3]
+    cue_rotation_matrix = cue_world_matrix[:3,:3].T
+    meshes = [cue]
+    for mesh in meshes:
+        mesh.init_gl()
     gl.glViewport(0, 0, window_size[0], window_size[1])
     def on_resize(window, width, height):
         gl.glViewport(0, 0, width, height)
@@ -77,8 +85,6 @@ def main(window_size=(800,600), novr=False):
         elif action == glfw.RELEASE:
             key_state[key] = False
     glfw.SetKeyCallback(window, on_keydown)
-    camera_world_matrix = renderer.camera_matrix
-    camera_position = camera_world_matrix[3,:3]
     cursor_pos = glfw.GetCursorPos(window)
     theta = 0.0
     def process_input(dt):
@@ -102,10 +108,9 @@ def main(window_size=(800,600), novr=False):
         lr = MOVE_SPEED * dt * (key_state[glfw.KEY_D] - key_state[glfw.KEY_A])
         ud = MOVE_SPEED * dt * (key_state[glfw.KEY_Q] - key_state[glfw.KEY_Z])
         camera_position[:] += fb * camera_world_matrix[2,:3] + lr * camera_world_matrix[0,:3] + ud * camera_world_matrix[1,:3]
-    meshes = []
     gl.glClearColor(*BG_COLOR)
     gl.glEnable(gl.GL_DEPTH_TEST)
-    print('* starting render loop...')
+    _logger.info('* starting render loop...')
     sys.stdout.flush()
     nframes = 0
     lt = glfw.GetTime()
@@ -118,20 +123,17 @@ def main(window_size=(800,600), novr=False):
         with renderer.render(meshes=meshes) as frame_data:
             if frame_data:
                 poses, velocities, angular_velocities = frame_data
+                if len(poses) > 1:
+                    pose = poses[-1]
+                    cue_position[:] = pose[:,3]
+                    cue_rotation_matrix[:] = pose[:,:3]
             else:
                 pass
         if nframes == 0:
             st = glfw.GetTime()
         nframes += 1
         glfw.SwapBuffers(window)
-    print('* FPS (avg): %f' % ((nframes - 1) / (t - st)))
+    _logger.info('* FPS (avg): %f' % ((nframes - 1) / (t - st)))
     renderer.shutdown()
     glfw.DestroyWindow(window)
     glfw.Terminate()
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--novr", help="non-VR mode", action="store_true")
-    args = parser.parse_args()
-    main(novr=args.novr)

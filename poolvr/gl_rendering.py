@@ -170,12 +170,12 @@ class Material(object):
             values = {}
         if textures is None:
             textures = {}
-        for uniform_name, uniform in self.technique.uniforms:
+        for uniform_name, uniform in self.technique.uniforms.items():
             if uniform['type'] == gl.GL_SAMPLER_2D:
                 if uniform_name not in textures:
                     textures[uniform_name] = uniform['texture']
             else:
-                if uniform_name not in values:
+                if uniform_name not in values and 'value' in uniform:
                     values[uniform_name] = uniform['value']
         self.values = values
         self.textures = textures
@@ -203,7 +203,7 @@ class Material(object):
                 gl.glBindTexture(gl.GL_TEXTURE_2D, texture.texture_id)
                 gl.glBindSampler(0, texture.sampler_id)
                 gl.glUniform1i(location, 0)
-            else:
+            elif uniform_name in self.values:
                 value = self.values[uniform_name]
                 if uniform_type == gl.GL_FLOAT:
                     gl.glUniform1f(location, value)
@@ -213,10 +213,11 @@ class Material(object):
                     gl.glUniform3f(location, *value)
                 elif uniform_type == gl.GL_FLOAT_VEC4:
                     gl.glUniform4f(location, *value)
-                elif u_modelview is not None and uniform_name == 'u_modelview':
+            else:
+                if u_modelview is not None and uniform_name == 'u_modelview':
                     gl.glUniformMatrix4fv(location, 1, False, u_modelview)
                 elif u_projection is not None and uniform_name == 'u_projection':
-                    gl.glUniformMatrix4fv(location, 1, True, u_projection)
+                    gl.glUniformMatrix4fv(location, 1, False, u_projection)
                 elif u_view is not None and uniform_name == 'u_view':
                     gl.glUniformMatrix4fv(location, 1, False, u_view)
                 elif u_normal is not None and uniform_name == 'u_normal':
@@ -325,11 +326,11 @@ class OpenGLRenderer(object):
         self.zfar = zfar
         self.camera_matrix = np.eye(4, dtype=np.float32)
         self.view_matrix = np.eye(4, dtype=np.float32)
-        self.projection_matrix = np.empty(4, dtype=np.float32)
+        self.projection_matrix = np.empty((4,4), dtype=np.float32)
         self.update_projection_matrix()
     def update_projection_matrix(self):
         window_size, znear, zfar = self.window_size, self.znear, self.zfar
-        self.projection_matrix = calc_projection_matrix(np.pi / 180 * 50, window_size[1] / window_size[0], znear, zfar)
+        self.projection_matrix[:] = calc_projection_matrix(np.pi / 180 * 50, window_size[1] / window_size[0], znear, zfar).T
     @contextmanager
     def render(self, meshes=None):
         self.view_matrix[3,:3] = -self.camera_matrix[3,:3]
