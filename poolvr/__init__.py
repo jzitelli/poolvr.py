@@ -100,6 +100,11 @@ def main(window_size=(800,600), novr=False):
         lr = MOVE_SPEED * dt * (key_state[glfw.KEY_D] - key_state[glfw.KEY_A])
         ud = MOVE_SPEED * dt * (key_state[glfw.KEY_Q] - key_state[glfw.KEY_Z])
         camera_position[:] += fb * camera_world_matrix[2,:3] + lr * camera_world_matrix[0,:3] + ud * camera_world_matrix[1,:3]
+        fb = CUE_MOVE_SPEED * (-key_state[glfw.KEY_I] + key_state[glfw.KEY_K])
+        lr = CUE_MOVE_SPEED * (key_state[glfw.KEY_L] - key_state[glfw.KEY_J])
+        ud = CUE_MOVE_SPEED * (key_state[glfw.KEY_U] - key_state[glfw.KEY_M])
+        cue.velocity[:] = fb * cue.world_matrix[2,:3] + lr * cue.world_matrix[0,:3] + ud * cue.world_matrix[1,:3]
+        cue.position += cue_velocity * dt
         process_mouse_input(dt, cue)
     gl.glClearColor(*BG_COLOR)
     gl.glEnable(gl.GL_DEPTH_TEST)
@@ -125,15 +130,17 @@ def main(window_size=(800,600), novr=False):
                     for i, intersects in enumerate(cue.aabb_check(ball_positions, game.ball_radius)):
                         if not intersects:
                             continue
-                        renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1], 0, 2000)
-                        # contact = cue.contact(ball_positions[i])
-                        # if contact is not None:
-                        #     i, poc = contact
-                        #     if i == 0:
-                        #         cue.world_matrix[:3,:3].dot(poc, out=poc)
-                        #         poc += cue.world_matrix[3,:3]
-                        #     else:
-                        #         print('scratch (touched %d)' % i)
+                        contact = cue.contact(ball_positions[i])
+                        if contact is not None:
+                            if isinstance(renderer, OpenVRRenderer):
+                                renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1], 0, 2000)
+                            i, poc = contact
+                            if i == 0:
+                                cue.world_matrix[:3,:3].dot(poc, out=poc)
+                                poc += cue.world_matrix[3,:3]
+                                print('%.4f   %.4f   %.4f' % poc)
+                            else:
+                                print('scratch (touched %d)' % i)
             else:
                 pass
         if nframes == 0:
