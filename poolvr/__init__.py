@@ -19,14 +19,13 @@ except ImportError as err:
 from .billboards import BillboardParticles
 from .cue import Cue
 from .game import PoolGame
+from .mouse_controls import init_mouse
 
 
+BG_COLOR = (0.0, 0.0, 0.0, 0.0)
+TURN_SPEED = 1.2
 MOVE_SPEED = 0.3
 CUE_MOVE_SPEED = 0.3
-TURN_SPEED = 1.2
-MOUSE_MOVE_SPEED = 0.04
-MOUSE_CUE_MOVE_SPEED = 0.08
-BG_COLOR = (0.0, 0.0, 0.0, 0.0)
 
 
 _logger = logging.getLogger(__name__)
@@ -61,6 +60,7 @@ def main(window_size=(800,600), novr=False):
     cue_world_matrix = cue.world_matrix
     cue_position = cue_world_matrix[3,:3]
     cue_rotation_matrix = cue_world_matrix[:3,:3].T
+    cue_velocity = np.zeros(3, dtype=np.float32)
     game = PoolGame()
     ball_billboards = BillboardParticles(Texture('textures/ball.png'), num_particles=game.num_balls,
                                          scale=2*game.ball_radius,
@@ -75,14 +75,6 @@ def main(window_size=(800,600), novr=False):
         renderer.window_size = (width, height)
         renderer.update_projection_matrix()
     glfw.SetWindowSizeCallback(window, on_resize)
-    glfw.SetInputMode(window, glfw.CURSOR, glfw.CURSOR_DISABLED)
-    mouse_button_state = defaultdict(int)
-    def on_mousedown(window, button, action, mods):
-        if action == glfw.PRESS:
-            mouse_button_state[button] = True
-        elif action == glfw.RELEASE:
-            mouse_button_state[button] = False
-    glfw.SetMouseButtonCallback(window, on_mousedown)
     key_state = defaultdict(bool)
     def on_keydown(window, key, scancode, action, mods):
         if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
@@ -92,20 +84,12 @@ def main(window_size=(800,600), novr=False):
         elif action == glfw.RELEASE:
             key_state[key] = False
     glfw.SetKeyCallback(window, on_keydown)
-    cursor_pos = glfw.GetCursorPos(window)
+    process_mouse_input = init_mouse(window)
     theta = 0.0
     def process_input(dt):
         glfw.PollEvents()
-        pos = glfw.GetCursorPos(window)
-        nonlocal cursor_pos
-        dx, dy = pos[0] - cursor_pos[0], pos[1] - cursor_pos[1]
-        cursor_pos = pos
         nonlocal theta
         theta += TURN_SPEED * dt * (key_state[glfw.KEY_LEFT] - key_state[glfw.KEY_RIGHT])
-        if theta >= np.pi:
-            theta -= 2*np.pi
-        elif theta < -np.pi:
-            theta += 2*np.pi
         sin, cos = np.sin(theta), np.cos(theta)
         camera_world_matrix[0,0] = cos
         camera_world_matrix[0,2] = -sin
@@ -115,6 +99,7 @@ def main(window_size=(800,600), novr=False):
         lr = MOVE_SPEED * dt * (key_state[glfw.KEY_D] - key_state[glfw.KEY_A])
         ud = MOVE_SPEED * dt * (key_state[glfw.KEY_Q] - key_state[glfw.KEY_Z])
         camera_position[:] += fb * camera_world_matrix[2,:3] + lr * camera_world_matrix[0,:3] + ud * camera_world_matrix[1,:3]
+        process_mouse_input(dt, cue_position, cue_velocity)
     gl.glClearColor(*BG_COLOR)
     gl.glEnable(gl.GL_DEPTH_TEST)
     _logger.info('* starting render loop...')

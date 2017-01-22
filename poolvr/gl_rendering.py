@@ -258,7 +258,7 @@ class Mesh(Node):
     _modelview = np.eye(4, dtype=np.float32)
     _normal = np.eye(3, dtype=np.float32)
     def __init__(self, primitives, matrix=None):
-        "primitives argument should be a dict which maps material to list of primitives which use the material"
+        "primitives argument should be a dict which maps material to list of primitives which use that material"
         Node.__init__(self, matrix=matrix)
         self.primitives = primitives
         self._initialized = False
@@ -330,7 +330,7 @@ class OpenGLRenderer(object):
         self.update_projection_matrix()
     def update_projection_matrix(self):
         window_size, znear, zfar = self.window_size, self.znear, self.zfar
-        self.projection_matrix[:] = calc_projection_matrix(np.pi / 180 * 50, window_size[1] / window_size[0], znear, zfar).T
+        self.projection_matrix[:] = calc_projection_matrix(np.pi / 180 * 60, window_size[0] / window_size[1], znear, zfar).T
     @contextmanager
     def render(self, meshes=None):
         self.view_matrix[3,:3] = -self.camera_matrix[3,:3]
