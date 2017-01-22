@@ -7,6 +7,9 @@ INCH2METER = 0.0254
 
 
 class Cue(Mesh):
+    rotation = np.array([[1.0, 0.0, 0.0],
+                         [0.0, 0.0, 1.0],
+                         [0.0, -1.0, 0.0]], dtype=np.float32)
     def __init__(self, radius=0.007, length=1.15, mass=0.54):
         self.radius = radius
         self.length = length
@@ -15,6 +18,8 @@ class Cue(Mesh):
         cylinder.attributes['a_position'] = cylinder.attributes['vertices']
         Mesh.__init__(self, {Material(EGA_TECHNIQUE): [cylinder]})
         self._positions = None
+        self.position = self.world_matrix[3,:3]
+        self.velocity = np.zeros(3, dtype=np.float32)
     def aabb_check(self, positions, radius):
         if self._positions is None:
             self._positions = positions.copy()

@@ -58,8 +58,8 @@ def main(window_size=(800,600), novr=False):
     camera_position = camera_world_matrix[3,:3]
     cue = Cue()
     cue_world_matrix = cue.world_matrix
-    cue_position = cue_world_matrix[3,:3]
-    cue_rotation_matrix = cue_world_matrix[:3,:3].T
+    cue_position = cue.position
+    cue_rotation_matrix = cue.world_matrix[:3,:3].T
     cue_velocity = np.zeros(3, dtype=np.float32)
     game = PoolGame()
     ball_billboards = BillboardParticles(Texture('textures/ball.png'), num_particles=game.num_balls,
@@ -99,7 +99,7 @@ def main(window_size=(800,600), novr=False):
         lr = MOVE_SPEED * dt * (key_state[glfw.KEY_D] - key_state[glfw.KEY_A])
         ud = MOVE_SPEED * dt * (key_state[glfw.KEY_Q] - key_state[glfw.KEY_Z])
         camera_position[:] += fb * camera_world_matrix[2,:3] + lr * camera_world_matrix[0,:3] + ud * camera_world_matrix[1,:3]
-        process_mouse_input(dt, cue_position, cue_velocity)
+        process_mouse_input(dt, cue)
     gl.glClearColor(*BG_COLOR)
     gl.glEnable(gl.GL_DEPTH_TEST)
     _logger.info('* starting render loop...')
@@ -117,8 +117,19 @@ def main(window_size=(800,600), novr=False):
                 poses, velocities, angular_velocities = frame_data
                 if len(poses) > 1:
                     pose = poses[-1]
-                    cue_position[:] = pose[:,3]
-                    cue_rotation_matrix[:] = pose[:,:3]
+                    cue.world_matrix[:3,:3] = poses[-1][:,:3].dot(cue.rotation).T
+                    cue.world_matrix[3,:3] = poses[-1][:,3]
+                    cue.velocity = velocities[-1]
+                    # cue.angular_velocity = angular_velocities[-1]
+                    # contact = pool_game.cue_contact(cue_pose, cue_radius, cue_length)
+                    # if contact is not None:
+                    #     vr_renderer.vr_system.triggerHapticPulse(vr_renderer._controller_indices[-1], 0, 2000)
+                    #     i, poc = contact
+                    #     if i == 0:
+                    #         cue.world_matrix[:3,:3].dot(poc, out=poc)
+                    #         poc += cue.world_matrix[3,:3]
+                    #     else:
+                    #         print('scratch (touched %d)' % i)
             else:
                 pass
         if nframes == 0:
