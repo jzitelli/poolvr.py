@@ -53,14 +53,12 @@ def main(window_size=(800,600), novr=False):
     if not novr and OpenVRRenderer is not None:
         try:
             renderer = OpenVRRenderer(window_size=window_size)
-        except openvr.OpenVRError as err:
+        except Exception as err:
             _logger.error('could not initialize OpenVRRenderer: %s' % err)
     camera_position = camera_world_matrix[3,:3]
     cue = Cue()
     cue_world_matrix = cue.world_matrix
-    cue_position = cue.position
     cue_rotation_matrix = cue.world_matrix[:3,:3].T
-    cue_velocity = np.zeros(3, dtype=np.float32)
     game = PoolGame()
     ball_billboards = BillboardParticles(Texture('textures/ball.png'), num_particles=game.num_balls,
                                          scale=2*game.ball_radius,
@@ -103,8 +101,9 @@ def main(window_size=(800,600), novr=False):
         fb = CUE_MOVE_SPEED * (-key_state[glfw.KEY_I] + key_state[glfw.KEY_K])
         lr = CUE_MOVE_SPEED * (key_state[glfw.KEY_L] - key_state[glfw.KEY_J])
         ud = CUE_MOVE_SPEED * (key_state[glfw.KEY_U] - key_state[glfw.KEY_M])
+        cue.world_matrix[:3,:3] = cue.rotation
         cue.velocity[:] = fb * cue.world_matrix[2,:3] + lr * cue.world_matrix[0,:3] + ud * cue.world_matrix[1,:3]
-        cue.position += cue_velocity * dt
+        cue.position += cue.velocity * dt
         process_mouse_input(dt, cue)
     gl.glClearColor(*BG_COLOR)
     gl.glEnable(gl.GL_DEPTH_TEST)
@@ -125,22 +124,26 @@ def main(window_size=(800,600), novr=False):
                     pose = poses[-1]
                     cue.world_matrix[:3,:3] = poses[-1][:,:3].dot(cue.rotation).T
                     cue.world_matrix[3,:3] = poses[-1][:,3]
-                    cue.velocity = velocities[-1]
+                    cue.velocity[:] = velocities[-1]
                     # cue.angular_velocity = angular_velocities[-1]
                     for i, intersects in enumerate(cue.aabb_check(ball_positions, game.ball_radius)):
                         if not intersects:
                             continue
                         contact = cue.contact(ball_positions[i])
-                        if contact is not None:
+                        if contact:
                             if isinstance(renderer, OpenVRRenderer):
                                 renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1], 0, 2000)
                             i, poc = contact
-                            if i == 0:
-                                cue.world_matrix[:3,:3].dot(poc, out=poc)
-                                poc += cue.world_matrix[3,:3]
-                                print('%.4f   %.4f   %.4f' % poc)
-                            else:
-                                print('scratch (touched %d)' % i)
+                            cue.world_matrix[:3,:3].dot(poc, out=poc)
+                            poc += cue.world_matrix[3,:3]
+                            x, y, z = poc
+                            print('%d: %.4f   %.4f   %.4f' % (i, x, y, z))
+                            # if i == 0:
+                            #     cue.world_matrix[:3,:3].dot(poc, out=poc)
+                            #     poc += cue.world_matrix[3,:3]
+                            #     print('%.4f   %.4f   %.4f' % poc)
+                            # else:
+                            #     print('scratch (touched %d)' % i)
             else:
                 pass
         if nframes == 0:
