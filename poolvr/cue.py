@@ -39,7 +39,7 @@ class Cue(Mesh):
                 n /= np.sqrt(r_sqrd)
                 poc = position - radius * n
                 return i, poc
-        elif abs(y) <= 0.5*length + radius:
+        elif abs(y) <= 0.5*self.length + radius:
             # potential contact on flat end of the cue:
             if r_sqrd <= radius**2:
                 # contact on the flat end:
@@ -51,12 +51,12 @@ class Cue(Mesh):
                 return i, poc
             else:
                 r = np.sqrt(r_sqrd)
-                if (r - radius)**2 + (abs(y) - 0.5*length)**2 <= radius**2:
+                if (r - radius)**2 + (abs(y) - 0.5*self.length)**2 <= radius**2:
                     # contact on the ring edge of the flat end:
                     if y >= 0.0:
-                        n = np.array([0.0, -(y - 0.5*length), 0.0])
+                        n = np.array([0.0, -(y - 0.5*self.length), 0.0])
                     else:
-                        n = np.array([0.0, -y - 0.5*length, 0.0])
+                        n = np.array([0.0, -y - 0.5*self.length, 0.0])
                     n[::2] += -(r - radius) / r * position[::2]
                     n /= np.linalg.norm(n)
                     poc = position + radius * n
