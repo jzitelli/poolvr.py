@@ -6,6 +6,8 @@ VR pool simulator written in Python (using pyopenvr)
 ## HOW TO INSTALL:
 
 ```
+git clone https://github.com/jzitelli/poolvr.py.git
+cd poolvr.py
 python setup.py develop
 ```
 

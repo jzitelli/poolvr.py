@@ -124,25 +124,19 @@ def main(window_size=(800,600), novr=False):
                     cue.world_matrix[3,:3] = poses[-1][:,3]
                     cue.velocity[:] = velocities[-1]
                     # cue.angular_velocity = angular_velocities[-1]
-                    for i, intersects in enumerate(cue.aabb_check(ball_positions, game.ball_radius)):
-                        if not intersects:
-                            continue
-                        renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1], 0, 2000)
-                        # contact = cue.contact(ball_positions[i], game.ball_radius)
-                        # if contact:
-                        #     if isinstance(renderer, OpenVRRenderer):
-                        #         renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1], 0, 2000)
-                        #     i, poc = contact
-                        #     cue.world_matrix[:3,:3].dot(poc, out=poc)
-                        #     poc += cue.world_matrix[3,:3]
-                        #     x, y, z = poc
-                        #     print('%d: %.4f   %.4f   %.4f' % (i, x, y, z))
-                        #     # if i == 0:
-                        #     #     cue.world_matrix[:3,:3].dot(poc, out=poc)
-                        #     #     poc += cue.world_matrix[3,:3]
-                        #     #     print('%.4f   %.4f   %.4f' % poc)
-                        #     # else:
-                        #     #     print('scratch (touched %d)' % i)
+                    for i, position in cue.aabb_check(ball_positions, game.ball_radius):
+                        # renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1], 0, 2000)
+                        contact = cue.contact(position, game.ball_radius)
+                        if contact is not None:
+                            renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1], 0, 2000)
+                            cue.world_matrix[:3,:3].dot(contact, out=contact)
+                            contact += cue.position
+                            x, y, z = contact
+                            print('%d: %.4f   %.4f   %.4f' % (i, x, y, z))
+                            if i == 0:
+                                pass
+                            else:
+                                print('scratch (touched %d)' % i)
             else:
                 pass
         if nframes == 0:

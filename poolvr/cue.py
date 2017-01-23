@@ -22,11 +22,16 @@ class Cue(Mesh):
         self.velocity = np.zeros(3, dtype=np.float32)
         self.bb = np.array([[-radius, -0.5*length, -radius],
                             [radius, 0.5*length, radius]], dtype=np.float32)
+        self._positions = None
     def aabb_check(self, positions, radius):
-        positions = (positions - self.world_matrix[3,:3]).dot(self.world_matrix[:3,:3].T)
+        if self._positions is None:
+            self._positions = np.empty(positions.shape, dtype=positions.dtype)
+        (positions - self.position).dot(self.world_matrix[:3,:3].T,
+                                        out=self._positions)
         aabb = self.bb
-        separate = ((aabb[0] > positions + radius) | (aabb[1] < positions - radius)).any(axis=-1)
-        return ~separate
+        separate = ((aabb[0] > self._positions + radius) | (aabb[1] < self._positions - radius)).any(axis=-1)
+        return [(i, self._positions[i])
+                for i, inter in enumerate(~separate) if inter]
     def contact(self, position, radius):
         x, y, z = position
         r_sqrd = x**2 + z**2
@@ -38,17 +43,17 @@ class Cue(Mesh):
                 n[1] = 0.0
                 n /= np.sqrt(r_sqrd)
                 poc = position - radius * n
-                return i, poc
+                return poc
         elif abs(y) <= 0.5*self.length + radius:
             # potential contact on flat end of the cue:
-            if r_sqrd <= radius**2:
+            if r_sqrd <= self.radius**2:
                 # contact on the flat end:
                 poc = position.copy()
                 if y >= 0.0:
                     poc[1] -= radius
                 else:
                     poc[1] += radius
-                return i, poc
+                return poc
             else:
                 r = np.sqrt(r_sqrd)
                 if (r - radius)**2 + (abs(y) - 0.5*self.length)**2 <= radius**2:
@@ -60,5 +65,5 @@ class Cue(Mesh):
                     n[::2] += -(r - radius) / r * position[::2]
                     n /= np.linalg.norm(n)
                     poc = position + radius * n
-                    return i, poc
+                    return poc
         return None
