@@ -47,17 +47,22 @@ def setup_glfw(width=800, height=600, double_buffered=False):
 
 
 def main(window_size=(800,600), novr=False):
+    _logger.info('HELLO')
     window = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=novr)
     renderer = OpenGLRenderer(window_size=window_size, znear=0.1, zfar=1000)
     camera_world_matrix = renderer.camera_matrix
+    camera_position = camera_world_matrix[3,:3]
     if not novr and OpenVRRenderer is not None:
         try:
             renderer = OpenVRRenderer(window_size=window_size)
         except Exception as err:
             _logger.error('could not initialize OpenVRRenderer: %s' % err)
-    camera_position = camera_world_matrix[3,:3]
-    cue = Cue()
     game = PoolGame()
+    cue = Cue()
+    cue.position[1] = game.table.height + 0.1
+    #cue.position[2] = game.table.length
+    camera_position[1] = game.table.height + 0.6
+    camera_position[2] = game.table.length - 0.1
     ball_radius = game.table.ball_radius
     ball_billboards = BillboardParticles(Texture('textures/ball.png'), num_particles=game.num_balls,
                                          scale=2*ball_radius,
@@ -108,10 +113,11 @@ def main(window_size=(800,600), novr=False):
     gl.glEnable(gl.GL_DEPTH_TEST)
     physics = game.physics
 
-    _logger.info('* starting render loop...')
+    _logger.info('starting render loop...')
     sys.stdout.flush()
 
     nframes = 0
+    max_frame_time = 0
     lt = glfw.GetTime()
     while not glfw.WindowShouldClose(window):
         t = glfw.GetTime()
@@ -156,9 +162,14 @@ def main(window_size=(800,600), novr=False):
 
         if nframes == 0:
             st = glfw.GetTime()
+            max_frame_time = max(max_frame_time, dt)
         nframes += 1
         glfw.SwapBuffers(window)
-    _logger.info('* FPS (avg): %f' % ((nframes - 1) / (t - st)))
+
+    _logger.info('...stopped rendering: average FPS: %f, maximum frame time: %f' % ((nframes - 1) / (t - st), max_frame_time))
+
     renderer.shutdown()
+    _logger.info('...shut down renderer')
     glfw.DestroyWindow(window)
     glfw.Terminate()
+    _logger.info('GOODBYE')

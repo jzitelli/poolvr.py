@@ -79,7 +79,7 @@ class Program(object):
         gl.glDetachShader(program_id, vs)
         gl.glDetachShader(program_id, fs)
         self.program_id = program_id
-        _logger.info('* %s.init_gl: OK' % self.__class__.__name__)
+        _logger.info('%s.init_gl: OK' % self.__class__.__name__)
     def use(self):
         if Program._current is self:
             return
@@ -109,7 +109,7 @@ class Technique(object):
         program_id = self.program.program_id
         self.attribute_locations = {name: gl.glGetAttribLocation(program_id, name) for name in self.attributes}
         self.uniform_locations = {name: gl.glGetUniformLocation(program_id, name) for name in self.uniforms}
-        _logger.info('* %s.init_gl: OK' % self.__class__.__name__)
+        _logger.info('%s.init_gl: OK' % self.__class__.__name__)
     def use(self):
         if Technique._current is self:
             return
@@ -155,7 +155,7 @@ class Primitive(object):
                 raise Exception('failed to init gl buffer')
             self.index_buffer = vao
             gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, 0)
-        _logger.info('* %s.init_gl: OK' % self.__class__.__name__)
+        _logger.info('%s.init_gl: OK' % self.__class__.__name__)
 
 
 class Texture(object):
@@ -187,7 +187,7 @@ class Texture(object):
         err = gl.glGetError()
         if err != gl.GL_NO_ERROR:
             raise Exception('failed to init texture: %s' % err)
-        _logger.info('* %s.init_gl: OK' % self.__class__.__name__)
+        _logger.info('%s.init_gl: OK' % self.__class__.__name__)
 
 
 class Material(object):
@@ -215,7 +215,7 @@ class Material(object):
         for texture in self.textures.values():
             texture.init_gl()
         self._initialized = True
-        _logger.info('* %s.init_gl: OK' % self.__class__.__name__)
+        _logger.info('%s.init_gl: OK' % self.__class__.__name__)
     def use(self, u_view=None, u_modelview=None, u_projection=None, u_normal=None):
         # if Material._current is self:
         #     return
@@ -314,7 +314,7 @@ class Mesh(Node):
                 gl.glBindVertexArray(0)
                 for location in technique.attribute_locations.values():
                     gl.glDisableVertexAttribArray(location)
-        _logger.info('* %s.init_gl: OK' % self.__class__.__name__)
+        _logger.info('%s.init_gl: OK' % self.__class__.__name__)
         self._initialized = True
     def draw(self, view=None, projection=None):
         if view is not None:

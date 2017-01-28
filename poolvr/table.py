@@ -15,6 +15,8 @@ class PoolTable(object):
                  ball_radius=INCH2METER*1.125):
         self.L_table = L_table
         self.H_table = H_table
+        self.length = L_table
+        self.height = H_table
         if W_table is None:
             W_table = 0.5 * L_table
         self.W_table = W_table
