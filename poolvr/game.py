@@ -2,6 +2,7 @@ import numpy as np
 
 
 from .table import Table
+from .physics import PoolPhysics
 
 
 INCH2METER = 0.0254
@@ -28,6 +29,7 @@ class PoolGame(object):
         self.num_balls = len(ball_colors)
         self.ball_positions = np.empty((self.num_balls, 3), dtype=np.float32)
         self.initial_positions(out=self.ball_positions)
+        self.physics = PoolPhysics(num_balls=self.num_balls)
     def initial_positions(self, d=None, out=None):
         ball_radius = self.ball_radius
         if d is None:

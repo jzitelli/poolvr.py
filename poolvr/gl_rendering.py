@@ -336,7 +336,6 @@ class OpenGLRenderer(object):
         self.view_matrix[3,:3] = -self.camera_matrix[3,:3]
         self.view_matrix[:3,:3] = self.camera_matrix[:3,:3].T
         yield None
-        gl.glViewport(0, 0, self.window_size[0], self.window_size[1])
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         if meshes is not None:
             for mesh in meshes:

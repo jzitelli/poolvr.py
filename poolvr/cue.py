@@ -20,6 +20,7 @@ class Cue(Mesh):
         self._positions = None
         self.position = self.world_matrix[3,:3]
         self.velocity = np.zeros(3, dtype=np.float32)
+        self.angular_velocity = np.zeros(3, dtype=np.float32)
         self.bb = np.array([[-radius, -0.5*length, -radius],
                             [radius, 0.5*length, radius]], dtype=np.float32)
         self._positions = None

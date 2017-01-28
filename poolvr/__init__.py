@@ -96,10 +96,10 @@ def main(window_size=(800,600), novr=False):
         lr = MOVE_SPEED * dt * (key_state[glfw.KEY_D] - key_state[glfw.KEY_A])
         ud = MOVE_SPEED * dt * (key_state[glfw.KEY_Q] - key_state[glfw.KEY_Z])
         camera_position[:] += fb * camera_world_matrix[2,:3] + lr * camera_world_matrix[0,:3] + ud * camera_world_matrix[1,:3]
-        fb = CUE_MOVE_SPEED * (-key_state[glfw.KEY_I] + key_state[glfw.KEY_K])
-        lr = CUE_MOVE_SPEED * (key_state[glfw.KEY_L] - key_state[glfw.KEY_J])
-        ud = CUE_MOVE_SPEED * (key_state[glfw.KEY_U] - key_state[glfw.KEY_M])
-        cue.world_matrix[:3,:3] = cue.rotation.T
+        ud =  CUE_MOVE_SPEED * (-key_state[glfw.KEY_I] + key_state[glfw.KEY_K])
+        lr =  CUE_MOVE_SPEED * (key_state[glfw.KEY_L] - key_state[glfw.KEY_J])
+        fb = -CUE_MOVE_SPEED * (key_state[glfw.KEY_U] - key_state[glfw.KEY_M])
+        cue.world_matrix[:3,:3] = cue.rotation
         cue.velocity[:] = fb * cue.world_matrix[2,:3] + lr * cue.world_matrix[0,:3] + ud * cue.world_matrix[1,:3]
         cue.position += cue.velocity * dt
         process_mouse_input(dt, cue)
@@ -123,9 +123,8 @@ def main(window_size=(800,600), novr=False):
                     cue.world_matrix[:3,:3] = poses[-1][:,:3].dot(cue.rotation).T
                     cue.world_matrix[3,:3] = poses[-1][:,3]
                     cue.velocity[:] = velocities[-1]
-                    # cue.angular_velocity = angular_velocities[-1]
+                    cue.angular_velocity = angular_velocities[-1]
                     for i, position in cue.aabb_check(ball_positions, game.ball_radius):
-                        # renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1], 0, 2000)
                         contact = cue.contact(position, game.ball_radius)
                         if contact is not None:
                             renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1], 0, 2000)
@@ -138,7 +137,17 @@ def main(window_size=(800,600), novr=False):
                             else:
                                 print('scratch (touched %d)' % i)
             else:
-                pass
+                for i, position in cue.aabb_check(ball_positions, game.ball_radius):
+                    contact = cue.contact(position, game.ball_radius)
+                    if contact is not None:
+                        cue.world_matrix[:3,:3].dot(contact, out=contact)
+                        contact += cue.position
+                        # x, y, z = contact
+                        # print('%d: %.4f   %.4f   %.4f' % (i, x, y, z))
+                        if i == 0:
+                            pass
+                        else:
+                            print('scratch (touched %d)' % i)
         if nframes == 0:
             st = glfw.GetTime()
         nframes += 1
