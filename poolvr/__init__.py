@@ -106,6 +106,7 @@ def main(window_size=(800,600), novr=False):
         process_mouse_input(dt, cue)
     gl.glClearColor(*BG_COLOR)
     gl.glEnable(gl.GL_DEPTH_TEST)
+    physics = game.physics
 
     _logger.info('* starting render loop...')
     sys.stdout.flush()
@@ -135,9 +136,9 @@ def main(window_size=(800,600), novr=False):
                             renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1], 0, 1500)
                             cue.world_matrix[:3,:3].dot(contact, out=contact)
                             contact += cue.position
-                            x, y, z = contact
-                            print('%d: %.4f   %.4f   %.4f' % (i, x, y, z))
-                            #physics.strike_ball(i, cue.mass, contact - ball_positions[i], cue.velocity, cue.angular_velocity)
+                            #x, y, z = contact
+                            #print('%d: %.4f   %.4f   %.4f' % (i, x, y, z))
+                            physics.strike_ball(i, cue.mass, contact - ball_positions[i], cue.velocity, cue.angular_velocity)
 
             elif isinstance(renderer, OpenGLRenderer):
                 # desktop mode:

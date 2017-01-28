@@ -29,16 +29,15 @@ class PoolPhysics(object):
 
     class BallSlideEvent(Event):
         def __init__(self, t, i, v, omega):
-            Event.__init__(self, t)
+            PoolPhysics.Event.__init__(self, t)
             self.i = i
-            self.q = q
             self.v = v
             self.omega = omega
         def predict_events(self, ball_states, events=None,
                            ball_radius=1.125*INCH2METER,
                            mu_s=0.2, g=0.81,
                            **kwargs):
-            events = Event.predict_events(self, events=events, **kwargs)
+            events = PoolPhysics.Event.predict_events(self, events=events, **kwargs)
             # duration of slide:
             R = ball_radius
             u0_x = -R * self.omega[2]
@@ -47,7 +46,7 @@ class PoolPhysics(object):
             # slide end time:
             t_s = self.t + tau_s
             if t_s < events[-1].t:
-                ball_roll_event = BallRollEvent(self.t + tau_s, self.i, v)
+                ball_roll_event = PoolPhysics.BallRollEvent(self.t + tau_s, self.i, v)
                 events.push(ball_roll_event)
             # update trajectory coeffecients:
             self.ball_traject_sin[i] = V[2] / V_xz
@@ -134,15 +133,15 @@ class PoolPhysics(object):
             omega[0] = F * (-c * sin + b * cos) / I
             omega[2] = F * a * sin / I
             omega[1] = -F * a * cos / I
-            BallSlideEvent.__init__(self, t, i, v, omega)
+            PoolPhysics.BallSlideEvent.__init__(self, t, i, v, omega)
 
     class BallRollEvent(Event):
         def __init__(self, t, i, v):
-            Event.__init__(self, t)
+            PoolPhysics.Event.__init__(self, t)
             self.i = i
             self.v = v
         def predict_events(self, table_state, events=None, **kwargs):
-            events = Event.predict_events(self, events=events, **kwargs)
+            events = PoolPhysics.Event.predict_events(self, events=events, **kwargs)
             return events
 
     def __init__(self,
@@ -182,9 +181,15 @@ class PoolPhysics(object):
         self.ball_traject_cos = np.zeros(self.num_balls)
         self.nevent = 0
     def step(self, dt):
-        pass
-    def strike_ball(i, M, q, v, omega):
-        pass
+        lt = self.t
+        self.t += dt
+    def strike_ball(self, i, M, q, v, omega):
+        print(np.linalg.norm(q))
+        self.events.append(PoolPhysics.StrikeBallEvent(self.t, i, q, v, omega,
+                                                       cue_mass=M,
+                                                       ball_mass=self.ball_mass,
+                                                       ball_radius=self.ball_radius))
+        self.nevent += 1
     def eval_positions(self, t):
         pass
     def eval_velocities(self, t):
