@@ -1,3 +1,4 @@
+import re
 from ctypes import c_float, POINTER, c_void_p
 from contextlib import contextmanager
 import logging
@@ -8,10 +9,9 @@ import OpenGL.GL as gl
 
 c_float_p = POINTER(c_float)
 
+
 NULL_PTR = c_void_p(0)
-
 CHECK_GL_ERRORS = False
-
 DTYPE_COMPONENT_TYPE = {
     np.dtype(np.uint16): gl.GL_UNSIGNED_SHORT,
     np.dtype(np.uint32): gl.GL_UNSIGNED_INT,
@@ -19,16 +19,44 @@ DTYPE_COMPONENT_TYPE = {
     np.dtype(np.int32): gl.GL_INT,
     np.dtype(np.float32): gl.GL_FLOAT
 }
+DTYPE_COMPONENT_TYPE_INV = {v: k for k, v in DTYPE_COMPONENT_TYPE.items()}
+GLSL_TYPE_SPEC = {
+    'float': gl.GL_FLOAT,
+    'vec2': gl.GL_FLOAT_VEC2,
+    'vec3': gl.GL_FLOAT_VEC3,
+    'vec4': gl.GL_FLOAT_VEC4,
+    'mat4': gl.GL_FLOAT_MAT4,
+    'mat3': gl.GL_FLOAT_MAT3
+}
+
 
 _logger = logging.getLogger(__name__)
 
 
 class Program(object):
+    ATTRIBUTE_DECL_RE = re.compile("attribute\s+(?P<type_spec>\w+)\s+(?P<attribute_name>\w+)\s*;")
+    UNIFORM_DECL_RE = re.compile("uniform\s+(?P<type_spec>\w+)\s+(?P<uniform_name>\w+)\s*(=\s*(?P<initialization>.*)\s*;|;)")
     _current = None
-    def __init__(self, vs_src, fs_src):
+    def __init__(self, vs_src, fs_src, parse_attributes=True, parse_uniforms=True):
         self.vs_src = vs_src
         self.fs_src = fs_src
         self.program_id = None
+        if parse_attributes:
+            attributes = {}
+            uniforms = {}
+            for line in vs_src.split('\n'):
+                m = self.ATTRIBUTE_DECL_RE.match(line)
+                if m:
+                    attribute_name, type_spec = m.group('attribute_name'), m.group('type_spec')
+                    attributes[attribute_name] = {'type': GLSL_TYPE_SPEC[type_spec]}
+                m = self.UNIFORM_DECL_RE.match(line)
+                if m:
+                    uniform_name, type_spec, initialization = m.group('uniform_name'), m.group('type_spec'), m.group('initialization')
+                    uniforms[uniform_name] = {'type': GLSL_TYPE_SPEC[type_spec]}
+                    if initialization:
+                        uniforms[uniform_name]['initialization'] = initialization
+            self.attributes = attributes
+            self.uniforms = uniforms
     def init_gl(self):
         if self.program_id is not None:
             return
@@ -336,6 +364,7 @@ class OpenGLRenderer(object):
         self.view_matrix[3,:3] = -self.camera_matrix[3,:3]
         self.view_matrix[:3,:3] = self.camera_matrix[:3,:3].T
         yield None
+        gl.glViewport(0, 0, self.window_size[0], self.window_size[1])
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         if meshes is not None:
             for mesh in meshes:

@@ -145,9 +145,6 @@ class PoolPhysics(object):
             events = Event.predict_events(self, events=events, **kwargs)
             return events
 
-    def __init__(self, num_balls=16):
-        self.t = 0.0
-
     def __init__(self,
                  num_balls=16,
                  ball_mass=0.17,

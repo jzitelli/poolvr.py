@@ -11,6 +11,9 @@ import OpenGL.GL as gl
 import cyglfw3 as glfw
 
 
+_logger = logging.getLogger(__name__)
+
+
 from .gl_rendering import OpenGLRenderer, Texture
 try:
     from .pyopenvr_renderer import OpenVRRenderer
@@ -26,9 +29,6 @@ BG_COLOR = (0.0, 0.0, 0.0, 0.0)
 TURN_SPEED = 1.2
 MOVE_SPEED = 0.3
 CUE_MOVE_SPEED = 0.3
-
-
-_logger = logging.getLogger(__name__)
 
 
 def setup_glfw(width=800, height=600, double_buffered=False):
@@ -97,17 +97,19 @@ def main(window_size=(800,600), novr=False):
         lr = MOVE_SPEED * dt * (key_state[glfw.KEY_D] - key_state[glfw.KEY_A])
         ud = MOVE_SPEED * dt * (key_state[glfw.KEY_Q] - key_state[glfw.KEY_Z])
         camera_position[:] += fb * camera_world_matrix[2,:3] + lr * camera_world_matrix[0,:3] + ud * camera_world_matrix[1,:3]
-        ud =  CUE_MOVE_SPEED * (-key_state[glfw.KEY_I] + key_state[glfw.KEY_K])
-        lr =  CUE_MOVE_SPEED * (key_state[glfw.KEY_L] - key_state[glfw.KEY_J])
-        fb = -CUE_MOVE_SPEED * (key_state[glfw.KEY_U] - key_state[glfw.KEY_M])
-        cue.world_matrix[:3,:3] = cue.rotation
+        fb = CUE_MOVE_SPEED * (-key_state[glfw.KEY_I] + key_state[glfw.KEY_K])
+        lr = CUE_MOVE_SPEED * (key_state[glfw.KEY_L] - key_state[glfw.KEY_J])
+        ud = CUE_MOVE_SPEED * (key_state[glfw.KEY_U] - key_state[glfw.KEY_M])
+        cue.world_matrix[:3,:3] = cue.rotation.T
         cue.velocity[:] = fb * cue.world_matrix[2,:3] + lr * cue.world_matrix[0,:3] + ud * cue.world_matrix[1,:3]
         cue.position += cue.velocity * dt
         process_mouse_input(dt, cue)
     gl.glClearColor(*BG_COLOR)
     gl.glEnable(gl.GL_DEPTH_TEST)
+
     _logger.info('* starting render loop...')
     sys.stdout.flush()
+
     nframes = 0
     lt = glfw.GetTime()
     while not glfw.WindowShouldClose(window):
@@ -117,7 +119,9 @@ def main(window_size=(800,600), novr=False):
         process_input(dt)
         renderer.process_input()
         with renderer.render(meshes=meshes) as frame_data:
+
             if frame_data:
+                # VR mode:
                 poses, velocities, angular_velocities = frame_data
                 if len(poses) > 1:
                     pose = poses[-1]
@@ -128,16 +132,15 @@ def main(window_size=(800,600), novr=False):
                     for i, position in cue.aabb_check(ball_positions, ball_radius):
                         contact = cue.contact(position, ball_radius)
                         if contact is not None:
-                            renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1], 0, 2000)
+                            renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1], 0, 1500)
                             cue.world_matrix[:3,:3].dot(contact, out=contact)
                             contact += cue.position
                             x, y, z = contact
                             print('%d: %.4f   %.4f   %.4f' % (i, x, y, z))
-                            if i == 0:
-                                pass
-                            else:
-                                print('scratch (touched %d)' % i)
-            else:
+                            #physics.strike_ball(i, cue.mass, contact - ball_positions[i], cue.velocity, cue.angular_velocity)
+
+            elif isinstance(renderer, OpenGLRenderer):
+                # desktop mode:
                 for i, position in cue.aabb_check(ball_positions, ball_radius):
                     contact = cue.contact(position, ball_radius)
                     if contact is not None:
@@ -149,6 +152,7 @@ def main(window_size=(800,600), novr=False):
                             pass
                         else:
                             print('scratch (touched %d)' % i)
+
         if nframes == 0:
             st = glfw.GetTime()
         nframes += 1
