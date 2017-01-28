@@ -1,7 +1,7 @@
 import numpy as np
 
 
-from .table import Table
+from .table import PoolTable
 from .physics import PoolPhysics
 
 
@@ -19,19 +19,16 @@ class PoolGame(object):
                    0xbb2244,
                    0x111111]
     BALL_COLORS = BALL_COLORS + BALL_COLORS[1:-1]
-    BALL_RADIUS = INCH2METER * 1.125
-    def __init__(self, table=None, ball_colors=BALL_COLORS, ball_radius=BALL_RADIUS):
-        if table is None:
-            table = Table()
+    def __init__(self, ball_colors=BALL_COLORS, **kwargs):
+        table = PoolTable(**kwargs)
         self.table = table
-        self.ball_radius = ball_radius
         self.ball_colors = ball_colors
         self.num_balls = len(ball_colors)
         self.ball_positions = np.empty((self.num_balls, 3), dtype=np.float32)
         self.initial_positions(out=self.ball_positions)
         self.physics = PoolPhysics(num_balls=self.num_balls)
     def initial_positions(self, d=None, out=None):
-        ball_radius = self.ball_radius
+        ball_radius = self.table.ball_radius
         if d is None:
             d = 0.04 * ball_radius
         if out is None:

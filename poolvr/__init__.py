@@ -58,12 +58,13 @@ def main(window_size=(800,600), novr=False):
     camera_position = camera_world_matrix[3,:3]
     cue = Cue()
     game = PoolGame()
+    ball_radius = game.table.ball_radius
     ball_billboards = BillboardParticles(Texture('textures/ball.png'), num_particles=game.num_balls,
-                                         scale=2*game.ball_radius,
+                                         scale=2*ball_radius,
                                          color=np.array([[(c & 0xff0000) / 0xff0000, (c & 0x00ff00) / 0x00ff00, (c & 0x0000ff) / 0x0000ff] for c in game.ball_colors], dtype=np.float32),
                                          translate=game.ball_positions)
     ball_positions = ball_billboards.primitive.attributes['translate']
-    meshes = [ball_billboards, cue]
+    meshes = [game.table.mesh, ball_billboards, cue]
     for mesh in meshes:
         mesh.init_gl()
     gl.glViewport(0, 0, window_size[0], window_size[1])
@@ -124,8 +125,8 @@ def main(window_size=(800,600), novr=False):
                     cue.world_matrix[3,:3] = poses[-1][:,3]
                     cue.velocity[:] = velocities[-1]
                     cue.angular_velocity = angular_velocities[-1]
-                    for i, position in cue.aabb_check(ball_positions, game.ball_radius):
-                        contact = cue.contact(position, game.ball_radius)
+                    for i, position in cue.aabb_check(ball_positions, ball_radius):
+                        contact = cue.contact(position, ball_radius)
                         if contact is not None:
                             renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1], 0, 2000)
                             cue.world_matrix[:3,:3].dot(contact, out=contact)
@@ -137,8 +138,8 @@ def main(window_size=(800,600), novr=False):
                             else:
                                 print('scratch (touched %d)' % i)
             else:
-                for i, position in cue.aabb_check(ball_positions, game.ball_radius):
-                    contact = cue.contact(position, game.ball_radius)
+                for i, position in cue.aabb_check(ball_positions, ball_radius):
+                    contact = cue.contact(position, ball_radius)
                     if contact is not None:
                         cue.world_matrix[:3,:3].dot(contact, out=contact)
                         contact += cue.position

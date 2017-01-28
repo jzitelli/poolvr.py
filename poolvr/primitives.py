@@ -80,8 +80,18 @@ class QuadPrimitive(Primitive):
     indices = np.array([0,1,3,2], dtype=np.uint16)
     index_buffer = None
     def __init__(self, vertices, **attributes):
+        n1 = np.cross(vertices[1] - vertices[0], vertices[2] - vertices[1])
+        n1 /= np.linalg.norm(n1)
+        n2 = np.cross(vertices[3] - vertices[2], vertices[0] - vertices[3])
+        n2 /= np.linalg.norm(n2)
+        if not np.allclose(n1, n2):
+            raise Exception('quad vertices are not co-planar')
+        uvs = np.array([[0.0, 0.0],
+                        [1.0, 0.0],
+                        [1.0, 1.0],
+                        [0.0, 1.0]], dtype=np.float32)
         Primitive.__init__(self, gl.GL_TRIANGLE_STRIP, QuadPrimitive.indices, index_buffer=QuadPrimitive.index_buffer,
-                           vertices=vertices, **attributes)
+                           vertices=vertices, uvs=uvs, **attributes)
     def init_gl(self):
         Primitive.init_gl(self)
         if QuadPrimitive.index_buffer is None:
@@ -89,13 +99,9 @@ class QuadPrimitive(Primitive):
 
 
 class PlanePrimitive(QuadPrimitive):
-    def __init__(self, width=1.0, height=1.0, **kwargs):
-        vertices = np.array([[-0.5*width, -0.5*height, 0.0],
-                             [0.5*width, -0.5*height, 0.0],
-                             [0.5*width, 0.5*height, 0.0],
-                             [-0.5*width, 0.5*height, 0.0]], dtype=np.float32)
-        uvs = np.array([[0.0, 0.0],
-                        [1.0, 0.0],
-                        [1.0, 1.0],
-                        [0.0, 1.0]], dtype=np.float32)
-        QuadPrimitive.__init__(self, vertices, uvs=uvs, **kwargs)
+    def __init__(self, width=1.0, height=1.0, depth=0.0, **attributes):
+        vertices = np.array([[-0.5*width, -0.5*height, 0.5*depth],
+                             [0.5*width, -0.5*height, 0.5*depth],
+                             [0.5*width, 0.5*height, -0.5*depth],
+                             [-0.5*width, 0.5*height, -0.5*depth]], dtype=np.float32)
+        QuadPrimitive.__init__(self, vertices, **attributes)
