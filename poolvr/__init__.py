@@ -117,7 +117,7 @@ def main(window_size=(800,600), novr=False):
     sys.stdout.flush()
 
     nframes = 0
-    max_frame_time = 0
+    max_frame_time = 0.0
     lt = glfw.GetTime()
     while not glfw.WindowShouldClose(window):
         t = glfw.GetTime()
@@ -137,22 +137,21 @@ def main(window_size=(800,600), novr=False):
                     cue.velocity[:] = velocities[-1]
                     cue.angular_velocity = angular_velocities[-1]
                     for i, position in cue.aabb_check(ball_positions, ball_radius):
-                        contact = cue.contact(position, ball_radius)
-                        if contact is not None:
+                        poc = cue.contact(position, ball_radius)
+                        if poc is not None:
+                            poc -= ball_positions[i]
+                            x, y, z = poc
+                            print('%f: %.5f   %.5f   %.5f' % (np.linalg.norm(poc), x, y, z))
                             renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1], 0, 1500)
-                            cue.world_matrix[:3,:3].dot(contact, out=contact)
-                            contact += cue.position
-                            #x, y, z = contact
-                            #print('%d: %.4f   %.4f   %.4f' % (i, x, y, z))
-                            physics.strike_ball(i, cue.mass, contact - ball_positions[i], cue.velocity, cue.angular_velocity)
+                            #physics.strike_ball(i, cue.mass, poc - ball_positions[i], cue.velocity, cue.angular_velocity)
 
             elif isinstance(renderer, OpenGLRenderer):
                 # desktop mode:
                 for i, position in cue.aabb_check(ball_positions, ball_radius):
-                    contact = cue.contact(position, ball_radius)
-                    if contact is not None:
-                        cue.world_matrix[:3,:3].dot(contact, out=contact)
-                        contact += cue.position
+                    poc = cue.contact(position, ball_radius)
+                    if poc is not None:
+                        #cue.world_matrix[:3,:3].dot(poc, out=contact)
+                        #contact += cue.position
                         # x, y, z = contact
                         # print('%d: %.4f   %.4f   %.4f' % (i, x, y, z))
                         if i == 0:
@@ -160,9 +159,9 @@ def main(window_size=(800,600), novr=False):
                         else:
                             print('scratch (touched %d)' % i)
 
+        max_frame_time = max(max_frame_time, dt)
         if nframes == 0:
             st = glfw.GetTime()
-            max_frame_time = max(max_frame_time, dt)
         nframes += 1
         glfw.SwapBuffers(window)
 

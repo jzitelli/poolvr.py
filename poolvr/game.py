@@ -5,9 +5,6 @@ from .table import PoolTable
 from .physics import PoolPhysics
 
 
-INCH2METER = 0.0254
-
-
 class PoolGame(object):
     BALL_COLORS = [0xddddde,
                    0xeeee00,

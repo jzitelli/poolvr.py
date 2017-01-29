@@ -1,5 +1,9 @@
+import logging
 from collections import deque
 import numpy as np
+
+
+_logger = logging.getLogger(__name__)
 
 
 INCH2METER = 0.0254
@@ -184,7 +188,6 @@ class PoolPhysics(object):
         lt = self.t
         self.t += dt
     def strike_ball(self, i, M, q, v, omega):
-        print(np.linalg.norm(q))
         self.events.append(PoolPhysics.StrikeBallEvent(self.t, i, q, v, omega,
                                                        cue_mass=M,
                                                        ball_mass=self.ball_mass,
