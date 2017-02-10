@@ -25,9 +25,9 @@ class OpenVRRenderer(object):
         poses_t = openvr.TrackedDevicePose_t * openvr.k_unMaxTrackedDeviceCount
         self.poses = poses_t()
         self.projection_matrices = (np.asarray(matrixForOpenVRMatrix(self.vr_system.getProjectionMatrix(openvr.Eye_Left,
-                                                                                                        znear, zfar, openvr.API_OpenGL))),
+                                                                                                        znear, zfar))),
                                     np.asarray(matrixForOpenVRMatrix(self.vr_system.getProjectionMatrix(openvr.Eye_Right,
-                                                                                                        znear, zfar, openvr.API_OpenGL))))
+                                                                                                        znear, zfar))))
         self.eye_transforms = (np.asarray(matrixForOpenVRMatrix(self.vr_system.getEyeToHeadTransform(openvr.Eye_Left)).I),
                                np.asarray(matrixForOpenVRMatrix(self.vr_system.getEyeToHeadTransform(openvr.Eye_Right)).I))
         self.view_matrices = (np.empty((4,4), dtype=np.float32),
