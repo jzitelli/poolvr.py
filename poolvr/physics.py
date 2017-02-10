@@ -12,12 +12,11 @@ INCH2METER = 0.0254
 class PoolPhysics(object):
 
     class StrikeBallEvent(object):
-        def __init__(self, t, i, q, Q, v, cue_mass):
+        def __init__(self, t, i, Q, V, cue_mass):
             self.t = t
             self.i = i
-            self.q = q
             self.Q = Q
-            self.v = v
+            self.V = V
             self.cue_mass = cue_mass
 
     class SlideToRollEvent(object):
@@ -26,17 +25,6 @@ class PoolPhysics(object):
             self.i = i
 
     class RollToRestEvent(object):
-        def __init__(self, t, i):
-            self.t = t
-            self.i = i
-
-    class BallCollisionEvent(object):
-        def __init__(self, t, i, j):
-            self.t = t
-            self.i = i
-            self.j = j
-
-    class CushionCollisionEvent(object):
         def __init__(self, t, i):
             self.t = t
             self.i = i
@@ -54,13 +42,14 @@ class PoolPhysics(object):
         self.num_balls = num_balls
         self.ball_mass = ball_mass
         self.ball_radius = ball_radius
+        self._I = 2.0/5 * ball_mass * ball_radius**2
         self.mu_r = mu_r
         self.mu_sp = mu_sp
         self.mu_s = mu_s
         self.e = e
         self.g = g
-        self.events = deque()
         self.t = 0.0
+        self.events = deque()
         self.nevent = 0
         # state of balls:
         self._a = np.zeros((num_balls, 3, 3), dtype=np.float32)
@@ -72,30 +61,34 @@ class PoolPhysics(object):
         lt = self.t
         self.t += dt
     def strike_ball(self, t, i, cue_mass, q, Q, V, omega):
-        event = PoolPhysics.StrikeBallEvent(t, i, q, Q, V, cue_mass)
         a, c, b = Q
         V_xz = V[::2]
         norm_V = np.linalg.norm(V)
         norm_V_xz = np.linalg.norm(V_xz)
-        sin, cos = abs(V_xz) / norm_V_xz
+        # sin, cos = abs(V_xz) / norm_V_xz
+        sin, cos = 0.0, 1.0
         M, m, R = cue_mass, self.ball_mass, self.ball_radius
         F = 2.0 * m * norm_V / (1 + m/M + 5.0/(2*R**2) * (a**2 + (b*cos)**2 + (c*sin)**2 - 2*b*c*cos*sin))
         norm_v = -F / m * cos
-        v = self._a[i,:,1]
+        v = self._a[i,:,1] # post-impact ball velocity
         v[0] = norm_v * V[0] / norm_V_xz
         v[2] = norm_v * V[2] / norm_V_xz
         v[1] = 0 # TODO
-        I = 2.0/5 * m * R**2
+        I = self._I
         omega_x = F * (-c * sin + b * cos) / I
         omega_z = F * a * sin / I
-        omega = self._b[i,:,0]
+        omega = self._b[i,:,0] # post-impact ball angular velocity
         omega[0] = omega_x * V[0] / norm_V_xz
         omega[2] = omega_z * V[2] / norm_V_xz
         omega[1] = 0
         # TODO: omega[1] = -F * a * cos / I
-        u = v + R * np.array((-omega[2], 0.0, omega[0]), dtype=np.float32)
-        self._b[i,1,1] = -5 * self.mu_sp * self.g / (2 * R)
-        self._b[i,::2,1] = -5 * self.mu_s * self.g / (2 * R) * np.array((-u[2], u[0]), dtype=np.float32)
+        u = v + R * np.array((-omega[2], 0.0, omega[0]), dtype=np.float32) # relative velocity
+        mu_s, mu_sp, g = self.mu_s, self.mu_sp, self.g
+        self._a[i,::2,2] = -0.5 * mu_s * g * u[::2]
+        self._b[i,::2,1] = -5 * mu_s * g / (2 * R) * np.array((-u[2], u[0]), dtype=np.float32)
+        self._b[i,1,1] = -5 * mu_sp * g / (2 * R)
+        tau_s = 2 * np.linalg.norm(u) / (7 * mu_s * g) # duration of sliding state
+        event = self.StrikeBallEvent(t, i, Q, V, cue_mass)
         self.nevent += 1
     def eval_positions(self, t, out=None):
         if out is None:
