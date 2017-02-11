@@ -128,9 +128,10 @@ def main(window_size=(800,600), novr=False):
                 for i, position in cue.aabb_check(ball_positions, ball_radius):
                     poc = cue.contact(position, ball_radius)
                     if poc is not None:
-                        cue.world_matrix[:3,:3].dot(poc, out=contact)
-                        contact += cue.position
-                        x, y, z = contact
+                        cue.world_matrix[:3,:3].dot(poc, out=poc)
+                        poc += cue.position
+                        x, y, z = poc
+                        print(np.linalg.norm(poc))
                         print('%d: %.4f   %.4f   %.4f' % (i, x, y, z))
                         if i == 0:
                             pass

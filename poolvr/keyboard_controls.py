@@ -38,6 +38,6 @@ def init_keyboard(window):
         lr = KB_CUE_MOVE_SPEED * (key_state[glfw.KEY_L] - key_state[glfw.KEY_J])
         ud = KB_CUE_MOVE_SPEED * (key_state[glfw.KEY_U] - key_state[glfw.KEY_M])
         cue.world_matrix[:3,:3] = cue.rotation.T
-        cue.velocity[:] = fb * cue.world_matrix[2,:3] + lr * cue.world_matrix[0,:3] + ud * cue.world_matrix[1,:3]
+        cue.velocity = -fb * cue.world_matrix[1,:3] + lr * cue.world_matrix[0,:3] + ud * cue.world_matrix[2,:3]
         cue.position += cue.velocity * dt
     return process_keyboard_input
