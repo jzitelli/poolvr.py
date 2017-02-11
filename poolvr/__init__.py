@@ -27,9 +27,6 @@ from .mouse_controls import init_mouse
 
 
 BG_COLOR = (0.0, 0.0, 0.0, 0.0)
-TURN_SPEED = 1.2
-MOVE_SPEED = 0.3
-CUE_MOVE_SPEED = 0.3
 
 
 def setup_glfw(width=800, height=600, double_buffered=False):
@@ -50,18 +47,19 @@ def setup_glfw(width=800, height=600, double_buffered=False):
 def main(window_size=(800,600), novr=False):
     _logger.info('HELLO')
     window = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=novr)
-    renderer = OpenGLRenderer(window_size=window_size, znear=0.1, zfar=1000)
-    camera_world_matrix = renderer.camera_matrix
-    camera_position = camera_world_matrix[3,:3]
     if not novr and OpenVRRenderer is not None:
         try:
             renderer = OpenVRRenderer(window_size=window_size)
         except Exception as err:
             _logger.error('could not initialize OpenVRRenderer: %s' % err)
+    else:
+        renderer = OpenGLRenderer(window_size=window_size, znear=0.1, zfar=1000)
+    camera_world_matrix = renderer.camera_matrix
     game = PoolGame()
+    physics = game.physics
     cue = Cue()
     cue.position[1] = game.table.height + 0.1
-    #cue.position[2] = game.table.length
+    camera_position = camera_world_matrix[3,:3]
     camera_position[1] = game.table.height + 0.6
     camera_position[2] = game.table.length - 0.1
     ball_radius = game.table.ball_radius
@@ -87,7 +85,6 @@ def main(window_size=(800,600), novr=False):
         process_mouse_input(dt, cue)
     gl.glClearColor(*BG_COLOR)
     gl.glEnable(gl.GL_DEPTH_TEST)
-    physics = game.physics
 
     _logger.info('starting render loop...')
     sys.stdout.flush()
@@ -102,9 +99,8 @@ def main(window_size=(800,600), novr=False):
         process_input(dt)
         renderer.process_input()
         with renderer.render(meshes=meshes) as frame_data:
-
+            # VR mode:
             if frame_data:
-                # VR mode:
                 poses, velocities, angular_velocities = frame_data
                 if len(poses) > 1:
                     pose = poses[-1]
@@ -117,12 +113,11 @@ def main(window_size=(800,600), novr=False):
                         if poc is not None:
                             poc -= ball_positions[i]
                             x, y, z = poc
-                            print('%f: %.5f   %.5f   %.5f' % (np.linalg.norm(poc), x, y, z))
+                            print('%f' % np.linalg.norm(poc))
                             renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1], 0, 1500)
                             #physics.strike_ball(i, cue.mass, poc - ball_positions[i], cue.velocity, cue.angular_velocity)
-
+            # desktop mode:
             elif isinstance(renderer, OpenGLRenderer):
-                # desktop mode:
                 for i, position in cue.aabb_check(ball_positions, ball_radius):
                     poc = cue.contact(position, ball_radius)
                     if poc is not None:
@@ -134,7 +129,6 @@ def main(window_size=(800,600), novr=False):
                             pass
                         else:
                             print('scratch (touched %d)' % i)
-
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:
             st = glfw.GetTime()
