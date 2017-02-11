@@ -71,9 +71,22 @@ class PoolPhysics(object):
         # state of balls:
         self._a = np.zeros((num_balls, 3, 3), dtype=np.float32)
         self._b = np.zeros((num_balls, 3, 2), dtype=np.float32)
+        self._t_E = np.zeros(num_balls, dtype=np.float32)
         self.on_table = np.array(self.num_balls * [True])
         self.is_sliding = np.array(self.num_balls * [False])
         self.is_rolling = np.array(self.num_balls * [False])
+    @staticmethod
+    def _quartic_solve(p):
+            return np.roots(p)
+    def _in_global_t(self, i, out=None):
+        if out is None:
+            out = np.empty((3,3), dtype=np.float32)
+        a_i = self._a[i]
+        t_E = self._t_E[i]
+        out[:,0] = a_i[:,0] - a_i[:,1] * t_E + a_i[:,2] * t_E**2
+        out[:,1] = a_i[:,1] - 2 * t_E * a_i[:,2]
+        out[:,2] = a_i[:,2]
+        return out
     def strike_ball(self, t, i, cue_mass, q, Q, V, omega):
         if not self.on_table[i]:
             return
@@ -110,6 +123,12 @@ class PoolPhysics(object):
         tau_s = 2 * np.linalg.norm(u) / (7 * mu_s * g)
         # duration until (potential) collision:
         tau_c = float('inf')
+        a_i = self._in_global_t(i)
+        a_j = np.empty((3,3), dtype=np.float32)
+        for j, on in enumerate(self.on_table):
+            if on:
+                self._in_global_t(j, out=a_j)
+                a_j -= a_i
         if tau_s < tau_c:
             leading_predicition = [self.SlideToRollEvent(t + tau_s, i)]
         else:
@@ -124,9 +143,10 @@ class PoolPhysics(object):
     def eval_positions(self, t, out=None):
         if out is None:
             out = np.empty((self.num_balls, 3), dtype=np.float32)
-        lt = self.events[-1].t
-        tarray = np.array((1.0, t - lt, (t - lt)**2), dtype=np.float32)
-        return self._a.dot(tarray, out=out)
+        # lt = self.events[-1].t
+        # tarray = np.array((1.0, t - lt, (t - lt)**2), dtype=np.float32)
+        # return self._a.dot(tarray, out=out)
+        raise TODO()
     def eval_quaternions(self, t, out=None):
         if out is None:
             out = np.empty((self.num_balls, 4), dtype=np.float32)

@@ -34,10 +34,10 @@ def init_keyboard(window):
         lr = KB_MOVE_SPEED * dt * (key_state[glfw.KEY_D] - key_state[glfw.KEY_A])
         ud = KB_MOVE_SPEED * dt * (key_state[glfw.KEY_Q] - key_state[glfw.KEY_Z])
         camera_position[:] += fb * camera_world_matrix[2,:3] + lr * camera_world_matrix[0,:3] + ud * camera_world_matrix[1,:3]
-        fb = KB_CUE_MOVE_SPEED * (-key_state[glfw.KEY_I] + key_state[glfw.KEY_K])
+        fb = KB_CUE_MOVE_SPEED * (key_state[glfw.KEY_I] - key_state[glfw.KEY_K])
         lr = KB_CUE_MOVE_SPEED * (key_state[glfw.KEY_L] - key_state[glfw.KEY_J])
         ud = KB_CUE_MOVE_SPEED * (key_state[glfw.KEY_U] - key_state[glfw.KEY_M])
         cue.world_matrix[:3,:3] = cue.rotation.T
-        cue.velocity = -fb * cue.world_matrix[1,:3] + lr * cue.world_matrix[0,:3] + ud * cue.world_matrix[2,:3]
+        cue.velocity = fb * cue.world_matrix[1,:3] + lr * cue.world_matrix[0,:3] + ud * cue.world_matrix[2,:3]
         cue.position += cue.velocity * dt
     return process_keyboard_input
