@@ -11,22 +11,30 @@ INCH2METER = 0.0254
 
 class PoolPhysics(object):
 
-    class StrikeBallEvent(object):
-        def __init__(self, t, i, Q, V, cue_mass):
+    class Event(object):
+        def __init__(self, t):
             self.t = t
+        def project_state(self, t, dof,
+                          positions=None, quaternions=None,
+                          velocities=None, angular_velocities=None):
+            pass
+
+    class StrikeBallEvent(Event):
+        def __init__(self, t, i, Q, V, cue_mass):
+            super(self).__init__(t)
             self.i = i
             self.Q = Q
             self.V = V
             self.cue_mass = cue_mass
 
-    class SlideToRollEvent(object):
+    class SlideToRollEvent(Event):
         def __init__(self, t, i):
-            self.t = t
+            super(self).__init__(t)
             self.i = i
 
-    class RollToRestEvent(object):
+    class RollToRestEvent(Event):
         def __init__(self, t, i):
-            self.t = t
+            super(self).__init__(t)
             self.i = i
 
     def __init__(self,

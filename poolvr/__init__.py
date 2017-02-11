@@ -22,6 +22,7 @@ except ImportError as err:
 from .billboards import BillboardParticles
 from .cue import Cue
 from .game import PoolGame
+from .keyboard_controls import init_keyboard
 from .mouse_controls import init_mouse
 
 
@@ -78,36 +79,11 @@ def main(window_size=(800,600), novr=False):
         renderer.window_size = (width, height)
         renderer.update_projection_matrix()
     glfw.SetWindowSizeCallback(window, on_resize)
-    key_state = defaultdict(bool)
-    def on_keydown(window, key, scancode, action, mods):
-        if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
-            glfw.SetWindowShouldClose(window, gl.GL_TRUE)
-        elif action == glfw.PRESS:
-            key_state[key] = True
-        elif action == glfw.RELEASE:
-            key_state[key] = False
-    glfw.SetKeyCallback(window, on_keydown)
+    process_keyboard_input = init_keyboard(window)
     process_mouse_input = init_mouse(window)
-    theta = 0.0
     def process_input(dt):
         glfw.PollEvents()
-        nonlocal theta
-        theta += TURN_SPEED * dt * (key_state[glfw.KEY_LEFT] - key_state[glfw.KEY_RIGHT])
-        sin, cos = np.sin(theta), np.cos(theta)
-        camera_world_matrix[0,0] = cos
-        camera_world_matrix[0,2] = -sin
-        camera_world_matrix[2,0] = sin
-        camera_world_matrix[2,2] = cos
-        fb = MOVE_SPEED * dt * (-key_state[glfw.KEY_W] + key_state[glfw.KEY_S])
-        lr = MOVE_SPEED * dt * (key_state[glfw.KEY_D] - key_state[glfw.KEY_A])
-        ud = MOVE_SPEED * dt * (key_state[glfw.KEY_Q] - key_state[glfw.KEY_Z])
-        camera_position[:] += fb * camera_world_matrix[2,:3] + lr * camera_world_matrix[0,:3] + ud * camera_world_matrix[1,:3]
-        fb = CUE_MOVE_SPEED * (-key_state[glfw.KEY_I] + key_state[glfw.KEY_K])
-        lr = CUE_MOVE_SPEED * (key_state[glfw.KEY_L] - key_state[glfw.KEY_J])
-        ud = CUE_MOVE_SPEED * (key_state[glfw.KEY_U] - key_state[glfw.KEY_M])
-        cue.world_matrix[:3,:3] = cue.rotation.T
-        cue.velocity[:] = fb * cue.world_matrix[2,:3] + lr * cue.world_matrix[0,:3] + ud * cue.world_matrix[1,:3]
-        cue.position += cue.velocity * dt
+        process_keyboard_input(dt, camera_world_matrix, cue)
         process_mouse_input(dt, cue)
     gl.glClearColor(*BG_COLOR)
     gl.glEnable(gl.GL_DEPTH_TEST)
