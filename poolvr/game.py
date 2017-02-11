@@ -1,4 +1,8 @@
+import logging
 import numpy as np
+
+
+_logger = logging.getLogger(__name__)
 
 
 from .table import PoolTable
