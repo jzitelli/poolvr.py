@@ -47,21 +47,21 @@ def setup_glfw(width=800, height=600, double_buffered=False):
 def main(window_size=(800,600), novr=False):
     _logger.info('HELLO')
     window = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=novr)
+    renderer = OpenGLRenderer(window_size=window_size, znear=0.1, zfar=1000)
+    camera_world_matrix = renderer.camera_matrix
+    camera_position = camera_world_matrix[3,:3]
+    game = PoolGame()
     if not novr and OpenVRRenderer is not None:
         try:
             renderer = OpenVRRenderer(window_size=window_size)
         except Exception as err:
             _logger.error('could not initialize OpenVRRenderer: %s' % err)
     else:
-        renderer = OpenGLRenderer(window_size=window_size, znear=0.1, zfar=1000)
-    camera_world_matrix = renderer.camera_matrix
-    game = PoolGame()
+        camera_position[1] = game.table.height + 0.6
+        camera_position[2] = game.table.length - 0.1
     physics = game.physics
     cue = Cue()
     cue.position[1] = game.table.height + 0.1
-    camera_position = camera_world_matrix[3,:3]
-    camera_position[1] = game.table.height + 0.6
-    camera_position[2] = game.table.length - 0.1
     ball_radius = game.table.ball_radius
     ball_billboards = BillboardParticles(Texture('textures/ball.png'), num_particles=game.num_balls,
                                          scale=2*ball_radius,
