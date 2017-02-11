@@ -1,0 +1,2 @@
+class TODO(Exception):
+    pass

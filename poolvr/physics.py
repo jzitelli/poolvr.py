@@ -6,6 +6,9 @@ import numpy as np
 _logger = logging.getLogger(__name__)
 
 
+from .exceptions import TODO
+
+
 INCH2METER = 0.0254
 
 
@@ -37,6 +40,12 @@ class PoolPhysics(object):
             super(self).__init__(t)
             self.i = i
 
+    class BallCollisionEvent(Event):
+        def __init__(self, t, i, j):
+            super(self).__init__(t)
+            self.i = i
+            self.j = j
+
     def __init__(self,
                  num_balls=16,
                  ball_mass=0.17,
@@ -65,10 +74,11 @@ class PoolPhysics(object):
         self.on_table = np.array(self.num_balls * [True])
         self.is_sliding = np.array(self.num_balls * [False])
         self.is_rolling = np.array(self.num_balls * [False])
-    def step(self, dt):
-        lt = self.t
-        self.t += dt
     def strike_ball(self, t, i, cue_mass, q, Q, V, omega):
+        if not self.on_table[i]:
+            return
+        event = self.StrikeBallEvent(t, i, Q, V, cue_mass)
+        self.events.append(event)
         a, c, b = Q
         V_xz = V[::2]
         norm_V = np.linalg.norm(V)
@@ -95,9 +105,22 @@ class PoolPhysics(object):
         self._a[i,::2,2] = -0.5 * mu_s * g * u[::2]
         self._b[i,::2,1] = -5 * mu_s * g / (2 * R) * np.array((-u[2], u[0]), dtype=np.float32)
         self._b[i,1,1] = -5 * mu_sp * g / (2 * R)
-        tau_s = 2 * np.linalg.norm(u) / (7 * mu_s * g) # duration of sliding state
-        event = self.StrikeBallEvent(t, i, Q, V, cue_mass)
-        self.nevent += 1
+        self.is_sliding[i] = True
+        # duration of sliding state:
+        tau_s = 2 * np.linalg.norm(u) / (7 * mu_s * g)
+        # duration until (potential) collision:
+        tau_c = float('inf')
+        if tau_s < tau_c:
+            leading_predicition = [self.SlideToRollEvent(t + tau_s, i)]
+        else:
+            leading_predicition = [self.BallCollisionEvent(t + tau_c, i, j)]
+        self.events += self.predict_events(leading_prediciton=leading_predicition)
+    def predict_events(self, leading_prediction=None):
+        if leading_prediction is None:
+            leading_prediction = []
+        for i, sliding in enumerate(self.is_sliding):
+            if sliding:
+                pass
     def eval_positions(self, t, out=None):
         if out is None:
             out = np.empty((self.num_balls, 3), dtype=np.float32)
@@ -107,4 +130,12 @@ class PoolPhysics(object):
     def eval_quaternions(self, t, out=None):
         if out is None:
             out = np.empty((self.num_balls, 4), dtype=np.float32)
-        raise Exception('TODO')
+        raise TODO()
+    def eval_velocities(self, t, out=None):
+        if out is None:
+            out = np.empty((self.num_balls, 3), dtype=np.float32)
+        raise TODO()
+    def eval_angular_velocities(self, t, out=None):
+        if out is None:
+            out = np.empty((self.num_balls, 3), dtype=np.float32)
+        raise TODO()

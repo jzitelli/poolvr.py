@@ -1,7 +1,6 @@
 import sys
 import os.path
 import logging
-from collections import defaultdict
 import numpy as np
 import OpenGL
 OpenGL.ERROR_CHECKING = False
@@ -14,6 +13,7 @@ import cyglfw3 as glfw
 _logger = logging.getLogger(__name__)
 
 
+from .exceptions import TODO
 from .gl_rendering import OpenGLRenderer, Texture
 try:
     from .pyopenvr_renderer import OpenVRRenderer
@@ -47,18 +47,23 @@ def setup_glfw(width=800, height=600, double_buffered=False):
 def main(window_size=(800,600), novr=False):
     _logger.info('HELLO')
     window = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=novr)
-    renderer = OpenGLRenderer(window_size=window_size, znear=0.1, zfar=1000)
-    camera_world_matrix = renderer.camera_matrix
+    fallback_renderer = OpenGLRenderer(window_size=window_size, znear=0.1, zfar=1000)
+    camera_world_matrix = fallback_renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
     game = PoolGame()
     if not novr and OpenVRRenderer is not None:
         try:
             renderer = OpenVRRenderer(window_size=window_size)
         except Exception as err:
+            renderer = fallback_renderer
             _logger.error('could not initialize OpenVRRenderer: %s' % err)
     else:
+        renderer = fallback_renderer
         camera_position[1] = game.table.height + 0.6
         camera_position[2] = game.table.length - 0.1
+    gl.glViewport(0, 0, window_size[0], window_size[1])
+    gl.glClearColor(*BG_COLOR)
+    gl.glEnable(gl.GL_DEPTH_TEST)
     physics = game.physics
     cue = Cue()
     cue.position[1] = game.table.height + 0.1
@@ -71,7 +76,6 @@ def main(window_size=(800,600), novr=False):
     meshes = [game.table.mesh, ball_billboards, cue]
     for mesh in meshes:
         mesh.init_gl()
-    gl.glViewport(0, 0, window_size[0], window_size[1])
     def on_resize(window, width, height):
         gl.glViewport(0, 0, width, height)
         renderer.window_size = (width, height)
@@ -83,8 +87,6 @@ def main(window_size=(800,600), novr=False):
         glfw.PollEvents()
         process_keyboard_input(dt, camera_world_matrix, cue)
         process_mouse_input(dt, cue)
-    gl.glClearColor(*BG_COLOR)
-    gl.glEnable(gl.GL_DEPTH_TEST)
 
     _logger.info('starting render loop...')
     sys.stdout.flush()
@@ -99,6 +101,7 @@ def main(window_size=(800,600), novr=False):
         process_input(dt)
         renderer.process_input()
         with renderer.render(meshes=meshes) as frame_data:
+
             # VR mode:
             if frame_data:
                 poses, velocities, angular_velocities = frame_data
@@ -114,28 +117,34 @@ def main(window_size=(800,600), novr=False):
                             poc -= ball_positions[i]
                             x, y, z = poc
                             print('%f' % np.linalg.norm(poc))
-                            renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1], 0, 1500)
-                            #physics.strike_ball(i, cue.mass, poc - ball_positions[i], cue.velocity, cue.angular_velocity)
+                            renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1],
+                                                                  0, 1500)
+                            physics.strike_ball(i, cue.mass,
+                                                poc - ball_positions[i],
+                                                cue.velocity, cue.angular_velocity)
+
             # desktop mode:
             elif isinstance(renderer, OpenGLRenderer):
                 for i, position in cue.aabb_check(ball_positions, ball_radius):
                     poc = cue.contact(position, ball_radius)
                     if poc is not None:
-                        #cue.world_matrix[:3,:3].dot(poc, out=contact)
-                        #contact += cue.position
-                        # x, y, z = contact
-                        # print('%d: %.4f   %.4f   %.4f' % (i, x, y, z))
+                        cue.world_matrix[:3,:3].dot(poc, out=contact)
+                        contact += cue.position
+                        x, y, z = contact
+                        print('%d: %.4f   %.4f   %.4f' % (i, x, y, z))
                         if i == 0:
                             pass
                         else:
                             print('scratch (touched %d)' % i)
+
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:
             st = glfw.GetTime()
         nframes += 1
         glfw.SwapBuffers(window)
 
-    _logger.info('...stopped rendering: average FPS: %f, maximum frame time: %f' % ((nframes - 1) / (t - st), max_frame_time))
+    _logger.info('...stopped rendering: average FPS: %f, maximum frame time: %f'
+                 % ((nframes - 1) / (t - st), max_frame_time))
 
     renderer.shutdown()
     _logger.info('...shut down renderer')
