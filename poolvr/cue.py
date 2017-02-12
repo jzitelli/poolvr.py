@@ -14,6 +14,7 @@ class Cue(Mesh):
         cylinder = CylinderPrimitive(radius=radius, height=length)
         cylinder.attributes['a_position'] = cylinder.attributes['vertices']
         Mesh.__init__(self, {Material(EGA_TECHNIQUE): [cylinder]})
+        self.update_world_matrices()
         self._positions = None
         self.position = self.world_matrix[3,:3]
         self.velocity = np.zeros(3, dtype=np.float32)
@@ -21,6 +22,7 @@ class Cue(Mesh):
         self.bb = np.array([[-radius, -0.5*length, -radius],
                             [radius, 0.5*length, radius]], dtype=np.float32)
         self._positions = None
+        self.y_local = self.world_matrix[1,:3]
     def aabb_check(self, positions, ball_radius):
         if self._positions is None:
             self._positions = np.empty(positions.shape, dtype=positions.dtype)
@@ -67,3 +69,6 @@ class Cue(Mesh):
             self.world_matrix[:3,:3].dot(poc, out=poc)
             poc += self.position
         return poc
+    @property
+    def tip_position(self):
+        return self.position + 0.5 * self.length * self.y_local

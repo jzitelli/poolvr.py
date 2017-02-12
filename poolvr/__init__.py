@@ -119,9 +119,10 @@ def main(window_size=(800,600), novr=False):
                             print('%f' % np.linalg.norm(poc))
                             renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1],
                                                                   0, 1500)
-                            physics.strike_ball(i, cue.mass,
+                            physics.strike_ball(t, i, cue.mass,
+                                                cue.world_matrix[1,:3],
                                                 poc - ball_positions[i],
-                                                cue.velocity, cue.angular_velocity)
+                                                cue.velocity)
 
             # desktop mode:
             elif isinstance(renderer, OpenGLRenderer):
