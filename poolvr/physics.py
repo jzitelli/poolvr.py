@@ -24,7 +24,7 @@ class PoolPhysics(object):
 
     class StrikeBallEvent(Event):
         def __init__(self, t, i, Q, V, cue_mass):
-            super(self).__init__(t)
+            super().__init__(t)
             self.i = i
             self.Q = Q
             self.V = V
@@ -32,17 +32,17 @@ class PoolPhysics(object):
 
     class SlideToRollEvent(Event):
         def __init__(self, t, i):
-            super(self).__init__(t)
+            super().__init__(t)
             self.i = i
 
     class RollToRestEvent(Event):
         def __init__(self, t, i):
-            super(self).__init__(t)
+            super().__init__(t)
             self.i = i
 
     class BallCollisionEvent(Event):
         def __init__(self, t, i, j):
-            super(self).__init__(t)
+            super().__init__(t)
             self.i = i
             self.j = j
 
@@ -55,6 +55,7 @@ class PoolPhysics(object):
                  mu_s=0.2,
                  e=0.93,
                  g=9.81,
+                 initial_positions=None,
                  **kwargs):
         self.num_balls = num_balls
         self.ball_mass = ball_mass
@@ -75,9 +76,12 @@ class PoolPhysics(object):
         self.on_table = np.array(self.num_balls * [True])
         self.is_sliding = np.array(self.num_balls * [False])
         self.is_rolling = np.array(self.num_balls * [False])
+        if initial_positions:
+            self._a[:,:,0] = initial_positions
     @staticmethod
     def _quartic_solve(p):
-            return np.roots(p)
+        # TODO: use analytic solution method (e.g. Ferrari)
+        return np.roots(p)
     def _in_global_t(self, i, out=None):
         if out is None:
             out = np.empty((3,3), dtype=np.float32)
@@ -87,11 +91,12 @@ class PoolPhysics(object):
         out[:,1] = a_i[:,1] - 2 * t_E * a_i[:,2]
         out[:,2] = a_i[:,2]
         return out
-    def strike_ball(self, t, i, cue_mass, q, Q, V, omega):
+    def strike_ball(self, t, i, cue_mass, q, Q, V):
         if not self.on_table[i]:
             return
         event = self.StrikeBallEvent(t, i, Q, V, cue_mass)
         self.events.append(event)
+        self._t_E[i] = t
         a, c, b = Q
         V_xz = V[::2]
         norm_V = np.linalg.norm(V)
@@ -124,16 +129,27 @@ class PoolPhysics(object):
         # duration until (potential) collision:
         tau_c = float('inf')
         a_i = self._in_global_t(i)
-        a_j = np.empty((3,3), dtype=np.float32)
+        d = np.empty((3,3), dtype=np.float32)
+        p = np.empty(5, dtype=np.float32)
         for j, on in enumerate(self.on_table):
             if on:
-                self._in_global_t(j, out=a_j)
-                a_j -= a_i
+                d -= self._in_global_t(j, out=d)
+                a_x, a_y = d[::2, 2]
+                b_x, b_y = d[::2, 1]
+                c_x, c_y = d[::2, 0]
+                p[0] = a_x**2 + a_y**2
+                p[1] = 2 * (a_x * b_x + a_y * b_y)
+                p[2] = b_x**2 + 2 * a_x * c_x + 2 * a_y * c_y + b_y**2
+                p[3] = 2 * b_x * c_x + 2 * b_y * c_y
+                p[4] = c_x**2 + c_y**2 - 4 * R**2
+                roots = PoolPhysics._quartic_solve(p)
+                print(roots)
+                raise Exception()
         if tau_s < tau_c:
-            leading_predicition = [self.SlideToRollEvent(t + tau_s, i)]
+            leading_prediction = [self.SlideToRollEvent(t + tau_s, i)]
         else:
-            leading_predicition = [self.BallCollisionEvent(t + tau_c, i, j)]
-        self.events += self.predict_events(leading_prediciton=leading_predicition)
+            leading_prediction = [self.BallCollisionEvent(t + tau_c, i, j)]
+        self.events += self.predict_events(leading_prediciton=leading_prediction)
     def predict_events(self, leading_prediction=None):
         if leading_prediction is None:
             leading_prediction = []
