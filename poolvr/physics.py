@@ -23,9 +23,10 @@ class PoolPhysics(object):
             pass
 
     class StrikeBallEvent(Event):
-        def __init__(self, t, i, Q, V, cue_mass):
+        def __init__(self, t, i, q, Q, V, cue_mass):
             super().__init__(t)
             self.i = i
+            self.q = q
             self.Q = Q
             self.V = V
             self.cue_mass = cue_mass
@@ -73,6 +74,8 @@ class PoolPhysics(object):
         self._a = np.zeros((num_balls, 3, 3), dtype=np.float32)
         self._b = np.zeros((num_balls, 3, 2), dtype=np.float32)
         self._t_E = np.zeros(num_balls, dtype=np.float32)
+        self._positions = self._a[:,:,0]
+        self._velocities = self._a[:,:,1]
         self.on_table = np.array(self.num_balls * [True])
         self.is_sliding = np.array(self.num_balls * [False])
         self.is_rolling = np.array(self.num_balls * [False])
@@ -91,10 +94,10 @@ class PoolPhysics(object):
         out[:,1] = a_i[:,1] - 2 * t_E * a_i[:,2]
         out[:,2] = a_i[:,2]
         return out
-    def strike_ball(self, t, i, cue_mass, q, Q, V):
+    def strike_ball(self, t, i, q, Q, V, cue_mass):
         if not self.on_table[i]:
             return
-        event = self.StrikeBallEvent(t, i, Q, V, cue_mass)
+        event = self.StrikeBallEvent(t, i, q, Q, V, cue_mass)
         self.events.append(event)
         self._t_E[i] = t
         a, c, b = Q
@@ -149,7 +152,9 @@ class PoolPhysics(object):
             leading_prediction = [self.SlideToRollEvent(t + tau_s, i)]
         else:
             leading_prediction = [self.BallCollisionEvent(t + tau_c, i, j)]
-        self.events += self.predict_events(leading_prediciton=leading_prediction)
+        predicted_events = self.predict_events(leading_prediciton=leading_prediction)
+        self.events += predicted_events
+        return predicted_events
     def predict_events(self, leading_prediction=None):
         if leading_prediction is None:
             leading_prediction = []
