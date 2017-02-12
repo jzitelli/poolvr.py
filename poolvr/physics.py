@@ -17,6 +17,10 @@ class PoolPhysics(object):
     class Event(object):
         def __init__(self, t):
             self.t = t
+        def __lt__(self, other):
+            return self.t < other.t
+        def __gt__(self, other):
+            return self.t > other.t
         def project_state(self, t, dof,
                           positions=None, quaternions=None,
                           velocities=None, angular_velocities=None):
@@ -121,6 +125,7 @@ class PoolPhysics(object):
         if not self.on_table[i]:
             return
         event = self.StrikeBallEvent(t, i, q, Q, V, cue_mass)
+        events = [event]
         self.events.append(event)
         self.ball_events[i] = event
         self._t_E[i] = t
@@ -152,48 +157,52 @@ class PoolPhysics(object):
         self._b[i,1,1] = -5 * mu_sp * g / (2 * R)
         self.is_sliding[i] = True
         # duration of sliding state:
-        tau_s = 2 * np.linalg.norm(u) / (7 * mu_s * g)
-        # duration until (potential) collision:
-        tau_c = float('inf')
+        tau = 2 * np.linalg.norm(u) / (7 * mu_s * g)
+        predicted_event = self.SlideToRollEvent(t + tau, i)
+        # determine any collisions during sliding state:
         a_i = self._in_global_t(i).reshape(3,3)
         p = np.empty(5, dtype=np.float32)
         for j, on in enumerate(self.on_table):
             if on:
                 a_j = self._in_global_t(j).reshape(3,3)
                 t_E = self._find_collision(a_i, a_j)
-                if t_E:
-                    print(j, t_E)
-                    tau_c = min(tau_c, t_E - t)
-                    print(j, tau_c)
-        if tau_s < tau_c:
-            leading_prediction = [self.SlideToRollEvent(t + tau_s, i)]
-        else:
-            leading_prediction = [self.BallCollisionEvent(t + tau_c, i, j)]
-        predicted_events = self.predict_events(leading_prediction=leading_prediction)
-        self.events += predicted_events
-        return predicted_events
+                if t_E and t_E < predicted_event.t:
+                    predicted_event = self.BallCollisionEvent(t_E, i, j)
+        events.append(predicted_event)
+        self.events.append(predicted_event)
+        return events
+    def predict_next_event(self, leading_prediction=None):
+        tau = float('inf')
+        for i, e_i in enumerate(self.ball_events):
+            pass
+        return leading_prediction
     def predict_events(self, leading_prediction=None):
         if leading_prediction is None:
             leading_prediction = []
         events = []
-        tau_c = float('inf')
+        tau = float('inf')
         for i in range(self.num_balls):
+            e_i = self.ball_events[i]
             if self.is_sliding[i] or self.is_rolling[i]:
                 a_i = self._in_global_t(i).reshape(3,3)
                 for j in range(i+1, self.num_balls):
                     a_j = self._in_global_t(j).reshape(3,3)
                     t_E = self._find_collision(a_i, a_j)
-                    if t_E:
-                        tau_c = min(tau_c, t_E - self.t)
+                    if t_E and t_E - self.t < tau:
+                        tau = t_E - self.t
+                        events = [self.BallCollisionEvent(t_E, i, j)]
         return events
     def eval_positions(self, t, out=None):
         if out is None:
             out = np.empty((self.num_balls, 3), dtype=np.float32)
-        self._in_global_t(np.range(self.num_balls))
-        # lt = self.events[-1].t
-        # tarray = np.array((1.0, t - lt, (t - lt)**2), dtype=np.float32)
-        # return self._a.dot(tarray, out=out)
-        raise TODO()
+        for i, e_i in enumerate(self.ball_events):
+            if e_i is not None:
+                tau = t - e_i.t
+                self._a.dot(np.array((1.0, tau, tau**2), dtype=np.float32),
+                            out=out[i])
+            else:
+                out[i] = self._a[i,:,0]
+        return out
     def eval_quaternions(self, t, out=None):
         if out is None:
             out = np.empty((self.num_balls, 4), dtype=np.float32)
