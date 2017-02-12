@@ -85,14 +85,18 @@ class PoolPhysics(object):
     def _quartic_solve(p):
         # TODO: use analytic solution method (e.g. Ferrari)
         return np.roots(p)
-    def _in_global_t(self, i, out=None):
+    def _in_global_t(self, balls, out=None):
+        if isinstance(balls, int):
+            balls = [balls]
+        n = len(balls)
         if out is None:
-            out = np.empty((3,3), dtype=np.float32)
-        a_i = self._a[i]
-        t_E = self._t_E[i]
-        out[:,0] = a_i[:,0] - a_i[:,1] * t_E + a_i[:,2] * t_E**2
-        out[:,1] = a_i[:,1] - 2 * t_E * a_i[:,2]
-        out[:,2] = a_i[:,2]
+            out = np.empty((n,3,3), dtype=np.float32)
+        for ii, i in enumerate(balls):
+            a_i = self._a[i]
+            t_E = self._t_E[i]
+            out[ii,:,0] = a_i[:,0] - a_i[:,1] * t_E + a_i[:,2] * t_E**2
+            out[ii,:,1] = a_i[:,1] - 2 * t_E * a_i[:,2]
+            out[ii,:,2] = a_i[:,2]
         return out
     def strike_ball(self, t, i, q, Q, V, cue_mass):
         if not self.on_table[i]:
@@ -131,12 +135,14 @@ class PoolPhysics(object):
         tau_s = 2 * np.linalg.norm(u) / (7 * mu_s * g)
         # duration until (potential) collision:
         tau_c = float('inf')
-        a_i = self._in_global_t(i)
+        a_i = self._in_global_t(i).reshape(3,3)
         d = np.empty((3,3), dtype=np.float32)
         p = np.empty(5, dtype=np.float32)
         for j, on in enumerate(self.on_table):
             if on:
-                d -= self._in_global_t(j, out=d)
+                a_j = self._in_global_t(j).reshape(3,3)
+                print(a_j)
+                d -= a_j
                 a_x, a_y = d[::2, 2]
                 b_x, b_y = d[::2, 1]
                 c_x, c_y = d[::2, 0]
@@ -145,6 +151,7 @@ class PoolPhysics(object):
                 p[2] = b_x**2 + 2 * a_x * c_x + 2 * a_y * c_y + b_y**2
                 p[3] = 2 * b_x * c_x + 2 * b_y * c_y
                 p[4] = c_x**2 + c_y**2 - 4 * R**2
+                print(p)
                 roots = PoolPhysics._quartic_solve(p)
                 print(roots)
                 raise Exception()
@@ -164,6 +171,7 @@ class PoolPhysics(object):
     def eval_positions(self, t, out=None):
         if out is None:
             out = np.empty((self.num_balls, 3), dtype=np.float32)
+        self._in_global_t(np.range(self.num_balls))
         # lt = self.events[-1].t
         # tarray = np.array((1.0, t - lt, (t - lt)**2), dtype=np.float32)
         # return self._a.dot(tarray, out=out)

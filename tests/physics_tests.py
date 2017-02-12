@@ -6,7 +6,7 @@ from poolvr.table import PoolTable
 from poolvr.physics import PoolPhysics
 
 
-class PhysicsTest(TestCase):
+class PhysicsTests(TestCase):
     def setUp(self):
         self.table = PoolTable
         self.physics = PoolPhysics()
