@@ -8,7 +8,7 @@ from poolvr.physics import PoolPhysics
 
 class PhysicsTests(TestCase):
     def setUp(self):
-        self.table = PoolTable
+        self.table = PoolTable()
         self.physics = PoolPhysics()
         self.cue = Cue()
     # def tearDown(self):

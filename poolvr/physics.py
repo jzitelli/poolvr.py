@@ -94,6 +94,7 @@ class PoolPhysics(object):
         for ii, i in enumerate(balls):
             a_i = self._a[i]
             t_E = self._t_E[i]
+            print(ii, t_E)
             out[ii,:,0] = a_i[:,0] - a_i[:,1] * t_E + a_i[:,2] * t_E**2
             out[ii,:,1] = a_i[:,1] - 2 * t_E * a_i[:,2]
             out[ii,:,2] = a_i[:,2]
@@ -136,13 +137,13 @@ class PoolPhysics(object):
         # duration until (potential) collision:
         tau_c = float('inf')
         a_i = self._in_global_t(i).reshape(3,3)
-        d = np.empty((3,3), dtype=np.float32)
         p = np.empty(5, dtype=np.float32)
         for j, on in enumerate(self.on_table):
             if on:
                 a_j = self._in_global_t(j).reshape(3,3)
                 print(a_j)
-                d -= a_j
+                raise Exception()
+                d = a_i - a_j
                 a_x, a_y = d[::2, 2]
                 b_x, b_y = d[::2, 1]
                 c_x, c_y = d[::2, 0]
@@ -154,7 +155,6 @@ class PoolPhysics(object):
                 print(p)
                 roots = PoolPhysics._quartic_solve(p)
                 print(roots)
-                raise Exception()
         if tau_s < tau_c:
             leading_prediction = [self.SlideToRollEvent(t + tau_s, i)]
         else:
