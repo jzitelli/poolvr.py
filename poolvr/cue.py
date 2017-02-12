@@ -14,6 +14,7 @@ class Cue(Mesh):
         cylinder = CylinderPrimitive(radius=radius, height=length)
         cylinder.attributes['a_position'] = cylinder.attributes['vertices']
         Mesh.__init__(self, {Material(EGA_TECHNIQUE): [cylinder]})
+        self.update_world_matrices()
         self._positions = None
         self.position = self.world_matrix[3,:3]
         self.velocity = np.zeros(3, dtype=np.float32)
