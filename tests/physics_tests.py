@@ -13,6 +13,9 @@ from poolvr.game import PoolGame
 from poolvr.physics import PoolPhysics
 
 
+from .viewer import OpenGLViewer
+
+
 class PhysicsTests(TestCase):
     def setUp(self):
         self.table = PoolTable()
@@ -30,8 +33,10 @@ class PhysicsTests(TestCase):
         print({e.t: e for e in events})
         T = events[-1].t
         fig = plt.figure()
-        ts = np.linspace(0.0, T, 1000)
-        plt.plot(ts, [self.physics.eval_positions(t)[0][0] for t in ts], '-')
-        plt.plot(ts, [self.physics.eval_positions(t)[0][1] for t in ts], '--')
-        plt.plot(ts, [self.physics.eval_positions(t)[0][2] for t in ts], '-x')
+        ts = np.linspace(0.0, T, 50)
+        plt.plot(ts, [self.physics.eval_positions(t)[0,0] for t in ts], '-o', label='$x$')
+        plt.plot(ts, [self.physics.eval_positions(t)[0,1] for t in ts], '-s', label='$y$')
+        plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-x', label='$z$')
+        plt.xlabel('$t$')
+        plt.legend()
         plt.show()

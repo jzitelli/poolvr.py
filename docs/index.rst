@@ -6,11 +6,17 @@
 poolvr.py
 =========
 
-Contents:
+User guide:
 
 .. toctree::
+   installing
    :maxdepth: 2
 
+Developer guide:
+
+.. toctree::
+   physics
+   :maxdepth: 2
 
 
 Indices and tables

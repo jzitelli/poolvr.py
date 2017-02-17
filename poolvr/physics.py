@@ -1,6 +1,7 @@
 import logging
 from collections import deque
 import numpy as np
+import heapq
 
 
 _logger = logging.getLogger(__name__)
@@ -15,20 +16,26 @@ INCH2METER = 0.0254
 class PoolPhysics(object):
 
     class Event(object):
-        def __init__(self, t):
+        def __init__(self, t, _a=None, _b=None):
             self.t = t
+            if _a is not None:
+                self._a = _a
+            if _b is not None:
+                self._b = _b
         def __lt__(self, other):
             return self.t < other.t
         def __gt__(self, other):
             return self.t > other.t
+        def __eq__(self, other):
+            return self.t == other.t
         def project_state(self, t, dof,
                           positions=None, quaternions=None,
                           velocities=None, angular_velocities=None):
             pass
 
     class StrikeBallEvent(Event):
-        def __init__(self, t, i, q, Q, V, cue_mass):
-            super().__init__(t)
+        def __init__(self, t, i, q, Q, V, cue_mass, **kwargs):
+            super().__init__(t, **kwargs)
             self.i = i
             self.q = q
             self.Q = Q
@@ -36,18 +43,18 @@ class PoolPhysics(object):
             self.cue_mass = cue_mass
 
     class SlideToRollEvent(Event):
-        def __init__(self, t, i):
-            super().__init__(t)
+        def __init__(self, t, i, **kwargs):
+            super().__init__(t, **kwargs)
             self.i = i
 
     class RollToRestEvent(Event):
-        def __init__(self, t, i):
-            super().__init__(t)
+        def __init__(self, t, i, **kwargs):
+            super().__init__(t, **kwargs)
             self.i = i
 
     class BallCollisionEvent(Event):
-        def __init__(self, t, i, j):
-            super().__init__(t)
+        def __init__(self, t, i, j, **kwargs):
+            super().__init__(t, **kwargs)
             self.i = i
             self.j = j
 
@@ -72,7 +79,8 @@ class PoolPhysics(object):
         self.e = e
         self.g = g
         self.t = 0.0
-        self.events = deque()
+        #self.events = deque()
+        self.events = []
         self.nevent = 0
         # state of balls:
         self._a = np.zeros((num_balls, 3, 3), dtype=np.float32)
@@ -129,11 +137,6 @@ class PoolPhysics(object):
         """
         if not self.on_table[i]:
             return
-        event = self.StrikeBallEvent(t, i, q, Q, V, cue_mass)
-        events = [event]
-        self.events.append(event)
-        self.ball_events[i] = event
-        self._t_E[i] = t
         a, c, b = Q
         V_xz = V[::2]
         norm_V = np.linalg.norm(V)
@@ -160,8 +163,17 @@ class PoolPhysics(object):
         self._a[i,::2,2] = -0.5 * mu_s * g * u[::2]
         self._b[i,::2,1] = -5 * mu_s * g / (2 * R) * np.array((-u[2], u[0]), dtype=np.float32)
         self._b[i,1,1] = -5 * mu_sp * g / (2 * R)
-        self.is_sliding[i] = True
+
+        event = self.StrikeBallEvent(t, i, q, Q, V, cue_mass, _a=self._a.copy(), _b=self._b.copy())
+
+        events = [event]
+        #self.events.append(event)
+        heapq.heappush(self.events, event)
+        self.ball_events[i] = event
+        self._t_E[i] = t
+
         # duration of sliding state:
+        self.is_sliding[i] = True
         tau = 2 * np.linalg.norm(u) / (7 * mu_s * g)
         predicted_event = self.SlideToRollEvent(t + tau, i)
         # determine any collisions during sliding state:
@@ -174,7 +186,8 @@ class PoolPhysics(object):
                 if t_E and t_E < predicted_event.t:
                     predicted_event = self.BallCollisionEvent(t_E, i, j)
         events.append(predicted_event)
-        self.events.append(predicted_event)
+        #self.events.append(predicted_event)
+        heapq.heappush(self.events, predicted_event)
         return events
     def predict_next_event(self, leading_prediction=None):
         tau = float('inf')
