@@ -1,6 +1,7 @@
 import logging
 from unittest import TestCase
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 _logger = logging.getLogger(__name__)
@@ -27,3 +28,10 @@ class PhysicsTests(TestCase):
                                           self.cue.velocity,
                                           self.cue.mass)
         print({e.t: e for e in events})
+        T = events[-1].t
+        fig = plt.figure()
+        ts = np.linspace(0.0, T, 1000)
+        plt.plot(ts, [self.physics.eval_positions(t)[0][0] for t in ts], '-')
+        plt.plot(ts, [self.physics.eval_positions(t)[0][1] for t in ts], '--')
+        plt.plot(ts, [self.physics.eval_positions(t)[0][2] for t in ts], '-x')
+        plt.show()

@@ -121,6 +121,12 @@ class PoolPhysics(object):
         roots = sorted(roots, key=lambda t: (abs(t.imag), t.real))
         return roots[0].real
     def strike_ball(self, t, i, q, Q, V, cue_mass):
+        """
+        Strike ball *i* at time *t*.  The cue is aligned in direction *q*,
+        and strikes the ball at point *Q* which is specified in coordinates
+        local to the ball (i.e. :math:`||Q|| = \emph{ball_radius}`, and aligned with *q* along the second (:math:`y`-) axis.
+        *V* is the velocity of the cue while striking.
+        """
         if not self.on_table[i]:
             return
         event = self.StrikeBallEvent(t, i, q, Q, V, cue_mass)
