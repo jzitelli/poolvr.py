@@ -40,7 +40,7 @@ def setup_glfw(width=800, height=600, double_buffered=False):
         glfw.Terminate()
         raise Exception('failed to create glfw window')
     glfw.MakeContextCurrent(window)
-    _logger.info('GL_VERSION: %s' % gl.glGetString(gl.GL_VERSION))
+    _logger.info('GL_VERSION: %s', gl.glGetString(gl.GL_VERSION))
     return window
 
 
@@ -56,7 +56,7 @@ def main(window_size=(800,600), novr=False):
             renderer = OpenVRRenderer(window_size=window_size)
         except Exception as err:
             renderer = fallback_renderer
-            _logger.error('could not initialize OpenVRRenderer: %s' % err)
+            _logger.error('could not initialize OpenVRRenderer: %s', err)
     else:
         renderer = fallback_renderer
         camera_position[1] = game.table.height + 0.6
@@ -70,9 +70,12 @@ def main(window_size=(800,600), novr=False):
     ball_radius = game.table.ball_radius
     ball_billboards = BillboardParticles(Texture('textures/ball.png'), num_particles=game.num_balls,
                                          scale=2*ball_radius,
-                                         color=np.array([[(c & 0xff0000) / 0xff0000, (c & 0x00ff00) / 0x00ff00, (c & 0x0000ff) / 0x0000ff] for c in game.ball_colors], dtype=np.float32),
+                                         color=np.array([[(c&0xff0000) / 0xff0000, (c&0x00ff00) / 0x00ff00, (c&0x0000ff) / 0x0000ff]
+                                                         for c in game.ball_colors], dtype=np.float32),
                                          translate=game.ball_positions)
     ball_positions = ball_billboards.primitive.attributes['translate']
+    ball_quaternions = np.zeros((game.num_balls, 4), dtype=np.float32)
+    ball_quaternions[:,3] = 1.0
     meshes = [game.table.mesh, ball_billboards, cue]
     for mesh in meshes:
         mesh.init_gl()
@@ -88,7 +91,7 @@ def main(window_size=(800,600), novr=False):
         process_keyboard_input(dt, camera_world_matrix, cue)
         process_mouse_input(dt, cue)
 
-    _logger.info('starting render loop...')
+    _logger.info('entering render loop...')
     sys.stdout.flush()
 
     nframes = 0
@@ -102,7 +105,8 @@ def main(window_size=(800,600), novr=False):
         renderer.process_input()
         with renderer.render(meshes=meshes) as frame_data:
 
-            # VR mode:
+            ##### VR mode: #####
+
             if frame_data:
                 poses, velocities, angular_velocities = frame_data
                 if len(poses) > 1:
@@ -116,15 +120,19 @@ def main(window_size=(800,600), novr=False):
                         if poc is not None:
                             poc -= ball_positions[i]
                             x, y, z = poc
-                            print('%f' % np.linalg.norm(poc))
                             renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1],
-                                                                  0, 1500)
-                            physics.strike_ball(t, i, cue.mass,
+                                                                  0, 1300)
+                            physics.strike_ball(t, i,
                                                 cue.world_matrix[1,:3],
                                                 poc - ball_positions[i],
-                                                cue.velocity)
+                                                cue.velocity, cue.mass)
+                            break
+                physics.eval_positions(t, out=ball_positions)
+                physics.eval_quaternions(t, out=ball_quaternions)
+                ball_billboards.update_gl()
 
-            # desktop mode:
+            ##### desktop mode: #####
+
             elif isinstance(renderer, OpenGLRenderer):
                 for i, position in cue.aabb_check(ball_positions, ball_radius):
                     poc = cue.contact(position, ball_radius)
@@ -145,8 +153,8 @@ def main(window_size=(800,600), novr=False):
         nframes += 1
         glfw.SwapBuffers(window)
 
-    _logger.info('...stopped rendering: average FPS: %f, maximum frame time: %f'
-                 % ((nframes - 1) / (t - st), max_frame_time))
+    _logger.info('...exited render loop: average FPS: %f, maximum frame time: %f',
+                 (nframes - 1) / (t - st), max_frame_time)
 
     renderer.shutdown()
     _logger.info('...shut down renderer')

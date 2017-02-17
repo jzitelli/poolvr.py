@@ -27,7 +27,8 @@ class PoolGame(object):
         self.num_balls = len(ball_colors)
         self.ball_positions = np.empty((self.num_balls, 3), dtype=np.float32)
         self.initial_positions(out=self.ball_positions)
-        self.physics = PoolPhysics(num_balls=self.num_balls)
+        self.physics = PoolPhysics(num_balls=self.num_balls,
+                                   initial_positions=self.ball_positions)
     def initial_positions(self, d=None, out=None):
         ball_radius = self.table.ball_radius
         if d is None:

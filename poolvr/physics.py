@@ -118,8 +118,7 @@ class PoolPhysics(object):
         roots = [t for t in roots if t.real > self.t and abs(t.imag / t.real) < 0.01]
         if not roots:
             return None
-        roots = sorted(roots, key=lambda t: abs(t.imag))
-        roots = sorted(roots, key=lambda t: t.real)
+        roots = sorted(roots, key=lambda t: (abs(t.imag), t.real))
         return roots[0].real
     def strike_ball(self, t, i, q, Q, V, cue_mass):
         if not self.on_table[i]:
@@ -198,15 +197,15 @@ class PoolPhysics(object):
         for i, e_i in enumerate(self.ball_events):
             if e_i is not None:
                 tau = t - e_i.t
-                self._a.dot(np.array((1.0, tau, tau**2), dtype=np.float32),
-                            out=out[i])
+                self._a[i].dot(np.array((1.0, tau, tau**2), dtype=np.float32),
+                               out=out[i])
             else:
                 out[i] = self._a[i,:,0]
         return out
     def eval_quaternions(self, t, out=None):
         if out is None:
             out = np.empty((self.num_balls, 4), dtype=np.float32)
-        raise TODO()
+        #raise TODO()
     def eval_velocities(self, t, out=None):
         if out is None:
             out = np.empty((self.num_balls, 3), dtype=np.float32)
