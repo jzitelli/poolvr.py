@@ -247,15 +247,16 @@ class PoolPhysics(object):
         for i, e_i in enumerate(self.ball_events):
             if e_i is not None:
                 tau = t - e_i.t
-                self._a[i].dot(np.array((1.0, tau, tau**2), dtype=np.float32),
-                               out=out[i])
+                out[:] = self._a[i,0] + tau * self._a[i,1] + tau**2 * self._a[i,2]
+                # self._a[i].dot(np.array((1.0, tau, tau**2), dtype=np.float32),
+                #                out=out[i])
             else:
-                out[i] = self._a[i,:,0]
+                out[i] = self._a[i,0]
         return out
     def eval_quaternions(self, t, out=None):
         if out is None:
             out = np.empty((self.num_balls, 4), dtype=np.float32)
-        #raise TODO()
+        raise TODO()
     def eval_velocities(self, t, out=None):
         if out is None:
             out = np.empty((self.num_balls, 3), dtype=np.float32)
