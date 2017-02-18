@@ -66,11 +66,15 @@ class PoolPhysics(object):
             self._a[2,::2] = -0.5 * mu_s * g * u[::2]
             self._b[1,::2] = -5 * mu_s * g / (2 * R) * np.array((-u[2], u[0]), dtype=np.float32)
             self._b[1,1] = -5 * mu_sp * g / (2 * R)
+            tau_s = 2 * np.linalg.norm(u) / (7 * mu_s * g)
+            self.next_event = self.physics.SlideToRollEvent(t + tau_s, i)
 
     class SlideToRollEvent(PhysicsEvent):
         def __init__(self, t, i):
             super().__init__(t)
             self.i = i
+            tau_r = 2.0
+            self.next_event = self.physics.RollToRestEvent(t + tau_r, i)
 
     class RollToRestEvent(PhysicsEvent):
         def __init__(self, t, i):
@@ -162,11 +166,7 @@ class PoolPhysics(object):
         self.events.append(event)
         self.ball_events[i] = event
         self._t_E[i] = t
-
-        # duration of sliding state:
         self.is_sliding[i] = True
-        tau = 2 * np.linalg.norm(u) / (7 * mu_s * g)
-        predicted_event = self.SlideToRollEvent(t + tau, i)
         # determine any collisions during sliding state:
         a_i = self._in_global_t(i).reshape(3,3)
         p = np.empty(5, dtype=np.float32)
@@ -230,7 +230,7 @@ class PoolPhysics(object):
         a_x, a_y = d[2, ::2]
         b_x, b_y = d[1, ::2]
         c_x, c_y = d[0, ::2]
-        p = self._find_collision.p
+        p = np.empty(5, dtype=np.float32)
         p[0] = a_x**2 + a_y**2
         p[1] = 2 * (a_x * b_x + a_y * b_y)
         p[2] = b_x**2 + 2 * a_x * c_x + 2 * a_y * c_y + b_y**2
@@ -242,4 +242,3 @@ class PoolPhysics(object):
             return None
         roots = sorted(roots, key=lambda t: (abs(t.imag), t.real))
         return roots[0].real
-    _find_collision.p = np.empty(5, dtype=np.float32)

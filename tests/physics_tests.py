@@ -57,14 +57,3 @@ class PhysicsTests(TestCase):
         except:
             _logger.warning("could not save the plot to {}. i'll just show it to you:", pth)
             plt.show()
-
-        plt.xlabel('$t$ (seconds)')
-        plt.ylabel('$x, y, z$ (meters)')
-        plt.legend()
-        pth = os.path.join(PLOTS_DIR, 'test_strike_ball.png')
-        try:
-            plt.savefig(pth)
-            _logger.info('wrote %s', pth)
-        except:
-            _logger.warning("could not save the plot to {}. i'll just show it to you:", pth)
-            plt.show()
