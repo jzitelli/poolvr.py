@@ -37,7 +37,7 @@ setup(
     # installed, specify them here.  If using Python 2.6 or less, then these
     # have to be included in MANIFEST.in as well.
     package_data={
-        'poolvr': map(lambda filename: path.join('shaders', filename), listdir('shaders/')),
+        'poolvr': [path.join('shaders', filename) for filename in listdir(path.join('poolvr', 'shaders'))],
     },
     # Although 'package_data' is the preferred approach, in some case you may
     # need to place data files outside of your packages. See:
