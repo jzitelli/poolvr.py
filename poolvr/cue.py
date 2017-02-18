@@ -15,7 +15,7 @@ EGA_TECHNIQUE = Technique(Program(pkgutil.get_data('poolvr', 'shaders/ega_vs.gls
                                                 'value': [0.5, 0.5, 0.0, 0.0]}})
 
 
-class Cue(Mesh):
+class PoolCue(Mesh):
     rotation = np.array([[1.0,  0.0, 0.0],
                          [0.0,  0.0, 1.0],
                          [0.0, -1.0, 0.0]], dtype=np.float32)

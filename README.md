@@ -12,6 +12,10 @@ VR pool simulator written in Python (using pyopenvr)
 - numpy
 - pillow
 
+If you want to run the tests, the following are also required:
+
+- matplotlib
+
 
 ## HOW TO INSTALL:
 

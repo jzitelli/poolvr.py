@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 _logger = logging.getLogger(__name__)
 
 
-from poolvr.cue import Cue
+from poolvr.cue import PoolCue
 from poolvr.table import PoolTable
 from poolvr.game import PoolGame
 from poolvr.physics import PoolPhysics
@@ -23,7 +23,7 @@ class PhysicsTests(TestCase):
     def setUp(self):
         self.table = PoolTable()
         self.game = PoolGame()
-        self.cue = Cue()
+        self.cue = PoolCue()
         self.physics = PoolPhysics(initial_positions=self.game.ball_positions)
         self.physics.PhysicsEvent.physics = self.physics
 

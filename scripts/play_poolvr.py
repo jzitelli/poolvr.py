@@ -1,7 +1,8 @@
 #!/usr/bin/python
 import argparse
 import logging
-import poolvr
+import poolvr.app
+
 
 if __name__ == "__main__":
     FORMAT = '  POOLVR.PY 0.0.1  | %(asctime)s | %(name)s --- %(levelname)s *** %(message)s'
@@ -9,4 +10,4 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--novr", help="non-VR mode", action="store_true")
     args = parser.parse_args()
-    poolvr.main(novr=args.novr)
+    poolvr.app.main(novr=args.novr)
