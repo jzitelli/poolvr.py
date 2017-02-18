@@ -1,7 +1,7 @@
 #!/bin/env python
 from setuptools import setup, find_packages
 from codecs import open
-from os import path
+from os import path, listdir
 
 here = path.abspath(path.dirname(__file__))
 
@@ -36,7 +36,9 @@ setup(
     # If there are data files included in your packages that need to be
     # installed, specify them here.  If using Python 2.6 or less, then these
     # have to be included in MANIFEST.in as well.
-    package_data={},
+    package_data={
+        'poolvr': map(lambda filename: path.join('shaders', filename), listdir('shaders/')),
+    },
     # Although 'package_data' is the preferred approach, in some case you may
     # need to place data files outside of your packages. See:
     # http://docs.python.org/3.4/distutils/setupscript.html#installing-additional-files # noqa
