@@ -1,4 +1,5 @@
 import logging
+import bisect
 import numpy as np
 
 
@@ -14,11 +15,21 @@ INCH2METER = 0.0254
 class PoolPhysics(object):
 
     class PhysicsEvent(object):
-
         physics = None
-
+        _num_balls = 0
         def __init__(self, t, **kwargs):
             self.t = t
+            self.T = 0
+            self.next_event = None
+        def _calc_global_coeffs(self):
+            if self._num_balls == 0:
+                return
+            a = self._a.copy().reshape(self._num_balls, 3, 3)
+            b = self._b.copy().reshape(self._num_balls, 2, 3)
+            t = self.t
+            a[:,0] += -t * self._a[:,1] + t**2 * self._a[:,2]
+            a[:,1] += -2 * t * self._a[:,2]
+            return a, b
         def __lt__(self, other):
             return self.t < other.t
         def __gt__(self, other):
@@ -27,6 +38,7 @@ class PoolPhysics(object):
             return self.t == other.t
 
     class StrikeBallEvent(PhysicsEvent):
+        _num_balls = 1
         def __init__(self, t, i, q, Q, V, cue_mass):
             super().__init__(t)
             self.i = i
@@ -67,26 +79,38 @@ class PoolPhysics(object):
             self._b[1,::2] = -5 * mu_s * g / (2 * R) * np.array((-u[2], u[0]), dtype=np.float32)
             self._b[1,1] = -5 * mu_sp * g / (2 * R)
             tau_s = 2 * np.linalg.norm(u) / (7 * mu_s * g)
+            self.T = tau_s
             self.next_event = self.physics.SlideToRollEvent(t + tau_s, i)
 
     class SlideToRollEvent(PhysicsEvent):
+        _num_balls = 1
         def __init__(self, t, i):
             super().__init__(t)
             self.i = i
+            if self.physics:
+                self._a = self.physics._a[i].copy()
+                self._b = self.physics._b[i].copy()
+            else:
+                self._a = np.zeros((3,3), dtype=np.float32)
+                self._b = np.zeros((2,3), dtype=np.float32)
             tau_r = 2.0
+            self.T = tau_r
             self.next_event = self.physics.RollToRestEvent(t + tau_r, i)
 
     class RollToRestEvent(PhysicsEvent):
+        _num_balls = 1
         def __init__(self, t, i):
             super().__init__(t)
             self.i = i
 
     class BallCollisionEvent(PhysicsEvent):
+        _num_balls = 2
         def __init__(self, t, i, j):
             super().__init__(t)
             self.i = i
             self.j = j
 
+    _dummy_event = PhysicsEvent(0)
 
     def __init__(self,
                  num_balls=16,
@@ -110,17 +134,17 @@ class PoolPhysics(object):
         self.g = g
         self.t = 0.0
         self.events = []
+        self.ball_events = self.num_balls * [None]
         self.nevent = 0
-        self._I = 2.0/5 * ball_mass * ball_radius**2
-        self._a = np.zeros((num_balls, 3, 3), dtype=np.float32)
-        self._b = np.zeros((num_balls, 2, 3), dtype=np.float32)
-        self._t_E = np.zeros(num_balls, dtype=np.float32)
         self.on_table = np.array(self.num_balls * [True])
         self.is_sliding = np.array(self.num_balls * [False])
         self.is_rolling = np.array(self.num_balls * [False])
-        self.ball_events = self.num_balls * [None]
+        self._I = 2.0/5 * ball_mass * ball_radius**2
+        self._a = np.zeros((num_balls, 3, 3), dtype=np.float32)
         if initial_positions is not None:
             self._a[:,0] = initial_positions
+        self._b = np.zeros((num_balls, 2, 3), dtype=np.float32)
+        self._t_E = np.zeros(num_balls, dtype=np.float32)
 
     def strike_ball(self, t, i, q, Q, V, cue_mass):
         """
@@ -133,62 +157,46 @@ class PoolPhysics(object):
         """
         if not self.on_table[i]:
             return
-        a, c, b = Q
-        V_xz = V[::2]
-        norm_V = np.linalg.norm(V)
-        norm_V_xz = np.linalg.norm(V_xz)
-        # sin, cos = abs(V_xz) / norm_V_xz
-        sin, cos = 0.0, 1.0
-        M, m, R = cue_mass, self.ball_mass, self.ball_radius
-        F = 2.0 * m * norm_V / (1 + m/M + 5.0/(2*R**2) * (a**2 + (b*cos)**2 + (c*sin)**2 - 2*b*c*cos*sin))
-        norm_v = -F / m * cos
-        v = self._a[i,1] # post-impact ball velocity
-        v[0] = norm_v * V[0] / norm_V_xz
-        v[2] = norm_v * V[2] / norm_V_xz
-        v[1] = 0 # TODO
-        I = self._I
-        omega_x = F * (-c * sin + b * cos) / I
-        omega_z = F * a * sin / I
-        omega = self._b[i,0] # post-impact ball angular velocity
-        omega[0] = omega_x * V[0] / norm_V_xz
-        omega[2] = omega_z * V[2] / norm_V_xz
-        omega[1] = 0
-        # TODO: omega[1] = -F * a * cos / I
-        u = v + R * np.array((-omega[2], 0.0, omega[0]), dtype=np.float32) # relative velocity
-        mu_s, mu_sp, g = self.mu_s, self.mu_sp, self.g
-        self._a[i,2,::2] = -0.5 * mu_s * g * u[::2]
-        self._b[i,1,::2] = -5 * mu_s * g / (2 * R) * np.array((-u[2], u[0]), dtype=np.float32)
-        self._b[i,1,1] = -5 * mu_sp * g / (2 * R)
-
         event = self.StrikeBallEvent(t, i, q, Q, V, cue_mass)
-
+        _a, _b = event._calc_global_coeffs()
+        self._a[i] = _a[0]
+        self._b[i] = _b[0]
         events = [event]
         self.events.append(event)
         self.ball_events[i] = event
         self._t_E[i] = t
         self.is_sliding[i] = True
-        # determine any collisions during sliding state:
-        a_i = self._in_global_t(i).reshape(3,3)
-        p = np.empty(5, dtype=np.float32)
+        # while events[-1].next_event is not None:
+        #     predicted_event = event.next_event
+        #     for j, on in enumerate(self.on_table):
+        #         if j == i: continue
+        #         if on:
+        #             t_c = self._find_collision(self._a[i], self._a[j])
+        #             if t_c and t_c < predicted_event.t:
+        #                 predicted_event = self.BallCollisionEvent(t_c, i, j)
+        #     events.append(predicted_event)
+        predicted_event = event.next_event
         for j, on in enumerate(self.on_table):
+            if j == i: continue
             if on:
-                a_j = self._in_global_t(j).reshape(3,3)
-                t_E = self._find_collision(a_i, a_j)
-                if t_E and t_E < predicted_event.t:
-                    predicted_event = self.BallCollisionEvent(t_E, i, j)
+                t_c = self._find_collision(self._a[i], self._a[j])
+                if t_c and t_c < predicted_event.t:
+                    predicted_event = self.BallCollisionEvent(t_c, i, j)
         events.append(predicted_event)
-        self.events.append(predicted_event)
+        self.events += events
         return events
 
     def eval_positions(self, t, out=None):
         if out is None:
             out = np.empty((self.num_balls, 3), dtype=np.float32)
-        for i, e_i in enumerate(self.ball_events):
-            if e_i is not None:
-                tau = t - e_i.t
-                out[:] = self._a[i,0] + tau * self._a[i,1] + tau**2 * self._a[i,2]
-            else:
-                out[i] = self._a[i,0]
+        out[:] = self._a[:,0]
+        for e in self._find_active_events(t):
+            tau = t - e.t
+            if e._num_balls == 1:
+                out[e.i] = e._a[0] + tau * e._a[1] + tau**2 * e._a[2]
+            elif e._num_balls == 2:
+                out[e.i] = e._a[0,0] + tau * e._a[0,1] + tau**2 * e._a[0,2]
+                out[e.j] = e._a[1,0] + tau * e._a[1,1] + tau**2 * e._a[1,2]
         return out
 
     def eval_quaternions(self, t, out=None):
@@ -211,19 +219,10 @@ class PoolPhysics(object):
         # TODO: use analytic solution method (e.g. Ferrari)
         return np.roots(p)
 
-    def _in_global_t(self, balls, out=None):
-        if isinstance(balls, int):
-            balls = [balls]
-        n = len(balls)
-        if out is None:
-            out = np.empty((n,3,3), dtype=np.float32)
-        for ii, i in enumerate(balls):
-            a_i = self._a[i]
-            t_E = self._t_E[i]
-            out[ii,0] = a_i[0] - a_i[1] * t_E + a_i[2] * t_E**2
-            out[ii,1] = a_i[1] - 2 * t_E * a_i[2]
-            out[ii,2] = a_i[2]
-        return out
+    def _find_active_events(self, t):
+        self._dummy_event.t = t
+        n = bisect.bisect_left(self.events, self._dummy_event)
+        return [e for e in self.events[:n] if e.t + e.T >= t]
 
     def _find_collision(self, a_i, a_j):
         d = a_i - a_j
