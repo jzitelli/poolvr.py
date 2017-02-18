@@ -43,3 +43,11 @@ For information on command-line options and other help:
 ```
 python play_poolvr.py -h
 ```
+
+
+## HOW TO RUN TESTS:
+
+From the root folder:
+```
+python scripts/run_tests.py
+```

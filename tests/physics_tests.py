@@ -36,10 +36,14 @@ class PhysicsTests(TestCase):
         events = self.physics.strike_ball(0.0, 0, self.cue.world_matrix[1,:3], Q,
                                           self.cue.velocity,
                                           self.cue.mass)
-        print({e.t: e for e in events})
-        T = events[-1].t
+        _logger.info('\n'.join(['  %f: %s' % (e.t, e) for e in events]))
+        #self.assertEquals(3, len(events))
+        self.assertIsInstance(events[0], PoolPhysics.StrikeBallEvent)
+        self.assertIsInstance(events[1], PoolPhysics.SlideToRollEvent)
+        #self.assertIsInstance(events[2], PoolPhysics.RollToRestEvent)
+
         fig = plt.figure()
-        ts = np.linspace(0.0, T, 50)
+        ts = np.linspace(0.0, events[1].t, 50)
         plt.plot(ts, [self.physics.eval_positions(t)[0,0] for t in ts], '-o', label='$x$')
         plt.plot(ts, [self.physics.eval_positions(t)[0,1] for t in ts], '-s', label='$y$')
         plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-d', label='$z$')
