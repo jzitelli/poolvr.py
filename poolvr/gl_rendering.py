@@ -278,10 +278,6 @@ class Node(object):
             child.update_world_matrices(world_matrix=world_matrix)
 
 
-class Scene(Node):
-    pass
-
-
 class Mesh(Node):
     _modelview = np.eye(4, dtype=np.float32)
     _normal = np.eye(3, dtype=np.float32)

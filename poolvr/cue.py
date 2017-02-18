@@ -1,6 +1,18 @@
+import pkgutil
+import OpenGL.GL as gl
+
+
 from .gl_rendering import *
 from .primitives import *
-from .techniques import *
+
+
+EGA_TECHNIQUE = Technique(Program(pkgutil.get_data('poolvr', 'shaders/ega_vs.glsl').decode(),
+                                  pkgutil.get_data('poolvr', 'shaders/ega_fs.glsl').decode()),
+                          attributes={'a_position': {'type': gl.GL_FLOAT_VEC3}},
+                          uniforms={'u_modelview': {'type': gl.GL_FLOAT_MAT4},
+                                    'u_projection': {'type': gl.GL_FLOAT_MAT4},
+                                    'u_color': {'type': gl.GL_FLOAT_VEC4,
+                                                'value': [0.5, 0.5, 0.0, 0.0]}})
 
 
 class Cue(Mesh):

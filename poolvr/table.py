@@ -1,9 +1,30 @@
-from .gl_rendering import Mesh, Material
-from .techniques import EGA_TECHNIQUE
+import pkgutil
+import OpenGL.GL as gl
+
+
+from .gl_rendering import Mesh, Material, Technique, Program
 from .primitives import BoxPrimitive, PlanePrimitive, HexaPrimitive
 
 
 INCH2METER = 0.0254
+
+
+EGA_TECHNIQUE = Technique(Program(pkgutil.get_data('poolvr', 'shaders/ega_vs.glsl').decode(),
+                                  pkgutil.get_data('poolvr', 'shaders/ega_fs.glsl').decode()),
+                          attributes={'a_position': {'type': gl.GL_FLOAT_VEC3}},
+                          uniforms={'u_modelview': {'type': gl.GL_FLOAT_MAT4},
+                                    'u_projection': {'type': gl.GL_FLOAT_MAT4},
+                                    'u_color': {'type': gl.GL_FLOAT_VEC4}})
+
+
+LAMBERT_TECHNIQUE = Technique(Program(pkgutil.get_data('poolvr', 'shaders/lambert_vs.glsl').decode(),
+                                      pkgutil.get_data('poolvr', 'shaders/lambert_fs.glsl').decode()),
+                              attributes={'a_position': {'type': gl.GL_FLOAT_VEC3}},
+                              uniforms={'u_modelview': {'type': gl.GL_FLOAT_MAT4},
+                                        'u_projection': {'type': gl.GL_FLOAT_MAT4},
+                                        'u_color': {'type': gl.GL_FLOAT_VEC4},
+                                        'u_lightpos': {'type': gl.GL_FLOAT_VEC3,
+                                                       'value': [0.0, 10.0, -2.0]}})
 
 
 class PoolTable(object):
