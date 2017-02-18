@@ -117,40 +117,7 @@ class PoolPhysics(object):
         self.ball_events = self.num_balls * [None]
         if initial_positions is not None:
             self._a[:,0] = initial_positions
-    @staticmethod
-    def _quartic_solve(p):
-        # TODO: use analytic solution method (e.g. Ferrari)
-        return np.roots(p)
-    def _in_global_t(self, balls, out=None):
-        if isinstance(balls, int):
-            balls = [balls]
-        n = len(balls)
-        if out is None:
-            out = np.empty((n,3,3), dtype=np.float32)
-        for ii, i in enumerate(balls):
-            a_i = self._a[i]
-            t_E = self._t_E[i]
-            out[ii,0] = a_i[0] - a_i[1] * t_E + a_i[2] * t_E**2
-            out[ii,1] = a_i[1] - 2 * t_E * a_i[2]
-            out[ii,2] = a_i[2]
-        return out
-    def _find_collision(self, a_i, a_j):
-        d = a_i - a_j
-        a_x, a_y = d[2, ::2]
-        b_x, b_y = d[1, ::2]
-        c_x, c_y = d[0, ::2]
-        p = np.empty(5, dtype=np.float32)
-        p[0] = a_x**2 + a_y**2
-        p[1] = 2 * (a_x * b_x + a_y * b_y)
-        p[2] = b_x**2 + 2 * a_x * c_x + 2 * a_y * c_y + b_y**2
-        p[3] = 2 * b_x * c_x + 2 * b_y * c_y
-        p[4] = c_x**2 + c_y**2 - 4 * self.ball_radius**2
-        roots = self._quartic_solve(p)
-        roots = [t for t in roots if t.real > self.t and abs(t.imag / t.real) < 0.01]
-        if not roots:
-            return None
-        roots = sorted(roots, key=lambda t: (abs(t.imag), t.real))
-        return roots[0].real
+
     def strike_ball(self, t, i, q, Q, V, cue_mass):
         """
         Strike ball *i* at game time *t*.  The cue points in the direction specified
@@ -212,6 +179,7 @@ class PoolPhysics(object):
         events.append(predicted_event)
         self.events.append(predicted_event)
         return events
+
     def eval_positions(self, t, out=None):
         if out is None:
             out = np.empty((self.num_balls, 3), dtype=np.float32)
@@ -222,15 +190,56 @@ class PoolPhysics(object):
             else:
                 out[i] = self._a[i,0]
         return out
+
     def eval_quaternions(self, t, out=None):
         if out is None:
             out = np.empty((self.num_balls, 4), dtype=np.float32)
         raise TODO()
+
     def eval_velocities(self, t, out=None):
         if out is None:
             out = np.empty((self.num_balls, 3), dtype=np.float32)
         raise TODO()
+
     def eval_angular_velocities(self, t, out=None):
         if out is None:
             out = np.empty((self.num_balls, 3), dtype=np.float32)
         raise TODO()
+
+    @staticmethod
+    def _quartic_solve(p):
+        # TODO: use analytic solution method (e.g. Ferrari)
+        return np.roots(p)
+
+    def _in_global_t(self, balls, out=None):
+        if isinstance(balls, int):
+            balls = [balls]
+        n = len(balls)
+        if out is None:
+            out = np.empty((n,3,3), dtype=np.float32)
+        for ii, i in enumerate(balls):
+            a_i = self._a[i]
+            t_E = self._t_E[i]
+            out[ii,0] = a_i[0] - a_i[1] * t_E + a_i[2] * t_E**2
+            out[ii,1] = a_i[1] - 2 * t_E * a_i[2]
+            out[ii,2] = a_i[2]
+        return out
+
+    def _find_collision(self, a_i, a_j):
+        d = a_i - a_j
+        a_x, a_y = d[2, ::2]
+        b_x, b_y = d[1, ::2]
+        c_x, c_y = d[0, ::2]
+        p = self._find_collision.p
+        p[0] = a_x**2 + a_y**2
+        p[1] = 2 * (a_x * b_x + a_y * b_y)
+        p[2] = b_x**2 + 2 * a_x * c_x + 2 * a_y * c_y + b_y**2
+        p[3] = 2 * b_x * c_x + 2 * b_y * c_y
+        p[4] = c_x**2 + c_y**2 - 4 * self.ball_radius**2
+        roots = self._quartic_solve(p)
+        roots = [t for t in roots if t.real > self.t and abs(t.imag / t.real) < 0.01]
+        if not roots:
+            return None
+        roots = sorted(roots, key=lambda t: (abs(t.imag), t.real))
+        return roots[0].real
+    _find_collision.p = np.empty(5, dtype=np.float32)
