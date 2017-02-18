@@ -1,3 +1,4 @@
+import pkgutil
 from ctypes import c_void_p
 import numpy as np
 import PIL.Image as Image
@@ -12,34 +13,8 @@ NULL_PTR = c_void_p(0)
 
 
 class BillboardParticles(Node):
-    technique = Technique(Program("""precision highp float;
-uniform mat4 u_modelview;
-uniform mat4 u_projection;
-attribute vec3 position;
-attribute vec2 uv;
-attribute vec3 translate;
-attribute vec3 color;
-varying vec2 vUv;
-varying vec3 v_color;
-void main() {
-  vec4 mvPosition = u_modelview * vec4( translate, 1.0 );
-  vec3 z = normalize(-mvPosition.xyz);
-  vec3 x = normalize(vec3(z.z, 0.0, -z.x));
-  vec3 y = cross(z, x);
-  mvPosition.xyz += position.x * x + position.y * y + position.z * z;
-  vUv = uv;
-  v_color = color;
-  gl_Position = u_projection * mvPosition;
-}""",
-                                  """precision highp float;
-uniform sampler2D map;
-varying vec2 vUv;
-varying vec3 v_color;
-void main() {
-  vec4 diffuseColor = texture2D(map, vUv);
-  gl_FragColor = vec4(v_color, 1.0) * diffuseColor;
-  if (diffuseColor.w < 0.25) discard;
-}"""),
+    technique = Technique(Program(pkgutil.get_data('poolvr', 'shaders/bb_particles_vs.glsl').decode(),
+                                  pkgutil.get_data('poolvr', 'shaders/bb_particles_fs.glsl').decode()),
                           attributes={'position': {'type': gl.GL_FLOAT_VEC3},
                                       'uv': {'type': gl.GL_FLOAT_VEC2},
                                       'translate': {'type': gl.GL_FLOAT_VEC3},
