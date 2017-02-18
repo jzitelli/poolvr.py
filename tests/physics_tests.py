@@ -1,3 +1,4 @@
+import os.path
 import logging
 from unittest import TestCase
 import numpy as np
@@ -13,15 +14,20 @@ from poolvr.game import PoolGame
 from poolvr.physics import PoolPhysics
 
 
-from .viewer import OpenGLViewer
+PLOTS_DIR = os.path.join(os.path.dirname(__file__), 'plots')
 
 
 class PhysicsTests(TestCase):
+
+
     def setUp(self):
         self.table = PoolTable()
         self.game = PoolGame()
         self.cue = Cue()
         self.physics = PoolPhysics(initial_positions=self.game.ball_positions)
+        self.physics.PhysicsEvent.physics = self.physics
+
+
     def test_strike_ball(self):
         self.cue.position[:] = self.game.ball_positions[0]
         self.cue.position[2] += 0.5 * self.cue.length + self.physics.ball_radius
@@ -36,7 +42,13 @@ class PhysicsTests(TestCase):
         ts = np.linspace(0.0, T, 50)
         plt.plot(ts, [self.physics.eval_positions(t)[0,0] for t in ts], '-o', label='$x$')
         plt.plot(ts, [self.physics.eval_positions(t)[0,1] for t in ts], '-s', label='$y$')
-        plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-x', label='$z$')
-        plt.xlabel('$t$')
+        plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-d', label='$z$')
+        plt.xlabel('$t$ (seconds)')
+        plt.ylabel('$x, y, z$ (meters)')
         plt.legend()
-        plt.show()
+        pth = os.path.join(PLOTS_DIR, 'test_strike_ball.png')
+        try:
+            plt.savefig(pth)
+        except:
+            _logger.warning("could not save the plot to {}. i'll just show it to you:", pth)
+            plt.show()
