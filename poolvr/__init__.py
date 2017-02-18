@@ -128,7 +128,6 @@ def main(window_size=(800,600), novr=False):
                                                 cue.velocity, cue.mass)
                             break
                 physics.eval_positions(t, out=ball_positions)
-                physics.eval_quaternions(t, out=ball_quaternions)
                 ball_billboards.update_gl()
 
             ##### desktop mode: #####

@@ -95,6 +95,7 @@ class PoolPhysics(object):
                  g=9.81,
                  initial_positions=None,
                  **kwargs):
+        self.PhysicsEvent.physics = self
         self.num_balls = num_balls
         self.ball_mass = ball_mass
         self.ball_radius = ball_radius
@@ -116,15 +117,6 @@ class PoolPhysics(object):
         self.ball_events = self.num_balls * [None]
         if initial_positions is not None:
             self._a[:,0] = initial_positions
-        self.PhysicsEvent.physics = self
-        # self.PhysicsEvent.num_balls = num_balls
-        # self.PhysicsEvent.R = ball_radius
-        # self.PhysicsEvent.m = ball_mass
-        # self.PhysicsEvent.mu_r = mu_r
-        # self.PhysicsEvent.mu_sp = mu_sp
-        # self.PhysicsEvent.mu_s = mu_s
-        # self.PhysicsEvent.e = e
-        # self.PhysicsEvent.g = g
     @staticmethod
     def _quartic_solve(p):
         # TODO: use analytic solution method (e.g. Ferrari)
@@ -220,27 +212,6 @@ class PoolPhysics(object):
         events.append(predicted_event)
         self.events.append(predicted_event)
         return events
-    def predict_next_event(self, leading_prediction=None):
-        tau = float('inf')
-        for i, e_i in enumerate(self.ball_events):
-            pass
-        return leading_prediction
-    def predict_events(self, leading_prediction=None):
-        if leading_prediction is None:
-            leading_prediction = []
-        events = []
-        tau = float('inf')
-        for i in range(self.num_balls):
-            e_i = self.ball_events[i]
-            if self.is_sliding[i] or self.is_rolling[i]:
-                a_i = self._in_global_t(i).reshape(3,3)
-                for j in range(i+1, self.num_balls):
-                    a_j = self._in_global_t(j).reshape(3,3)
-                    t_E = self._find_collision(a_i, a_j)
-                    if t_E and t_E - self.t < tau:
-                        tau = t_E - self.t
-                        events = [self.BallCollisionEvent(t_E, i, j)]
-        return events
     def eval_positions(self, t, out=None):
         if out is None:
             out = np.empty((self.num_balls, 3), dtype=np.float32)
@@ -248,8 +219,6 @@ class PoolPhysics(object):
             if e_i is not None:
                 tau = t - e_i.t
                 out[:] = self._a[i,0] + tau * self._a[i,1] + tau**2 * self._a[i,2]
-                # self._a[i].dot(np.array((1.0, tau, tau**2), dtype=np.float32),
-                #                out=out[i])
             else:
                 out[i] = self._a[i,0]
         return out
