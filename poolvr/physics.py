@@ -176,10 +176,10 @@ class PoolPhysics(object):
     def strike_ball(self, t, i, q, Q, V, cue_mass):
         """
         Strike ball *i* at game time *t*.  The cue points in the direction specified
-        by the unit vector *q*, and strikes the ball at point *Q*
-        which is specified in coordinates local to the ball
-        (i.e. :math:`||Q|| = \emph{ball_radius}`),
-        and aligned with *q* along the second (:math:`y`-) axis.
+        by the unit vector *q* = :math:`\hat{q}`, and strikes the ball at point *Q* =
+        :math:`Q_x \hat{i} + Q_y \hat{j} + Q_z \hat{k}` which is specified
+        in coordinates relative to the ball's center with :math:`\hat{k}`
+        aligned with the horizontal component of :math:`\hat{q}`.
         *V* is the velocity of the cue at the instant when it strikes the ball.
         """
         if not self.on_table[i]:
@@ -208,6 +208,11 @@ class PoolPhysics(object):
         return events
 
     def eval_positions(self, t, out=None):
+        """
+        Evaluate the positions of all balls at game time *t*.
+
+        :returns: shape (*N*, 3) array, where *N* is the number of balls
+        """
         if out is None:
             out = np.empty((self.num_balls, 3), dtype=np.float32)
         out[:] = self._a[:,0]

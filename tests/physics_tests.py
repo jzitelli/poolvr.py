@@ -1,6 +1,7 @@
 import os.path
 import logging
 from unittest import TestCase
+import traceback
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -43,18 +44,24 @@ class PhysicsTests(TestCase):
         self.assertIsInstance(events[2], PoolPhysics.RollToRestEvent)
 
         fig = plt.figure()
+        plt.xlabel('$t$ (seconds)')
+        plt.ylabel('$x, y, z$ (meters)')
         for a, b in zip(events[:-1], events[1:]):
             ts = np.linspace(a.t, b.t, 50)
             plt.plot(ts, [self.physics.eval_positions(t)[0,0] for t in ts], '-o', label='$x$')
             plt.plot(ts, [self.physics.eval_positions(t)[0,1] for t in ts], '-s', label='$y$')
             plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-d', label='$z$')
-        plt.xlabel('$t$ (seconds)')
-        plt.ylabel('$x, y, z$ (meters)')
+            self.assertLessEqual(np.linalg.norm(self.physics.eval_positions(a.t + a.T) - \
+                                                self.physics.eval_positions(b.t)),
+                                 0.001 * self.physics.ball_radius)
         plt.legend()
-
-        pth = os.path.join(PLOTS_DIR, 'test_strike_ball.png')
+        pth = os.path.join(PLOTS_DIR, '%s.png' % _funcname())
         try:
             plt.savefig(pth)
         except:
             _logger.warning("could not save the plot to {}. i'll just show it to you:", pth)
             plt.show()
+
+
+def _funcname():
+    return traceback.extract_stack(None, 2)[0][2]
