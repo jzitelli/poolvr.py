@@ -161,8 +161,7 @@ class PoolPhysics(object):
         self.g = g
         self.t = 0.0
         self.events = []
-        self.ball_events = self.num_balls * [None]
-        self.nevent = 0
+        self.ball_events = {}
         self.on_table = np.array(self.num_balls * [True])
         self.is_sliding = np.array(self.num_balls * [False])
         self.is_rolling = np.array(self.num_balls * [False])
@@ -231,6 +230,11 @@ class PoolPhysics(object):
         raise TODO()
 
     def eval_velocities(self, t, out=None):
+        """
+        Evaluate the velocities of all balls at game time *t*.
+
+        :returns: shape (*N*, 3) array, where *N* is the number of balls
+        """
         if out is None:
             out = np.empty((self.num_balls, 3), dtype=np.float32)
         out[:] = self._a[:,1]
@@ -247,6 +251,16 @@ class PoolPhysics(object):
         if out is None:
             out = np.empty((self.num_balls, 3), dtype=np.float32)
         raise TODO()
+
+    def reset(self, ball_positions):
+        self._a[:] = 0
+        self._a[:,0] = ball_positions
+        self._b[:] = 0
+        self.events = []
+        self.ball_events.clear()
+        self.on_table[:] = True
+        self.is_sliding[:] = False
+        self.is_rolling[:] = False
 
     @staticmethod
     def _quartic_solve(p):

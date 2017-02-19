@@ -51,7 +51,7 @@ class PhysicsTests(TestCase):
             plt.plot(ts, [self.physics.eval_positions(t)[0,0] for t in ts], '-o', label='$x$')
             plt.plot(ts, [self.physics.eval_positions(t)[0,1] for t in ts], '-s', label='$y$')
             plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-d', label='$z$')
-            self.assertLessEqual(np.linalg.norm(self.physics.eval_positions(a.t + a.T) - \
+            self.assertLessEqual(np.linalg.norm(self.physics.eval_positions(a.t + a.T) -
                                                 self.physics.eval_positions(b.t)),
                                  0.001 * self.physics.ball_radius)
         plt.legend()
@@ -61,6 +61,25 @@ class PhysicsTests(TestCase):
         except:
             _logger.warning("could not save the plot to {}. i'll just show it to you:", pth)
             plt.show()
+
+
+    def test_reset(self):
+        self.physics.reset(self.game.initial_positions())
+        self.assertLessEqual(np.linalg.norm(self.game.initial_positions() -
+                                            self.physics.eval_positions(0.0)),
+                             0.001 * self.physics.ball_radius)
+        self.assertTrue((self.physics.eval_velocities(0.0) == 0).all())
+
+
+    def test_ball_collision_event(self):
+        self.physics.reset(self.game.initial_positions())
+        self.cue.position[:] = self.game.ball_positions[0]
+        self.cue.position[2] += 0.5 * self.cue.length + self.physics.ball_radius
+        self.cue.velocity[2] = -6.0
+        Q = np.array((0.0, 0.0, self.physics.ball_radius))
+        events = self.physics.strike_ball(0.0, 0, self.cue.world_matrix[1,:3], Q,
+                                          self.cue.velocity,
+                                          self.cue.mass)
 
 
 def _funcname():
