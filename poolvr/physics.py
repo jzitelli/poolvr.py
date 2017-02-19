@@ -127,15 +127,19 @@ class PoolPhysics(object):
             self._a[0] = position
             self.T = 0
             self.next_event = None
+        def __str__(self):
+            return super().__str__()[:-1] + ' r=%s>' % self._a[0]
 
     class BallCollisionEvent(PhysicsEvent):
         _num_balls = 2
-        def __init__(self, t, i, j):
+        def __init__(self, t, i, j, positions, velocities):
             super().__init__(t)
             self.i = i
             self.j = j
             self._a = np.zeros((2,3,3), dtype=np.float32)
             self._b = np.zeros((2,2,3), dtype=np.float32)
+            self._a[:,0] = positions
+            self._a[:,1] = velocities
 
     _dummy_event = PhysicsEvent(0)
 
@@ -168,7 +172,6 @@ class PoolPhysics(object):
         self._I = 2.0/5 * ball_mass * ball_radius**2
         self._a = np.zeros((num_balls, 3, 3), dtype=np.float32)
         self._b = np.zeros((num_balls, 2, 3), dtype=np.float32)
-        self._t_E = np.zeros(num_balls, dtype=np.float32)
         if initial_positions is not None:
             self._a[:,0] = initial_positions
 
@@ -184,25 +187,36 @@ class PoolPhysics(object):
         if not self.on_table[i]:
             return
         event = self.StrikeBallEvent(t, i, q, Q, V, cue_mass)
+        events = [event]
         _a, _b = event._calc_global_coeffs()
         self._a[i] = _a[0]
         self._b[i] = _b[0]
         self.ball_events[i] = event
-        self._t_E[i] = t
         self.is_sliding[i] = True
-        events = [event]
         collide_times = {}
-        while events[-1].next_event is not None:
-            predicted_event = events[-1].next_event
+        while event.next_event is not None:
+            predicted_event = event.next_event
+            # collide_times.clear()
             # for j, on in enumerate(self.on_table):
-            #    if j == i: continue
-            #    if on:
-            #        if j not in collide_times:
-            #            collide_times[j] = self._find_collision_time(self._a[i], self._a[j])
-            #        t_c = collide_times[j]
-            #        if t_c and t_c < predicted_event.t:
-            #            predicted_event = self.BallCollisionEvent(t_c, i, j)
-            events.append(predicted_event)
+            #     if j == i: continue
+            #     if on:
+            #         if j not in collide_times:
+            #             collide_times[j] = self._find_collision_time(self._a[i], self._a[j])
+            #         t_c = collide_times[j]
+            #         _logger.debug(t_c)
+            #         if t_c and t_c < predicted_event.t:
+            #             positions = self.eval_positions(t_c)[(i,j)]
+            #             velocities = self.eval_velocities(t_c)[(i,j)]
+            #             predicted_event = self.BallCollisionEvent(t_c, i, j, positions, velocities)
+            event = predicted_event
+            # _a, _b = event._calc_global_coeffs()
+            # i = event.i
+            # self._a[i] = _a[0]
+            # self._b[i] = _b[0]
+            # if hasattr(event, 'j'):
+            #     self._a[event.j] = _a[1]
+            #     self._b[event.j] = _b[1]
+            events.append(event)
         self.events += events
         return events
 
