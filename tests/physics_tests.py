@@ -55,12 +55,7 @@ class PhysicsTests(TestCase):
                                                 self.physics.eval_positions(b.t)),
                                  0.001 * self.physics.ball_radius)
         plt.legend()
-        pth = os.path.join(PLOTS_DIR, '%s.png' % _funcname())
-        try:
-            plt.savefig(pth)
-        except:
-            _logger.warning("could not save the plot to {}. i'll just show it to you:", pth)
-            plt.show()
+        self._savefig()
 
 
     def test_reset(self):
@@ -73,6 +68,7 @@ class PhysicsTests(TestCase):
 
     def test_ball_collision_event(self):
         self.physics.reset(self.game.initial_positions())
+        self.physics.on_table[2:] = False
         self.cue.position[:] = self.game.ball_positions[0]
         self.cue.position[2] += 0.5 * self.cue.length + self.physics.ball_radius
         self.cue.velocity[2] = -6.0
@@ -80,7 +76,25 @@ class PhysicsTests(TestCase):
         events = self.physics.strike_ball(0.0, 0, self.cue.world_matrix[1,:3], Q,
                                           self.cue.velocity,
                                           self.cue.mass)
+        plt.figure()
+        plt.xlabel('$t$ (seconds)')
+        plt.ylabel('$x, y, z$ (meters)')
+        for a, b in zip(events[:-1], events[1:]):
+            ts = np.linspace(a.t, b.t, 50)
+            plt.plot(ts, [self.physics.eval_positions(t)[0,0] for t in ts], '-o', label='$x$')
+            plt.plot(ts, [self.physics.eval_positions(t)[0,1] for t in ts], '-s', label='$y$')
+            plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-d', label='$z$')
+            self.assertLessEqual(np.linalg.norm(self.physics.eval_positions(a.t + a.T) -
+                                                self.physics.eval_positions(b.t)),
+                                 0.001 * self.physics.ball_radius)
+        plt.legend()
+        self._savefig()
 
 
-def _funcname():
-    return traceback.extract_stack(None, 2)[0][2]
+    def _savefig(self):
+        pth = os.path.join(PLOTS_DIR, '%s.png' % traceback.extract_stack(None, 2)[0][2])
+        try:
+            plt.savefig(pth)
+        except:
+            _logger.warning("could not save the plot to {}. i'll just show it to you:", pth)
+            plt.show()
