@@ -3,24 +3,12 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-=========
 poolvr.py
 =========
 
-
-User guide:
-+++++++++++
-
 .. toctree::
-   installing
-   :maxdepth: 2
-
-
-Developer guide:
-++++++++++++++++
-
-.. toctree::
-   physics
+   user_guide
+   developer_guide
    :maxdepth: 2
 
 
