@@ -110,8 +110,10 @@ class PoolPhysics(object):
             self._a = np.zeros((3,3), dtype=np.float32)
             self._b = np.zeros((2,3), dtype=np.float32)
             self._a[0] = position
-            tau_r = 2.0
+            self._a[1] = velocity
+            tau_r = np.linalg.norm(velocity) / (self.physics.mu_r * self.physics.g)
             self.T = tau_r
+            end_position = self._a[0] + tau_r * self._a[1] + tau_r**2 * self._a[2]
             self.next_event = self.physics.RollToRestEvent(t + tau_r, i, position)
 
     class RollToRestEvent(PhysicsEvent):
