@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 # poolvr.py documentation build configuration file, created by
-# sphinx-quickstart on Sun Feb 12 04:34:30 2017.
+# sphinx-quickstart on Sat Feb 18 20:25:03 2017.
 #
 # This file is execfile()d with the current directory set to its
 # containing dir.
@@ -33,10 +33,8 @@ import shlex
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.doctest',
-    'sphinx.ext.todo',
     'sphinx.ext.coverage',
     'sphinx.ext.pngmath',
-    'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
 ]
 
@@ -110,7 +108,7 @@ pygments_style = 'sphinx'
 #keep_warnings = False
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
-todo_include_todos = True
+todo_include_todos = False
 
 
 # -- Options for HTML output ----------------------------------------------
@@ -129,10 +127,10 @@ html_theme = 'alabaster'
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-#html_title = 'poolvr.py'
+#html_title = None
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
-html_short_title = 'poolvr.py'
+#html_short_title = None
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
@@ -155,7 +153,7 @@ html_static_path = ['_static']
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
-html_last_updated_fmt = '%b %d, %Y'
+#html_last_updated_fmt = '%b %d, %Y'
 
 # If true, SmartyPants will be used to convert quotes and dashes to
 # typographically correct entities.
