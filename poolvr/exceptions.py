@@ -1,2 +1,0 @@
-class TODO(Exception):
-    pass
