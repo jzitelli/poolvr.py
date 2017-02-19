@@ -37,7 +37,7 @@ class PhysicsTests(TestCase):
                                           self.cue.velocity,
                                           self.cue.mass)
         _logger.info('\n'.join(['  %f: %s' % (e.t, e) for e in events]))
-        self.assertEquals(3, len(events))
+        self.assertEqual(3, len(events))
         self.assertIsInstance(events[0], PoolPhysics.StrikeBallEvent)
         self.assertIsInstance(events[1], PoolPhysics.SlideToRollEvent)
         self.assertIsInstance(events[2], PoolPhysics.RollToRestEvent)

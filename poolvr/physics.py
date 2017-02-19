@@ -95,8 +95,7 @@ class PoolPhysics(object):
             end_position = self._a[0] + tau_s * self._a[1] + tau_s**2 * self._a[2]
             end_velocity = self._a[1] + 2 * tau_s * self._a[2]
             self.next_event = self.physics.SlideToRollEvent(t + tau_s, i,
-                                                            self.physics.eval_positions(self.t + self.T)[i],
-                                                            self.physics.eval_velocities(self.t + self.T)[i])
+                                                            end_position, end_velocity)
 
     class SlideToRollEvent(PhysicsEvent):
         _num_balls = 1
@@ -221,7 +220,15 @@ class PoolPhysics(object):
     def eval_velocities(self, t, out=None):
         if out is None:
             out = np.empty((self.num_balls, 3), dtype=np.float32)
-        raise TODO()
+        out[:] = self._a[:,1]
+        for e in self._find_active_events(t):
+            tau = t - e.t
+            if e._num_balls == 1:
+                out[e.i] = e._a[1] + 2 * tau * e._a[2]
+            elif e._num_balls == 2:
+                out[e.i] = e._a[0,1] + 2 * tau * e._a[0,2]
+                out[e.j] = e._a[1,1] + 2 * tau * e._a[1,2]
+        return out
 
     def eval_angular_velocities(self, t, out=None):
         if out is None:
