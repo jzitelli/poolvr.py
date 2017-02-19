@@ -1,3 +1,6 @@
+## Sphinx documentation
+#docs/_build/
+
 *~
 *.sublime-workspace
 *.sublime-project
@@ -64,8 +67,6 @@ instance/
 # Scrapy stuff:
 .scrapy
 
-# Sphinx documentation
-docs/_build/
 
 # PyBuilder
 target/
