@@ -111,6 +111,7 @@ class PoolPhysics(object):
             self._b = np.zeros((2,3), dtype=np.float32)
             self._a[0] = position
             self._a[1] = velocity
+            self._a[2] = -0.5 * self.physics.mu_r * self.physics.g * (velocity / np.linalg.norm(velocity))
             tau_r = np.linalg.norm(velocity) / (self.physics.mu_r * self.physics.g)
             self.T = tau_r
             end_position = self._a[0] + tau_r * self._a[1] + tau_r**2 * self._a[2]
