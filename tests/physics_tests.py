@@ -37,10 +37,10 @@ class PhysicsTests(TestCase):
                                           self.cue.velocity,
                                           self.cue.mass)
         _logger.info('\n'.join(['  %f: %s' % (e.t, e) for e in events]))
-        #self.assertEquals(3, len(events))
+        self.assertEquals(3, len(events))
         self.assertIsInstance(events[0], PoolPhysics.StrikeBallEvent)
         self.assertIsInstance(events[1], PoolPhysics.SlideToRollEvent)
-        #self.assertIsInstance(events[2], PoolPhysics.RollToRestEvent)
+        self.assertIsInstance(events[2], PoolPhysics.RollToRestEvent)
 
         fig = plt.figure()
         for a, b in zip(events[:-1], events[1:]):
@@ -51,6 +51,7 @@ class PhysicsTests(TestCase):
         plt.xlabel('$t$ (seconds)')
         plt.ylabel('$x, y, z$ (meters)')
         plt.legend()
+
         pth = os.path.join(PLOTS_DIR, 'test_strike_ball.png')
         try:
             plt.savefig(pth)

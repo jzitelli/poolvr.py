@@ -1,3 +1,15 @@
+"""
+
+Event-based pool physics simulation engine based on the paper
+(available at http://web.stanford.edu/group/billiards/AnEventBasedPoolPhysicsSimulator.pdf):
+
+  AN EVENT-BASED POOL PHYSICS SIMULATOR
+  Will Leckie, Michael Greenspan
+  DOI: 10.1007/11922155_19 · Source: DBLP
+  Conference: Advances in Computer Games, 11th International Conference,
+  Taipei, Taiwan, September 6-9, 2005.
+
+"""
 import logging
 import bisect
 import numpy as np
@@ -80,28 +92,34 @@ class PoolPhysics(object):
             self._b[1,1] = -5 * mu_sp * g / (2 * R)
             tau_s = 2 * np.linalg.norm(u) / (7 * mu_s * g)
             self.T = tau_s
-            self.next_event = self.physics.SlideToRollEvent(t + tau_s, i)
+            end_position = self._a[0] + tau_s * self._a[1] + tau_s**2 * self._a[2]
+            end_velocity = self._a[1] + 2 * tau_s * self._a[2]
+            self.next_event = self.physics.SlideToRollEvent(t + tau_s, i,
+                                                            self.physics.eval_positions(self.t + self.T)[i],
+                                                            self.physics.eval_velocities(self.t + self.T)[i])
 
     class SlideToRollEvent(PhysicsEvent):
         _num_balls = 1
-        def __init__(self, t, i):
+        def __init__(self, t, i, position, velocity):
             super().__init__(t)
             self.i = i
-            if self.physics:
-                self._a = self.physics._a[i].copy()
-                self._b = self.physics._b[i].copy()
-            else:
-                self._a = np.zeros((3,3), dtype=np.float32)
-                self._b = np.zeros((2,3), dtype=np.float32)
+            self._a = np.zeros((3,3), dtype=np.float32)
+            self._b = np.zeros((2,3), dtype=np.float32)
+            self._a[0] = position
             tau_r = 2.0
             self.T = tau_r
-            self.next_event = self.physics.RollToRestEvent(t + tau_r, i)
+            self.next_event = self.physics.RollToRestEvent(t + tau_r, i, position)
 
     class RollToRestEvent(PhysicsEvent):
         _num_balls = 1
-        def __init__(self, t, i):
+        def __init__(self, t, i, position):
             super().__init__(t)
             self.i = i
+            self._a = np.zeros((3,3), dtype=np.float32)
+            self._b = np.zeros((2,3), dtype=np.float32)
+            self._a[0] = position
+            self.T = 0
+            self.next_event = None
 
     class BallCollisionEvent(PhysicsEvent):
         _num_balls = 2
@@ -109,6 +127,8 @@ class PoolPhysics(object):
             super().__init__(t)
             self.i = i
             self.j = j
+            self._a = np.zeros((2,3,3), dtype=np.float32)
+            self._b = np.zeros((2,2,3), dtype=np.float32)
 
     _dummy_event = PhysicsEvent(0)
 
@@ -141,10 +161,10 @@ class PoolPhysics(object):
         self.is_rolling = np.array(self.num_balls * [False])
         self._I = 2.0/5 * ball_mass * ball_radius**2
         self._a = np.zeros((num_balls, 3, 3), dtype=np.float32)
-        if initial_positions is not None:
-            self._a[:,0] = initial_positions
         self._b = np.zeros((num_balls, 2, 3), dtype=np.float32)
         self._t_E = np.zeros(num_balls, dtype=np.float32)
+        if initial_positions is not None:
+            self._a[:,0] = initial_positions
 
     def strike_ball(self, t, i, q, Q, V, cue_mass):
         """
@@ -161,28 +181,22 @@ class PoolPhysics(object):
         _a, _b = event._calc_global_coeffs()
         self._a[i] = _a[0]
         self._b[i] = _b[0]
-        events = [event]
-        self.events.append(event)
         self.ball_events[i] = event
         self._t_E[i] = t
         self.is_sliding[i] = True
-        # while events[-1].next_event is not None:
-        #     predicted_event = event.next_event
-        #     for j, on in enumerate(self.on_table):
-        #         if j == i: continue
-        #         if on:
-        #             t_c = self._find_collision(self._a[i], self._a[j])
-        #             if t_c and t_c < predicted_event.t:
-        #                 predicted_event = self.BallCollisionEvent(t_c, i, j)
-        #     events.append(predicted_event)
-        predicted_event = event.next_event
-        for j, on in enumerate(self.on_table):
-            if j == i: continue
-            if on:
-                t_c = self._find_collision(self._a[i], self._a[j])
-                if t_c and t_c < predicted_event.t:
-                    predicted_event = self.BallCollisionEvent(t_c, i, j)
-        events.append(predicted_event)
+        events = [event]
+        collide_times = {}
+        while events[-1].next_event is not None:
+            predicted_event = events[-1].next_event
+            # for j, on in enumerate(self.on_table):
+            #    if j == i: continue
+            #    if on:
+            #        if j not in collide_times:
+            #            collide_times[j] = self._find_collision_time(self._a[i], self._a[j])
+            #        t_c = collide_times[j]
+            #        if t_c and t_c < predicted_event.t:
+            #            predicted_event = self.BallCollisionEvent(t_c, i, j)
+            events.append(predicted_event)
         self.events += events
         return events
 
@@ -224,7 +238,7 @@ class PoolPhysics(object):
         n = bisect.bisect_left(self.events, self._dummy_event)
         return [e for e in self.events[:n] if e.t + e.T >= t]
 
-    def _find_collision(self, a_i, a_j):
+    def _find_collision_time(self, a_i, a_j):
         d = a_i - a_j
         a_x, a_y = d[2, ::2]
         b_x, b_y = d[1, ::2]
