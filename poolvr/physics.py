@@ -42,6 +42,11 @@ class PoolPhysics(object):
             a[:,0] += -t * self._a[:,1] + t**2 * self._a[:,2]
             a[:,1] += -2 * t * self._a[:,2]
             return a, b
+        def __str__(self):
+            clsname = self.__class__.__name__.split('.')[-1]
+            return "<%s: t=%f T=%f" % (clsname, self.t, self.T) + \
+                (' i=%d'  % self.i if hasattr(self, 'i') else '') + \
+                (' j=%d>' % self.j if hasattr(self, 'j') else '>')
         def __lt__(self, other):
             return self.t < other.t
         def __gt__(self, other):
