@@ -29,7 +29,17 @@ class PhysicsTests(TestCase):
         self.physics.PhysicsEvent.physics = self.physics
 
 
+    def test_reset(self):
+        self.physics.reset(self.game.initial_positions())
+        self.assertLessEqual(np.linalg.norm(self.game.initial_positions() -
+                                            self.physics.eval_positions(0.0)),
+                             0.001 * self.physics.ball_radius)
+        self.assertTrue((self.physics.eval_velocities(0.0) == 0).all())
+
+
     def test_strike_ball(self):
+        self.physics.reset(self.game.initial_positions())
+        self.physics.on_table[1:] = False
         self.cue.position[:] = self.game.ball_positions[0]
         self.cue.position[2] += 0.5 * self.cue.length + self.physics.ball_radius
         self.cue.velocity[2] = -6.0
@@ -56,14 +66,6 @@ class PhysicsTests(TestCase):
                                  0.001 * self.physics.ball_radius)
         plt.legend()
         self._savefig()
-
-
-    def test_reset(self):
-        self.physics.reset(self.game.initial_positions())
-        self.assertLessEqual(np.linalg.norm(self.game.initial_positions() -
-                                            self.physics.eval_positions(0.0)),
-                             0.001 * self.physics.ball_radius)
-        self.assertTrue((self.physics.eval_velocities(0.0) == 0).all())
 
 
     def test_ball_collision_event(self):
