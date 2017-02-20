@@ -25,124 +25,15 @@ INCH2METER = 0.0254
 
 
 class PoolPhysics(object):
+    """
+    Pool physics simulator
 
-    class PhysicsEvent(object):
-        physics = None
-        _num_balls = 0
-        def __init__(self, t, **kwargs):
-            self.t = t
-            self.T = 0
-            self.next_event = None
-        def _calc_global_coeffs(self):
-            if self._num_balls == 0:
-                return
-            a = self._a.copy().reshape(self._num_balls, 3, 3)
-            b = self._b.copy().reshape(self._num_balls, 2, 3)
-            t = self.t
-            a[:,0] += -t * self._a[:,1] + t**2 * self._a[:,2]
-            a[:,1] += -2 * t * self._a[:,2]
-            return a, b
-        def __str__(self):
-            clsname = self.__class__.__name__.split('.')[-1]
-            return "<%s: t=%f T=%f" % (clsname, self.t, self.T) + \
-                (' i=%d'  % self.i if hasattr(self, 'i') else '') + \
-                (' j=%d>' % self.j if hasattr(self, 'j') else '>')
-        def __lt__(self, other):
-            return self.t < other.t
-        def __gt__(self, other):
-            return self.t > other.t
-        def __eq__(self, other):
-            return self.t == other.t
-
-    class StrikeBallEvent(PhysicsEvent):
-        _num_balls = 1
-        def __init__(self, t, i, q, Q, V, cue_mass):
-            super().__init__(t)
-            self.i = i
-            self.q = q
-            self.Q = Q
-            self.V = V
-            self.cue_mass = cue_mass
-            if self.physics:
-                self._a = self.physics._a[i].copy()
-                self._b = self.physics._b[i].copy()
-            else:
-                self._a = np.zeros((3,3), dtype=np.float32)
-                self._b = np.zeros((2,3), dtype=np.float32)
-            a, c, b = Q
-            V_xz = V[::2]
-            norm_V = np.linalg.norm(V)
-            norm_V_xz = np.linalg.norm(V_xz)
-            sin, cos = 0.0, 1.0
-            M = cue_mass
-            m, R = self.physics.ball_mass, self.physics.ball_radius
-            F = 2.0 * m * norm_V / (1 + m/M + 5.0/(2*R**2) * (a**2 + (b*cos)**2 + (c*sin)**2 - 2*b*c*cos*sin))
-            norm_v = -F / m * cos
-            v = self._a[1] # post-impact ball velocity
-            v[0] = norm_v * V[0] / norm_V_xz
-            v[2] = norm_v * V[2] / norm_V_xz
-            v[1] = 0 # TODO
-            I = self.physics._I
-            omega_x = F * (-c * sin + b * cos) / I
-            omega_z = F * a * sin / I
-            omega = self._b[0] # post-impact ball angular velocity
-            omega[0] = omega_x * V[0] / norm_V_xz
-            omega[2] = omega_z * V[2] / norm_V_xz
-            omega[1] = 0
-            # TODO: omega[1] = -F * a * cos / I
-            u = v + R * np.array((-omega[2], 0.0, omega[0]), dtype=np.float32) # relative velocity
-            mu_s, mu_sp, g = self.physics.mu_s, self.physics.mu_sp, self.physics.g
-            self._a[2,::2] = -0.5 * mu_s * g * u[::2]
-            self._b[1,::2] = -5 * mu_s * g / (2 * R) * np.array((-u[2], u[0]), dtype=np.float32)
-            self._b[1,1] = -5 * mu_sp * g / (2 * R)
-            tau_s = 2 * np.linalg.norm(u) / (7 * mu_s * g)
-            self.T = tau_s
-            end_position = self._a[0] + tau_s * self._a[1] + tau_s**2 * self._a[2]
-            end_velocity = self._a[1] + 2 * tau_s * self._a[2]
-            self.next_event = self.physics.SlideToRollEvent(t + tau_s, i,
-                                                            end_position, end_velocity)
-
-    class SlideToRollEvent(PhysicsEvent):
-        _num_balls = 1
-        def __init__(self, t, i, position, velocity):
-            super().__init__(t)
-            self.i = i
-            self._a = np.zeros((3,3), dtype=np.float32)
-            self._b = np.zeros((2,3), dtype=np.float32)
-            self._a[0] = position
-            self._a[1] = velocity
-            self._a[2] = -0.5 * self.physics.mu_r * self.physics.g * (velocity / np.linalg.norm(velocity))
-            tau_r = np.linalg.norm(velocity) / (self.physics.mu_r * self.physics.g)
-            self.T = tau_r
-            end_position = self._a[0] + tau_r * self._a[1] + tau_r**2 * self._a[2]
-            self.next_event = self.physics.RollToRestEvent(t + tau_r, i, position)
-
-    class RollToRestEvent(PhysicsEvent):
-        _num_balls = 1
-        def __init__(self, t, i, position):
-            super().__init__(t)
-            self.i = i
-            self._a = np.zeros((3,3), dtype=np.float32)
-            self._b = np.zeros((2,3), dtype=np.float32)
-            self._a[0] = position
-            self.T = 0
-            self.next_event = None
-        def __str__(self):
-            return super().__str__()[:-1] + ' r=%s>' % self._a[0]
-
-    class BallCollisionEvent(PhysicsEvent):
-        _num_balls = 2
-        def __init__(self, t, i, j, positions, velocities):
-            super().__init__(t)
-            self.i = i
-            self.j = j
-            self._a = np.zeros((2,3,3), dtype=np.float32)
-            self._b = np.zeros((2,2,3), dtype=np.float32)
-            self._a[:,0] = positions
-            self._a[:,1] = velocities
-
-    _dummy_event = PhysicsEvent(0)
-
+    :param mu_r:  friction coefficient (rolling)
+    :param mu_sp: friction coefficient (spining)
+    :param mu_s:  friction coefficient (sliding)
+    :param e:     coefficient of restitution for ball collisions
+    :param g:     gravity
+    """
     def __init__(self,
                  num_balls=16,
                  ball_mass=0.17,
@@ -239,6 +130,11 @@ class PoolPhysics(object):
         return out
 
     def eval_quaternions(self, t, out=None):
+        """
+        Evaluate the rotations of all balls (represented as quaternions) at game time *t*.
+
+        :returns: shape (*N*, 4) array, where *N* is the number of balls
+        """
         if out is None:
             out = np.empty((self.num_balls, 4), dtype=np.float32)
         raise TODO()
@@ -262,6 +158,11 @@ class PoolPhysics(object):
         return out
 
     def eval_angular_velocities(self, t, out=None):
+        """
+        Evaluate the angular velocities of all balls at game time *t*.
+
+        :returns: shape (*N*, 3) array, where *N* is the number of balls
+        """
         if out is None:
             out = np.empty((self.num_balls, 3), dtype=np.float32)
         raise TODO()
@@ -303,3 +204,142 @@ class PoolPhysics(object):
             return None
         roots = sorted(roots, key=lambda t: (abs(t.imag), t.real))
         return roots[0].real
+
+    class PhysicsEvent(object):
+        physics = None
+        _num_balls = 0
+        def __init__(self, t, **kwargs):
+            self.t = t
+            self.T = 0
+            self.next_event = None
+        def eval_positions(self, tau, out=None):
+            if self._num_balls == 0:
+                return None
+            if out is None:
+                out = np.empty((self._num_balls, 3), dtype=np.float32)
+            _a = self._a.reshape(self._num_balls, 3, 3)
+            if hasattr(self, 'i'):
+                out[0] = _a[0,0] + tau * _a[0,1] + tau**2 * _a[0,2]
+            if hasattr(self, 'j'):
+                out[1] = _a[1,0] + tau * _a[1,1] + tau**2 * _a[1,2]
+            return out
+        def _calc_global_coeffs(self):
+            if self._num_balls == 0:
+                return
+            a = self._a.copy().reshape(self._num_balls, 3, 3)
+            b = self._b.copy().reshape(self._num_balls, 2, 3)
+            t = self.t
+            a[:,0] += -t * self._a[:,1] + t**2 * self._a[:,2]
+            a[:,1] += -2 * t * self._a[:,2]
+            return a, b
+        def __str__(self):
+            clsname = self.__class__.__name__.split('.')[-1]
+            return "<%s: t=%f T=%f" % (clsname, self.t, self.T) + \
+                (' i=%d'  % self.i if hasattr(self, 'i') else '') + \
+                (' j=%d>' % self.j if hasattr(self, 'j') else '>')
+        def __lt__(self, other):
+            return self.t < other.t
+        def __gt__(self, other):
+            return self.t > other.t
+        def __eq__(self, other):
+            return self.t == other.t
+
+    class StrikeBallEvent(PhysicsEvent):
+        _num_balls = 1
+        def __init__(self, t, i, q, Q, V, cue_mass):
+            super().__init__(t)
+            self.i = i
+            self.q = q
+            self.Q = Q
+            self.V = V
+            self.cue_mass = cue_mass
+            if self.physics:
+                self._a = self.physics._a[i].copy()
+                self._b = self.physics._b[i].copy()
+            else:
+                self._a = np.zeros((3,3), dtype=np.float32)
+                self._b = np.zeros((2,3), dtype=np.float32)
+            a, c, b = Q
+            V_xz = V[::2]
+            norm_V = np.linalg.norm(V)
+            norm_V_xz = np.linalg.norm(V_xz)
+            sin, cos = 0.0, 1.0
+            M = cue_mass
+            m, R = self.physics.ball_mass, self.physics.ball_radius
+            F = 2.0 * m * norm_V / (1 + m/M + 5.0/(2*R**2) * (a**2 + (b*cos)**2 + (c*sin)**2 - 2*b*c*cos*sin))
+            norm_v = F / m * cos
+            v = self._a[1]
+            # post-impact ball velocity:
+            v[0] = norm_v * V[0] / norm_V_xz
+            v[2] = norm_v * V[2] / norm_V_xz
+            v[1] = 0 # TODO
+            I = self.physics._I
+            omega_x = F * (-c * sin + b * cos) / I
+            omega_z = F * a * sin / I
+            omega = self._b[0]
+            # post-impact ball angular velocity:
+            omega[0] = omega_x * V[0] / norm_V_xz
+            omega[2] = omega_z * V[2] / norm_V_xz
+            omega[1] = 0
+            # TODO: omega[1] = -F * a * cos / I
+            u = v + R * np.array((-omega[2], 0.0, omega[0]), dtype=np.float32) # relative velocity
+            mu_s, mu_sp, g = self.physics.mu_s, self.physics.mu_sp, self.physics.g
+            self._a[2,::2] = -0.5 * mu_s * g * u[::2]
+            self._b[1,::2] = -5 * mu_s * g / (2 * R) * np.array((-u[2], u[0]), dtype=np.float32)
+            self._b[1,1] = -5 * mu_sp * g / (2 * R)
+            tau_s = 2 * np.linalg.norm(u) / (7 * mu_s * g)
+            self.T = tau_s
+            end_position = self._a[0] + tau_s * self._a[1] + tau_s**2 * self._a[2]
+            end_velocity = self._a[1] + 2 * tau_s * self._a[2]
+            self.next_event = self.physics.SlideToRollEvent(t + tau_s, i,
+                                                            end_position, end_velocity)
+
+    class SlideToRollEvent(PhysicsEvent):
+        _num_balls = 1
+        def __init__(self, t, i, position, velocity):
+            super().__init__(t)
+            self.i = i
+            self._a = np.zeros((3,3), dtype=np.float32)
+            self._b = np.zeros((2,3), dtype=np.float32)
+            self._a[0] = position
+            self._a[1] = velocity
+            self._a[2] = -0.5 * self.physics.mu_r * self.physics.g * (velocity / np.linalg.norm(velocity))
+            tau_r = np.linalg.norm(velocity) / (self.physics.mu_r * self.physics.g)
+            self.T = tau_r
+            end_position = self._a[0] + tau_r * self._a[1] + tau_r**2 * self._a[2]
+            self.next_event = self.physics.RollToRestEvent(t + tau_r, i, end_position)
+
+    class SlideToRestEvent(PhysicsEvent):
+        _num_balls = 1
+        def __init__(self, t, i, position):
+            super().__init__(t)
+            self.i = i
+            self._a = np.zeros((3,3), dtype=np.float32)
+            self._b = np.zeros((2,3), dtype=np.float32)
+            self._a[0] = position
+            self.T = 0
+
+    class RollToRestEvent(PhysicsEvent):
+        _num_balls = 1
+        def __init__(self, t, i, position):
+            super().__init__(t)
+            self.i = i
+            self._a = np.zeros((3,3), dtype=np.float32)
+            self._b = np.zeros((2,3), dtype=np.float32)
+            self._a[0] = position
+            self.T = 0
+        def __str__(self):
+            return super().__str__()[:-1] + ' r=%s>' % self._a[0]
+
+    class BallCollisionEvent(PhysicsEvent):
+        _num_balls = 2
+        def __init__(self, t, i, j, positions, velocities):
+            super().__init__(t)
+            self.i = i
+            self.j = j
+            self._a = np.zeros((2,3,3), dtype=np.float32)
+            self._b = np.zeros((2,2,3), dtype=np.float32)
+            self._a[:,0] = positions
+            self._a[:,1] = velocities
+
+    _dummy_event = PhysicsEvent(0)

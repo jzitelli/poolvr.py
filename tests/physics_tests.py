@@ -1,6 +1,6 @@
 import os.path
 import logging
-from unittest import TestCase, skip
+from unittest import TestCase
 import traceback
 import numpy as np
 import matplotlib.pyplot as plt
@@ -45,7 +45,7 @@ class PhysicsTests(TestCase):
         self.cue.velocity[2] = -6.0
         Q = np.array((0.0, 0.0, self.physics.ball_radius))
         events = self.physics.strike_ball(0.0, 0, self.cue.world_matrix[1,:3], Q,
-                                          -self.cue.velocity, self.cue.mass)
+                                          self.cue.velocity, self.cue.mass)
         _logger.info('\n'.join(['  %f: %s' % (e.t, e) for e in events]))
         self.assertEqual(3, len(events))
         self.assertIsInstance(events[0], PoolPhysics.StrikeBallEvent)
@@ -55,50 +55,44 @@ class PhysicsTests(TestCase):
         fig = plt.figure()
         plt.xlabel('$t$ (seconds)')
         plt.ylabel('$x, y, z$ (meters)')
-        for a, b in zip(events[:-1], events[1:]):
-            ts = np.linspace(a.t, b.t, int(np.ceil((b.t - a.t) * 25)))
-            plt.plot(ts, [self.physics.eval_positions(t)[0,0] for t in ts], '-o', label='$x$')
-            plt.plot(ts, [self.physics.eval_positions(t)[0,1] for t in ts], '-s', label='$y$')
-            plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-d', label='$z$')
-            self.assertLessEqual(np.linalg.norm(self.physics.eval_positions(a.t + a.T) -
-                                                self.physics.eval_positions(b.t)),
-                                 0.0001 * self.physics.ball_radius)
+        ts = np.concatenate([np.linspace(a.t, b.t, int((b.t - a.t) * 23))
+                             for a, b in zip(events[:-1], events[1:])])
+        plt.plot(ts, [self.physics.eval_positions(t)[0,0] for t in ts], '-o', label='$x$')
+        plt.plot(ts, [self.physics.eval_positions(t)[0,1] for t in ts], '-s', label='$y$')
+        plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-d', label='$z$')
         plt.legend()
         self._savefig()
 
 
-    @skip('asdf')
     def test_ball_collision_event(self):
         self.physics.reset(self.game.initial_positions())
         self.physics.on_table[2:] = False
         self.cue.position[:] = self.game.ball_positions[0]
-        _logger.info('r_cb=%s r_1b=%s', self.game.ball_positions[0], self.game.ball_positions[1])
         self.cue.position[2] += 0.5 * self.cue.length + self.physics.ball_radius
-        self.cue.velocity[2] = 12.0
-        Q = np.array((0.0, 0.0, -self.physics.ball_radius))
+        self.cue.velocity[2] = -6.0
+        Q = np.array((0.0, 0.0, self.physics.ball_radius))
         events = self.physics.strike_ball(0.0, 0, self.cue.world_matrix[1,:3], Q,
-                                          self.cue.velocity, self.cue.mass)
-        _logger.info('\n'.join(['  %f: %s' % (e.t, e) for e in events]))
-
-        plt.figure()
+                                          self.cue.velocity,
+                                          self.cue.mass)
+        fig = plt.figure()
         plt.xlabel('$t$ (seconds)')
         plt.ylabel('$x, y, z$ (meters)')
-        for a, b in zip(events[:-1], events[1:]):
-            ts = np.linspace(a.t, b.t, 50)
-            plt.plot(ts, [self.physics.eval_positions(t)[0,0] for t in ts], '-o', label='$x$')
-            plt.plot(ts, [self.physics.eval_positions(t)[0,1] for t in ts], '-s', label='$y$')
-            plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-d', label='$z$')
-            self.assertLessEqual(np.linalg.norm(self.physics.eval_positions(a.t + a.T) -
-                                                self.physics.eval_positions(b.t)),
-                                 0.001 * self.physics.ball_radius)
+        ts = np.concatenate([np.linspace(a.t, b.t, int((b.t - a.t) * 23))
+                             for a, b in zip(events[:-1], events[1:])])
+        plt.plot(ts, [self.physics.eval_positions(t)[0,0] for t in ts], '-o', label='$x$')
+        plt.plot(ts, [self.physics.eval_positions(t)[0,1] for t in ts], '-s', label='$y$')
+        plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-d', label='$z$')
         plt.legend()
         self._savefig()
 
 
     def _savefig(self):
-        pth = os.path.join(PLOTS_DIR, '%s.png' % traceback.extract_stack(None, 2)[0][2])
+        title = traceback.extract_stack(None, 2)[0][2]
+        pth = os.path.join(PLOTS_DIR, '%s.png' % title)
+        plt.title(title)
         try:
             plt.savefig(pth)
+            _logger.info("...saved figure to %s", pth)
         except:
-            _logger.warning("could not save the plot to {}. i'll just show it to you:", pth)
+            _logger.warning("could not save the plot to %s. i'll just show it to you:", pth)
             plt.show()
