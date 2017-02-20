@@ -257,13 +257,19 @@ class PoolPhysics(object):
             return a, b
         def __str__(self):
             clsname = self.__class__.__name__.split('.')[-1]
-            return "<%s: t=%f T=%f" % (clsname, self.t, self.T) + \
+            return "<%17s: t=%.3f T=%.3f" % (clsname, self.t, self.T) + \
                 (' i=%d'  % self.i if hasattr(self, 'i') else '') + \
                 (' j=%d>' % self.j if hasattr(self, 'j') else '>')
         def __lt__(self, other):
-            return self.t < other.t
+            if isinstance(other, self.physics.PhysicsEvent):
+                return self.t < other.t
+            else:
+                return self.t < other
         def __gt__(self, other):
-            return self.t > other.t
+            if isinstance(other, self.physics.PhysicsEvent):
+                return self.t > other.t
+            else:
+                return self.t > other
         def __eq__(self, other):
             return str(self) == str(other)
         def __hash__(self):

@@ -51,6 +51,8 @@ class PhysicsTests(TestCase):
         plt.xlabel('$t$ (seconds)')
         plt.ylabel('$x, y, z$ (meters)')
         ts = np.linspace(events[0].t, events[-1].t, 50) #int((events[-1].t - events[0].t) * 23 + 1))
+        ts = np.concatenate([[a.t] + list(ts[(ts >= a.t) & (ts < b.t)]) + [b.t]
+                             for a, b in zip(events[:-1], events[1:])])
         plt.plot(ts, [self.physics.eval_positions(t)[0,0] for t in ts], '-o', label='$x$')
         plt.plot(ts, [self.physics.eval_positions(t)[0,1] for t in ts], '-s', label='$y$')
         plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-d', label='$z$')
@@ -75,6 +77,8 @@ class PhysicsTests(TestCase):
         plt.xlabel('$t$ (seconds)')
         plt.ylabel('$x, y, z$ (meters)')
         ts = np.linspace(events[0].t, events[-1].t, 50) #int((events[-1].t - events[0].t) * 23 + 1))
+        ts = np.concatenate([[a.t] + list(ts[(ts >= a.t) & (ts < b.t)]) + [b.t]
+                             for a, b in zip(events[:-1], events[1:])])
         plt.plot(ts, [self.physics.eval_positions(t)[0,0] for t in ts], '-o', label='$x$')
         plt.plot(ts, [self.physics.eval_positions(t)[0,1] for t in ts], '-s', label='$y$')
         plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-d', label='$z$')
