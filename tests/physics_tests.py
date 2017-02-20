@@ -1,6 +1,6 @@
 import os.path
 import logging
-from unittest import TestCase
+from unittest import TestCase, skip
 import traceback
 import numpy as np
 import matplotlib.pyplot as plt
@@ -40,11 +40,10 @@ class PhysicsTests(TestCase):
     def test_strike_ball(self):
         self.physics.reset(self.game.initial_positions())
         self.physics.on_table[1:] = False
-        self.cue.position[:] = self.game.ball_positions[0]
-        self.cue.position[2] += 0.5 * self.cue.length + self.physics.ball_radius
-        self.cue.velocity[2] = -6.0
+        q = np.array((0.0, 0.0, 1.0))
         Q = np.array((0.0, 0.0, self.physics.ball_radius))
-        events = self.physics.strike_ball(0.0, 0, self.cue.world_matrix[1,:3], Q,
+        self.cue.velocity[2] = -6.0
+        events = self.physics.strike_ball(0.0, 0, q, Q,
                                           self.cue.velocity, self.cue.mass)
         _logger.info('\n'.join(['  %f: %s' % (e.t, e) for e in events]))
         self.assertEqual(3, len(events))
@@ -63,7 +62,7 @@ class PhysicsTests(TestCase):
         plt.legend()
         self._savefig()
 
-
+    @skip
     def test_ball_collision_event(self):
         self.physics.reset(self.game.initial_positions())
         self.physics.on_table[2:] = False

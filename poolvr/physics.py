@@ -15,13 +15,14 @@ import bisect
 import numpy as np
 
 
-_logger = logging.getLogger(__name__)
-
-
 from .exceptions import TODO
 
 
+_logger = logging.getLogger(__name__)
+
 INCH2METER = 0.0254
+
+_I, _J, _K = np.eye(3, dtype=np.float32)
 
 
 class PoolPhysics(object):
@@ -267,22 +268,20 @@ class PoolPhysics(object):
             M = cue_mass
             m, R = self.physics.ball_mass, self.physics.ball_radius
             F = 2.0 * m * norm_V / (1 + m/M + 5.0/(2*R**2) * (a**2 + (b*cos)**2 + (c*sin)**2 - 2*b*c*cos*sin))
-            norm_v = F / m * cos
             v = self._a[1]
             # post-impact ball velocity:
-            v[0] = norm_v * V[0] / norm_V_xz
-            v[2] = norm_v * V[2] / norm_V_xz
-            v[1] = 0 # TODO
+            v[::2] = F / m * V[::2] / np.linalg.norm(V[::2])
             I = self.physics._I
             omega_x = F * (-c * sin + b * cos) / I
             omega_z = F * a * sin / I
             omega = self._b[0]
             # post-impact ball angular velocity:
-            omega[0] = omega_x * V[0] / norm_V_xz
-            omega[2] = omega_z * V[2] / norm_V_xz
+            omega[0] = -omega_x * V[0] / norm_V_xz
+            omega[2] = 0
             omega[1] = 0
+            # omega[::2] = omega_x * V[::2] / np.linalg.norm(V[::2])
             # TODO: omega[1] = -F * a * cos / I
-            u = v + R * np.array((-omega[2], 0.0, omega[0]), dtype=np.float32) # relative velocity
+            u = v + R * np.array((-omega[2], 0.0, omega[0]), dtype=np.float32)
             mu_s, mu_sp, g = self.physics.mu_s, self.physics.mu_sp, self.physics.g
             self._a[2,::2] = -0.5 * mu_s * g * u[::2]
             self._b[1,::2] = -5 * mu_s * g / (2 * R) * np.array((-u[2], u[0]), dtype=np.float32)
@@ -293,6 +292,8 @@ class PoolPhysics(object):
             end_velocity = self._a[1] + 2 * tau_s * self._a[2]
             self.next_event = self.physics.SlideToRollEvent(t + tau_s, i,
                                                             end_position, end_velocity)
+        def __str__(self):
+            return super().__str__()[:-1] + ' q=%s Q=%s V=%s>' % (self.q, self.Q, self.V)
 
     class SlideToRollEvent(PhysicsEvent):
         _num_balls = 1

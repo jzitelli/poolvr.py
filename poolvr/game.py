@@ -10,6 +10,13 @@ from .physics import PoolPhysics
 
 
 class PoolGame(object):
+    """
+    Game state for a pool "game"
+
+    :param ball_colors: array defining a base color for each ball
+    :param stripe_colors: *optional* map defining a stripe color
+                          for each ball that is striped
+    """
     BALL_COLORS = [0xddddde,
                    0xeeee00,
                    0x0000ee,
