@@ -45,8 +45,7 @@ class PhysicsTests(TestCase):
         self.cue.velocity[2] = -6.0
         Q = np.array((0.0, 0.0, self.physics.ball_radius))
         events = self.physics.strike_ball(0.0, 0, self.cue.world_matrix[1,:3], Q,
-                                          self.cue.velocity,
-                                          self.cue.mass)
+                                          self.cue.velocity, self.cue.mass)
         _logger.info('\n'.join(['  %f: %s' % (e.t, e) for e in events]))
         self.assertEqual(3, len(events))
         self.assertIsInstance(events[0], PoolPhysics.StrikeBallEvent)
