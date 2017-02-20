@@ -351,7 +351,7 @@ class PoolPhysics(object):
             self._a = np.zeros((3,3), dtype=np.float32)
             self._b = np.zeros((2,3), dtype=np.float32)
             self._a[0] = position
-            self.T = 0
+            self.T = float('inf')
         def __str__(self):
             return super().__str__()[:-1] + ' r=%s>' % self._a[0]
 

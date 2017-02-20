@@ -30,34 +30,32 @@ class PhysicsTests(TestCase):
 
     def test_reset(self):
         self.physics.reset(self.game.initial_positions())
+        self.assertEqual(0, len(self.physics.events))
         self.assertLessEqual(np.linalg.norm(self.game.initial_positions() -
                                             self.physics.eval_positions(0.0)),
                              0.001 * self.physics.ball_radius)
         self.assertTrue((self.physics.eval_velocities(0.0) == 0).all())
 
-
     def test_strike_ball(self):
         self.physics.reset(self.game.initial_positions())
         self.physics.on_table[1:] = False
         Q = np.array((0.0, 0.0, self.physics.ball_radius))
-        self.cue.velocity[2] = -2.0
+        self.cue.velocity[2] = -1.0
         events = self.physics.strike_ball(0.0, 0, Q, self.cue.velocity, self.cue.mass)
         _logger.info('\n'.join(['  %f: %s' % (e.t, e) for e in events]))
         self.assertEqual(3, len(events))
         self.assertIsInstance(events[0], PoolPhysics.StrikeBallEvent)
         self.assertIsInstance(events[1], PoolPhysics.SlideToRollEvent)
         self.assertIsInstance(events[2], PoolPhysics.RollToRestEvent)
-
         fig = plt.figure()
         plt.xlabel('$t$ (seconds)')
         plt.ylabel('$x, y, z$ (meters)')
-        ts = np.concatenate([np.linspace(a.t, b.t, int((b.t - a.t) * 20 + 2))
-                             for a, b in zip(events[:-1], events[1:])])
-        for b in events[1:]:
-            plt.axvline(b.t)
+        ts = np.linspace(events[0].t, events[-1].t, 50) #int((events[-1].t - events[0].t) * 23 + 1))
         plt.plot(ts, [self.physics.eval_positions(t)[0,0] for t in ts], '-o', label='$x$')
         plt.plot(ts, [self.physics.eval_positions(t)[0,1] for t in ts], '-s', label='$y$')
         plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-d', label='$z$')
+        for e in events:
+            plt.axvline(e.t)
         plt.legend()
         self._savefig()
 
@@ -67,17 +65,21 @@ class PhysicsTests(TestCase):
         self.physics.on_table[2:] = False
         self.cue.velocity[2] = -4.0
         Q = np.array((0.0, 0.0, self.physics.ball_radius))
-        events = self.physics.strike_ball(0.0, 0, Q,
-                                          self.cue.velocity, self.cue.mass)
+        events = self.physics.strike_ball(0.0, 0, Q, self.cue.velocity, self.cue.mass)
         _logger.info('\n'.join(['  %f: %s' % (e.t, e) for e in events]))
+        # self.assertEqual(3, len(events))
+        # self.assertIsInstance(events[0], PoolPhysics.StrikeBallEvent)
+        # self.assertIsInstance(events[1], PoolPhysics.SlideToRollEvent)
+        # self.assertIsInstance(events[2], PoolPhysics.BallCollisionEvent)
         fig = plt.figure()
         plt.xlabel('$t$ (seconds)')
         plt.ylabel('$x, y, z$ (meters)')
-        ts = np.concatenate([np.linspace(a.t, b.t, int((b.t - a.t) * 23))
-                             for a, b in zip(events[:-1], events[1:])])
+        ts = np.linspace(events[0].t, events[-1].t, 50) #int((events[-1].t - events[0].t) * 23 + 1))
         plt.plot(ts, [self.physics.eval_positions(t)[0,0] for t in ts], '-o', label='$x$')
         plt.plot(ts, [self.physics.eval_positions(t)[0,1] for t in ts], '-s', label='$y$')
         plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-d', label='$z$')
+        for e in events:
+            plt.axvline(e.t)
         plt.legend()
         self._savefig()
 
