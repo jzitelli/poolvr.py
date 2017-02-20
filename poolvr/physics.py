@@ -1,6 +1,6 @@
 """
-
-Event-based pool physics simulation engine based on the paper
+This module implements an event-based pool physics simulation engine
+based on the paper
 (available at http://web.stanford.edu/group/billiards/AnEventBasedPoolPhysicsSimulator.pdf):
 
   AN EVENT-BASED POOL PHYSICS SIMULATOR
@@ -8,7 +8,6 @@ Event-based pool physics simulation engine based on the paper
   DOI: 10.1007/11922155_19 · Source: DBLP
   Conference: Advances in Computer Games, 11th International Conference,
   Taipei, Taiwan, September 6-9, 2005.
-
 """
 import logging
 import bisect
