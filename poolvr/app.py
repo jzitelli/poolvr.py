@@ -29,6 +29,12 @@ from .mouse_controls import init_mouse
 BG_COLOR = (0.0, 0.0, 0.0, 0.0)
 
 
+# TODO: pkgutils way
+TEXTURES_DIR = os.path.join(os.path.dirname(__file__),
+                            os.path.pardir,
+                            'textures')
+
+
 def setup_glfw(width=800, height=600, double_buffered=False):
     if not glfw.Init():
         raise Exception('failed to initialize glfw')
@@ -68,7 +74,7 @@ def main(window_size=(800,600), novr=False):
     cue = PoolCue()
     cue.position[1] = game.table.height + 0.1
     ball_radius = game.table.ball_radius
-    ball_billboards = BillboardParticles(Texture('textures/ball.png'), num_particles=game.num_balls,
+    ball_billboards = BillboardParticles(Texture(os.path.join(TEXTURES_DIR, 'ball.png')), num_particles=game.num_balls,
                                          scale=2*ball_radius,
                                          color=np.array([[(c&0xff0000) / 0xff0000, (c&0x00ff00) / 0x00ff00, (c&0x0000ff) / 0x0000ff]
                                                          for c in game.ball_colors], dtype=np.float32),
