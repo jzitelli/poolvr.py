@@ -40,7 +40,7 @@ class PhysicsTests(TestCase):
         self.physics.reset(self.game.initial_positions())
         self.physics.on_table[1:] = False
         Q = np.array((0.0, 0.0, self.physics.ball_radius))
-        self.cue.velocity[2] = -4.0
+        self.cue.velocity[2] = -2.0
         events = self.physics.strike_ball(0.0, 0, Q, self.cue.velocity, self.cue.mass)
         _logger.info('\n'.join(['  %f: %s' % (e.t, e) for e in events]))
         self.assertEqual(3, len(events))
@@ -53,6 +53,8 @@ class PhysicsTests(TestCase):
         plt.ylabel('$x, y, z$ (meters)')
         ts = np.concatenate([np.linspace(a.t, b.t, int((b.t - a.t) * 20 + 2))
                              for a, b in zip(events[:-1], events[1:])])
+        for b in events[1:]:
+            plt.axvline(b.t)
         plt.plot(ts, [self.physics.eval_positions(t)[0,0] for t in ts], '-o', label='$x$')
         plt.plot(ts, [self.physics.eval_positions(t)[0,1] for t in ts], '-s', label='$y$')
         plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-d', label='$z$')
@@ -63,7 +65,7 @@ class PhysicsTests(TestCase):
     def test_ball_collision_event(self):
         self.physics.reset(self.game.initial_positions())
         self.physics.on_table[2:] = False
-        self.cue.velocity[2] = -7.0
+        self.cue.velocity[2] = -4.0
         Q = np.array((0.0, 0.0, self.physics.ball_radius))
         events = self.physics.strike_ball(0.0, 0, Q,
                                           self.cue.velocity, self.cue.mass)

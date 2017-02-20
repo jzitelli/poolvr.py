@@ -122,20 +122,17 @@ class PoolPhysics(object):
             self.events.append(predicted_event)
             if isinstance(predicted_event, self.BallCollisionEvent):
                 i, j = predicted_event.i, predicted_event.j
-                _a, _b = predicted_event._calc_global_coeffs()
                 if i in self._ball_events:
                     self._ball_events.pop(i)
-                elif j in self._ball_events:
+                if j in self._ball_events:
                     self._ball_events.pop(j)
                 # self._ball_events[predicted_event.i] = predicted_event
                 # self._ball_events[predicted_event.j] = predicted_event
             elif isinstance(predicted_event, self.SlideToRollEvent):
                 i = predicted_event.i
-                _a, _b = predicted_event._calc_global_coeffs()
                 self._ball_events[i] = predicted_event
             elif isinstance(predicted_event, self.RollToRestEvent):
                 i = predicted_event.i
-                _a, _b = predicted_event._calc_global_coeffs()
                 self._ball_events.pop(i)
         return events
 
@@ -283,7 +280,7 @@ class PoolPhysics(object):
             self._a = np.zeros((3,3), dtype=np.float32)
             self._b = np.zeros((2,3), dtype=np.float32)
             self._a[0] = self.physics._a[i,0]
-            a, c, b = Q
+            a, b, c = Q
             V[1] = 0
             sin, cos = 0.0, 1.0
             M = cue_mass
@@ -296,23 +293,19 @@ class PoolPhysics(object):
             # post-impact ball angular velocity:
             omega = self._b[0]
             I = self.physics._I
-            omega_x = F * (-c * sin + b * cos) / I
-            omega_y = -F * a * cos / I
-            omega_z = F * a * sin / I
+            omega_i = F * (-c * sin + b * cos) / I
+            omega_j = F * a * sin / I
+            omega_k = -F * a * cos / I
             _j = -V[:] / norm_V
             _k = _J
             _i = np.cross(_j, _k)
-            # omega[0] = -omega_x * V[0] / norm_V_xz
-            # omega[2] = 0
-            # omega[1] = 0
-            omega[:] = omega_x * _i + omega_y * _j + omega_z * _k
-            u = v + R * np.cross(_k, omega) #np.array((-omega[2], 0.0, omega[0]), dtype=np.float32)
+            omega[:] = omega_i * _i + omega_j * _j + omega_k * _k
+            u = v + R * np.cross(_k, omega)
             u[1] = 0
             norm_u = np.linalg.norm(u)
             mu_s, mu_sp, g = self.physics.mu_s, self.physics.mu_sp, self.physics.g
             self._a[2,::2] = -0.5 * mu_s * g * u[::2] / norm_u
-            # self._b[1,::2] = -5 * mu_s * g / (2 * R) * np.array((-u[2], u[0]), dtype=np.float32)
-            self._b[1] = -5 * mu_s * g / (2 * R) * np.cross(_k, u) / norm_u #np.array((-u[2], u[0]), dtype=np.float32)
+            self._b[1] = -5 * mu_s * g / (2 * R) * np.cross(_k, u) / norm_u
             self._b[1,1] = -5 * mu_sp * g / (2 * R)
             tau_s = 2 * norm_u / (7 * mu_s * g)
             self.T = tau_s
@@ -321,7 +314,7 @@ class PoolPhysics(object):
             self.next_event = self.physics.SlideToRollEvent(t + tau_s, i,
                                                             end_position, end_velocity)
         def __str__(self):
-            return super().__str__()[:-1] + ' Q=%s V=%s r=%s>' % (self.Q, self.V, self._a[0])
+            return super().__str__()[:-1] + ' Q=%s V=%s r=%s v=%s>' % (self.Q, self.V, self._a[0], self._a[1])
 
     class SlideToRollEvent(PhysicsEvent):
         _num_balls = 1
@@ -338,7 +331,7 @@ class PoolPhysics(object):
             end_position = self._a[0] + tau_r * self._a[1] + tau_r**2 * self._a[2]
             self.next_event = self.physics.RollToRestEvent(t + tau_r, i, end_position)
         def __str__(self):
-            return super().__str__()[:-1] + ' r=%s>' % self._a[0]
+            return super().__str__()[:-1] + ' r=%s v=%s>' % (self._a[0], self._a[1])
 
     class SlideToRestEvent(PhysicsEvent):
         _num_balls = 1
