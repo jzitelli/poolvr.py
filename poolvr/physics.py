@@ -172,6 +172,15 @@ class PoolPhysics(object):
                  g=9.81,
                  initial_positions=None,
                  **kwargs):
+        """
+        Pool physics simulator
+
+        :param mu_r: friction coefficient (rolling)
+        :param mu_sp: friction coefficient (spining)
+        :param mu_s: friction coefficient (sliding)
+        :param e: coefficient of restitution for ball collisions
+        :param g: gravity
+        """
         self.PhysicsEvent.physics = self
         self.num_balls = num_balls
         self.ball_mass = ball_mass
