@@ -42,7 +42,7 @@ class PhysicsTests(TestCase):
         Q = np.array((0.0, 0.0, self.physics.ball_radius))
         self.cue.velocity[2] = -1.0
         events = self.physics.strike_ball(0.0, 0, Q, self.cue.velocity, self.cue.mass)
-        _logger.info('\n'.join(['  %f: %s' % (e.t, e) for e in events]))
+        _logger.info('\n'.join(['  %s' % e for e in events]))
         self.assertEqual(3, len(events))
         self.assertIsInstance(events[0], PoolPhysics.StrikeBallEvent)
         self.assertIsInstance(events[1], PoolPhysics.SlideToRollEvent)
@@ -58,6 +58,8 @@ class PhysicsTests(TestCase):
         plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-d', label='$z$')
         for e in events:
             plt.axvline(e.t)
+            if e.T < float('inf'):
+                plt.axvline(e.t + e.T)
         plt.legend()
         self._savefig()
 
@@ -68,7 +70,7 @@ class PhysicsTests(TestCase):
         self.cue.velocity[2] = -4.0
         Q = np.array((0.0, 0.0, self.physics.ball_radius))
         events = self.physics.strike_ball(0.0, 0, Q, self.cue.velocity, self.cue.mass)
-        _logger.info('\n'.join(['  %f: %s' % (e.t, e) for e in events]))
+        _logger.info('\n'.join(['  %s' % e for e in events]))
         # self.assertEqual(3, len(events))
         # self.assertIsInstance(events[0], PoolPhysics.StrikeBallEvent)
         # self.assertIsInstance(events[1], PoolPhysics.SlideToRollEvent)
@@ -84,6 +86,8 @@ class PhysicsTests(TestCase):
         plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-d', label='$z$')
         for e in events:
             plt.axvline(e.t)
+            if e.T < float('inf'):
+                plt.axvline(e.t + e.T)
         plt.legend()
         self._savefig()
 

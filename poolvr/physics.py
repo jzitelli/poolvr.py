@@ -1,13 +1,13 @@
 """
-This module implements an event-based pool physics simulation engine
-based on the paper
-(available at http://web.stanford.edu/group/billiards/AnEventBasedPoolPhysicsSimulator.pdf):
+This module implements an event-based pool physics simulator based on the paper
+(available at http://web.stanford.edu/group/billiards/AnEventBasedPoolPhysicsSimulator.pdf): ::
 
   AN EVENT-BASED POOL PHYSICS SIMULATOR
   Will Leckie, Michael Greenspan
   DOI: 10.1007/11922155_19 · Source: DBLP
   Conference: Advances in Computer Games, 11th International Conference,
   Taipei, Taiwan, September 6-9, 2005.
+
 """
 import logging
 import bisect
@@ -65,13 +65,18 @@ class PoolPhysics(object):
             self._a[:,0] = initial_positions
 
     def strike_ball(self, t, i, Q, V, cue_mass):
-        """
-        Strike ball *i* at game time *t*.  The cue points in the direction specified
-        by the unit vector *q* = :math:`\hat{q}`, and strikes the ball at point *Q* =
-        :math:`Q_x \hat{i} + Q_y \hat{j} + Q_z \hat{k}` which is specified
-        in coordinates relative to the ball's center with :math:`\hat{k}`
-        aligned with the horizontal component of :math:`\hat{q}`.
-        *V* is the velocity of the cue at the instant when it strikes the ball.
+        r"""
+        Strike ball *i* at game time *t*.  The cue strikes the ball at point *Q* =
+        :math:`a \hat{i} + b \hat{j} + c \hat{k}`, which is specified
+        in coordinates relative to the ball's center with the :math:`\hat{k}`-axis
+        aligned with the horizontal component of the cue's impact velocity
+        *V* = :math:`\vec{V}`, i.e.
+
+        .. math::
+
+          \hat{k} = - \frac{\vec{V} - (\vec{V} \cdot \hat{j}) \hat{j}}{ \| \vec{V} - (\vec{V} \cdot \hat{j}) \hat{j} \| }
+
+        and :math:`c > 0`.
         """
         if not self.on_table[i]:
             return
