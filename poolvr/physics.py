@@ -28,9 +28,9 @@ class PoolPhysics(object):
     """
     Pool physics simulator
 
-    :param mu_r:  friction coefficient (rolling)
-    :param mu_sp: friction coefficient (spining)
-    :param mu_s:  friction coefficient (sliding)
+    :param mu_r:  :math:`\mu_r`, friction coefficient (rolling)
+    :param mu_sp: :math:`\mu_{sp}`, friction coefficient (spining)
+    :param mu_s:  :math:`\mu_s`, friction coefficient (sliding)
     :param e:     coefficient of restitution for ball collisions
     :param g:     gravity
     """
