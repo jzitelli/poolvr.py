@@ -349,18 +349,22 @@ class OpenGLRenderer(object):
         self.znear = znear
         self.zfar = zfar
         self.camera_matrix = np.eye(4, dtype=np.float32)
+        self.camera_position = self.camera_matrix[3,:3]
         self.view_matrix = np.eye(4, dtype=np.float32)
         self.projection_matrix = np.empty((4,4), dtype=np.float32)
         self.update_projection_matrix()
     def update_projection_matrix(self):
         window_size, znear, zfar = self.window_size, self.znear, self.zfar
         self.projection_matrix[:] = calc_projection_matrix(np.pi / 180 * 60, window_size[0] / window_size[1], znear, zfar).T
+    def init_gl(self, clear_color=(0.0, 0.0, 0.0, 0.0)):
+        gl.glClearColor(*clear_color)
+        gl.glEnable(gl.GL_DEPTH_TEST)
+        gl.glViewport(0, 0, self.window_size[0], self.window_size[1])
     @contextmanager
     def render(self, meshes=None):
         self.view_matrix[3,:3] = -self.camera_matrix[3,:3]
         self.view_matrix[:3,:3] = self.camera_matrix[:3,:3].T
         yield None
-        gl.glViewport(0, 0, self.window_size[0], self.window_size[1])
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         if meshes is not None:
             for mesh in meshes:

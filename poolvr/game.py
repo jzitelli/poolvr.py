@@ -37,6 +37,7 @@ class PoolGame(object):
         self.physics = PoolPhysics(num_balls=self.num_balls,
                                    initial_positions=self.ball_positions)
     def initial_positions(self, d=None, out=None):
+        """Set balls to initial (racked) positions"""
         ball_radius = self.table.ball_radius
         if d is None:
             d = 0.04 * ball_radius

@@ -261,9 +261,9 @@ class PoolPhysics(object):
             return a, b
         def __str__(self):
             clsname = self.__class__.__name__.split('.')[-1]
-            return "<%17s: t=%.3f T=%.3f" % (clsname, self.t, self.T) + \
-                (' i=%d'  % self.i if hasattr(self, 'i') else '') + \
-                (' j=%d>' % self.j if hasattr(self, 'j') else '>')
+            return "<%17s: t=%7.3f T=%7.3f" % (clsname, self.t, self.T) + \
+                (' i=%2d'  % self.i if hasattr(self, 'i') else '') + \
+                (' j=%2d>' % self.j if hasattr(self, 'j') else '>')
         def __lt__(self, other):
             if isinstance(other, self.physics.PhysicsEvent):
                 return self.t < other.t
@@ -324,7 +324,7 @@ class PoolPhysics(object):
             self.next_event = self.physics.SlideToRollEvent(t + tau_s, i,
                                                             end_position, end_velocity)
         def __str__(self):
-            return super().__str__()[:-1] + ' Q=%s V=%s r=%s v=%s>' % (self.Q, self.V, self._a[0], self._a[1])
+            return super().__str__()[:-1] + ' r=%40s v=%40s Q=%40s V=%40s>' % (self._a[0], self._a[1], self.Q, self.V)
 
     class SlideToRollEvent(PhysicsEvent):
         _num_balls = 1
@@ -341,7 +341,7 @@ class PoolPhysics(object):
             end_position = self._a[0] + tau_r * self._a[1] + tau_r**2 * self._a[2]
             self.next_event = self.physics.RollToRestEvent(t + tau_r, i, end_position)
         def __str__(self):
-            return super().__str__()[:-1] + ' r=%s v=%s>' % (self._a[0], self._a[1])
+            return super().__str__()[:-1] + ' r=%40s v=%40s>' % (self._a[0], self._a[1])
 
     class SlideToRestEvent(PhysicsEvent):
         _num_balls = 1
@@ -363,7 +363,7 @@ class PoolPhysics(object):
             self._a[0] = position
             self.T = float('inf')
         def __str__(self):
-            return super().__str__()[:-1] + ' r=%s>' % self._a[0]
+            return super().__str__()[:-1] + ' r=%40s>' % self._a[0]
 
     class BallCollisionEvent(PhysicsEvent):
         _num_balls = 2

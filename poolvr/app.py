@@ -47,15 +47,19 @@ def setup_glfw(width=800, height=600, double_buffered=False):
         raise Exception('failed to create glfw window')
     glfw.MakeContextCurrent(window)
     _logger.info('GL_VERSION: %s', gl.glGetString(gl.GL_VERSION))
-    return window
+    renderer = OpenGLRenderer(window_size=(width, height), znear=0.1, zfar=1000)
+    def on_resize(window, width, height):
+        gl.glViewport(0, 0, width, height)
+        renderer.window_size = (width, height)
+        renderer.update_projection_matrix()
+    glfw.SetWindowSizeCallback(window, on_resize)
+    return window, renderer
+
 
 
 def main(window_size=(800,600), novr=False):
     _logger.info('HELLO')
-    window = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=novr)
-    fallback_renderer = OpenGLRenderer(window_size=window_size, znear=0.1, zfar=1000)
-    camera_world_matrix = fallback_renderer.camera_matrix
-    camera_position = camera_world_matrix[3,:3]
+    window, fallback_renderer = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=novr)
     game = PoolGame()
     if not novr and OpenVRRenderer is not None:
         try:
@@ -65,14 +69,18 @@ def main(window_size=(800,600), novr=False):
             _logger.error('could not initialize OpenVRRenderer: %s', err)
     else:
         renderer = fallback_renderer
-        camera_position[1] = game.table.height + 0.6
-        camera_position[2] = game.table.length - 0.1
-    gl.glViewport(0, 0, window_size[0], window_size[1])
-    gl.glClearColor(*BG_COLOR)
-    gl.glEnable(gl.GL_DEPTH_TEST)
-    physics = game.physics
+        renderer.camera_position[1] = game.table.height + 0.6
+        renderer.camera_position[2] = game.table.length - 0.1
     cue = PoolCue()
     cue.position[1] = game.table.height + 0.1
+    process_keyboard_input = init_keyboard(window)
+    process_mouse_input = init_mouse(window)
+    camera_world_matrix = fallback_renderer.camera_matrix
+    def process_input(dt):
+        glfw.PollEvents()
+        process_keyboard_input(dt, camera_world_matrix, cue)
+        process_mouse_input(dt, cue)
+    physics = game.physics
     ball_radius = game.table.ball_radius
     ball_billboards = BillboardParticles(Texture(os.path.join(TEXTURES_DIR, 'ball.png')), num_particles=game.num_balls,
                                          scale=2*ball_radius,
@@ -83,19 +91,9 @@ def main(window_size=(800,600), novr=False):
     ball_quaternions = np.zeros((game.num_balls, 4), dtype=np.float32)
     ball_quaternions[:,3] = 1.0
     meshes = [game.table.mesh, ball_billboards, cue]
+    renderer.init_gl(clear_color=BG_COLOR)
     for mesh in meshes:
         mesh.init_gl()
-    def on_resize(window, width, height):
-        gl.glViewport(0, 0, width, height)
-        renderer.window_size = (width, height)
-        renderer.update_projection_matrix()
-    glfw.SetWindowSizeCallback(window, on_resize)
-    process_keyboard_input = init_keyboard(window)
-    process_mouse_input = init_mouse(window)
-    def process_input(dt):
-        glfw.PollEvents()
-        process_keyboard_input(dt, camera_world_matrix, cue)
-        process_mouse_input(dt, cue)
 
     _logger.info('entering render loop...')
     sys.stdout.flush()
