@@ -38,12 +38,12 @@ class BillboardParticles(Node):
         self.primitive.attributes['position'] = self.primitive.attributes['vertices']
         self.primitive.attributes['uv'] = self.primitive.attributes['uvs']
         self._initialized = False
-    def init_gl(self):
+    def init_gl(self, force=False):
         if self._initialized:
-            return
-        self.texture.init_gl()
-        self.technique.init_gl()
-        self.primitive.init_gl()
+            if not force: return
+        self.texture.init_gl(force=force)
+        self.technique.init_gl(force=force)
+        self.primitive.init_gl(force=force)
         self._initialized = True
     def update_gl(self):
         translate = self.primitive.attributes['translate']

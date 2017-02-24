@@ -24,8 +24,8 @@ class HexaPrimitive(Primitive):
     def __init__(self, vertices=None):
         Primitive.__init__(self, gl.GL_TRIANGLES, HexaPrimitive.indices, index_buffer=HexaPrimitive.index_buffer,
                            vertices=vertices)
-    def init_gl(self):
-        Primitive.init_gl(self)
+    def init_gl(self, force=False):
+        Primitive.init_gl(self, force=force)
         if HexaPrimitive.index_buffer is None:
             HexaPrimitive.index_buffer = self.index_buffer
 
@@ -94,8 +94,8 @@ class QuadPrimitive(Primitive):
                         [0.0, 1.0]], dtype=np.float32)
         Primitive.__init__(self, gl.GL_TRIANGLE_STRIP, QuadPrimitive.indices, index_buffer=QuadPrimitive.index_buffer,
                            vertices=vertices, uvs=uvs, **attributes)
-    def init_gl(self):
-        Primitive.init_gl(self)
+    def init_gl(self, force=False):
+        Primitive.init_gl(self, force=force)
         if QuadPrimitive.index_buffer is None:
             QuadPrimitive.index_buffer = self.index_buffer
 

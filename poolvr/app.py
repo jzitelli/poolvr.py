@@ -35,13 +35,13 @@ TEXTURES_DIR = os.path.join(os.path.dirname(__file__),
                             'textures')
 
 
-def setup_glfw(width=800, height=600, double_buffered=False):
+def setup_glfw(width=800, height=600, double_buffered=False, title="poolvr.py 0.0.1"):
     if not glfw.Init():
         raise Exception('failed to initialize glfw')
     if not double_buffered:
         glfw.WindowHint(glfw.DOUBLEBUFFER, False)
         glfw.SwapInterval(0)
-    window = glfw.CreateWindow(width, height, "gltfview")
+    window = glfw.CreateWindow(width, height, title)
     if not window:
         glfw.Terminate()
         raise Exception('failed to create glfw window')

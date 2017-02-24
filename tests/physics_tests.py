@@ -105,6 +105,7 @@ class PhysicsTests(TestCase):
                 plt.axvline(e.t + e.T)
         plt.legend()
         self._savefig()
+        self._view()
 
 
     def _savefig(self):
@@ -121,7 +122,8 @@ class PhysicsTests(TestCase):
 
     def _view(self, window_size=(800,600)):
         title = traceback.extract_stack(None, 2)[0][2]
-        window = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=True)
+        window = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=True,
+                            title=title)
         fallback_renderer = OpenGLRenderer(window_size=window_size, znear=0.1, zfar=1000)
         camera_world_matrix = fallback_renderer.camera_matrix
         camera_position = camera_world_matrix[3,:3]
@@ -146,7 +148,7 @@ class PhysicsTests(TestCase):
         ball_quaternions[:,3] = 1.0
         meshes = [game.table.mesh, ball_billboards, cue]
         for mesh in meshes:
-            mesh.init_gl()
+            mesh.init_gl(force=True)
         def on_resize(window, width, height):
             gl.glViewport(0, 0, width, height)
             renderer.window_size = (width, height)
@@ -160,7 +162,7 @@ class PhysicsTests(TestCase):
         max_frame_time = 0.0
         lt = glfw.GetTime()
         t0 = self.physics.events[0].t
-        t1 = self.physics.events[-1].t + self.physics.events[-1].T
+        t1 = self.physics.events[-1].t + min(2.0, self.physics.events[-1].T)
         pt = t0
         while not glfw.WindowShouldClose(window) and pt <= t1:
             t = glfw.GetTime()
