@@ -67,3 +67,6 @@ class PoolGame(object):
         out[0,0] = 0.0
         out[0,2] = 0.25 * length
         return out
+    def reset(self):
+        self.initial_positions(out=self.ball_positions)
+        self.physics.reset(self.ball_positions)

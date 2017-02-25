@@ -21,7 +21,7 @@ def init_keyboard(window):
             key_state[key] = False
     glfw.SetKeyCallback(window, on_keydown)
     theta = 0.0
-    def process_keyboard_input(dt, camera_world_matrix, cue):
+    def process_keyboard_input(dt, camera_world_matrix, cue=None):
         nonlocal theta
         theta += KB_TURN_SPEED * dt * (key_state[glfw.KEY_LEFT] - key_state[glfw.KEY_RIGHT])
         sin, cos = np.sin(theta), np.cos(theta)
@@ -36,10 +36,11 @@ def init_keyboard(window):
         camera_position[:] += KB_MOVE_SPEED * dt * (fb * camera_world_matrix[2,:3] +
                                                     lr * camera_world_matrix[0,:3] +
                                                     ud * camera_world_matrix[1,:3])
-        fb = key_state[glfw.KEY_I] - key_state[glfw.KEY_K]
-        lr = key_state[glfw.KEY_L] - key_state[glfw.KEY_J]
-        ud = key_state[glfw.KEY_U] - key_state[glfw.KEY_M]
-        cue.world_matrix[:3,:3] = cue.rotation.T
-        cue.velocity = KB_CUE_MOVE_SPEED * (fb * cue.world_matrix[1,:3] + lr * cue.world_matrix[0,:3] + ud * cue.world_matrix[2,:3])
-        cue.position += cue.velocity * dt
+        if cue is not None:
+            fb = key_state[glfw.KEY_I] - key_state[glfw.KEY_K]
+            lr = key_state[glfw.KEY_L] - key_state[glfw.KEY_J]
+            ud = key_state[glfw.KEY_U] - key_state[glfw.KEY_M]
+            cue.world_matrix[:3,:3] = cue.rotation.T
+            cue.velocity = KB_CUE_MOVE_SPEED * (fb * cue.world_matrix[1,:3] + lr * cue.world_matrix[0,:3] + ud * cue.world_matrix[2,:3])
+            cue.position += cue.velocity * dt
     return process_keyboard_input

@@ -57,9 +57,9 @@ class Program(object):
                         uniforms[uniform_name]['initialization'] = initialization
             self.attributes = attributes
             self.uniforms = uniforms
-    def init_gl(self):
+    def init_gl(self, force=False):
         if self.program_id is not None:
-            return
+            if not force: return
         vs = gl.glCreateShader(gl.GL_VERTEX_SHADER)
         gl.glShaderSource(vs, self.vs_src)
         gl.glCompileShader(vs)
@@ -104,8 +104,8 @@ class Technique(object):
         if states is None:
             states = []
         self.states = states
-    def init_gl(self):
-        self.program.init_gl()
+    def init_gl(self, force=False):
+        self.program.init_gl(force=force)
         program_id = self.program.program_id
         self.attribute_locations = {name: gl.glGetAttribLocation(program_id, name) for name in self.attributes}
         self.uniform_locations = {name: gl.glGetUniformLocation(program_id, name) for name in self.uniforms}
@@ -129,9 +129,9 @@ class Primitive(object):
         self.attributes = attributes
         self.buffers = None
         self.vaos = {}
-    def init_gl(self):
+    def init_gl(self, force=False):
         if self.buffers is not None:
-            return
+            if not force: return
         self.buffers = {}
         for name, values in self.attributes.items():
             values = values.tobytes()
@@ -146,7 +146,7 @@ class Primitive(object):
                 raise Exception('failed to init gl buffer')
             self.buffers[name] = vbo
         gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
-        if self.index_buffer is None and self.indices is not None:
+        if force or (self.index_buffer is None and self.indices is not None):
             indices = self.indices.tobytes()
             vao = gl.glGenBuffers(1)
             gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, vao)
@@ -163,9 +163,9 @@ class Texture(object):
         self.uri = uri
         self.texture_id = None
         self.sampler_id = None
-    def init_gl(self):
+    def init_gl(self, force=False):
         if self.texture_id is not None:
-            return
+            if not force: return
         image = Image.open(self.uri)
         texture_id = gl.glGenTextures(1)
         self.texture_id = texture_id
@@ -208,12 +208,14 @@ class Material(object):
         self.values = values
         self.textures = textures
         self._initialized = False
-    def init_gl(self):
+    def init_gl(self, force=False):
+        if force:
+            self._initialized = False
         if self._initialized:
             return
-        self.technique.init_gl()
+        self.technique.init_gl(force=force)
         for texture in self.textures.values():
-            texture.init_gl()
+            texture.init_gl(force=force)
         self._initialized = True
         _logger.info('%s.init_gl: OK' % self.__class__.__name__)
     def use(self, u_view=None, u_modelview=None, u_projection=None, u_normal=None):
@@ -286,14 +288,14 @@ class Mesh(Node):
         Node.__init__(self, matrix=matrix)
         self.primitives = primitives
         self._initialized = False
-    def init_gl(self):
+    def init_gl(self, force=False):
         if self._initialized:
             return
         for material, prims in self.primitives.items():
-            material.init_gl()
+            material.init_gl(force=force)
             technique = material.technique
             for prim in prims:
-                prim.init_gl()
+                prim.init_gl(force=force)
                 if technique in prim.vaos:
                     continue
                 vao = gl.glGenVertexArrays(1)
