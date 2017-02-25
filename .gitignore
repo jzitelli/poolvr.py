@@ -1,5 +1,7 @@
-## Sphinx documentation
-#docs/_build/
+.idea/
+
+# Sphinx documentation
+docs/_build/
 
 *~
 *.sublime-workspace
