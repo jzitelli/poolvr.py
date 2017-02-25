@@ -53,7 +53,7 @@ class BillboardParticles(Node):
             gl.glNamedBufferSubData(self.primitive.buffers['translate'], 0, len(values), values)
         except OpenGL.error.NullFunctionError as e:
             gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.primitive.buffers['translate'])
-            gl.glBufferSubData(0, len(values), values)
+            gl.glBufferSubData(gl.GL_ARRAY_BUFFER, 0, len(values), values)
     def draw(self, view=None, projection=None):
         self.technique.use()
         if view is not None:
