@@ -210,8 +210,7 @@ class PoolPhysics(object):
         return np.roots(p)
 
     def _find_active_events(self, t):
-        self._dummy_event.t = t
-        n = bisect.bisect_left(self.events, self._dummy_event)
+        n = bisect.bisect_left(self.events, t)
         return [e for e in self.events[:n] if e.t + e.T >= t]
 
     def _find_collision_time(self, a_i, a_j):
@@ -375,6 +374,5 @@ class PoolPhysics(object):
             self._b = np.zeros((2,2,3), dtype=np.float32)
             self._a[:,0] = positions
             self._a[:,1] = velocities
-            # TODO
-
-    _dummy_event = PhysicsEvent(0)
+            # TODO: ball collision event
+            v_i, v_j = velocities[0], velocities[1]

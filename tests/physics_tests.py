@@ -30,7 +30,7 @@ PLOTS_DIR = os.path.join(os.path.dirname(__file__), 'plots')
 
 
 class PhysicsTests(TestCase):
-
+    show = True
 
     def setUp(self):
         self.table = PoolTable()
@@ -52,7 +52,7 @@ class PhysicsTests(TestCase):
         self.game.reset()
         self.physics.on_table[1:] = False
         Q = np.array((0.0, 0.0, self.physics.ball_radius))
-        self.cue.velocity[2] = -1.0
+        self.cue.velocity[2] = -0.8
         events = self.physics.strike_ball(0.0, 0, Q, self.cue.velocity, self.cue.mass)
         _logger.info('\n'.join(['  %s' % e for e in events]))
         self.assertEqual(3, len(events))
@@ -76,13 +76,13 @@ class PhysicsTests(TestCase):
         plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-d', label='$z$')
         plt.legend()
         self._savefig()
-        self._view()
+        if self.show: self._view()
 
 
-    def test_ball_collision_event(self):
+    def test_ball_collision(self):
         self.game.reset()
         self.physics.on_table[2:] = False
-        self.cue.velocity[2] = -4.0
+        self.cue.velocity[2] = -1.3
         Q = np.array((0.0, 0.0, self.physics.ball_radius))
         events = self.physics.strike_ball(0.0, 0, Q, self.cue.velocity, self.cue.mass)
         _logger.info('\n'.join(['  %s' % e for e in events]))
@@ -96,16 +96,17 @@ class PhysicsTests(TestCase):
         ts = np.linspace(events[0].t, events[-1].t, 50) #int((events[-1].t - events[0].t) * 23 + 1))
         ts = np.concatenate([[a.t] + list(ts[(ts >= a.t) & (ts < b.t)]) + [b.t]
                              for a, b in zip(events[:-1], events[1:])])
-        plt.plot(ts, [self.physics.eval_positions(t)[0,0] for t in ts], '-o', label='$x$')
-        plt.plot(ts, [self.physics.eval_positions(t)[0,1] for t in ts], '-s', label='$y$')
-        plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-d', label='$z$')
+        for i, ls, xyz in zip(range(3), ['-o', '-s', '-d'], 'xyz'):
+            plt.plot(ts, [self.physics.eval_positions(t)[0,i] for t in ts], ls, label='$%s$' % xyz)
+        # plt.plot(ts, [self.physics.eval_positions(t)[0,1] for t in ts], '-s', label='$y$')
+        # plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-d', label='$z$')
         for e in events:
             plt.axvline(e.t)
             if e.T < float('inf'):
                 plt.axvline(e.t + e.T)
         plt.legend()
         self._savefig()
-        self._view()
+        if self.show: self._view()
 
 
     def _savefig(self):
@@ -124,10 +125,9 @@ class PhysicsTests(TestCase):
         title = traceback.extract_stack(None, 2)[0][2]
         window = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=True,
                             title=title)
-        fallback_renderer = OpenGLRenderer(window_size=window_size, znear=0.1, zfar=1000)
-        camera_world_matrix = fallback_renderer.camera_matrix
+        renderer = OpenGLRenderer(window_size=window_size, znear=0.1, zfar=1000)
+        camera_world_matrix = renderer.camera_matrix
         camera_position = camera_world_matrix[3,:3]
-        renderer = fallback_renderer
         game = self.game
         camera_position[1] = game.table.height + 0.6
         camera_position[2] = game.table.length - 0.1
