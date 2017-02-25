@@ -3,7 +3,7 @@ from ctypes import c_void_p
 import numpy as np
 import PIL.Image as Image
 import OpenGL.GL as gl
-
+import OpenGL.error
 
 from .gl_rendering import Node, Technique, Program, DTYPE_COMPONENT_TYPE
 from .primitives import PlanePrimitive
@@ -46,9 +46,14 @@ class BillboardParticles(Node):
         self.primitive.init_gl(force=force)
         self._initialized = True
     def update_gl(self):
+        if not self._initialized: self.init_gl()
         translate = self.primitive.attributes['translate']
         values = translate.tobytes()
-        gl.glNamedBufferSubData(self.primitive.buffers['translate'], 0, len(values), values)
+        try:
+            gl.glNamedBufferSubData(self.primitive.buffers['translate'], 0, len(values), values)
+        except OpenGL.error.NullFunctionError as e:
+            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.primitive.buffers['translate'])
+            gl.glBufferSubData(0, len(values), values)
     def draw(self, view=None, projection=None):
         self.technique.use()
         if view is not None:

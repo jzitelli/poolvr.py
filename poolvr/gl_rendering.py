@@ -34,6 +34,9 @@ _logger = logging.getLogger(__name__)
 
 
 class Program(object):
+    """
+    GLSL program
+    """
     ATTRIBUTE_DECL_RE = re.compile("attribute\s+(?P<type_spec>\w+)\s+(?P<attribute_name>\w+)\s*;")
     UNIFORM_DECL_RE = re.compile("uniform\s+(?P<type_spec>\w+)\s+(?P<uniform_name>\w+)\s*(=\s*(?P<initialization>.*)\s*;|;)")
     _current = None
@@ -92,6 +95,9 @@ class Program(object):
 
 
 class Technique(object):
+    """
+    GL rendering technique (based off of Technique defined by glTF schema)
+    """
     _current = None
     def __init__(self, program, attributes=None, uniforms=None, states=None):
         self.program = program
