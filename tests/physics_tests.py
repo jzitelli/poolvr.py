@@ -123,9 +123,8 @@ class PhysicsTests(TestCase):
 
     def _view(self, window_size=(800,600)):
         title = traceback.extract_stack(None, 2)[0][2]
-        window = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=True,
-                            title=title)
-        renderer = OpenGLRenderer(window_size=window_size, znear=0.1, zfar=1000)
+        window, renderer = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=True,
+                                      title=title)
         camera_world_matrix = renderer.camera_matrix
         camera_position = camera_world_matrix[3,:3]
         game = self.game
