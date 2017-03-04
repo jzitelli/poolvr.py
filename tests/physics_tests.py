@@ -82,7 +82,8 @@ class PhysicsTests(TestCase):
     def test_ball_collision(self):
         self.game.reset()
         self.physics.on_table[2:] = False
-        self.cue.velocity[2] = -1.3
+        self.cue.velocity[2] = -1.8
+        self.cue.velocity[0] = 0.01
         Q = np.array((0.0, 0.0, self.physics.ball_radius))
         events = self.physics.strike_ball(0.0, 0, Q, self.cue.velocity, self.cue.mass)
         _logger.info('\n'.join(['  %s' % e for e in events]))
@@ -98,8 +99,6 @@ class PhysicsTests(TestCase):
                              for a, b in zip(events[:-1], events[1:])])
         for i, ls, xyz in zip(range(3), ['-o', '-s', '-d'], 'xyz'):
             plt.plot(ts, [self.physics.eval_positions(t)[0,i] for t in ts], ls, label='$%s$' % xyz)
-        # plt.plot(ts, [self.physics.eval_positions(t)[0,1] for t in ts], '-s', label='$y$')
-        # plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-d', label='$z$')
         for e in events:
             plt.axvline(e.t)
             if e.T < float('inf'):

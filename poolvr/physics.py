@@ -31,7 +31,6 @@ class PoolPhysics(object):
     :param mu_r:  :math:`\mu_r`, friction coefficient (rolling)
     :param mu_sp: :math:`\mu_{sp}`, friction coefficient (spining)
     :param mu_s:  :math:`\mu_s`, friction coefficient (sliding)
-    :param e:     coefficient of restitution for ball collisions
     :param g:     gravity
     """
     def __init__(self,
@@ -41,7 +40,9 @@ class PoolPhysics(object):
                  mu_r=0.016,
                  mu_sp=0.044,
                  mu_s=0.2,
-                 e=0.93,
+                 mu_b=0.06,
+                 c_ball=4000.0,
+                 E_Y_ball=2.2e10,
                  g=9.81,
                  initial_positions=None,
                  **kwargs):
@@ -52,7 +53,9 @@ class PoolPhysics(object):
         self.mu_r = mu_r
         self.mu_sp = mu_sp
         self.mu_s = mu_s
-        self.e = e
+        self.mu_b = mu_b
+        self.c_ball = c_ball
+        self.E_Y_ball = E_Y_ball
         self.g = g
         self.t = 0.0
         self.events = []
@@ -108,12 +111,16 @@ class PoolPhysics(object):
                             _a_j, _b_j = self._a[j], self._b[j]
                         collide_times[key] = self._find_collision_time(_a[0], _a_j)
                     t_c = collide_times[key]
-                    if t_c and j in self._ball_events \
-                       and t_c - event.t <= event.T \
-                       and t_c - self._ball_events[j].t <= self._ball_events[j].T \
-                       and (predicted_event is None or t_c < predicted_event.t):
-                        positions = self.eval_positions(t_c)[(i,j)]
-                        velocities = self.eval_velocities(t_c)[(i,j)]
+                    if t_c is not None:
+                        _logger.info('t_c = %f', t_c)
+
+                    if t_c and t_c <= event.t + event.T \
+                    and (predicted_event is None or t_c < predicted_event.t) \
+                    and (j not in self._ball_events \
+                         or (j in self._ball_events and t_c <= self._ball_events[j].t + self._ball_events[j].T)):
+
+                        positions = self.eval_positions(t_c)[(i,j),:]
+                        velocities = self.eval_velocities(t_c)[(i,j),:]
                         predicted_event = self.BallCollisionEvent(t_c, i, j, positions, velocities)
                         _logger.debug('i, j, t_c, t = %d, %d, %s, %s', i, j, t_c, predicted_event.t)
                 if predicted_event is None:
@@ -137,7 +144,8 @@ class PoolPhysics(object):
                 self._ball_events[i] = predicted_event
             elif isinstance(predicted_event, self.RollToRestEvent):
                 i = predicted_event.i
-                self._ball_events.pop(i)
+                if i in self._ball_events:
+                    self._ball_events.pop(i)
         return events
 
     def eval_positions(self, t, out=None):
@@ -373,6 +381,23 @@ class PoolPhysics(object):
             self._a = np.zeros((2,3,3), dtype=np.float32)
             self._b = np.zeros((2,2,3), dtype=np.float32)
             self._a[:,0] = positions
-            self._a[:,1] = velocities
-            # TODO: ball collision event
             v_i, v_j = velocities[0], velocities[1]
+            v_ij = v_j - v_i
+            norm_v_ij = np.linalg.norm(v_ij)
+            delta_t = 284e-6 / norm_v_ij**0.294
+            s_max = 1.65765 * (norm_v_ij / self.physics.c_ball)**0.8
+            F_max = 1.48001 * self.physics.ball_radius**2 * self.physics.E_Y_ball * s_max**1.5
+            J = 0.5 * F_max * delta_t
+            r_i, r_j = positions
+            r_ij = r_j - r_i
+            _i = r_ij / np.linalg.norm(r_ij)
+            post_velocities = self._a[:,1]
+            post_velocities[0] = v_i - (J / self.physics.ball_mass) * _i
+            post_velocities[1] = v_j + (J / self.physics.ball_mass) * _i
+            self._a[0,2] = -0.5 * self.physics.mu_r * self.physics.g * (post_velocities[0] / np.linalg.norm(post_velocities[0]))
+            self._a[1,2] = -0.5 * self.physics.mu_r * self.physics.g * (post_velocities[1] / np.linalg.norm(post_velocities[1]))
+            tau_r = max(np.linalg.norm(post_velocities[0]), np.linalg.norm(post_velocities[1])) / (self.physics.mu_r * self.physics.g) # min
+            self.T = tau_r
+            argm = np.argmax((np.linalg.norm(post_velocities[0]), np.linalg.norm(post_velocities[1])))
+            end_position = self._a[argm,0] + tau_r * self._a[argm,1] + tau_r**2 * self._a[argm,2]
+            self.next_event = self.physics.RollToRestEvent(t + tau_r, (i,j)[argm], end_position)
