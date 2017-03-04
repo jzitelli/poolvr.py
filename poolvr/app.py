@@ -113,6 +113,7 @@ def main(window_size=(800,600), novr=False):
 
             if frame_data:
                 poses, velocities, angular_velocities = frame_data
+                hmd_pose = poses[0]
                 if len(poses) > 1:
                     pose = poses[-1]
                     cue.world_matrix[:3,:3] = poses[-1][:,:3].dot(cue.rotation).T
@@ -132,6 +133,7 @@ def main(window_size=(800,600), novr=False):
                                                 cue.velocity, cue.mass)
                             break
                 physics.eval_positions(t, out=ball_positions)
+                ball_positions[~physics.on_table] = hmd_pose[:,3] # hacky way to only show balls that are on table
                 ball_billboards.update_gl()
 
             ##### desktop mode: #####
@@ -149,6 +151,9 @@ def main(window_size=(800,600), novr=False):
                             pass
                         else:
                             print('scratch (touched %d)' % i)
+                physics.eval_positions(t, out=ball_positions)
+                ball_positions[~physics.on_table] = renderer.camera_position # hacky way to only show balls that are on table
+                ball_billboards.update_gl()
 
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:

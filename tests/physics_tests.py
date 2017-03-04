@@ -82,15 +82,15 @@ class PhysicsTests(TestCase):
     def test_ball_collision(self):
         self.game.reset()
         self.physics.on_table[2:] = False
-        self.cue.velocity[2] = -1.8
-        self.cue.velocity[0] = 0.01
+        self.cue.velocity[2] = -1.2
+        self.cue.velocity[0] = 0.07
         Q = np.array((0.0, 0.0, self.physics.ball_radius))
         events = self.physics.strike_ball(0.0, 0, Q, self.cue.velocity, self.cue.mass)
         _logger.info('\n'.join(['  %s' % e for e in events]))
         # self.assertEqual(3, len(events))
-        # self.assertIsInstance(events[0], PoolPhysics.StrikeBallEvent)
-        # self.assertIsInstance(events[1], PoolPhysics.SlideToRollEvent)
-        # self.assertIsInstance(events[2], PoolPhysics.BallCollisionEvent)
+        self.assertIsInstance(events[0], PoolPhysics.StrikeBallEvent)
+        self.assertIsInstance(events[1], PoolPhysics.SlideToRollEvent)
+        self.assertIsInstance(events[2], PoolPhysics.BallCollisionEvent)
         fig = plt.figure()
         plt.xlabel('$t$ (seconds)')
         plt.ylabel('$x, y, z$ (meters)')
@@ -153,6 +153,7 @@ class PhysicsTests(TestCase):
             renderer.update_projection_matrix()
         glfw.SetWindowSizeCallback(window, on_resize)
         process_keyboard_input = init_keyboard(window)
+
         _logger.info('entering render loop...')
         stdout.flush()
 
@@ -170,10 +171,10 @@ class PhysicsTests(TestCase):
             glfw.PollEvents()
             process_keyboard_input(dt, camera_world_matrix, cue=cue)
             renderer.process_input()
-            self.physics.eval_positions(pt, out=ball_billboards.primitive.attributes['translate'])
-            ball_billboards.update_gl()
             with renderer.render(meshes=meshes):
-                pass
+                self.physics.eval_positions(pt, out=ball_positions)
+                ball_positions[~self.physics.on_table] = camera_position # hacky way to only show balls that are on table
+                ball_billboards.update_gl()
             max_frame_time = max(max_frame_time, dt)
             if nframes == 0:
                 st = glfw.GetTime()
