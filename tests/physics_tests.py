@@ -82,14 +82,15 @@ class PhysicsTests(TestCase):
     def test_ball_collision(self):
         self.game.reset()
         self.physics.on_table[2:] = False
-        self.cue.velocity[2] = -1.3
+        self.cue.velocity[2] = -1.2
+        self.cue.velocity[0] = 0.07
         Q = np.array((0.0, 0.0, self.physics.ball_radius))
         events = self.physics.strike_ball(0.0, 0, Q, self.cue.velocity, self.cue.mass)
         _logger.info('\n'.join(['  %s' % e for e in events]))
         # self.assertEqual(3, len(events))
-        # self.assertIsInstance(events[0], PoolPhysics.StrikeBallEvent)
-        # self.assertIsInstance(events[1], PoolPhysics.SlideToRollEvent)
-        # self.assertIsInstance(events[2], PoolPhysics.BallCollisionEvent)
+        self.assertIsInstance(events[0], PoolPhysics.StrikeBallEvent)
+        self.assertIsInstance(events[1], PoolPhysics.SlideToRollEvent)
+        self.assertIsInstance(events[2], PoolPhysics.BallCollisionEvent)
         fig = plt.figure()
         plt.xlabel('$t$ (seconds)')
         plt.ylabel('$x, y, z$ (meters)')
@@ -98,8 +99,6 @@ class PhysicsTests(TestCase):
                              for a, b in zip(events[:-1], events[1:])])
         for i, ls, xyz in zip(range(3), ['-o', '-s', '-d'], 'xyz'):
             plt.plot(ts, [self.physics.eval_positions(t)[0,i] for t in ts], ls, label='$%s$' % xyz)
-        # plt.plot(ts, [self.physics.eval_positions(t)[0,1] for t in ts], '-s', label='$y$')
-        # plt.plot(ts, [self.physics.eval_positions(t)[0,2] for t in ts], '-d', label='$z$')
         for e in events:
             plt.axvline(e.t)
             if e.T < float('inf'):
@@ -154,6 +153,7 @@ class PhysicsTests(TestCase):
             renderer.update_projection_matrix()
         glfw.SetWindowSizeCallback(window, on_resize)
         process_keyboard_input = init_keyboard(window)
+
         _logger.info('entering render loop...')
         stdout.flush()
 
@@ -171,10 +171,10 @@ class PhysicsTests(TestCase):
             glfw.PollEvents()
             process_keyboard_input(dt, camera_world_matrix, cue=cue)
             renderer.process_input()
-            self.physics.eval_positions(pt, out=ball_billboards.primitive.attributes['translate'])
-            ball_billboards.update_gl()
             with renderer.render(meshes=meshes):
-                pass
+                self.physics.eval_positions(pt, out=ball_positions)
+                ball_positions[~self.physics.on_table] = camera_position # hacky way to only show balls that are on table
+                ball_billboards.update_gl()
             max_frame_time = max(max_frame_time, dt)
             if nframes == 0:
                 st = glfw.GetTime()
