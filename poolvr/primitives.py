@@ -79,7 +79,7 @@ class CirclePrimitive(Primitive):
             i, j, k = basis
             for iv, v in enumerate(vertices):
                 vertices[iv] = np.dot(v, i) * i + np.dot(v, j) * j + np.dot(v, k) * k
-            normals[:] = j
+            normals.reshape(-1,3)[:] = j
         Primitive.__init__(self, gl.GL_TRIANGLE_FAN, indices, vertices=vertices, normals=normals)
 
 

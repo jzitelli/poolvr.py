@@ -16,13 +16,12 @@ _logger = logging.getLogger(__name__)
 
 
 from poolvr.cue import PoolCue
-from poolvr.table import PoolTable
-from poolvr.game import PoolGame
-from poolvr.physics import PoolPhysics
-from poolvr.gl_rendering import OpenGLRenderer, Texture
+from poolvr.table import PoolTable, EGA_TECHNIQUE, LAMBERT_TECHNIQUE
+from poolvr.gl_rendering import OpenGLRenderer, Texture, Material
 from poolvr.app import setup_glfw, BG_COLOR, TEXTURES_DIR
 from poolvr.billboards import BillboardParticles
 from poolvr.keyboard_controls import init_keyboard
+import poolvr.primitives
 
 
 SCREENSHOTS_DIR = os.path.join(os.path.dirname(__file__), 'screenshots')
@@ -30,6 +29,15 @@ SCREENSHOTS_DIR = os.path.join(os.path.dirname(__file__), 'screenshots')
 
 class OpenGLTests(TestCase):
     show = True
+
+
+    def test_cone_mesh(self):
+        material = Material(EGA_TECHNIQUE, values={'u_color': [1.0, 1.0, 0.0, 0.0]})
+        mesh = poolvr.primitives.ConeMesh(material, radius=0.15, height=0.3)
+        for prim in mesh.primitives[material]:
+            prim.attributes['a_position'] = prim.attributes['vertices']
+        mesh.world_matrix[3,2] = -3
+        self._view(meshes=[mesh])
 
 
     def _view(self, meshes=None, window_size=(800,600)):
@@ -40,8 +48,6 @@ class OpenGLTests(TestCase):
                                       title=title)
         camera_world_matrix = renderer.camera_matrix
         camera_position = camera_world_matrix[3,:3]
-        camera_position[1] = game.table.height + 0.6
-        camera_position[2] = game.table.length - 0.1
         gl.glViewport(0, 0, window_size[0], window_size[1])
         gl.glClearColor(*BG_COLOR)
         gl.glEnable(gl.GL_DEPTH_TEST)
@@ -60,16 +66,13 @@ class OpenGLTests(TestCase):
         nframes = 0
         max_frame_time = 0.0
         lt = glfw.GetTime()
-        t0 = self.physics.events[0].t
-        t1 = self.physics.events[-1].t + min(2.0, self.physics.events[-1].T)
-        pt = t0
-        while not glfw.WindowShouldClose(window) and pt <= t1:
+        while not glfw.WindowShouldClose(window):
             t = glfw.GetTime()
             dt = t - lt
             lt = t
-            pt += dt
             glfw.PollEvents()
             renderer.process_input()
+            process_keyboard_input(dt, camera_world_matrix)
             with renderer.render(meshes=meshes):
                 pass
             max_frame_time = max(max_frame_time, dt)
