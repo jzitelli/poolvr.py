@@ -2,7 +2,7 @@ import numpy as np
 import OpenGL.GL as gl
 
 
-from .gl_rendering import Primitive
+from .gl_rendering import Primitive, Mesh
 
 
 def triangulate_quad(quad_face, flip_normals=False):
@@ -69,13 +69,36 @@ class CylinderPrimitive(Primitive):
 
 
 class CirclePrimitive(Primitive):
-    def __init__(self, radius=0.5, num_radial=12):
+    def __init__(self, radius=0.5, num_radial=12, basis=None):
         vertices = np.concatenate([np.array([[0.0, 0.0, 0.0]], dtype=np.float32),
                                    np.array([[radius*np.cos(theta), 0.0, radius*np.sin(theta)]
                                              for theta in np.linspace(0, 2*np.pi, num_radial+1)[:-1]], dtype=np.float32)]).reshape(-1, 3)
         normals = np.array(len(vertices) * [0.0, 1.0, 0.0], dtype=np.float32)
         indices = np.array(list(range(len(vertices)))+[1], dtype=np.uint16)
+        if basis is not None:
+            i, j, k = basis
+            for iv, v in enumerate(vertices):
+                vertices[iv] = np.dot(v, i) * i + np.dot(v, j) * j + np.dot(v, k) * k
+            normals[:] = j
         Primitive.__init__(self, gl.GL_TRIANGLE_FAN, indices, vertices=vertices, normals=normals)
+
+
+class ConePrimitive(Primitive):
+    def __init__(self, radius=0.5, height=1.0, num_radial=12):
+        vertices = np.concatenate([np.array([[0.0, height, 0.0]], dtype=np.float32),
+                                   np.array([[radius*np.cos(theta), 0.0, radius*np.sin(theta)]
+                                             for theta in np.linspace(0, 2*np.pi, num_radial+1)[:-1]], dtype=np.float32)]).reshape(-1, 3)
+        indices = np.array(list(range(len(vertices)))+[1], dtype=np.uint16)
+        Primitive.__init__(self, gl.GL_TRIANGLE_FAN, indices, vertices=vertices)
+
+
+class ConeMesh(Mesh):
+    def __init__(self, material, radius=0.5, height=1.0, num_radial=12, closed=True):
+        primitives = [ConePrimitive(radius=radius, height=height, num_radial=num_radial)]
+        if closed:
+            basis = np.eye(3); basis[1,1] *= -1; basis[2,2] *= -1
+            primitives.append(CirclePrimitive(radius=radius, num_radial=num_radial, basis=basis))
+        Mesh.__init__(self, {material: primitives})
 
 
 class QuadPrimitive(Primitive):
