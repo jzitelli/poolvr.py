@@ -45,7 +45,7 @@ class PoolPhysics(object):
                  mu_s=0.2,
                  mu_b=0.06,
                  c_b=4000.0,
-                 E_Y_b=2.2e10,
+                 E_Y_b=2.4e9,
                  g=9.81,
                  initial_positions=None,
                  **kwargs):
@@ -101,9 +101,13 @@ class PoolPhysics(object):
                 t_i = event.t
                 _a, _b = event._calc_global_coeffs()
                 for j in [j for j, on in enumerate(self.on_table)
-                          if on and (j not in self._ball_events or (j > i and self._ball_events[j] is not event))]:
+                          if on and (j not in self._ball_events or j > i)]:
                     if j in self._ball_events:
                         j_event = self._ball_events[j]
+                        if j_event == event:
+                            if predicted_event is None or event.next_events[j].t < predicted_event.t:
+                                predicted_event = event.next_events[j]
+                            continue
                         _a_j, _b_j = j_event._calc_global_coeffs()
                         _a_j = _a_j[0] if j == j_event.i else _a_j[1]
                         _b_j = _b_j[0] if j == j_event.i else _b_j[1]
@@ -129,34 +133,28 @@ class PoolPhysics(object):
                             positions[1] = self._a[j,0]
                             velocities[1] = self._a[j,1]
                         predicted_event = self.BallCollisionEvent(t_c, i, j, positions, velocities)
-                        event.T = t_c - event.t
-                        event.next_event = predicted_event
-                # if predicted_event is not None:
-                #     event.T = predicted_event.t - event.t
-                # if predicted_event is None:
-                #     self._ball_events.pop(i)
-                #     if hasattr(event, 'j'):
-                #         self._ball_events.pop(event.j)
             if predicted_event is None:
                 break
             determined_event = predicted_event
             events.append(determined_event)
+            i = determined_event.i
+            if determined_event == self._ball_events[i].next_event and isinstance(self._ball_events[i], self.BallCollisionEvent):
+                self._ball_events[i].next_event = self._ball_events[i].next_events[1]
             if isinstance(determined_event, self.BallCollisionEvent):
-                i, j = determined_event.i, determined_event.j
-                if i in self._ball_events:
-                    self._ball_events.pop(i)
-                if j in self._ball_events:
-                    self._ball_events.pop(j)
-                # self._ball_events[predicted_event.i] = predicted_event
-                # self._ball_events[predicted_event.j] = predicted_event
+                j = determined_event.j
+                self._ball_events[i] = determined_event
+                self._ball_events[j] = determined_event
             elif isinstance(determined_event, self.SlideToRollEvent):
-                i = determined_event.i
                 self._ball_events[i] = determined_event
             elif isinstance(determined_event, self.RollToRestEvent):
-                i = determined_event.i
                 if i in self._ball_events:
                     e_i = self._ball_events.pop(i)
-                    self._a[i], self._b[i] = e_i._calc_global_coeffs()
+                    _a, _b = e_i._calc_global_coeffs()
+                    if isinstance(e_i, self.BallCollisionEvent):
+                        ii = 0 if e_i.i == i else 1
+                        self._a[i], self._b[i] = _a[ii], _b[ii]
+                    else:
+                        self._a[i], self._b[i] = _a, _b
         self.events += events
         return events
 
@@ -383,7 +381,6 @@ class PoolPhysics(object):
             self._a[2] = -0.5 * self.physics.mu_r * self.physics.g * (velocity / np.linalg.norm(velocity))
             tau_r = np.linalg.norm(velocity) / (self.physics.mu_r * self.physics.g)
             self.T = tau_r
-            # end_position = self._a[0] + tau_r * self._a[1] + tau_r**2 * self._a[2]
             end_position = self.eval_positions(tau_r)[0]
             self.next_event = self.physics.RollToRestEvent(t + tau_r, i, end_position)
         def __str__(self):
@@ -435,8 +432,12 @@ class PoolPhysics(object):
             post_velocities[1] = v_j + (J / self.physics.ball_mass) * _i
             self._a[0,2] = -0.5 * self.physics.mu_r * self.physics.g * (post_velocities[0] / np.linalg.norm(post_velocities[0]))
             self._a[1,2] = -0.5 * self.physics.mu_r * self.physics.g * (post_velocities[1] / np.linalg.norm(post_velocities[1]))
-            tau_r = max(np.linalg.norm(post_velocities[0]), np.linalg.norm(post_velocities[1])) / (self.physics.mu_r * self.physics.g) # min
-            self.T = tau_r
-            argm = np.argmax((np.linalg.norm(post_velocities[0]), np.linalg.norm(post_velocities[1])))
-            end_position = self._a[argm,0] + tau_r * self._a[argm,1] + tau_r**2 * self._a[argm,2]
-            self.next_event = self.physics.RollToRestEvent(t + tau_r, (i,j)[argm], end_position)
+            tau_i = np.linalg.norm(post_velocities[0]) / (self.physics.mu_r * self.physics.g)
+            tau_j = np.linalg.norm(post_velocities[1]) / (self.physics.mu_r * self.physics.g)
+            tau_min = min(tau_i, tau_j)
+            tau_max = max(tau_i, tau_j)
+            self.T = tau_max
+            argmin = np.argmin([tau_i, tau_j])
+            self.next_event = self.physics.RollToRestEvent(t + tau_min, (i,j)[argmin], self.eval_positions(tau_min)[argmin])
+            other_event = self.physics.RollToRestEvent(t + tau_max, (i,j)[1-argmin], self.eval_positions(tau_max)[1-argmin])
+            self.next_events = [self.next_event, other_event]
