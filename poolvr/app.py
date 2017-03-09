@@ -123,14 +123,17 @@ def main(window_size=(800,600), novr=False):
                     for i, position in cue.aabb_check(ball_positions, ball_radius):
                         poc = cue.contact(position, ball_radius)
                         if poc is not None:
-                            poc -= ball_positions[i]
-                            x, y, z = poc
+                            poc[:] = [0.0, 0.0, ball_radius]
+                            # poc -= ball_positions[i]
+                            # x, y, z = poc
                             renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1],
                                                                   0, 1300)
-                            physics.strike_ball(t, i,
-                                                cue.world_matrix[1,:3],
-                                                poc - ball_positions[i],
-                                                cue.velocity, cue.mass)
+                            if not physics.in_motion[i]:
+                                physics.strike_ball(t, i,
+                                                    #cue.world_matrix[1,:3],
+                                                    #poc - ball_positions[i],
+                                                    poc,
+                                                    cue.velocity, cue.mass)
                             break
                 physics.eval_positions(t, out=ball_positions)
                 ball_positions[~physics.on_table] = hmd_pose[:,3] # hacky way to only show balls that are on table

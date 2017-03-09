@@ -65,6 +65,7 @@ class PoolPhysics(object):
         self._ball_events = {}
         self.all_balls = np.array(range(self.num_balls))
         self.on_table = np.array(self.num_balls * [True])
+        self.in_motion = np.array(self.num_balls * [False])
         self._I = 2.0/5 * ball_mass * ball_radius**2
         self._a = np.zeros((num_balls, 3, 3), dtype=np.float32)
         self._b = np.zeros((num_balls, 2, 3), dtype=np.float32)
@@ -87,6 +88,7 @@ class PoolPhysics(object):
         """
         if not self.on_table[i]:
             return
+        self.in_motion[i] = True
         event = self.StrikeBallEvent(t, i, Q, V, cue_mass)
         events = [event]
         self._ball_events.clear()

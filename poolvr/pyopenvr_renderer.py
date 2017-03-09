@@ -40,6 +40,10 @@ class OpenVRRenderer(object):
                 self._controller_indices.append(i)
     def update_projection_matrix(self):
         pass
+    def init_gl(self, clear_color=(0.0, 0.0, 0.0, 0.0)):
+        gl.glClearColor(*clear_color)
+        gl.glEnable(gl.GL_DEPTH_TEST)
+        #gl.glViewport(0, 0, self.window_size[0], self.window_size[1])
     @contextmanager
     def render(self, meshes=None):
         self.vr_compositor.waitGetPoses(self.poses, openvr.k_unMaxTrackedDeviceCount, None, 0)
