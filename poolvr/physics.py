@@ -104,6 +104,8 @@ class PoolPhysics(object):
                           if on and (j not in self._ball_events or j > i)]:
                     if j in self._ball_events:
                         e_j = self._ball_events[j]
+                        if isinstance(e_j, self.BallCollisionEvent) and e_j.i == i:
+                            continue
                         t_j, T_j = e_j.t, e_j.T
                         _a_j, _b_j = e_j._calc_global_coeffs()
                         t0 = max(t_i, t_j)
@@ -120,12 +122,13 @@ class PoolPhysics(object):
                         r_i = event.eval_position(tau_i)
                         v_i = event.eval_velocity(tau_i)
                         if j in self._ball_events:
-                            tau_j = t_c - t_j
+                            e_j = self._ball_events[j]
+                            tau_j = t_c - e_j.t
                             r_j = e_j.eval_position(tau_j)
                             v_j = e_j.eval_velocity(tau_j)
                         else:
                             r_j = self._a[j,0]
-                            v_j = self._a[j,1]
+                            v_j = np.zeros(3, dtype=np.float32)
                         predicted_event = self.BallCollisionEvent(t_c, i, j, r_i, r_j, v_i, v_j)
                         interrupted_events[predicted_event] = interrupted_events[predicted_event.paired_event] = [event]
                         if j in self._ball_events:
@@ -270,8 +273,8 @@ class PoolPhysics(object):
             self.i = i
             self.T = 0
             self.next_event = None
-            self._a = np.empty((3,3), dtype=np.float32)
-            self._b = np.empty((2,3), dtype=np.float32)
+            self._a = np.zeros((3,3), dtype=np.float32)
+            self._b = np.zeros((2,3), dtype=np.float32)
         def eval_position(self, tau, out=None):
             if out is None:
                 out = np.empty(3, dtype=np.float32)
@@ -370,8 +373,8 @@ class PoolPhysics(object):
     class SlideToRestEvent(PhysicsEvent):
         def __init__(self, t, i, position):
             super().__init__(t, i)
+            self._a[:] = 0
             self._a[0] = position
-            self._a[1:] = 0
             self.T = float('inf')
             self.state = self.physics.STATIONARY
         def __str__(self):
@@ -380,8 +383,8 @@ class PoolPhysics(object):
     class RollToRestEvent(PhysicsEvent):
         def __init__(self, t, i, position):
             super().__init__(t, i)
+            self._a[:] = 0
             self._a[0] = position
-            self._a[1:] = 0
             self.T = float('inf')
             self.state = self.physics.STATIONARY
         def __str__(self):
@@ -412,7 +415,7 @@ class PoolPhysics(object):
             paired_event.paired_event = self
             paired_event.i, paired_event.j = j, i
             paired_event._a = np.empty((3,3), dtype=np.float32)
-            paired_event._b = np.empty((2,3), dtype=np.float32)
+            paired_event._b = np.zeros((2,3), dtype=np.float32)
             paired_event._a[0] = r_j
             post_v_j = paired_event._a[1]
             post_v_j[:] = v_j + (J / self.physics.ball_mass) * _i
@@ -420,3 +423,5 @@ class PoolPhysics(object):
             tau_j = np.linalg.norm(post_v_j) / (self.physics.mu_r * self.physics.g)
             paired_event.T = tau_j
             paired_event.next_event = self.physics.RollToRestEvent(t + tau_j, j, paired_event.eval_position(tau_j))
+        def __str__(self):
+            return super().__str__()[:-1] + ' j=%2d>' % self.j
