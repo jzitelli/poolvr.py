@@ -126,9 +126,9 @@ def main(window_size=(800,600), novr=False):
                             poc[:] = [0.0, 0.0, ball_radius]
                             # poc -= ball_positions[i]
                             # x, y, z = poc
-                            renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1],
-                                                                  0, 1300)
-                            if not physics.in_motion[i]:
+                            if physics.find_ball_states(t, [i])[i] == physics.STATIONARY:
+                                renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1],
+                                                                      0, 1300)
                                 physics.strike_ball(t, i,
                                                     #cue.world_matrix[1,:3],
                                                     #poc - ball_positions[i],
