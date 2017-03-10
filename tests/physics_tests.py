@@ -86,7 +86,6 @@ class PhysicsTests(TestCase):
         Q = np.array((0.0, 0.0, self.physics.ball_radius))
         events = self.physics.strike_ball(0.0, 0, Q, self.cue.velocity, self.cue.mass)
         _logger.info('\n'.join(['  %s' % e for e in events]))
-        # self.assertEqual(3, len(events))
         self.assertIsInstance(events[0], PoolPhysics.StrikeBallEvent)
         self.assertIsInstance(events[1], PoolPhysics.SlideToRollEvent)
         self.assertIsInstance(events[2], PoolPhysics.BallCollisionEvent)
