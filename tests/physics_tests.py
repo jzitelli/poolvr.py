@@ -33,8 +33,8 @@ class PhysicsTests(TestCase):
     show = True
 
     def setUp(self):
-        self.table = PoolTable()
         self.game = PoolGame()
+        self.table = self.game.table
         self.cue = PoolCue()
         self.physics = PoolPhysics(initial_positions=self.game.ball_positions)
         self.playback_rate = 1.0

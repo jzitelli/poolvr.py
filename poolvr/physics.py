@@ -184,12 +184,13 @@ class PoolPhysics(object):
         if balls is None:
             balls = self.all_balls
         states = {}
-        for ii, i in enumerate(balls):
+        for i in balls:
             events = self.ball_events[i]
             if events:
                 for e in events[:bisect(events, t)][::-1]:
                     if t <= e.t + e.T:
                         states[i] = e.state
+                        break
             else:
                 states[i] = self.STATIONARY
         return states

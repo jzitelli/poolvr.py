@@ -22,6 +22,7 @@ except ImportError as err:
 from .billboards import BillboardParticles
 from .cue import PoolCue
 from .game import PoolGame
+from .physics import PoolPhysics
 from .keyboard_controls import init_keyboard
 from .mouse_controls import init_mouse
 
@@ -59,8 +60,15 @@ def setup_glfw(width=800, height=600, double_buffered=False, title="poolvr.py 0.
 
 def main(window_size=(800,600), novr=False):
     _logger.info('HELLO')
-    window, fallback_renderer = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=novr)
+
     game = PoolGame()
+    cue = PoolCue()
+    cue.position[1] = game.table.height + 0.1
+    # physics = game.physics
+    physics = PoolPhysics(initial_positions=game.ball_positions)
+    ball_radius = game.table.ball_radius
+
+    window, fallback_renderer = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=novr)
     if not novr and OpenVRRenderer is not None:
         try:
             renderer = OpenVRRenderer(window_size=window_size)
@@ -71,8 +79,6 @@ def main(window_size=(800,600), novr=False):
         renderer = fallback_renderer
         renderer.camera_position[1] = game.table.height + 0.6
         renderer.camera_position[2] = game.table.length - 0.1
-    cue = PoolCue()
-    cue.position[1] = game.table.height + 0.1
     process_keyboard_input = init_keyboard(window)
     process_mouse_input = init_mouse(window)
     camera_world_matrix = fallback_renderer.camera_matrix
@@ -80,9 +86,6 @@ def main(window_size=(800,600), novr=False):
         glfw.PollEvents()
         process_keyboard_input(dt, camera_world_matrix, cue)
         process_mouse_input(dt, cue)
-    physics = game.physics
-    game.reset()
-    ball_radius = game.table.ball_radius
     ball_billboards = BillboardParticles(Texture(os.path.join(TEXTURES_DIR, 'ball.png')), num_particles=game.num_balls,
                                          scale=2*ball_radius,
                                          color=np.array([[(c&0xff0000) / 0xff0000, (c&0x00ff00) / 0x00ff00, (c&0x0000ff) / 0x0000ff]
@@ -96,6 +99,8 @@ def main(window_size=(800,600), novr=False):
     for mesh in meshes:
         mesh.init_gl()
 
+    game.reset()
+
     _logger.info('entering render loop...')
     sys.stdout.flush()
 
@@ -106,8 +111,8 @@ def main(window_size=(800,600), novr=False):
     while not glfw.WindowShouldClose(window):
         t = glfw.GetTime()
         dt = t - lt
-        lt = t
         pt += dt
+        lt = t
         process_input(dt)
         renderer.process_input()
         with renderer.render(meshes=meshes) as frame_data:
@@ -133,7 +138,7 @@ def main(window_size=(800,600), novr=False):
                                 physics.strike_ball(pt, i, poc, cue.velocity, cue.mass)
                             break
                 physics.eval_positions(pt, out=ball_positions)
-                ball_positions[~physics.on_table] = hmd_pose[:,3] # hacky way to only show balls that are on table
+                # ball_positions[~physics.on_table] = hmd_pose[:,3] # hacky way to only show balls that are on table
                 ball_billboards.update_gl()
 
             ##### desktop mode: #####
