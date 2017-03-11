@@ -99,7 +99,7 @@ class PoolPhysics(object):
             for event in self._ball_events.values():
                 if predicted_event is None or (event.next_event and event.next_event.t < predicted_event.t):
                     predicted_event = event.next_event
-            for i, event in sorted(list(self._ball_events.items())):
+            for i, event in self._ball_events.items(): #sorted(list(self._ball_events.items())):
                 t_i, T_i = event.t, event.T
                 r_0i, v_0i = event._a[:2]
                 _a, _b = event._calc_global_coeffs()
