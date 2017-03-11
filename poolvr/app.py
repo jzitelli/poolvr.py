@@ -81,6 +81,7 @@ def main(window_size=(800,600), novr=False):
         process_keyboard_input(dt, camera_world_matrix, cue)
         process_mouse_input(dt, cue)
     physics = game.physics
+    game.reset()
     ball_radius = game.table.ball_radius
     ball_billboards = BillboardParticles(Texture(os.path.join(TEXTURES_DIR, 'ball.png')), num_particles=game.num_balls,
                                          scale=2*ball_radius,
@@ -100,11 +101,13 @@ def main(window_size=(800,600), novr=False):
 
     nframes = 0
     max_frame_time = 0.0
+    pt = 0.0
     lt = glfw.GetTime()
     while not glfw.WindowShouldClose(window):
         t = glfw.GetTime()
         dt = t - lt
         lt = t
+        pt += dt
         process_input(dt)
         renderer.process_input()
         with renderer.render(meshes=meshes) as frame_data:
@@ -124,18 +127,12 @@ def main(window_size=(800,600), novr=False):
                         poc = cue.contact(position, ball_radius)
                         if poc is not None:
                             poc[:] = [0.0, 0.0, ball_radius]
-                            # poc -= ball_positions[i]
-                            # x, y, z = poc
-                            if physics.find_ball_states(t, [i])[i] == physics.STATIONARY:
+                            if physics.find_ball_states(pt, [i])[i] == physics.STATIONARY:
                                 renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1],
                                                                       0, 1300)
-                                physics.strike_ball(t, i,
-                                                    #cue.world_matrix[1,:3],
-                                                    #poc - ball_positions[i],
-                                                    poc,
-                                                    cue.velocity, cue.mass)
+                                physics.strike_ball(pt, i, poc, cue.velocity, cue.mass)
                             break
-                physics.eval_positions(t, out=ball_positions)
+                physics.eval_positions(pt, out=ball_positions)
                 ball_positions[~physics.on_table] = hmd_pose[:,3] # hacky way to only show balls that are on table
                 ball_billboards.update_gl()
 
@@ -145,16 +142,17 @@ def main(window_size=(800,600), novr=False):
                 for i, position in cue.aabb_check(ball_positions, ball_radius):
                     poc = cue.contact(position, ball_radius)
                     if poc is not None:
-                        cue.world_matrix[:3,:3].dot(poc, out=poc)
-                        poc += cue.position
-                        x, y, z = poc
-                        print(np.linalg.norm(poc))
-                        print('%d: %.4f   %.4f   %.4f' % (i, x, y, z))
-                        if i == 0:
-                            pass
-                        else:
-                            print('scratch (touched %d)' % i)
-                physics.eval_positions(t, out=ball_positions)
+                        pass
+                        # cue.world_matrix[:3,:3].dot(poc, out=poc)
+                        # poc += cue.position
+                        # x, y, z = poc
+                        # print(np.linalg.norm(poc))
+                        # print('%d: %.4f   %.4f   %.4f' % (i, x, y, z))
+                        # if i == 0:
+                        #     pass
+                        # else:
+                        #     print('scratch (touched %d)' % i)
+                physics.eval_positions(pt, out=ball_positions)
                 ball_positions[~physics.on_table] = renderer.camera_position # hacky way to only show balls that are on table
                 ball_billboards.update_gl()
 
