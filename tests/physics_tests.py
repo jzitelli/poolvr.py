@@ -39,7 +39,7 @@ class PhysicsTests(TestCase):
         self.physics = PoolPhysics(initial_positions=self.game.ball_positions)
         self.playback_rate = 1.0
 
-    @skip
+
     def test_reset(self):
         self.physics.reset(self.game.initial_positions())
         self.assertEqual(0, len(self.physics.events))
@@ -49,7 +49,6 @@ class PhysicsTests(TestCase):
         self.assertTrue((self.physics.eval_velocities(0.0) == 0).all())
 
 
-    @skip
     def test_strike_ball(self):
         self.game.reset()
         self.physics.on_table[1:] = False
@@ -87,7 +86,7 @@ class PhysicsTests(TestCase):
         self.cue.velocity[0] = 0.03
         Q = np.array((0.0, 0.0, self.physics.ball_radius))
         events = self.physics.strike_ball(0.0, 0, Q, self.cue.velocity, self.cue.mass)
-        _logger.info('\n'.join(['  %s' % e for e in events]))
+        _logger.debug('\n'.join(['  %s' % e for e in events]))
         # self.assertIsInstance(events[0], PoolPhysics.StrikeBallEvent)
         # self.assertIsInstance(events[1], PoolPhysics.SlideToRollEvent)
         # self.assertIsInstance(events[2], PoolPhysics.BallCollisionEvent)
@@ -117,7 +116,7 @@ class PhysicsTests(TestCase):
                 plt.axvline(e.t + e.T)
         plt.axhline(self.table.height)
         plt.axhline(-0.5 * self.table.length)
-        plt.plot(ts, [self.physics._calc_energy(t) for t in ts], '-x')
+        plt.plot(ts, [self.physics._calc_energy(t) for t in ts], '-xy')
         plt.legend()
         self._savefig(plot_name='energy')
         if self.show: self._view()
@@ -126,7 +125,7 @@ class PhysicsTests(TestCase):
     def _savefig(self, plot_name=''):
         test_name = traceback.extract_stack(None, 2)[0][2]
         title = ' - '.join([test_name, plot_name]) if plot_name else test_name
-        pth = os.path.join(PLOTS_DIR, '%s.png' % '-'.join([test_name, plot_name])).replace(' ', '_')
+        pth = os.path.join(PLOTS_DIR, '%s.png' % ('-'.join([test_name, plot_name]) if plot_name else test_name)).replace(' ', '_')
         plt.title(title)
         try:
             plt.savefig(pth)
