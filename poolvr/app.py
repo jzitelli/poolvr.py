@@ -16,7 +16,7 @@ _logger = logging.getLogger('poolvr')
 from .exceptions import TODO
 from .gl_rendering import OpenGLRenderer, Texture
 try:
-    from .pyopenvr_renderer import OpenVRRenderer
+    from .pyopenvr_renderer import openvr, OpenVRRenderer
 except ImportError as err:
     OpenVRRenderer = None
 from .billboards import BillboardParticles
@@ -72,6 +72,8 @@ def main(window_size=(800,600), novr=False):
     if not novr and OpenVRRenderer is not None:
         try:
             renderer = OpenVRRenderer(window_size=window_size)
+            button_press_callbacks = {openvr.k_EButton_Grip: game.reset,
+                                      openvr.k_EButton_ApplicationMenu: game.advance_time}
         except Exception as err:
             renderer = fallback_renderer
             _logger.error('could not initialize OpenVRRenderer: %s', err)
@@ -106,15 +108,13 @@ def main(window_size=(800,600), novr=False):
 
     nframes = 0
     max_frame_time = 0.0
-    pt = 0.0
     lt = glfw.GetTime()
     while not glfw.WindowShouldClose(window):
         t = glfw.GetTime()
         dt = t - lt
-        pt += dt
         lt = t
         process_input(dt)
-        renderer.process_input()
+        renderer.process_input(button_press_callbacks=button_press_callbacks)
         with renderer.render(meshes=meshes) as frame_data:
 
             ##### VR mode: #####
@@ -128,16 +128,17 @@ def main(window_size=(800,600), novr=False):
                     cue.world_matrix[3,:3] = poses[-1][:,3]
                     cue.velocity[:] = velocities[-1]
                     cue.angular_velocity = angular_velocities[-1]
-                    for i, position in cue.aabb_check(ball_positions, ball_radius):
-                        poc = cue.contact(position, ball_radius)
-                        if poc is not None:
-                            poc[:] = [0.0, 0.0, ball_radius]
-                            if physics.find_ball_states(pt, [i])[i] == physics.STATIONARY:
+                    if game.t >= game.ntt:
+                        for i, position in cue.aabb_check(ball_positions, ball_radius):
+                            poc = cue.contact(position, ball_radius)
+                            if poc is not None:
+                                poc[:] = [0.0, 0.0, ball_radius]
                                 renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1],
                                                                       0, 1300)
-                                physics.strike_ball(pt, i, poc, cue.velocity, cue.mass)
-                            break
-                physics.eval_positions(pt, out=ball_positions)
+                                physics.strike_ball(game.t, i, poc, cue.velocity, cue.mass)
+                                game.ntt = physics.next_turn_time()
+                                break
+                physics.eval_positions(game.t, out=ball_positions)
                 # ball_positions[~physics.on_table] = hmd_pose[:,3] # hacky way to only show balls that are on table
                 ball_billboards.update_gl()
 
@@ -148,19 +149,11 @@ def main(window_size=(800,600), novr=False):
                     poc = cue.contact(position, ball_radius)
                     if poc is not None:
                         pass
-                        # cue.world_matrix[:3,:3].dot(poc, out=poc)
-                        # poc += cue.position
-                        # x, y, z = poc
-                        # print(np.linalg.norm(poc))
-                        # print('%d: %.4f   %.4f   %.4f' % (i, x, y, z))
-                        # if i == 0:
-                        #     pass
-                        # else:
-                        #     print('scratch (touched %d)' % i)
-                physics.eval_positions(pt, out=ball_positions)
+                physics.eval_positions(game.t, out=ball_positions)
                 ball_positions[~physics.on_table] = renderer.camera_position # hacky way to only show balls that are on table
                 ball_billboards.update_gl()
 
+        game.t += dt
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:
             st = glfw.GetTime()

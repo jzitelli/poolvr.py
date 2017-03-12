@@ -378,7 +378,7 @@ class OpenGLRenderer(object):
             for mesh in meshes:
                 mesh.draw(projection=self.projection_matrix,
                           view=self.view_matrix)
-    def process_input(self):
+    def process_input(self, **kwargs):
         pass
     def shutdown(self):
         pass

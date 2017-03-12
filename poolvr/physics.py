@@ -69,7 +69,6 @@ class PoolPhysics(object):
         self._in_motion = np.array(self.num_balls * [False])
         if initial_positions is not None:
             self._a[:,0] = initial_positions
-        self.reset(initial_positions)
         self.PhysicsEvent.physics = self
 
     def strike_ball(self, t, i, Q, V, cue_mass):
@@ -132,6 +131,8 @@ class PoolPhysics(object):
                         v_0j = e_j.eval_velocity(t0 - t_j)
                         key = (event, e_j)
                     else:
+                        if event.state == self.STATIONARY:
+                            continue
                         t0 = t_i
                         t1 = t_i + T_i
                         _a_j, _b_j = self._a[j], self._b[j]
@@ -269,6 +270,12 @@ class PoolPhysics(object):
                         out[ii] = e.eval_angular_velocity(t - e.t)
                         break
         return out
+
+    def next_turn_time(self):
+        """
+        Return the time at which all balls have come to rest.
+        """
+        return self.events[-1].t if self.events else 0.0
 
     def reset(self, ball_positions):
         """

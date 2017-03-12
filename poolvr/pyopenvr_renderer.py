@@ -84,14 +84,16 @@ class OpenVRRenderer(object):
                                   0, 0, self.window_size[0], self.window_size[1],
                                   gl.GL_COLOR_BUFFER_BIT, gl.GL_LINEAR)
         gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, 0)
-    def process_input(self):
+    def process_input(self, button_press_callbacks=None):
         for i in self._controller_indices:
             got_state, state = self.vr_system.getControllerState(i, 1)
             if got_state and state.rAxis[1].x > 0.05:
                 self.vr_system.triggerHapticPulse(i, 0, int(3200 * state.rAxis[1].x))
         if self.vr_system.pollNextEvent(self.vr_event):
-            if self.vr_event.eventType == openvr.VREvent_ButtonPress:
-                pass
+            if button_press_callbacks and self.vr_event.eventType == openvr.VREvent_ButtonPress:
+                button = self.vr_event.data.controller.button
+                if button in button_press_callbacks:
+                    button_press_callbacks[button]()
             elif self.vr_event.eventType == openvr.VREvent_ButtonUnpress:
                 pass
     def shutdown(self):

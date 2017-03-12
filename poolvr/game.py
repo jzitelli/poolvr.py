@@ -41,6 +41,8 @@ class PoolGame(object):
         self.physics = PoolPhysics(num_balls=self.num_balls,
                                    ball_radius=ball_radius,
                                    initial_positions=self.ball_positions)
+        self.t = 0.0
+        self.ntt = 0.0
     def initial_positions(self, d=None, out=None):
         """Set balls to initial (racked) positions"""
         if d is None:
@@ -74,3 +76,10 @@ class PoolGame(object):
     def reset(self):
         self.initial_positions(out=self.ball_positions)
         self.physics.reset(self.ball_positions)
+        self.t = 0.0
+        self.ntt = 0.0
+    def advance_time(self):
+        ntt = self.physics.next_turn_time()
+        if ntt:
+            self.ntt = ntt
+            self.t = ntt
