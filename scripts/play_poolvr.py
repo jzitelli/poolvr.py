@@ -11,7 +11,7 @@ if __name__ == "__main__":
     parser.add_argument("-v", help="verbose logging", action="store_true")
     args = parser.parse_args()
     if args.v:
-        logging.basicConfig(format=FORMAT, level=logging.INFO)
+        logging.basicConfig(format=FORMAT, level=logging.DEBUG)
     else:
         logging.basicConfig(format=FORMAT, level=logging.ERROR)
     poolvr.app.main(novr=args.novr)
