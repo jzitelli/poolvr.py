@@ -14,6 +14,6 @@ if __name__ == "__main__":
                         action="store_true")
     args = parser.parse_args()
     FORMAT = '\n[%(levelname)s] POOLVR.PY 0.0.1  ###  %(asctime)11s  ***  %(name)s  ---  %(funcName)s:\n%(message)s'
-    logging.basicConfig(format=FORMAT, level=logging.INFO)
+    logging.basicConfig(format=FORMAT, level=logging.DEBUG)
     tests.physics_tests.show = args.show
     unittest.main()
