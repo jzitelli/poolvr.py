@@ -60,7 +60,6 @@ def setup_glfw(width=800, height=600, double_buffered=False, title="poolvr.py 0.
 
 def main(window_size=(800,600), novr=False):
     _logger.info('HELLO')
-
     game = PoolGame()
     physics = game.physics
     cue = PoolCue()

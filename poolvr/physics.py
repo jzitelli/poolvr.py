@@ -131,8 +131,6 @@ class PoolPhysics(object):
                         v_0j = e_j.eval_velocity(t0 - t_j)
                         key = (event, e_j)
                     else:
-                        if event.state == self.STATIONARY:
-                            continue
                         t0 = t_i
                         t1 = t_i + T_i
                         _a_j, _b_j = self._a[j], self._b[j]
