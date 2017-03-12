@@ -34,9 +34,9 @@ class PhysicsTests(TestCase):
 
     def setUp(self):
         self.game = PoolGame()
+        self.physics = self.game.physics
         self.table = self.game.table
         self.cue = PoolCue()
-        self.physics = PoolPhysics(initial_positions=self.game.ball_positions)
         self.playback_rate = 1.0
 
 
@@ -150,15 +150,13 @@ class PhysicsTests(TestCase):
         physics = game.physics
         cue = PoolCue()
         cue.position[1] = game.table.height + 0.1
-        ball_radius = game.table.ball_radius
+        ball_radius = game.ball_radius
         ball_billboards = BillboardParticles(Texture(os.path.join(TEXTURES_DIR, 'ball.png')), num_particles=game.num_balls,
                                              scale=2*ball_radius,
                                              color=np.array([[(c&0xff0000) / 0xff0000, (c&0x00ff00) / 0x00ff00, (c&0x0000ff) / 0x0000ff]
                                                              for c in game.ball_colors], dtype=np.float32),
                                              translate=game.ball_positions)
         ball_positions = ball_billboards.primitive.attributes['translate']
-        ball_quaternions = np.zeros((game.num_balls, 4), dtype=np.float32)
-        ball_quaternions[:,3] = 1.0
         meshes = [game.table.mesh, ball_billboards, cue]
         for mesh in meshes:
             mesh.init_gl(force=True)

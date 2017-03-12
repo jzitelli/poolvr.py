@@ -32,8 +32,7 @@ class PoolTable(object):
                  length=2.34,
                  height=0.77,
                  width=None,
-                 width_rail=2*INCH2METER,
-                 ball_radius=INCH2METER*1.125):
+                 width_rail=2*INCH2METER):
         self.length = length
         self.height = height
         self.length = length
@@ -42,7 +41,6 @@ class PoolTable(object):
             width = 0.5 * length
         self.width = width
         self.width_rail = width_rail
-        self.ball_radius = ball_radius
         surface_material = Material(EGA_TECHNIQUE, values={'u_color': [0.0, 0.3, 0.0, 0.0]})
         surface = PlanePrimitive(width=width, depth=length)
         surface.attributes['vertices'][:,1] = height

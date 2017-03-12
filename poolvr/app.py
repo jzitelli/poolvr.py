@@ -62,11 +62,11 @@ def main(window_size=(800,600), novr=False):
     _logger.info('HELLO')
 
     game = PoolGame()
+    physics = game.physics
     cue = PoolCue()
     cue.position[1] = game.table.height + 0.1
-    # physics = game.physics
-    physics = PoolPhysics(initial_positions=game.ball_positions)
-    ball_radius = game.table.ball_radius
+    ball_radius = physics.ball_radius
+    game.reset()
 
     window, fallback_renderer = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=novr)
     if not novr and OpenVRRenderer is not None:
@@ -86,20 +86,20 @@ def main(window_size=(800,600), novr=False):
         glfw.PollEvents()
         process_keyboard_input(dt, camera_world_matrix, cue)
         process_mouse_input(dt, cue)
+
     ball_billboards = BillboardParticles(Texture(os.path.join(TEXTURES_DIR, 'ball.png')), num_particles=game.num_balls,
-                                         scale=2*ball_radius,
+                                         scale=2*physics.ball_radius,
                                          color=np.array([[(c&0xff0000) / 0xff0000, (c&0x00ff00) / 0x00ff00, (c&0x0000ff) / 0x0000ff]
                                                          for c in game.ball_colors], dtype=np.float32),
                                          translate=game.ball_positions)
     ball_positions = ball_billboards.primitive.attributes['translate']
-    ball_quaternions = np.zeros((game.num_balls, 4), dtype=np.float32)
-    ball_quaternions[:,3] = 1.0
+
+    gl.glViewport(0, 0, window_size[0], window_size[1])
+    gl.glClearColor(*BG_COLOR)
+    gl.glEnable(gl.GL_DEPTH_TEST)
     meshes = [game.table.mesh, ball_billboards, cue]
-    renderer.init_gl(clear_color=BG_COLOR)
     for mesh in meshes:
         mesh.init_gl()
-
-    game.reset()
 
     _logger.info('entering render loop...')
     sys.stdout.flush()
