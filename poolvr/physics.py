@@ -64,7 +64,6 @@ class PoolPhysics(object):
         self.on_table = np.array(self.num_balls * [True])
         self.events = []
         self.ball_events = {i: [] for i in self.all_balls}
-        self._ball_events = {}
         self._I = 2.0/5 * ball_mass * ball_radius**2
         self._a = np.zeros((num_balls, 3, 3), dtype=np.float32)
         self._b = np.zeros((num_balls, 2, 3), dtype=np.float32)
@@ -87,26 +86,25 @@ class PoolPhysics(object):
         """
         if not self.on_table[i]:
             return
-        self._ball_events.clear()
         event = self.StrikeBallEvent(t, i, Q, V, cue_mass)
         self._add_event(event)
+        ball_events = {i: event}
         events = [event]
-        self._ball_events[i] = event
         collision_times = {}
-        while self._ball_events:
+        while ball_events:
             predicted_event = None
-            for event in self._ball_events.values():
+            for event in ball_events.values():
                 if predicted_event is None or (event.next_event and event.next_event.t < predicted_event.t):
                     predicted_event = event.next_event
-            for i, event in sorted(list(self._ball_events.items())):
+            for i, event in sorted(list(ball_events.items())):
                 t_i, T_i = event.t, event.T
                 _a, _b = event._calc_global_coeffs()
                 for j in [j for j, on in enumerate(self.on_table)
-                          if on and (j not in self._ball_events or j > i)]:
-                    if j in self._ball_events:
-                        e_j = self._ball_events[j]
-                        if isinstance(e_j, self.BallCollisionEvent) and isinstance(event, self.BallCollisionEvent) and e_j.j == i:
-                            continue
+                          if on and (j not in ball_events or j > i)]:
+                    if j in ball_events:
+                        e_j = ball_events[j]
+                        # if isinstance(e_j, self.BallCollisionEvent) and isinstance(event, self.BallCollisionEvent) and event.j == j:
+                        #     continue
                         t_j, T_j = e_j.t, e_j.T
                         if t_i > t_j + T_j or t_j > t_i + T_i:
                             continue
@@ -131,8 +129,8 @@ class PoolPhysics(object):
                             e_j = j_events[-1]
                             assert(isinstance(e_j, self.RestEvent))
                             prev_e_j = j_events[-2]
-                            if isinstance(prev_e_j, self.BallCollisionEvent) and prev_e_j.paired_event == event:
-                                continue
+                            # if isinstance(prev_e_j, self.BallCollisionEvent) and prev_e_j.paired_event == event:
+                            #     continue
                             t_j, T_j = e_j.t, e_j.T
                             if t_j > t_i + T_i:
                                 continue
@@ -158,15 +156,17 @@ class PoolPhysics(object):
                         if ((abs(r_0ji) > 2*self.ball_radius) & (np.sign(r_0ji) == np.sign(v_0ji))).any() \
                           or np.linalg.norm(v_0ji) * (t1 - t0) < np.linalg.norm(r_0ji) - 2*self.ball_radius:
                             collision_times[key] = None
+                            collision_times[key[::-1]] = None
                             continue
                         collision_times[key] = self._find_collision_time(_a, _a_j, t0, t1)
+                        collision_times[key[::-1]] = collision_times[key]
                     t_c = collision_times[key]
                     if t_c and (predicted_event is None or t_c < predicted_event.t):
                         tau_i = t_c - t_i
                         r_i = event.eval_position(tau_i)
                         v_i = event.eval_velocity(tau_i)
-                        if j in self._ball_events:
-                            e_j = self._ball_events[j]
+                        if j in ball_events:
+                            e_j = ball_events[j]
                             tau_j = t_c - e_j.t
                             r_j = e_j.eval_position(tau_j)
                             v_j = e_j.eval_velocity(tau_j)
@@ -187,13 +187,13 @@ class PoolPhysics(object):
             if isinstance(determined_event, self.BallCollisionEvent):
                 self._add_event(determined_event.paired_event)
                 j = determined_event.j
-                self._ball_events[i] = determined_event
-                self._ball_events[j] = determined_event.paired_event
+                ball_events[i] = determined_event
+                ball_events[j] = determined_event.paired_event
                 events.append(determined_event.paired_event)
             elif isinstance(determined_event, self.SlideToRollEvent):
-                self._ball_events[i] = determined_event
+                ball_events[i] = determined_event
             elif isinstance(determined_event, self.RollToRestEvent) or isinstance(determined_event, self.SlideToRestEvent):
-                self._ball_events.pop(i)
+                ball_events.pop(i)
         return events
 
     STATIONARY = 0
@@ -304,7 +304,6 @@ class PoolPhysics(object):
         self._a[:] = 0
         self._a[:,0] = ball_positions
         self._b[:] = 0
-        self._ball_events.clear()
         self.ball_events = {i: [] for i in self.all_balls}
 
     def _add_event(self, event):
@@ -462,7 +461,6 @@ class PoolPhysics(object):
     class RestEvent(PhysicsEvent):
         def __init__(self, t, i, position):
             super().__init__(t, i)
-            self._a[:] = 0
             self._a[0] = position
             self.T = float('inf')
             self.state = self.physics.STATIONARY
@@ -514,7 +512,7 @@ class PoolPhysics(object):
             self.paired_event = paired_event
             paired_event.paired_event = self
             paired_event.i, paired_event.j = j, i
-            paired_event._a = np.empty((3,3), dtype=np.float32)
+            paired_event._a = np.zeros((3,3), dtype=np.float32)
             paired_event._b = np.zeros((2,3), dtype=np.float32)
             paired_event._a[0] = r_j
             post_v_j = paired_event._a[1]
