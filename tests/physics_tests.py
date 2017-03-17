@@ -148,8 +148,8 @@ class PhysicsTests(TestCase):
         # camera_world_matrix[:,[1,2]] = camera_world_matrix[:,[2,1]]
         camera_position = camera_world_matrix[3,:3]
         game = self.game
-        camera_position[1] = game.table.height + 0.67
-        camera_position[2] = game.table.length - 0.38
+        camera_position[1] = game.table.height + 0.16
+        camera_position[2] = 0.18 * game.table.length
         gl.glViewport(0, 0, window_size[0], window_size[1])
         gl.glClearColor(*BG_COLOR)
         gl.glEnable(gl.GL_DEPTH_TEST)

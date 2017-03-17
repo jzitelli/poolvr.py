@@ -14,11 +14,13 @@ _logger = logging.getLogger('poolvr')
 
 
 from .exceptions import TODO
-from .gl_rendering import OpenGLRenderer, Texture
+from .gl_rendering import OpenGLRenderer, Texture, Mesh, Material
 try:
     from .pyopenvr_renderer import openvr, OpenVRRenderer
 except ImportError as err:
     OpenVRRenderer = None
+from .techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
+from .primitives import SpherePrimitive
 from .billboards import BillboardParticles
 from .cue import PoolCue
 from .game import PoolGame
@@ -94,11 +96,23 @@ def main(window_size=(800,600), novr=False):
                                                          for c in game.ball_colors], dtype=np.float32),
                                          translate=game.ball_positions)
     ball_positions = ball_billboards.primitive.attributes['translate']
+    sphere_meshes = [Mesh({Material(LAMBERT_TECHNIQUE,
+                                    values={'u_color': [(c&0xff0000) / 0xff0000,
+                                                        (c&0x00ff00) / 0x00ff00,
+                                                        (c&0x0000ff) / 0x0000ff,
+                                                        0.0]})
+                           : [SpherePrimitive(radius=ball_radius)]})
+                     for c in game.ball_colors]
+    for mesh in sphere_meshes:
+        list(mesh.primitives.values())[0][0].attributes['a_position'] = list(mesh.primitives.values())[0][0].attributes['vertices']
+    sphere_positions = [mesh.world_matrix[3,:3] for mesh in sphere_meshes]
+    # meshes = [game.table.mesh, ball_billboards, cue] + sphere_meshes
+    # meshes = [game.table.mesh, ball_billboards, cue]
+    meshes = [game.table.mesh] + sphere_meshes + [cue]
 
     gl.glViewport(0, 0, window_size[0], window_size[1])
     gl.glClearColor(*BG_COLOR)
     gl.glEnable(gl.GL_DEPTH_TEST)
-    meshes = [game.table.mesh, ball_billboards, cue]
     for mesh in meshes:
         mesh.init_gl()
 
@@ -138,6 +152,10 @@ def main(window_size=(800,600), novr=False):
                                 game.ntt = physics.next_turn_time()
                                 break
                 physics.eval_positions(game.t, out=ball_positions)
+                for i, pos in enumerate(ball_positions):
+                    sphere_positions[i][:] = pos
+                # ball_positions[~self.physics.on_table] = camera_position # hacky way to only show balls that are on table
+                # physics.eval_positions(game.t, out=ball_positions)
                 # ball_positions[~physics.on_table] = hmd_pose[:,3] # hacky way to only show balls that are on table
                 ball_billboards.update_gl()
 
