@@ -51,7 +51,7 @@ class CylinderPrimitive(Primitive):
     def __init__(self, radius=0.5, height=1.0, num_radial=12):
         self.radius = radius
         self.height = height
-        self.num_radius = num_radius
+        self.num_radial = num_radial
         vertices = np.array([[radius*np.cos(theta), -0.5*height, radius*np.sin(theta),
                               radius*np.cos(theta), 0.5*height, radius*np.sin(theta)]
                              for theta in np.linspace(0, 2*np.pi, num_radial+1)[:-1]] + [[0.0, -0.5*height, 0.0,
@@ -75,7 +75,7 @@ class CylinderPrimitive(Primitive):
 class CirclePrimitive(Primitive):
     def __init__(self, radius=0.5, num_radial=12, basis=None):
         self.radius = radius
-        self.num_radius = num_radial
+        self.num_radial = num_radial
         vertices = np.concatenate([np.array([[0.0, 0.0, 0.0]], dtype=np.float32),
                                    np.array([[radius*np.cos(theta), 0.0, radius*np.sin(theta)]
                                              for theta in np.linspace(0, 2*np.pi, num_radial+1)[:-1]], dtype=np.float32)]).reshape(-1, 3)

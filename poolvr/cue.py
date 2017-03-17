@@ -13,7 +13,7 @@ class PoolCue(Mesh):
         self.mass = mass
         cylinder = CylinderPrimitive(radius=radius, height=length)
         cylinder.attributes['a_position'] = cylinder.attributes['vertices']
-        Mesh.__init__(self, {Material(EGA_TECHNIQUE): [cylinder]})
+        Mesh.__init__(self, {Material(EGA_TECHNIQUE, values={'u_color': [0.5, 0.5, 0.0, 0.0]}): [cylinder]})
         self.update_world_matrices()
         self._positions = None
         self.position = self.world_matrix[3,:3]
