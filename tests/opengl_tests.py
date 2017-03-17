@@ -16,8 +16,9 @@ _logger = logging.getLogger(__name__)
 
 
 from poolvr.cue import PoolCue
-from poolvr.table import PoolTable, EGA_TECHNIQUE, LAMBERT_TECHNIQUE
-from poolvr.gl_rendering import OpenGLRenderer, Texture, Material
+from poolvr.table import PoolTable
+from poolvr.gl_rendering import OpenGLRenderer, Texture, Material, Mesh
+from poolvr.techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
 from poolvr.app import setup_glfw, BG_COLOR, TEXTURES_DIR
 from poolvr.billboards import BillboardParticles
 from poolvr.keyboard_controls import init_keyboard
@@ -30,12 +31,21 @@ SCREENSHOTS_DIR = os.path.join(os.path.dirname(__file__), 'screenshots')
 class OpenGLTests(TestCase):
     show = True
 
-
+    @skip
     def test_cone_mesh(self):
-        material = Material(EGA_TECHNIQUE, values={'u_color': [1.0, 1.0, 0.0, 0.0]})
+        material = Material(LAMBERT_TECHNIQUE, values={'u_color': [1.0, 1.0, 0.0, 0.0]})
         mesh = poolvr.primitives.ConeMesh(material, radius=0.15, height=0.3)
         for prim in mesh.primitives[material]:
             prim.attributes['a_position'] = prim.attributes['vertices']
+        mesh.world_matrix[3,2] = -3
+        self._view(meshes=[mesh])
+
+
+    def test_sphere_mesh(self):
+        material = Material(LAMBERT_TECHNIQUE, values={'u_color': [0.0, 1.0, 1.0, 0.0]})
+        prim = poolvr.primitives.SpherePrimitive(radius=0.1)
+        prim.attributes['a_position'] = prim.attributes['vertices']
+        mesh = Mesh({material: [prim]})
         mesh.world_matrix[3,2] = -3
         self._view(meshes=[mesh])
 
