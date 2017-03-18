@@ -11,6 +11,8 @@ OpenGL.ERROR_LOGGING = False
 OpenGL.ERROR_ON_COPY = True
 import OpenGL.GL as gl
 import cyglfw3 as glfw
+from contextlib import contextmanager
+import PIL.Image
 
 
 _logger = logging.getLogger(__name__)
@@ -32,7 +34,12 @@ PLOTS_DIR = os.path.join(os.path.dirname(__file__), 'plots')
 
 
 class PhysicsTests(TestCase):
-    show = True
+    show = False
+
+    @classmethod
+    def set_show(cls, val):
+        cls.show = val
+
 
     def setUp(self):
         self.game = PoolGame()
@@ -80,7 +87,8 @@ class PhysicsTests(TestCase):
             plt.plot(ts, [self.physics.eval_positions(t)[0,i] for t in ts], ls, label='$%s$' % xyz)
         plt.legend()
         self._savefig()
-        if self.show: self._view()
+        if self.show:
+            self._view()
 
 
     def test_ball_collision(self):
@@ -200,7 +208,8 @@ class PhysicsTests(TestCase):
         camera_position[1] = game.table.height + 0.19
         camera_position[2] = 0.183 * game.table.length
         gl.glViewport(0, 0, window_size[0], window_size[1])
-        gl.glClearColor(*BG_COLOR)
+        #gl.glClearColor(*BG_COLOR)
+        gl.glClearColor(0.24, 0.18, 0.08, 0.0) #*BG_COLOR)
         gl.glEnable(gl.GL_DEPTH_TEST)
         physics = game.physics
         cue = PoolCue()
@@ -268,7 +277,33 @@ class PhysicsTests(TestCase):
         _logger.info('...exited render loop: average FPS: %f, maximum frame time: %f',
                      (nframes - 1) / (t - st), max_frame_time)
 
+        mWidth, mHeight = glfw.GetWindowSize(window);
+        n = 3 * mWidth * mHeight;
+        gl.glPixelStorei(gl.GL_PACK_ALIGNMENT, 1)
+        pixels = gl.glReadPixels(0,0,mWidth,mHeight, gl.GL_RGB, gl.GL_UNSIGNED_BYTE)
+        pil_image = PIL.Image.frombytes('RGB', (mWidth, mHeight), pixels)
+        pil_image = pil_image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+        filename = title.replace(' ', '_') + '-screenshot.png'
+        filepath = os.path.join(os.path.dirname(__file__), 'screenshots', filename)
+        pil_image.save(filepath)
+        _logger.info('..saved screen capture to "%s"', filepath)
+
         renderer.shutdown()
         _logger.info('...shut down renderer')
-        glfw.DestroyWindow(window)
-        glfw.Terminate()
+
+        try:
+            glfw.DestroyWindow(window)
+            glfw.PollEvents()
+            glfw.GetTime()
+            glfw.PollEvents()
+            glfw.Terminate()
+            # _N = 10
+            # _S = 2000000
+            # for i in range(_N):
+            #     _count = 0
+            #     for cyc in range(_S):
+            #         _count += 1
+            #     print(''.join(['%d...' % i, i*'.']) + ' ')
+            #     stdout.flush()
+        except Exception as err:
+            _logger.error(err)
