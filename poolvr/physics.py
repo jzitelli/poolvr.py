@@ -135,9 +135,9 @@ class PoolPhysics(object):
                             a_j[:] = e_j._a # j's event local kinematic equations of motion
                         r_0ji = a_i[0] - a_j[0]
                         v_0ji = a_i[1] - a_j[1]
-                        # if ((abs(r_0ji) > 2*self.ball_radius) & (np.sign(r_0ji) == np.sign(v_0ji))).any() \
-                        #   or np.linalg.norm(v_0ji) * (t1 - t0) < np.linalg.norm(r_0ji) - 2*self.ball_radius:
-                        if np.linalg.norm(v_0ji) * (t1 - t0) < np.linalg.norm(r_0ji) - 2*self.ball_radius:
+                        # if np.linalg.norm(v_0ji) * (t1 - t0) < np.linalg.norm(r_0ji) - 2*self.ball_radius:
+                        if ((abs(r_0ji) > 2*self.ball_radius) & (np.sign(r_0ji) == np.sign(v_0ji))).any() \
+                          or np.linalg.norm(v_0ji) * (t1 - t0) < np.linalg.norm(r_0ji) - 2*self.ball_radius:
                             collision_times[key] = None
                             continue
                         collision_times[key] = self._find_collision_time(a_i, a_j, 0.0, t1 - t0)
@@ -149,6 +149,7 @@ class PoolPhysics(object):
                             v_i = e_i.eval_velocity(t_c - t_i)
                             r_j = e_j.eval_position(t_c - t_j)
                             v_j = e_j.eval_velocity(t_c - t_j)
+                            # update predicted next evemt tp a collision between i and j at game time t_c:
                             predicted_event = self.BallCollisionEvent(t_c, i, j, r_i, r_j, v_i, v_j)
                 # examine stationary j that have moved but are now at rest, still on the table:
                 for j, j_events in [(j, j_events) for j, j_events in self.ball_events.items()
@@ -202,17 +203,21 @@ class PoolPhysics(object):
                         continue
                     t0 = t_i
                     t1 = t_i + T_i
-                    a_j[:] = self._a[j] # j's initial stationary kinematic equations
-                    a_i[:] = e_i._a[:]
-                    t_c = self._find_collision_time(a_i, a_j, 0.0, T_i)
-                    if t_c is not None:
-                        t_c += t_i
-                        if predicted_event is None or t_c < predicted_event.t:
-                            r_i = e_i.eval_position(t_c - t_i)
-                            v_i = e_i.eval_velocity(t_c - t_i)
-                            r_j = a_j[0]
-                            v_j = a_j[1]
-                            predicted_event = self.BallCollisionEvent(t_c, i, j, r_i, r_j, v_i, v_j)
+                    a_j[:] = 0
+                    a_j[0] = self._a[j,0] # j's initial stationary kinematic equations
+                    a_i[:] = e_i._a
+                    key = (e_i, j)
+                    if key not in collision_times:
+                        collision_times[key] = self._find_collision_time(a_i, a_j, 0.0, t1 - t0)
+                        t_c = collision_times[key]
+                        if t_c is not None:
+                            t_c += t_i
+                            if predicted_event is None or t_c < predicted_event.t:
+                                r_i = e_i.eval_position(t_c - t_i)
+                                v_i = e_i.eval_velocity(t_c - t_i)
+                                r_j = a_j[0]
+                                v_j = a_j[1]
+                                predicted_event = self.BallCollisionEvent(t_c, i, j, r_i, r_j, v_i, v_j)
             if predicted_event is None:
                 raise Exception('no event could be predicted, por que???')
             determined_event = predicted_event
@@ -533,6 +538,59 @@ class PoolPhysics(object):
 
     class PositionBallEvent(RestEvent):
         pass
+
+    class SimpleCollisionEvent(PhysicsEvent):
+        def __init__(self, t, i, j, r_i, r_j, v_i, v_j,
+                     e=0.93):
+            super().__init__(t, i)
+            self.j = j
+            self.r_i = r_i
+            self.r_j = r_j
+            self.v_i = v_i
+            self.v_j = v_j
+            self._a[0] = r_i
+            v_ij = v_j - v_i
+            norm_v_ij = np.linalg.norm(v_ij)
+            delta_t = 284e-6 / norm_v_ij**0.294
+            s_max = 1.65765 * (norm_v_ij / self.physics.c_b)**0.8
+            F_max = 1.48001 * self.physics.ball_radius**2 * self.physics.E_Y_b * s_max**1.5
+            J = 0.5 * F_max * delta_t
+            r_ij = r_j - r_i
+            _i = r_ij / np.linalg.norm(r_ij)
+            v_i_i = v_i.dot(_i) * _i
+            v_j_i = v_j.dot(_i) * _i
+            v_ij_i = v_ij.dot(_i) * _i
+            post_v_i = self._a[1]
+            # post_v_i[:] = v_i - (J / self.physics.ball_mass) * _i
+            post_v_i[:] = (v_i - v_i_i) - 0.93 * v_i_i
+            post_v_i_i = post_v_i.dot(_i) * _i
+            self._a[2] = -0.5 * self.physics.mu_r * self.physics.g * (post_v_i / np.linalg.norm(post_v_i))
+            tau_i = np.linalg.norm(post_v_i) / (self.physics.mu_r * self.physics.g)
+            self.T = tau_i
+            self.next_event = self.physics.RollToRestEvent(t + tau_i, i, self.eval_position(tau_i))
+            self.state = self.physics.ROLLING
+            paired_event = copy(self)
+            self.paired_event = paired_event
+            paired_event.paired_event = self
+            paired_event.i, paired_event.j = j, i
+            paired_event._a = np.zeros((3,3), dtype=np.float64)
+            paired_event._b = np.zeros((2,3), dtype=np.float64)
+            paired_event._a[0] = r_j
+            post_v_j = paired_event._a[1]
+            # post_v_j[:] = v_j + (J / self.physics.ball_mass) * _i
+            post_v_i[:] = (v_j - v_j_i) - 0.93 * v_j_i
+            post_v_ij = post_v_j - post_v_i
+            post_v_ij_i = post_v_ij.dot(_i) * _i
+            if (np.sign(v_ij_i) & np.sign(post_v_ij_i)).any():
+                self.valid = False
+                return
+            self.valid = True
+            paired_event._a[2] = -0.5 * self.physics.mu_r * self.physics.g * (post_v_j / np.linalg.norm(post_v_j))
+            tau_j = np.linalg.norm(post_v_j) / (self.physics.mu_r * self.physics.g)
+            paired_event.T = tau_j
+            paired_event.next_event = self.physics.RollToRestEvent(t + tau_j, j, paired_event.eval_position(tau_j))
+        def __str__(self):
+            return super().__str__()[:-1] + ' j=%2d>' % self.j
 
     class BallCollisionEvent(PhysicsEvent):
         def __init__(self, t, i, j, r_i, r_j, v_i, v_j):

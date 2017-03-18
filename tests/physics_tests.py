@@ -56,8 +56,10 @@ class PhysicsTests(TestCase):
         self.physics.on_table[1:] = False
         Q = np.array((0.0, 0.0, self.physics.ball_radius))
         self.cue.velocity[2] = -0.8
-        events = self.physics.strike_ball(0.0, 0, Q, self.cue.velocity, self.cue.mass)
-        _logger.info('\n'.join(['  %s' % e for e in events]))
+        i = 0
+        n_events = self.physics.strike_ball(0.0, i, Q, self.cue.velocity, self.cue.mass)
+        _logger.debug('strike on %d resulted in %d events', i, n_events)
+        events = self.physics.events
         self.assertEqual(3, len(events))
         self.assertIsInstance(events[0], PoolPhysics.StrikeBallEvent)
         self.assertIsInstance(events[1], PoolPhysics.SlideToRollEvent)
@@ -123,10 +125,10 @@ class PhysicsTests(TestCase):
         plt.plot(ts, [self.physics._calc_energy(t) for t in ts], '-xy')
         plt.legend()
         self._savefig(plot_name='energy')
-        # if self.show:
-        #     self._view()
+        if self.show:
+            self._view()
 
-
+    @skip
     def test_ball_collision_2(self):
         self.game.reset()
         self.physics.on_table[2:8:2] = False
@@ -251,8 +253,11 @@ class PhysicsTests(TestCase):
             with renderer.render(meshes=sphere_meshes):
                 self.physics.eval_positions(pt, out=ball_positions)
                 for i, pos in enumerate(ball_positions):
-                    sphere_positions[i][:] = pos
-                ball_positions[~self.physics.on_table] = camera_position # hacky way to only show balls that are on table
+                    if not self.physics.on_table[i]:
+                        sphere_positions[i][:] = renderer.camera_position
+                    else:
+                        sphere_positions[i][:] = pos
+                ball_positions[~self.physics.on_table] = renderer.camera_position # hacky way to only show balls that are on table
                 # ball_billboards.update_gl()
             max_frame_time = max(max_frame_time, dt)
             if nframes == 0:

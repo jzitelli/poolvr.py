@@ -155,11 +155,10 @@ def main(window_size=(800,600), novr=False):
                 physics.eval_positions(game.t, out=ball_positions)
                 for i, pos in enumerate(ball_positions):
                     sphere_positions[i][:] = pos
-                sphere_positions[~physics.on_table] = hmd_pose
-                # ball_positions[~self.physics.on_table] = camera_position # hacky way to only show balls that are on table
+                np.array(sphere_positions)[~physics.on_table] = hmd_pose[:,3] # hacky way to only show balls that are on table
                 # physics.eval_positions(game.t, out=ball_positions)
                 # ball_positions[~physics.on_table] = hmd_pose[:,3] # hacky way to only show balls that are on table
-                ball_billboards.update_gl()
+                # ball_billboards.update_gl()
 
             ##### desktop mode: #####
 
