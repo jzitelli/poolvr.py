@@ -20,10 +20,12 @@ from poolvr.cue import PoolCue
 from poolvr.table import PoolTable
 from poolvr.game import PoolGame
 from poolvr.physics import PoolPhysics
-from poolvr.gl_rendering import OpenGLRenderer, Texture
+from poolvr.gl_rendering import OpenGLRenderer, Texture, Mesh, Material
 from poolvr.app import setup_glfw, BG_COLOR, TEXTURES_DIR
 from poolvr.billboards import BillboardParticles
 from poolvr.keyboard_controls import init_keyboard
+from poolvr.primitives import SpherePrimitive
+from poolvr.techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
 
 
 PLOTS_DIR = os.path.join(os.path.dirname(__file__), 'plots')
@@ -37,7 +39,7 @@ class PhysicsTests(TestCase):
         self.physics = self.game.physics
         self.table = self.game.table
         self.cue = PoolCue()
-        self.playback_rate = 1.0
+        self.playback_rate = 1
 
 
     def test_reset(self):
@@ -48,7 +50,7 @@ class PhysicsTests(TestCase):
                              0.001 * self.physics.ball_radius)
         self.assertTrue((self.physics.eval_velocities(0.0) == 0).all())
 
-
+    @skip
     def test_strike_ball(self):
         self.game.reset()
         self.physics.on_table[1:] = False
@@ -81,18 +83,20 @@ class PhysicsTests(TestCase):
 
     def test_ball_collision(self):
         self.game.reset()
-        self.physics.on_table[8:] = False
+        # self.physics.on_table[8:] = False
         self.cue.velocity[2] = -1.6
-        self.cue.velocity[0] = 0.03
+        self.cue.velocity[0] = -0.02
         Q = np.array((0.0, 0.0, self.physics.ball_radius))
-        events = self.physics.strike_ball(0.0, 0, Q, self.cue.velocity, self.cue.mass)
-        _logger.debug('\n'.join(['  %s' % e for e in events]))
+        i = 0
+        n_events = self.physics.strike_ball(0.0, i, Q, self.cue.velocity, self.cue.mass)
+        _logger.debug('strike on %d resulted in %d events', i, n_events)
         # self.assertIsInstance(events[0], PoolPhysics.StrikeBallEvent)
         # self.assertIsInstance(events[1], PoolPhysics.SlideToRollEvent)
         # self.assertIsInstance(events[2], PoolPhysics.BallCollisionEvent)
         fig = plt.figure()
         plt.xlabel('$t$ (seconds)')
         plt.ylabel('$x, y, z$ (meters)')
+        events = self.physics.events
         for e in events:
             plt.axvline(e.t)
             if e.T < float('inf'):
@@ -119,7 +123,8 @@ class PhysicsTests(TestCase):
         plt.plot(ts, [self.physics._calc_energy(t) for t in ts], '-xy')
         plt.legend()
         self._savefig(plot_name='energy')
-        if self.show: self._view()
+        if self.show:
+            self._view()
 
 
     def _savefig(self, plot_name=''):
@@ -140,10 +145,11 @@ class PhysicsTests(TestCase):
         window, renderer = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=True,
                                       title=title)
         camera_world_matrix = renderer.camera_matrix
+        # camera_world_matrix[:,[1,2]] = camera_world_matrix[:,[2,1]]
         camera_position = camera_world_matrix[3,:3]
         game = self.game
-        camera_position[1] = game.table.height + 0.6
-        camera_position[2] = game.table.length - 0.2
+        camera_position[1] = game.table.height + 0.67
+        camera_position[2] = game.table.length - 0.38
         gl.glViewport(0, 0, window_size[0], window_size[1])
         gl.glClearColor(*BG_COLOR)
         gl.glEnable(gl.GL_DEPTH_TEST)
@@ -157,7 +163,18 @@ class PhysicsTests(TestCase):
                                                              for c in game.ball_colors], dtype=np.float32),
                                              translate=game.ball_positions)
         ball_positions = ball_billboards.primitive.attributes['translate']
-        meshes = [game.table.mesh, ball_billboards, cue]
+        sphere_meshes = [Mesh({Material(LAMBERT_TECHNIQUE,
+                                        values={'u_color': [(c&0xff0000) / 0xff0000,
+                                                            (c&0x00ff00) / 0x00ff00,
+                                                            (c&0x0000ff) / 0x0000ff,
+                                                            0.0]})
+                               : [SpherePrimitive(radius=ball_radius)]})
+                         for c in game.ball_colors]
+        for mesh in sphere_meshes:
+            list(mesh.primitives.values())[0][0].attributes['a_position'] = list(mesh.primitives.values())[0][0].attributes['vertices']
+        sphere_positions = [mesh.world_matrix[3,:3] for mesh in sphere_meshes]
+        # meshes = [game.table.mesh, ball_billboards, cue] + sphere_meshes
+        meshes = [game.table.mesh] + sphere_meshes
         for mesh in meshes:
             mesh.init_gl(force=True)
         def on_resize(window, width, height):
@@ -184,10 +201,12 @@ class PhysicsTests(TestCase):
             glfw.PollEvents()
             process_keyboard_input(dt, camera_world_matrix, cue=cue)
             renderer.process_input()
-            with renderer.render(meshes=meshes):
+            with renderer.render(meshes=sphere_meshes):
                 self.physics.eval_positions(pt, out=ball_positions)
+                for i, pos in enumerate(ball_positions):
+                    sphere_positions[i][:] = pos
                 ball_positions[~self.physics.on_table] = camera_position # hacky way to only show balls that are on table
-                ball_billboards.update_gl()
+                # ball_billboards.update_gl()
             max_frame_time = max(max_frame_time, dt)
             if nframes == 0:
                 st = glfw.GetTime()
