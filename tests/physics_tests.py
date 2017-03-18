@@ -31,6 +31,7 @@ from poolvr.techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
 
 
 PLOTS_DIR = os.path.join(os.path.dirname(__file__), 'plots')
+SCREENSHOTS_DIR = os.path.join(os.path.dirname(__file__), 'screenshots')
 
 
 class PhysicsTests(TestCase):
@@ -284,7 +285,7 @@ class PhysicsTests(TestCase):
         pil_image = PIL.Image.frombytes('RGB', (mWidth, mHeight), pixels)
         pil_image = pil_image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
         filename = title.replace(' ', '_') + '-screenshot.png'
-        filepath = os.path.join(os.path.dirname(__file__), 'screenshots', filename)
+        filepath = os.path.join(SCREENSHOTS_DIR, filename)
         pil_image.save(filepath)
         _logger.info('..saved screen capture to "%s"', filepath)
 
