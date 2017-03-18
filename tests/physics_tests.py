@@ -123,6 +123,53 @@ class PhysicsTests(TestCase):
         plt.plot(ts, [self.physics._calc_energy(t) for t in ts], '-xy')
         plt.legend()
         self._savefig(plot_name='energy')
+        # if self.show:
+        #     self._view()
+
+
+    def test_ball_collision_2(self):
+        self.game.reset()
+        self.physics.on_table[2:8:2] = False
+        self.physics.on_table[8:] = False
+        self.cue.velocity[2] = -1.6
+        self.cue.velocity[0] = -0.02
+        Q = np.array((0.0, 0.0, self.physics.ball_radius))
+        i = 0
+        n_events = self.physics.strike_ball(0.0, i, Q, self.cue.velocity, self.cue.mass)
+        _logger.debug('strike on %d resulted in %d events', i, n_events)
+        # self.assertIsInstance(events[0], PoolPhysics.StrikeBallEvent)
+        # self.assertIsInstance(events[1], PoolPhysics.SlideToRollEvent)
+        # self.assertIsInstance(events[2], PoolPhysics.BallCollisionEvent)
+        fig = plt.figure()
+        plt.xlabel('$t$ (seconds)')
+        plt.ylabel('$x, y, z$ (meters)')
+        events = self.physics.events
+        for e in events:
+            plt.axvline(e.t)
+            if e.T < float('inf'):
+                plt.axvline(e.t + e.T)
+        plt.axhline(self.table.height)
+        plt.axhline(-0.5 * self.table.length)
+        ts = np.linspace(events[0].t, events[-1].t, 50)
+        ts = np.concatenate([[a.t] + list(ts[(ts >= a.t) & (ts < b.t)]) + [b.t]
+                             for a, b in zip(events[:-1], events[1:])])
+        for i, ls, xyz in zip(range(3), ['-o', '-s', '-d'], 'xyz'):
+            plt.plot(ts, [self.physics.eval_positions(t)[0,i] for t in ts], ls, label='$%s$' % xyz)
+        plt.legend()
+        self._savefig()
+        # energy plot:
+        plt.figure()
+        plt.xlabel('$t$ (seconds)')
+        plt.ylabel('energy (Joules)')
+        for e in events:
+            plt.axvline(e.t)
+            if e.T < float('inf'):
+                plt.axvline(e.t + e.T)
+        plt.axhline(self.table.height)
+        plt.axhline(-0.5 * self.table.length)
+        plt.plot(ts, [self.physics._calc_energy(t) for t in ts], '-xy')
+        plt.legend()
+        self._savefig(plot_name='energy')
         if self.show:
             self._view()
 
@@ -148,8 +195,8 @@ class PhysicsTests(TestCase):
         # camera_world_matrix[:,[1,2]] = camera_world_matrix[:,[2,1]]
         camera_position = camera_world_matrix[3,:3]
         game = self.game
-        camera_position[1] = game.table.height + 0.16
-        camera_position[2] = 0.18 * game.table.length
+        camera_position[1] = game.table.height + 0.19
+        camera_position[2] = 0.183 * game.table.length
         gl.glViewport(0, 0, window_size[0], window_size[1])
         gl.glClearColor(*BG_COLOR)
         gl.glEnable(gl.GL_DEPTH_TEST)

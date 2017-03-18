@@ -107,7 +107,7 @@ class PoolPhysics(object):
                 t_i, T_i = e_i.t, e_i.T
                 if predicted_event and t_i >= predicted_event.t:
                     continue
-                # j is in motion due to the sequence of events initiated by the strike:
+                # examine balls j that are in motion due to the sequence of events initiated by the strike:
                 for j in balls_in_motion[ii+1:]:
                     e_j = ball_events[j]
                     t_j, T_j = e_j.t, e_j.T
@@ -119,19 +119,29 @@ class PoolPhysics(object):
                         continue
                     if t_i == t_j and isinstance(e_i, self.BallCollisionEvent) and isinstance(e_j, self.BallCollisionEvent) and e_i.j == j and e_j.j == i:
                         continue
-                    t0 = max(t_i, t_j)
-                    t1 = min(t_i + T_i, t_j + T_j)
-                    if t_i > t_j:
-                        a_j[0] = e_j.eval_position(t_i - t_j) # j's position at t0
-                        a_j[1] = e_j.eval_velocity(t_i - t_j) # j's velocity at t0
-                        a_j[2] = e_j._a[2] # j's acceleration is constant over the course of the event
-                        a_i[:] = e_i._a # i's event local kinematic equations of motion
-                    else:
-                        a_i[0] = e_i.eval_position(t_j - t_i) # i's position at t0
-                        a_i[1] = e_i.eval_velocity(t_j - t_i) # i's velocity at t0
-                        a_i[2] = e_i._a[2] # i's acceleration is constant over the course of the event
-                        a_j[:] = e_j._a # j's event local kinematic equations of motion
-                    t_c = self._find_collision_time(a_i, a_j, 0.0, t1 - t0)
+                    key = (str(e_i), str(e_j))
+                    if key not in collision_times:
+                        t0 = max(t_i, t_j)
+                        t1 = min(t_i + T_i, t_j + T_j)
+                        if t_i > t_j:
+                            a_j[0] = e_j.eval_position(t_i - t_j) # j's position at t0
+                            a_j[1] = e_j.eval_velocity(t_i - t_j) # j's velocity at t0
+                            a_j[2] = e_j._a[2] # j's acceleration is constant over the course of the event
+                            a_i[:] = e_i._a # i's event local kinematic equations of motion
+                        else:
+                            a_i[0] = e_i.eval_position(t_j - t_i) # i's position at t0
+                            a_i[1] = e_i.eval_velocity(t_j - t_i) # i's velocity at t0
+                            a_i[2] = e_i._a[2] # i's acceleration is constant over the course of the event
+                            a_j[:] = e_j._a # j's event local kinematic equations of motion
+                        r_0ji = a_i[0] - a_j[0]
+                        v_0ji = a_i[1] - a_j[1]
+                        # if ((abs(r_0ji) > 2*self.ball_radius) & (np.sign(r_0ji) == np.sign(v_0ji))).any() \
+                        #   or np.linalg.norm(v_0ji) * (t1 - t0) < np.linalg.norm(r_0ji) - 2*self.ball_radius:
+                        if np.linalg.norm(v_0ji) * (t1 - t0) < np.linalg.norm(r_0ji) - 2*self.ball_radius:
+                            collision_times[key] = None
+                            continue
+                        collision_times[key] = self._find_collision_time(a_i, a_j, 0.0, t1 - t0)
+                    t_c = collision_times[key]
                     if t_c is not None:
                         t_c += t0
                         if predicted_event is None or t_c < predicted_event.t:
@@ -173,7 +183,10 @@ class PoolPhysics(object):
                         a_i[1] = e_i.eval_velocity(t_j - t_i) # i's velocity at t0
                         a_i[2] = e_i._a[2] # blahb blabhab
                         a_j[:] = e_j._a
-                    t_c = self._find_collision_time(a_i, a_j, 0.0, t1 - t0)
+                    key = (e_i, e_j)
+                    if key not in collision_times:
+                        collision_times[key] = self._find_collision_time(a_i, a_j, 0.0, t1 - t0)
+                    t_c = collision_times[key]
                     if t_c is not None:
                         t_c += t0
                         if predicted_event is None or t_c < predicted_event.t:
@@ -214,18 +227,6 @@ class PoolPhysics(object):
             elif isinstance(determined_event, self.RestEvent):
                 ball_events.pop(i)
         return n_events
-
-
-                    # r_0ji = _a_i[0] - _a_j[0]
-                    # v_0ji = _a_i[1] - _a_j[1]
-                    # if key not in collision_times:
-                    #     # if ((abs(r_0ji) > 2*self.ball_radius) & (np.sign(r_0ji) == np.sign(v_0ji))).any() \
-                    #     #   or np.linalg.norm(v_0ji) * (t1 - t0) < np.linalg.norm(r_0ji) - 2*self.ball_radius:
-                    #     if np.linalg.norm(v_0ji) * (t1 - t0) < np.linalg.norm(r_0ji) - 2*self.ball_radius:
-                    #         collision_times[key] = None
-                    #         continue
-                    #     collision_times[key] = self._find_collision_time(_a, _a_j, t0, t1)
-                    # t_c = collision_times[key]
 
     STATIONARY = 0
     SLIDING    = 1

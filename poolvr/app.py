@@ -123,16 +123,17 @@ def main(window_size=(800,600), novr=False):
     max_frame_time = 0.0
     lt = glfw.GetTime()
     while not glfw.WindowShouldClose(window):
-        t = glfw.GetTime()
-        dt = t - lt
-        lt = t
-        process_input(dt)
-        renderer.process_input(button_press_callbacks=button_press_callbacks)
         with renderer.render(meshes=meshes) as frame_data:
+
+            t = glfw.GetTime()
+            dt = t - lt
+            lt = t
+            process_input(dt)
 
             ##### VR mode: #####
 
             if frame_data:
+                renderer.process_input(button_press_callbacks=button_press_callbacks)
                 poses, velocities, angular_velocities = frame_data
                 hmd_pose = poses[0]
                 if len(poses) > 1:
@@ -154,6 +155,7 @@ def main(window_size=(800,600), novr=False):
                 physics.eval_positions(game.t, out=ball_positions)
                 for i, pos in enumerate(ball_positions):
                     sphere_positions[i][:] = pos
+                sphere_positions[~physics.on_table] = hmd_pose
                 # ball_positions[~self.physics.on_table] = camera_position # hacky way to only show balls that are on table
                 # physics.eval_positions(game.t, out=ball_positions)
                 # ball_positions[~physics.on_table] = hmd_pose[:,3] # hacky way to only show balls that are on table
