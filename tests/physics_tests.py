@@ -11,7 +11,6 @@ OpenGL.ERROR_LOGGING = False
 OpenGL.ERROR_ON_COPY = True
 import OpenGL.GL as gl
 import cyglfw3 as glfw
-from contextlib import contextmanager
 import PIL.Image
 
 
@@ -48,6 +47,7 @@ class PhysicsTests(TestCase):
         self.table = self.game.table
         self.cue = PoolCue()
         self.playback_rate = 1
+        self.physics.reset(self.game.initial_positions())
 
 
     def test_reset(self):
@@ -58,7 +58,7 @@ class PhysicsTests(TestCase):
                              0.001 * self.physics.ball_radius)
         self.assertTrue((self.physics.eval_velocities(0.0) == 0).all())
 
-    @skip
+
     def test_strike_ball(self):
         self.game.reset()
         self.physics.on_table[1:] = False
@@ -137,7 +137,6 @@ class PhysicsTests(TestCase):
         if self.show:
             self._view()
 
-    @skip
     def test_ball_collision_2(self):
         self.game.reset()
         self.physics.on_table[2:8:2] = False
@@ -289,22 +288,24 @@ class PhysicsTests(TestCase):
         pil_image.save(filepath)
         _logger.info('..saved screen capture to "%s"', filepath)
 
-        renderer.shutdown()
-        _logger.info('...shut down renderer')
-
+        try:
+            renderer.shutdown()
+            _logger.info('...shut down renderer')
+        except Exception as err:
+            _logger.error(err)
+        try:
+            glfw.PollEvents()
+        except Exception as err:
+            _logger.error(err)
         try:
             glfw.DestroyWindow(window)
+        except Exception as err:
+            _logger.error(err)
+        try:
             glfw.PollEvents()
-            glfw.GetTime()
-            glfw.PollEvents()
+        except Exception as err:
+            _logger.error(err)
+        try:
             glfw.Terminate()
-            # _N = 10
-            # _S = 2000000
-            # for i in range(_N):
-            #     _count = 0
-            #     for cyc in range(_S):
-            #         _count += 1
-            #     print(''.join(['%d...' % i, i*'.']) + ' ')
-            #     stdout.flush()
         except Exception as err:
             _logger.error(err)
