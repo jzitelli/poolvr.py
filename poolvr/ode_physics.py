@@ -22,21 +22,13 @@ def create_ball(mass, radius, world, space=None):
     body.setMass(mass)
     body.shape = "sphere"
     body.boxsize = (2*radius, 2*radius, 2*radius)
-    # Create a box geom for collision detection
     geom = ode.GeomSphere(space=space, radius=radius)
     geom.setBody(body)
     return body, geom
 
 
 def near_callback(args, geom1, geom2):
-    """Callback function for the collide() method.
-
-    This function checks if the given geoms do collide and
-    creates contact joints if they do.
-    """
-    # Check if the objects do collide
     contacts = ode.collide(geom1, geom2)
-    # Create contact joints
     world, contactgroup = args
     for c in contacts:
         c.setBounce(0.93)
@@ -54,8 +46,11 @@ class ODEPoolPhysics(object):
                  linear_damping=0.06,
                  angular_damping=0.1,
                  initial_positions=None,
-                 table_height=0.77,
+                 table=None,
                  **kwargs):
+        if table is None:
+            table = PoolTable(**kwargs)
+        self.table = table
         self.num_balls = num_balls
         self.ball_mass = ball_mass
         self.ball_radius = ball_radius
@@ -80,8 +75,9 @@ class ODEPoolPhysics(object):
         if initial_positions is not None:
             for body, position in zip(self.ball_bodies, initial_positions):
                 body.setPosition(position)
-        self.table_surface = ode.GeomPlane(self.space,
-                                           (0.0, table_height, 0.0), 0)
+        self.table_surface_body = ode.Body(self.world)
+        self.table_surface_geom = ode.GeomPlane(self.space, (0.0, self.table.height, 0.0), 0)
+        self.table_surface_geom.setBody(self.table_surface_body)
         self._contactgroup = ode.JointGroup()
 
     def reset(self, ball_positions):
@@ -117,7 +113,8 @@ class ODEPoolPhysics(object):
         _k = _J
         _i = np.cross(_j, _k)
         omega[:] = omega_i * _i + omega_j * _j + omega_k * _k
-        body.setVelocity(*V)
+        body.setLinearVel(*v)
+        body.setAngularVel(*omega)
 
     def step(self, dt):
         self.space.collide((self.world, self._contactgroup), near_callback)
