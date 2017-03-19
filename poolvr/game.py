@@ -40,7 +40,8 @@ class PoolGame(object):
         self.initial_positions(out=self.ball_positions)
         self.physics = PoolPhysics(num_balls=self.num_balls,
                                    ball_radius=ball_radius,
-                                   initial_positions=self.ball_positions)
+                                   initial_positions=self.ball_positions,
+                                   **kwargs)
         self.t = 0.0
         self.ntt = 0.0
     def initial_positions(self, d=None, out=None):

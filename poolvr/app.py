@@ -60,9 +60,9 @@ def setup_glfw(width=800, height=600, double_buffered=False, title="poolvr.py 0.
 
 
 
-def main(window_size=(800,600), novr=False):
+def main(window_size=(800,600), novr=False, use_simple_collision=False):
     _logger.info('HELLO')
-    game = PoolGame()
+    game = PoolGame(use_simple_collision=use_simple_collision)
     physics = game.physics
     cue = PoolCue()
     cue.position[1] = game.table.height + 0.1
@@ -153,11 +153,9 @@ def main(window_size=(800,600), novr=False):
                                 game.ntt = physics.next_turn_time()
                                 break
                 physics.eval_positions(game.t, out=ball_positions)
+                ball_positions[~physics.on_table] = hmd_pose[:,3] # hacky way to only show balls that are on table
                 for i, pos in enumerate(ball_positions):
                     sphere_positions[i][:] = pos
-                np.array(sphere_positions)[~physics.on_table] = hmd_pose[:,3] # hacky way to only show balls that are on table
-                # physics.eval_positions(game.t, out=ball_positions)
-                # ball_positions[~physics.on_table] = hmd_pose[:,3] # hacky way to only show balls that are on table
                 # ball_billboards.update_gl()
 
             ##### desktop mode: #####
@@ -169,7 +167,9 @@ def main(window_size=(800,600), novr=False):
                         pass
                 physics.eval_positions(game.t, out=ball_positions)
                 ball_positions[~physics.on_table] = renderer.camera_position # hacky way to only show balls that are on table
-                ball_billboards.update_gl()
+                for i, pos in enumerate(ball_positions):
+                    sphere_positions[i][:] = pos
+                # ball_billboards.update_gl()
 
         game.t += dt
         max_frame_time = max(max_frame_time, dt)

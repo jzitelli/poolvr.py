@@ -11,7 +11,6 @@ OpenGL.ERROR_LOGGING = False
 OpenGL.ERROR_ON_COPY = True
 import OpenGL.GL as gl
 import cyglfw3 as glfw
-from contextlib import contextmanager
 import PIL.Image
 
 
@@ -22,6 +21,7 @@ from poolvr.cue import PoolCue
 from poolvr.table import PoolTable
 from poolvr.game import PoolGame
 from poolvr.physics import PoolPhysics
+from poolvr.ode_physics import ODEPoolPhysics
 from poolvr.gl_rendering import OpenGLRenderer, Texture, Mesh, Material
 from poolvr.app import setup_glfw, BG_COLOR, TEXTURES_DIR
 from poolvr.billboards import BillboardParticles
@@ -34,7 +34,7 @@ PLOTS_DIR = os.path.join(os.path.dirname(__file__), 'plots')
 SCREENSHOTS_DIR = os.path.join(os.path.dirname(__file__), 'screenshots')
 
 
-class PhysicsTests(TestCase):
+class ODEPhysicsTests(TestCase):
     show = False
 
     @classmethod
@@ -44,7 +44,7 @@ class PhysicsTests(TestCase):
 
     def setUp(self):
         self.game = PoolGame()
-        self.physics = self.game.physics
+        self.physics = ODEPoolPhysics()
         self.table = self.game.table
         self.cue = PoolCue()
         self.playback_rate = 1
@@ -88,22 +88,10 @@ class PhysicsTests(TestCase):
             plt.plot(ts, [self.physics.eval_positions(t)[0,i] for t in ts], ls, label='$%s$' % xyz)
         plt.legend()
         self._savefig()
-        # energy plot:
-        plt.figure()
-        plt.xlabel('$t$ (seconds)')
-        plt.ylabel('energy (Joules)')
-        for e in events:
-            plt.axvline(e.t)
-            if e.T < float('inf'):
-                plt.axvline(e.t + e.T)
-        plt.axhline(self.table.height)
-        plt.axhline(-0.5 * self.table.length)
-        plt.plot(ts, [self.physics._calc_energy(t) for t in ts], '-xy')
-        self._savefig(plot_name='energy')
         if self.show:
             self._view()
 
-    @skip
+
     def test_ball_collision(self):
         self.game.reset()
         # self.physics.on_table[8:] = False
@@ -144,56 +132,7 @@ class PhysicsTests(TestCase):
         plt.axhline(self.table.height)
         plt.axhline(-0.5 * self.table.length)
         plt.plot(ts, [self.physics._calc_energy(t) for t in ts], '-xy')
-        self._savefig(plot_name='energy')
-        if self.show:
-            self._view()
-
-
-    def test_simple_ball_collision(self):
-        self.physics = PoolPhysics(num_balls=self.game.num_balls,
-                                   ball_radius=self.game.ball_radius,
-                                   initial_positions=self.game.ball_positions,
-                                   use_simple_ball_collision=True)
-        self.game.physics = self.physics
-        self.game.reset()
-        # self.physics.on_table[8:] = False
-        self.cue.velocity[2] = -1.6
-        self.cue.velocity[0] = -0.02
-        Q = np.array((0.0, 0.0, self.physics.ball_radius))
-        i = 0
-        n_events = self.physics.strike_ball(0.0, i, Q, self.cue.velocity, self.cue.mass)
-        _logger.debug('strike on %d resulted in %d events', i, n_events)
-        # self.assertIsInstance(events[0], PoolPhysics.StrikeBallEvent)
-        # self.assertIsInstance(events[1], PoolPhysics.SlideToRollEvent)
-        # self.assertIsInstance(events[2], PoolPhysics.BallCollisionEvent)
-        fig = plt.figure()
-        plt.xlabel('$t$ (seconds)')
-        plt.ylabel('$x, y, z$ (meters)')
-        events = self.physics.events
-        for e in events:
-            plt.axvline(e.t)
-            if e.T < float('inf'):
-                plt.axvline(e.t + e.T)
-        plt.axhline(self.table.height)
-        plt.axhline(-0.5 * self.table.length)
-        ts = np.linspace(events[0].t, events[-1].t, 50)
-        ts = np.concatenate([[a.t] + list(ts[(ts >= a.t) & (ts < b.t)]) + [b.t]
-                             for a, b in zip(events[:-1], events[1:])])
-        for i, ls, xyz in zip(range(3), ['-o', '-s', '-d'], 'xyz'):
-            plt.plot(ts, [self.physics.eval_positions(t)[0,i] for t in ts], ls, label='$%s$' % xyz)
         plt.legend()
-        self._savefig()
-        # energy plot:
-        plt.figure()
-        plt.xlabel('$t$ (seconds)')
-        plt.ylabel('energy (Joules)')
-        for e in events:
-            plt.axvline(e.t)
-            if e.T < float('inf'):
-                plt.axvline(e.t + e.T)
-        plt.axhline(self.table.height)
-        plt.axhline(-0.5 * self.table.length)
-        plt.plot(ts, [self.physics._calc_energy(t) for t in ts], '-xy')
         self._savefig(plot_name='energy')
         if self.show:
             self._view()
@@ -271,7 +210,7 @@ class PhysicsTests(TestCase):
         camera_position[2] = 0.183 * game.table.length
         gl.glViewport(0, 0, window_size[0], window_size[1])
         #gl.glClearColor(*BG_COLOR)
-        gl.glClearColor(0.24, 0.18, 0.08, 0.0)
+        gl.glClearColor(0.24, 0.18, 0.08, 0.0) #*BG_COLOR)
         gl.glEnable(gl.GL_DEPTH_TEST)
         physics = game.physics
         cue = PoolCue()
