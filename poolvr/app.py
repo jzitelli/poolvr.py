@@ -60,9 +60,9 @@ def setup_glfw(width=800, height=600, double_buffered=False, title="poolvr.py 0.
 
 
 
-def main(window_size=(800,600), novr=False, use_simple_collision=False):
+def main(window_size=(800,600), novr=False, use_simple_collisions=False):
     _logger.info('HELLO')
-    game = PoolGame(use_simple_collision=use_simple_collision)
+    game = PoolGame(use_simple_collisions=use_simple_collisions)
     physics = game.physics
     cue = PoolCue()
     cue.position[1] = game.table.height + 0.1
@@ -161,10 +161,14 @@ def main(window_size=(800,600), novr=False, use_simple_collision=False):
             ##### desktop mode: #####
 
             elif isinstance(renderer, OpenGLRenderer):
-                for i, position in cue.aabb_check(ball_positions, ball_radius):
-                    poc = cue.contact(position, ball_radius)
-                    if poc is not None:
-                        pass
+                if game.t >= game.ntt:
+                    for i, position in cue.aabb_check(ball_positions, ball_radius):
+                        poc = cue.contact(position, ball_radius)
+                        if poc is not None:
+                            poc[:] = [0.0, 0.0, ball_radius]
+                            physics.strike_ball(game.t, i, poc, cue.velocity, cue.mass)
+                            game.ntt = physics.next_turn_time()
+                            break
                 physics.eval_positions(game.t, out=ball_positions)
                 ball_positions[~physics.on_table] = renderer.camera_position # hacky way to only show balls that are on table
                 for i, pos in enumerate(ball_positions):

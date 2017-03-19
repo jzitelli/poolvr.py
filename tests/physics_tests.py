@@ -103,10 +103,10 @@ class PhysicsTests(TestCase):
         if self.show:
             self._view()
 
-    @skip
+
     def test_ball_collision(self):
         self.game.reset()
-        # self.physics.on_table[8:] = False
+        self.physics.on_table[8:] = False
         self.cue.velocity[2] = -1.6
         self.cue.velocity[0] = -0.02
         Q = np.array((0.0, 0.0, self.physics.ball_radius))
@@ -198,6 +198,7 @@ class PhysicsTests(TestCase):
         if self.show:
             self._view()
 
+
     def test_ball_collision_2(self):
         self.game.reset()
         self.physics.on_table[2:8:2] = False
@@ -208,9 +209,6 @@ class PhysicsTests(TestCase):
         i = 0
         n_events = self.physics.strike_ball(0.0, i, Q, self.cue.velocity, self.cue.mass)
         _logger.debug('strike on %d resulted in %d events', i, n_events)
-        # self.assertIsInstance(events[0], PoolPhysics.StrikeBallEvent)
-        # self.assertIsInstance(events[1], PoolPhysics.SlideToRollEvent)
-        # self.assertIsInstance(events[2], PoolPhysics.BallCollisionEvent)
         fig = plt.figure()
         plt.xlabel('$t$ (seconds)')
         plt.ylabel('$x, y, z$ (meters)')
@@ -355,15 +353,7 @@ class PhysicsTests(TestCase):
         except Exception as err:
             _logger.error(err)
         try:
-            glfw.PollEvents()
-        except Exception as err:
-            _logger.error(err)
-        try:
             glfw.DestroyWindow(window)
-        except Exception as err:
-            _logger.error(err)
-        try:
-            glfw.PollEvents()
         except Exception as err:
             _logger.error(err)
         try:

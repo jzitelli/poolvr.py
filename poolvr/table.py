@@ -11,7 +11,8 @@ class PoolTable(object):
                  length=2.34,
                  height=0.77,
                  width=None,
-                 width_rail=2*INCH2METER):
+                 width_rail=2*INCH2METER,
+                 **kwargs):
         self.length = length
         self.height = height
         self.length = length
