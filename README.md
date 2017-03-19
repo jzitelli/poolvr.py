@@ -44,10 +44,9 @@ For information on command-line options and other help:
 python play_poolvr.py -h
 ```
 
-
 ## HOW TO RUN TESTS:
 
-From the root folder:
+From the *poolvr.py* repo root directory:
 ```
-python scripts/run_tests.py
+python scripts/run_poolvr_tests.py
 ```
