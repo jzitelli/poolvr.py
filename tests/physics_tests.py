@@ -73,8 +73,8 @@ class PhysicsTests(TestCase):
         savefig(os.path.join(PLOTS_DIR, test_name + '.png'))
         plot_energy(self.game, title=test_name + ' - energy')
         savefig(os.path.join(PLOTS_DIR, test_name + '_energy.png'))
-        # if self.show:
-        #     show(self.game, title=test_name)
+        if self.show:
+            show(self.game, title=test_name)
 
 
     def test_ball_collision(self):
@@ -134,5 +134,5 @@ class PhysicsTests(TestCase):
         savefig(os.path.join(PLOTS_DIR, test_name + '.png'))
         plot_energy(self.game, title=test_name + ' - energy')
         savefig(os.path.join(PLOTS_DIR, test_name + '_energy.png'))
-        # if self.show:
-        #     show(self.game, title=test_name)
+        if self.show:
+            show(self.game, title=test_name)

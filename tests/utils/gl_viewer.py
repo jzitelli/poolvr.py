@@ -140,8 +140,7 @@ def show(game,
         glfw.DestroyWindow(window)
     except Exception as err:
         _logger.error(err)
-    time.sleep(5.0)
-    # try:
-    #     glfw.Terminate()
-    # except Exception as err:
-    #     _logger.error(err)
+    try:
+        glfw.Terminate()
+    except Exception as err:
+        _logger.error(err)

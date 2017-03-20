@@ -61,6 +61,8 @@ class Program(object):
             self.attributes = attributes
             self.uniforms = uniforms
     def init_gl(self, force=False):
+        if force:
+            Program._current = None
         if self.program_id is not None:
             if not force: return
         vs = gl.glCreateShader(gl.GL_VERTEX_SHADER)
@@ -111,6 +113,8 @@ class Technique(object):
             states = []
         self.states = states
     def init_gl(self, force=False):
+        if force:
+            Technique._current = None
         self.program.init_gl(force=force)
         program_id = self.program.program_id
         self.attribute_locations = {name: gl.glGetAttribLocation(program_id, name) for name in self.attributes}
@@ -219,9 +223,13 @@ class Material(object):
             self._initialized = False
         if self._initialized:
             return
+        Material._current = None
         self.technique.init_gl(force=force)
         for texture in self.textures.values():
             texture.init_gl(force=force)
+        err = gl.glGetError()
+        if err != gl.GL_NO_ERROR:
+            raise Exception('failed to init material: %s' % err)
         self._initialized = True
         _logger.info('%s.init_gl: OK' % self.__class__.__name__)
     def use(self, u_view=None, u_modelview=None, u_projection=None, u_normal=None):
@@ -295,8 +303,9 @@ class Mesh(Node):
         self.primitives = primitives
         self._initialized = False
     def init_gl(self, force=False):
-        if self._initialized:
+        if self._initialized and not force:
             return
+        self._initialized = False
         for material, prims in self.primitives.items():
             material.init_gl(force=force)
             technique = material.technique
@@ -318,6 +327,9 @@ class Mesh(Node):
                 gl.glBindVertexArray(0)
                 for location in technique.attribute_locations.values():
                     gl.glDisableVertexAttribArray(location)
+        err = gl.glGetError()
+        if err != gl.GL_NO_ERROR:
+            raise Exception('failed to init primitive: %s' % err)
         _logger.info('%s.init_gl: OK' % self.__class__.__name__)
         self._initialized = True
     def draw(self, view=None, projection=None):
