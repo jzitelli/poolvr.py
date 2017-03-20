@@ -60,9 +60,9 @@ def setup_glfw(width=800, height=600, double_buffered=False, title="poolvr.py 0.
 
 
 
-def main(window_size=(800,600), novr=False, use_simple_collisions=False):
+def main(window_size=(800,600), novr=False, use_simple_ball_collisions=False):
     _logger.info('HELLO')
-    game = PoolGame(use_simple_collisions=use_simple_collisions)
+    game = PoolGame(use_simple_ball_collisions=use_simple_ball_collisions)
     physics = game.physics
     cue = PoolCue()
     cue.position[1] = game.table.height + 0.1
@@ -106,7 +106,6 @@ def main(window_size=(800,600), novr=False, use_simple_collisions=False):
     for mesh in sphere_meshes:
         list(mesh.primitives.values())[0][0].attributes['a_position'] = list(mesh.primitives.values())[0][0].attributes['vertices']
     sphere_positions = [mesh.world_matrix[3,:3] for mesh in sphere_meshes]
-    # meshes = [game.table.mesh, ball_billboards, cue] + sphere_meshes
     # meshes = [game.table.mesh, ball_billboards, cue]
     meshes = [game.table.mesh] + sphere_meshes + [cue]
 

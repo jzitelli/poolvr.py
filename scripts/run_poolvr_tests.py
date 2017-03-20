@@ -16,10 +16,10 @@ if __name__ == "__main__":
     FORMAT = '\n[%(levelname)s] POOLVR.PY 0.0.1  ###  %(asctime)11s  ***  %(name)s  ---  %(funcName)s:\n%(message)s'
 
     parser = argparse.ArgumentParser()
-    # parser.add_argument('-v', "--verbose", help="enable verbose logging",
-    #                     action="store_true")
     parser.add_argument("-v", help="view OpenGL rendering of test outcomes",
                         action="store_true")
+    # parser.add_argument('-v', "--verbose", help="enable verbose logging",
+    #                     action="store_true")
     # parser.add_argument("--novr", help="non-VR mode", action="store_true")
     args = parser.parse_args()
 
@@ -32,9 +32,8 @@ if __name__ == "__main__":
     logging.basicConfig(format=FORMAT, level=logging.DEBUG)
     _logger.debug('verbose logging enabled')
 
-
     if args.v:
         _logger.debug('OpenGL enabled')
-        PhysicsTests.set_show(True)
+        PhysicsTests.show = True
 
     unittest.main()
