@@ -1,6 +1,6 @@
 from .gl_rendering import *
 from .primitives import *
-from .techniques import EGA_TECHNIQUE
+from .techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
 
 
 class PoolCue(Mesh):

@@ -31,7 +31,8 @@ def show(game,
          gl_clear_color=(0.24, 0.18, 0.08, 0.0),
          before_frame_cb=None, after_frame_cb=None,
          double_buffered=True,
-         playback_rate=1.0):
+         playback_rate=1.0,
+         screenshots_dir=''):
     if not glfw.Init():
         raise Exception('failed to initialize glfw')
     if not double_buffered:
@@ -121,26 +122,23 @@ def show(game,
 
     _logger.info('...exited render loop: average FPS: %f, maximum frame time: %f',
                  (nframes - 1) / (t - st), max_frame_time)
-    # mWidth, mHeight = glfw.GetWindowSize(window);
-    # n = 3 * mWidth * mHeight;
-    # gl.glPixelStorei(gl.GL_PACK_ALIGNMENT, 1)
-    # pixels = gl.glReadPixels(0,0,mWidth,mHeight, gl.GL_RGB, gl.GL_UNSIGNED_BYTE)
-    # pil_image = PIL.Image.frombytes('RGB', (mWidth, mHeight), pixels)
-    # pil_image = pil_image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
-    # filename = title.replace(' ', '_') + '-screenshot.png'
-    # filepath = os.path.join(SCREENSHOTS_DIR, filename)
-    # pil_image.save(filepath)
-    # _logger.info('..saved screen capture to "%s"', filepath)
+
+    mWidth, mHeight = glfw.GetWindowSize(window);
+    n = 3 * mWidth * mHeight;
+    gl.glPixelStorei(gl.GL_PACK_ALIGNMENT, 1)
+    pixels = gl.glReadPixels(0,0,mWidth,mHeight, gl.GL_RGB, gl.GL_UNSIGNED_BYTE)
+    pil_image = PIL.Image.frombytes('RGB', (mWidth, mHeight), pixels)
+    pil_image = pil_image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+    filename = title.replace(' ', '_') + '-screenshot.png'
+    filepath = os.path.join(screenshots_dir, filename)
+    pil_image.save(filepath)
+    _logger.info('..saved screen capture to "%s"', filepath)
+
     try:
         renderer.shutdown()
         _logger.info('...shut down renderer')
     except Exception as err:
         _logger.error(err)
-    try:
-        glfw.DestroyWindow(window)
-    except Exception as err:
-        _logger.error(err)
-    try:
-        glfw.Terminate()
-    except Exception as err:
-        _logger.error(err)
+
+    glfw.DestroyWindow(window)
+    glfw.Terminate()
