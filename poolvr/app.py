@@ -27,6 +27,11 @@ from .game import PoolGame
 from .physics import PoolPhysics
 from .keyboard_controls import init_keyboard
 from .mouse_controls import init_mouse
+try:
+    from .ode_physics import ODEPoolPhysics
+except ImportError as err:
+    _logger.warning('could not import ode_physics:\n%s', err)
+    ODEPoolPhysics = None
 
 
 BG_COLOR = (0.0, 0.0, 0.0, 0.0)
@@ -60,9 +65,17 @@ def setup_glfw(width=800, height=600, double_buffered=False, title="poolvr.py 0.
 
 
 
-def main(window_size=(800,600), novr=False, use_simple_ball_collisions=False):
+def main(window_size=(800,600),
+         novr=False,
+         use_simple_ball_collisions=False,
+         use_ode_physics=False):
     _logger.info('HELLO')
     game = PoolGame(use_simple_ball_collisions=use_simple_ball_collisions)
+    if use_ode_physics and ODEPoolPhysics is not None:
+        game.physics = ODEPoolPhysics(num_balls=game.num_balls,
+                                      ball_radius=game.ball_radius,
+                                      initial_positions=game.ball_positions,
+                                      table=game.table)
     physics = game.physics
     cue = PoolCue()
     cue.position[1] = game.table.height + 0.1
@@ -174,6 +187,8 @@ def main(window_size=(800,600), novr=False, use_simple_ball_collisions=False):
                     sphere_positions[i][:] = pos
                 # ball_billboards.update_gl()
 
+        if isinstance(physics, ODEPoolPhysics):
+            physics.step(dt)
         game.t += dt
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:

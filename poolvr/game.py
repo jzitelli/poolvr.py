@@ -30,8 +30,10 @@ class PoolGame(object):
                    0x111111]
     BALL_COLORS = BALL_COLORS + BALL_COLORS[1:-1]
     def __init__(self, ball_colors=BALL_COLORS, ball_radius=1.125*INCH2METER,
+                 table=None,
                  **kwargs):
-        table = PoolTable(**kwargs)
+        if table is None:
+            table = PoolTable(**kwargs)
         self.table = table
         self.ball_colors = ball_colors
         self.num_balls = len(ball_colors)

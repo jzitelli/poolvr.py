@@ -15,21 +15,21 @@ INCH2METER = 0.0254
 ZERO3 = np.zeros(3, dtype=np.float64)
 
 
-def create_ball(mass, radius, world, space=None):
+def create_ball(ball_mass, ball_radius, world, space=None):
     body = ode.Body(world)
     mass = ode.Mass()
-    mass.setSphereTotal(mass, radius)
+    mass.setSphereTotal(ball_mass, ball_radius)
     body.setMass(mass)
     body.shape = "sphere"
-    body.boxsize = (2*radius, 2*radius, 2*radius)
-    geom = ode.GeomSphere(space=space, radius=radius)
+    body.boxsize = (2*ball_radius, 2*ball_radius, 2*ball_radius)
+    geom = ode.GeomSphere(space=space, radius=ball_radius)
     geom.setBody(body)
     return body, geom
 
 
 def near_callback(args, geom1, geom2):
-    contacts = ode.collide(geom1, geom2)
     world, contactgroup = args
+    contacts = ode.collide(geom1, geom2)
     for c in contacts:
         c.setBounce(0.93)
         c.setMu(5000)
@@ -69,15 +69,17 @@ class ODEPoolPhysics(object):
         self.ball_bodies = []
         self.ball_geoms = []
         for i in range(num_balls):
-            body, geom = create_ball(self.world, self.space, ball_mass, ball_radius)
+            body, geom = create_ball(ball_mass, ball_radius, self.world, self.space)
             self.ball_bodies.append(body)
             self.ball_geoms.append(geom)
         if initial_positions is not None:
             for body, position in zip(self.ball_bodies, initial_positions):
                 body.setPosition(position)
-        self.table_surface_body = ode.Body(self.world)
-        self.table_surface_geom = ode.GeomPlane(self.space, (0.0, self.table.height, 0.0), 0)
-        self.table_surface_geom.setBody(self.table_surface_body)
+            # for geom, position in zip(self.ball_geoms, initial_positions):
+            #     geom.setPosition(position)
+        self.table_surface_geom = ode.GeomPlane(self.space, (0.0, 1, 0.0), self.table.height)
+        # self.table_surface_geom.setBody(self.table_surface_body)
+        # self.table_surface_body = ode.Body(self.world)
         self._contactgroup = ode.JointGroup()
 
     def reset(self, ball_positions):
@@ -115,6 +117,7 @@ class ODEPoolPhysics(object):
         omega[:] = omega_i * _i + omega_j * _j + omega_k * _k
         body.setLinearVel(*v)
         body.setAngularVel(*omega)
+        self._t_last_strike = t
 
     def step(self, dt):
         self.space.collide((self.world, self._contactgroup), near_callback)
@@ -159,3 +162,5 @@ class ODEPoolPhysics(object):
             out[ii] = self.ball_bodies[i].getAngularVel()
         return out
 
+    def next_turn_time(self):
+        return self._t_last_strike + 2.0
