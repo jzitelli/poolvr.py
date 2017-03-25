@@ -1,0 +1,529 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>poolvr.gl_rendering &mdash; poolvr.py 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="poolvr.py 0.0.1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for poolvr.gl_rendering</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">from</span> <span class="nn">ctypes</span> <span class="kn">import</span> <span class="n">c_float</span><span class="p">,</span> <span class="n">POINTER</span><span class="p">,</span> <span class="n">c_void_p</span>
+<span class="kn">from</span> <span class="nn">contextlib</span> <span class="kn">import</span> <span class="n">contextmanager</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">PIL.Image</span> <span class="kn">as</span> <span class="nn">Image</span>
+<span class="kn">import</span> <span class="nn">OpenGL.GL</span> <span class="kn">as</span> <span class="nn">gl</span>
+
+
+<span class="n">c_float_p</span> <span class="o">=</span> <span class="n">POINTER</span><span class="p">(</span><span class="n">c_float</span><span class="p">)</span>
+
+
+<span class="n">NULL_PTR</span> <span class="o">=</span> <span class="n">c_void_p</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">CHECK_GL_ERRORS</span> <span class="o">=</span> <span class="bp">False</span>
+<span class="n">DTYPE_COMPONENT_TYPE</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">):</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_UNSIGNED_SHORT</span><span class="p">,</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint32</span><span class="p">):</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_UNSIGNED_INT</span><span class="p">,</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int16</span><span class="p">):</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_SHORT</span><span class="p">,</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">):</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_INT</span><span class="p">,</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">):</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_FLOAT</span>
+<span class="p">}</span>
+<span class="n">DTYPE_COMPONENT_TYPE_INV</span> <span class="o">=</span> <span class="p">{</span><span class="n">v</span><span class="p">:</span> <span class="n">k</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">DTYPE_COMPONENT_TYPE</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+<span class="n">GLSL_TYPE_SPEC</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;float&#39;</span><span class="p">:</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_FLOAT</span><span class="p">,</span>
+    <span class="s1">&#39;vec2&#39;</span><span class="p">:</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_FLOAT_VEC2</span><span class="p">,</span>
+    <span class="s1">&#39;vec3&#39;</span><span class="p">:</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_FLOAT_VEC3</span><span class="p">,</span>
+    <span class="s1">&#39;vec4&#39;</span><span class="p">:</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_FLOAT_VEC4</span><span class="p">,</span>
+    <span class="s1">&#39;mat4&#39;</span><span class="p">:</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_FLOAT_MAT4</span><span class="p">,</span>
+    <span class="s1">&#39;mat3&#39;</span><span class="p">:</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_FLOAT_MAT3</span>
+<span class="p">}</span>
+
+
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Program"><a class="viewcode-back" href="../../developer_guide.html#poolvr.gl_rendering.Program">[docs]</a><span class="k">class</span> <span class="nc">Program</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    GLSL program</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ATTRIBUTE_DECL_RE</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s2">&quot;attribute\s+(?P&lt;type_spec&gt;\w+)\s+(?P&lt;attribute_name&gt;\w+)\s*;&quot;</span><span class="p">)</span>
+    <span class="n">UNIFORM_DECL_RE</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="s2">&quot;uniform\s+(?P&lt;type_spec&gt;\w+)\s+(?P&lt;uniform_name&gt;\w+)\s*(=\s*(?P&lt;initialization&gt;.*)\s*;|;)&quot;</span><span class="p">)</span>
+    <span class="n">_current</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vs_src</span><span class="p">,</span> <span class="n">fs_src</span><span class="p">,</span> <span class="n">parse_attributes</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">parse_uniforms</span><span class="o">=</span><span class="bp">True</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vs_src</span> <span class="o">=</span> <span class="n">vs_src</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fs_src</span> <span class="o">=</span> <span class="n">fs_src</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">program_id</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">if</span> <span class="n">parse_attributes</span><span class="p">:</span>
+            <span class="n">attributes</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">uniforms</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">vs_src</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">):</span>
+                <span class="n">m</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">ATTRIBUTE_DECL_RE</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
+                    <span class="n">attribute_name</span><span class="p">,</span> <span class="n">type_spec</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">&#39;attribute_name&#39;</span><span class="p">),</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">&#39;type_spec&#39;</span><span class="p">)</span>
+                    <span class="n">attributes</span><span class="p">[</span><span class="n">attribute_name</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="n">GLSL_TYPE_SPEC</span><span class="p">[</span><span class="n">type_spec</span><span class="p">]}</span>
+                <span class="n">m</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">UNIFORM_DECL_RE</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
+                    <span class="n">uniform_name</span><span class="p">,</span> <span class="n">type_spec</span><span class="p">,</span> <span class="n">initialization</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">&#39;uniform_name&#39;</span><span class="p">),</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">&#39;type_spec&#39;</span><span class="p">),</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="s1">&#39;initialization&#39;</span><span class="p">)</span>
+                    <span class="n">uniforms</span><span class="p">[</span><span class="n">uniform_name</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="n">GLSL_TYPE_SPEC</span><span class="p">[</span><span class="n">type_spec</span><span class="p">]}</span>
+                    <span class="k">if</span> <span class="n">initialization</span><span class="p">:</span>
+                        <span class="n">uniforms</span><span class="p">[</span><span class="n">uniform_name</span><span class="p">][</span><span class="s1">&#39;initialization&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">initialization</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span> <span class="o">=</span> <span class="n">attributes</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">uniforms</span> <span class="o">=</span> <span class="n">uniforms</span>
+    <span class="k">def</span> <span class="nf">init_gl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">force</span><span class="p">:</span>
+            <span class="n">Program</span><span class="o">.</span><span class="n">_current</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">program_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">force</span><span class="p">:</span> <span class="k">return</span>
+        <span class="n">vs</span> <span class="o">=</span> <span class="n">gl</span><span class="o">.</span><span class="n">glCreateShader</span><span class="p">(</span><span class="n">gl</span><span class="o">.</span><span class="n">GL_VERTEX_SHADER</span><span class="p">)</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glShaderSource</span><span class="p">(</span><span class="n">vs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">vs_src</span><span class="p">)</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glCompileShader</span><span class="p">(</span><span class="n">vs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">gl</span><span class="o">.</span><span class="n">glGetShaderiv</span><span class="p">(</span><span class="n">vs</span><span class="p">,</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_COMPILE_STATUS</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;failed to compile vertex shader:</span><span class="se">\n</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">gl</span><span class="o">.</span><span class="n">glGetShaderInfoLog</span><span class="p">(</span><span class="n">vs</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">())</span>
+        <span class="n">fs</span> <span class="o">=</span> <span class="n">gl</span><span class="o">.</span><span class="n">glCreateShader</span><span class="p">(</span><span class="n">gl</span><span class="o">.</span><span class="n">GL_FRAGMENT_SHADER</span><span class="p">)</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glShaderSource</span><span class="p">(</span><span class="n">fs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">fs_src</span><span class="p">)</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glCompileShader</span><span class="p">(</span><span class="n">fs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">gl</span><span class="o">.</span><span class="n">glGetShaderiv</span><span class="p">(</span><span class="n">fs</span><span class="p">,</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_COMPILE_STATUS</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;failed to compile fragment shader:</span><span class="se">\n</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">gl</span><span class="o">.</span><span class="n">glGetShaderInfoLog</span><span class="p">(</span><span class="n">fs</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">())</span>
+        <span class="n">program_id</span> <span class="o">=</span> <span class="n">gl</span><span class="o">.</span><span class="n">glCreateProgram</span><span class="p">()</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glAttachShader</span><span class="p">(</span><span class="n">program_id</span><span class="p">,</span> <span class="n">vs</span><span class="p">)</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glAttachShader</span><span class="p">(</span><span class="n">program_id</span><span class="p">,</span> <span class="n">fs</span><span class="p">)</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glLinkProgram</span><span class="p">(</span><span class="n">program_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">gl</span><span class="o">.</span><span class="n">glGetProgramiv</span><span class="p">(</span><span class="n">program_id</span><span class="p">,</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_LINK_STATUS</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;failed to link program&#39;</span><span class="p">)</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glDetachShader</span><span class="p">(</span><span class="n">program_id</span><span class="p">,</span> <span class="n">vs</span><span class="p">)</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glDetachShader</span><span class="p">(</span><span class="n">program_id</span><span class="p">,</span> <span class="n">fs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">program_id</span> <span class="o">=</span> <span class="n">program_id</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.init_gl: OK&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">use</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">Program</span><span class="o">.</span><span class="n">_current</span> <span class="ow">is</span> <span class="bp">self</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">program_id</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">init_gl</span><span class="p">()</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glUseProgram</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">program_id</span><span class="p">)</span>
+        <span class="n">Program</span><span class="o">.</span><span class="n">_current</span> <span class="o">=</span> <span class="bp">self</span>
+    <span class="k">def</span> <span class="nf">release</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">Program</span><span class="o">.</span><span class="n">_current</span> <span class="o">=</span> <span class="bp">None</span>
+
+</div>
+<div class="viewcode-block" id="Technique"><a class="viewcode-back" href="../../developer_guide.html#poolvr.gl_rendering.Technique">[docs]</a><span class="k">class</span> <span class="nc">Technique</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    GL rendering technique (based off of Technique defined by glTF schema)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_current</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">program</span><span class="p">,</span> <span class="n">attributes</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">uniforms</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">states</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">program</span> <span class="o">=</span> <span class="n">program</span>
+        <span class="k">if</span> <span class="n">attributes</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">attributes</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span> <span class="o">=</span> <span class="n">attributes</span>
+        <span class="k">if</span> <span class="n">uniforms</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">uniforms</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">uniforms</span> <span class="o">=</span> <span class="n">uniforms</span>
+        <span class="k">if</span> <span class="n">states</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">states</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">states</span> <span class="o">=</span> <span class="n">states</span>
+    <span class="k">def</span> <span class="nf">init_gl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">force</span><span class="p">:</span>
+            <span class="n">Technique</span><span class="o">.</span><span class="n">_current</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">program</span><span class="o">.</span><span class="n">init_gl</span><span class="p">(</span><span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">)</span>
+        <span class="n">program_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">program</span><span class="o">.</span><span class="n">program_id</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attribute_locations</span> <span class="o">=</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">gl</span><span class="o">.</span><span class="n">glGetAttribLocation</span><span class="p">(</span><span class="n">program_id</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">uniform_locations</span> <span class="o">=</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">gl</span><span class="o">.</span><span class="n">glGetUniformLocation</span><span class="p">(</span><span class="n">program_id</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">uniforms</span><span class="p">}</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.init_gl: OK&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">use</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">Technique</span><span class="o">.</span><span class="n">_current</span> <span class="ow">is</span> <span class="bp">self</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">program</span><span class="o">.</span><span class="n">use</span><span class="p">()</span>
+        <span class="n">Technique</span><span class="o">.</span><span class="n">_current</span> <span class="o">=</span> <span class="bp">self</span>
+    <span class="k">def</span> <span class="nf">release</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">Technique</span><span class="o">.</span><span class="n">_current</span> <span class="o">=</span> <span class="bp">None</span>
+
+</div>
+<div class="viewcode-block" id="Primitive"><a class="viewcode-back" href="../../developer_guide.html#poolvr.gl_rendering.Primitive">[docs]</a><span class="k">class</span> <span class="nc">Primitive</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">indices</span><span class="p">,</span> <span class="n">index_buffer</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">attribute_usage</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="o">**</span><span class="n">attributes</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        </span>
+<span class="sd">        A class for specifying GL vertex attribute objects and providing vertex buffer data</span>
+
+<span class="sd">        :param **attributes: all other passed keywords are interpreted as providing</span>
+<span class="sd">                             array data for the named (by keyword) attribute:</span>
+<span class="sd">                             ``&lt;attribute_name&gt;=&lt;ndarray of data&gt;``</span>
+<span class="sd">        </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">indices</span> <span class="o">=</span> <span class="n">indices</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">index_buffer</span> <span class="o">=</span> <span class="n">index_buffer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attribute_usage</span> <span class="o">=</span> <span class="n">attribute_usage</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span> <span class="o">=</span> <span class="n">attributes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">buffers</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">vaos</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">def</span> <span class="nf">init_gl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">buffers</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">force</span><span class="p">:</span> <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">buffers</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">values</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">attributes</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">values</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">tobytes</span><span class="p">()</span>
+            <span class="n">vbo</span> <span class="o">=</span> <span class="n">gl</span><span class="o">.</span><span class="n">glGenBuffers</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">gl</span><span class="o">.</span><span class="n">glBindBuffer</span><span class="p">(</span><span class="n">gl</span><span class="o">.</span><span class="n">GL_ARRAY_BUFFER</span><span class="p">,</span> <span class="n">vbo</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">attribute_usage</span> <span class="ow">and</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">attribute_usage</span><span class="p">:</span>
+                <span class="n">usage</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">attribute_usage</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">usage</span> <span class="o">=</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_STATIC_DRAW</span>
+            <span class="n">gl</span><span class="o">.</span><span class="n">glBufferData</span><span class="p">(</span><span class="n">gl</span><span class="o">.</span><span class="n">GL_ARRAY_BUFFER</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">),</span> <span class="n">values</span><span class="p">,</span> <span class="n">usage</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">gl</span><span class="o">.</span><span class="n">glGetError</span><span class="p">()</span> <span class="o">!=</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_NO_ERROR</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;failed to init gl buffer&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">buffers</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">vbo</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glBindBuffer</span><span class="p">(</span><span class="n">gl</span><span class="o">.</span><span class="n">GL_ARRAY_BUFFER</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">force</span> <span class="ow">or</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">index_buffer</span> <span class="ow">is</span> <span class="bp">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">indices</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">):</span>
+            <span class="n">indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">indices</span><span class="o">.</span><span class="n">tobytes</span><span class="p">()</span>
+            <span class="n">vao</span> <span class="o">=</span> <span class="n">gl</span><span class="o">.</span><span class="n">glGenBuffers</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">gl</span><span class="o">.</span><span class="n">glBindBuffer</span><span class="p">(</span><span class="n">gl</span><span class="o">.</span><span class="n">GL_ELEMENT_ARRAY_BUFFER</span><span class="p">,</span> <span class="n">vao</span><span class="p">)</span>
+            <span class="n">gl</span><span class="o">.</span><span class="n">glBufferData</span><span class="p">(</span><span class="n">gl</span><span class="o">.</span><span class="n">GL_ELEMENT_ARRAY_BUFFER</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">indices</span><span class="p">),</span> <span class="n">indices</span><span class="p">,</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_STATIC_DRAW</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">gl</span><span class="o">.</span><span class="n">glGetError</span><span class="p">()</span> <span class="o">!=</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_NO_ERROR</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;failed to init gl buffer&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">index_buffer</span> <span class="o">=</span> <span class="n">vao</span>
+            <span class="n">gl</span><span class="o">.</span><span class="n">glBindBuffer</span><span class="p">(</span><span class="n">gl</span><span class="o">.</span><span class="n">GL_ELEMENT_ARRAY_BUFFER</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.init_gl: OK&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+
+</div>
+<span class="k">class</span> <span class="nc">Texture</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">uri</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        An OpenGL Texture / Sampler2D which is loaded from an image file</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">uri</span> <span class="o">=</span> <span class="n">uri</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">texture_id</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sampler_id</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="k">def</span> <span class="nf">init_gl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Perform initialization for the texture on the current GL context</span>
+<span class="sd">        </span>
+<span class="sd">        :param force: if True, force reinitialization of the GL context for this</span>
+<span class="sd">                      Texture and all of the GL entities that it depends on</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">texture_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">force</span><span class="p">:</span> <span class="k">return</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">uri</span><span class="p">)</span>
+        <span class="n">texture_id</span> <span class="o">=</span> <span class="n">gl</span><span class="o">.</span><span class="n">glGenTextures</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">texture_id</span> <span class="o">=</span> <span class="n">texture_id</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glBindTexture</span><span class="p">(</span><span class="n">gl</span><span class="o">.</span><span class="n">GL_TEXTURE_2D</span><span class="p">,</span> <span class="n">texture_id</span><span class="p">)</span>
+        <span class="n">sampler_id</span> <span class="o">=</span> <span class="n">gl</span><span class="o">.</span><span class="n">glGenSamplers</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sampler_id</span> <span class="o">=</span> <span class="n">sampler_id</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glSamplerParameteri</span><span class="p">(</span><span class="n">sampler_id</span><span class="p">,</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_TEXTURE_MIN_FILTER</span><span class="p">,</span> <span class="mi">9986</span><span class="p">)</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glSamplerParameteri</span><span class="p">(</span><span class="n">sampler_id</span><span class="p">,</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_TEXTURE_MAG_FILTER</span><span class="p">,</span> <span class="mi">9729</span><span class="p">)</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glSamplerParameteri</span><span class="p">(</span><span class="n">sampler_id</span><span class="p">,</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_TEXTURE_WRAP_S</span><span class="p">,</span> <span class="mi">10497</span><span class="p">)</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glSamplerParameteri</span><span class="p">(</span><span class="n">sampler_id</span><span class="p">,</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_TEXTURE_WRAP_T</span><span class="p">,</span> <span class="mi">10497</span><span class="p">)</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glPixelStorei</span><span class="p">(</span><span class="n">gl</span><span class="o">.</span><span class="n">GL_UNPACK_ALIGNMENT</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glTexImage2D</span><span class="p">(</span><span class="n">gl</span><span class="o">.</span><span class="n">GL_TEXTURE_2D</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                        <span class="n">gl</span><span class="o">.</span><span class="n">GL_RGBA</span><span class="p">,</span>
+                        <span class="n">image</span><span class="o">.</span><span class="n">width</span><span class="p">,</span> <span class="n">image</span><span class="o">.</span><span class="n">height</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                        <span class="n">gl</span><span class="o">.</span><span class="n">GL_RGBA</span><span class="p">,</span>
+                        <span class="n">gl</span><span class="o">.</span><span class="n">GL_UNSIGNED_BYTE</span><span class="p">,</span>
+                        <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">getdata</span><span class="p">()),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ubyte</span><span class="p">))</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glGenerateMipmap</span><span class="p">(</span><span class="n">gl</span><span class="o">.</span><span class="n">GL_TEXTURE_2D</span><span class="p">)</span>
+        <span class="n">err</span> <span class="o">=</span> <span class="n">gl</span><span class="o">.</span><span class="n">glGetError</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">err</span> <span class="o">!=</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_NO_ERROR</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;failed to init texture: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">err</span><span class="p">)</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.init_gl: OK&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="Material"><a class="viewcode-back" href="../../developer_guide.html#poolvr.gl_rendering.Material">[docs]</a><span class="k">class</span> <span class="nc">Material</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="n">_current</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">technique</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">textures</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        A Material object is a customization of a :ref:`Technique` with a </span>
+<span class="sd">        particular set of uniform values and textures.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">technique</span> <span class="o">=</span> <span class="n">technique</span>
+        <span class="k">if</span> <span class="n">values</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">values</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">textures</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">textures</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">uniform_name</span><span class="p">,</span> <span class="n">uniform</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">technique</span><span class="o">.</span><span class="n">uniforms</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">uniform</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_SAMPLER_2D</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">uniform_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">textures</span><span class="p">:</span>
+                    <span class="n">textures</span><span class="p">[</span><span class="n">uniform_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">uniform</span><span class="p">[</span><span class="s1">&#39;texture&#39;</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">uniform_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">values</span> <span class="ow">and</span> <span class="s1">&#39;value&#39;</span> <span class="ow">in</span> <span class="n">uniform</span><span class="p">:</span>
+                    <span class="n">values</span><span class="p">[</span><span class="n">uniform_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">uniform</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">values</span> <span class="o">=</span> <span class="n">values</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">textures</span> <span class="o">=</span> <span class="n">textures</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_initialized</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="k">def</span> <span class="nf">init_gl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">force</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_initialized</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initialized</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">Material</span><span class="o">.</span><span class="n">_current</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">technique</span><span class="o">.</span><span class="n">init_gl</span><span class="p">(</span><span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">texture</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">textures</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">texture</span><span class="o">.</span><span class="n">init_gl</span><span class="p">(</span><span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">)</span>
+        <span class="n">err</span> <span class="o">=</span> <span class="n">gl</span><span class="o">.</span><span class="n">glGetError</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">err</span> <span class="o">!=</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_NO_ERROR</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;failed to init material: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">err</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_initialized</span> <span class="o">=</span> <span class="bp">True</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.init_gl: OK&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">use</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">u_view</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">u_modelview</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">u_projection</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">u_normal</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="c1"># if Material._current is self:</span>
+        <span class="c1">#     return</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initialized</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">init_gl</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">technique</span><span class="o">.</span><span class="n">use</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">uniform_name</span><span class="p">,</span> <span class="n">location</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">technique</span><span class="o">.</span><span class="n">uniform_locations</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">uniform</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">technique</span><span class="o">.</span><span class="n">uniforms</span><span class="p">[</span><span class="n">uniform_name</span><span class="p">]</span>
+            <span class="n">uniform_type</span> <span class="o">=</span> <span class="n">uniform</span><span class="p">[</span><span class="s1">&#39;type&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">uniform_type</span> <span class="o">==</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_SAMPLER_2D</span><span class="p">:</span>
+                <span class="n">texture</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">textures</span><span class="p">[</span><span class="n">uniform_name</span><span class="p">]</span>
+                <span class="n">gl</span><span class="o">.</span><span class="n">glActiveTexture</span><span class="p">(</span><span class="n">gl</span><span class="o">.</span><span class="n">GL_TEXTURE0</span><span class="o">+</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">gl</span><span class="o">.</span><span class="n">glBindTexture</span><span class="p">(</span><span class="n">gl</span><span class="o">.</span><span class="n">GL_TEXTURE_2D</span><span class="p">,</span> <span class="n">texture</span><span class="o">.</span><span class="n">texture_id</span><span class="p">)</span>
+                <span class="n">gl</span><span class="o">.</span><span class="n">glBindSampler</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">texture</span><span class="o">.</span><span class="n">sampler_id</span><span class="p">)</span>
+                <span class="n">gl</span><span class="o">.</span><span class="n">glUniform1i</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">uniform_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="p">:</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="n">uniform_name</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">uniform_type</span> <span class="o">==</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_FLOAT</span><span class="p">:</span>
+                    <span class="n">gl</span><span class="o">.</span><span class="n">glUniform1f</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">uniform_type</span> <span class="o">==</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_FLOAT_VEC2</span><span class="p">:</span>
+                    <span class="n">gl</span><span class="o">.</span><span class="n">glUniform2f</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="o">*</span><span class="n">value</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">uniform_type</span> <span class="o">==</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_FLOAT_VEC3</span><span class="p">:</span>
+                    <span class="n">gl</span><span class="o">.</span><span class="n">glUniform3f</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="o">*</span><span class="n">value</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">uniform_type</span> <span class="o">==</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_FLOAT_VEC4</span><span class="p">:</span>
+                    <span class="n">gl</span><span class="o">.</span><span class="n">glUniform4f</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="o">*</span><span class="n">value</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">u_modelview</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">uniform_name</span> <span class="o">==</span> <span class="s1">&#39;u_modelview&#39;</span><span class="p">:</span>
+                    <span class="n">gl</span><span class="o">.</span><span class="n">glUniformMatrix4fv</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">False</span><span class="p">,</span> <span class="n">u_modelview</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">u_projection</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">uniform_name</span> <span class="o">==</span> <span class="s1">&#39;u_projection&#39;</span><span class="p">:</span>
+                    <span class="n">gl</span><span class="o">.</span><span class="n">glUniformMatrix4fv</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">False</span><span class="p">,</span> <span class="n">u_projection</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">u_view</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">uniform_name</span> <span class="o">==</span> <span class="s1">&#39;u_view&#39;</span><span class="p">:</span>
+                    <span class="n">gl</span><span class="o">.</span><span class="n">glUniformMatrix4fv</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">False</span><span class="p">,</span> <span class="n">u_view</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">u_normal</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span> <span class="ow">and</span> <span class="n">uniform_name</span> <span class="o">==</span> <span class="s1">&#39;u_normal&#39;</span><span class="p">:</span>
+                    <span class="n">gl</span><span class="o">.</span><span class="n">glUniformMatrix3fv</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="bp">False</span><span class="p">,</span> <span class="n">u_normal</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;unhandled uniform type: </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">uniform_type</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">CHECK_GL_ERRORS</span><span class="p">:</span>
+                <span class="n">err</span> <span class="o">=</span> <span class="n">gl</span><span class="o">.</span><span class="n">glGetError</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">err</span> <span class="o">!=</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_NO_ERROR</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;error setting material state: </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">err</span><span class="p">)</span>
+        <span class="n">Material</span><span class="o">.</span><span class="n">_current</span> <span class="o">=</span> <span class="bp">self</span>
+    <span class="k">def</span> <span class="nf">release</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">Material</span><span class="o">.</span><span class="n">_current</span> <span class="o">=</span> <span class="bp">None</span>
+
+</div>
+<div class="viewcode-block" id="Node"><a class="viewcode-back" href="../../developer_guide.html#poolvr.gl_rendering.Node">[docs]</a><span class="k">class</span> <span class="nc">Node</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">matrix</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">matrix</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">matrix</span> <span class="o">=</span> <span class="n">matrix</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">world_matrix</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">children</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">def</span> <span class="nf">update_world_matrices</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">world_matrix</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">world_matrix</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">world_matrix</span><span class="p">[</span><span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">matrix</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">world_matrix</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">matrix</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">world_matrix</span><span class="p">)</span>
+        <span class="n">world_matrix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">world_matrix</span>
+        <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">children</span><span class="p">:</span>
+            <span class="n">child</span><span class="o">.</span><span class="n">update_world_matrices</span><span class="p">(</span><span class="n">world_matrix</span><span class="o">=</span><span class="n">world_matrix</span><span class="p">)</span>
+
+</div>
+<div class="viewcode-block" id="Mesh"><a class="viewcode-back" href="../../developer_guide.html#poolvr.gl_rendering.Mesh">[docs]</a><span class="k">class</span> <span class="nc">Mesh</span><span class="p">(</span><span class="n">Node</span><span class="p">):</span>
+    <span class="n">_modelview</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">_normal</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">primitives</span><span class="p">,</span> <span class="n">matrix</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="s2">&quot;primitives argument should be a dict which maps material to list of primitives which use that material&quot;</span>
+        <span class="n">Node</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">matrix</span><span class="o">=</span><span class="n">matrix</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">primitives</span> <span class="o">=</span> <span class="n">primitives</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_initialized</span> <span class="o">=</span> <span class="bp">False</span>
+    <span class="k">def</span> <span class="nf">init_gl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initialized</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">force</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_initialized</span> <span class="o">=</span> <span class="bp">False</span>
+        <span class="k">for</span> <span class="n">material</span><span class="p">,</span> <span class="n">prims</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">primitives</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">material</span><span class="o">.</span><span class="n">init_gl</span><span class="p">(</span><span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">)</span>
+            <span class="n">technique</span> <span class="o">=</span> <span class="n">material</span><span class="o">.</span><span class="n">technique</span>
+            <span class="k">for</span> <span class="n">prim</span> <span class="ow">in</span> <span class="n">prims</span><span class="p">:</span>
+                <span class="n">prim</span><span class="o">.</span><span class="n">init_gl</span><span class="p">(</span><span class="n">force</span><span class="o">=</span><span class="n">force</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">technique</span> <span class="ow">in</span> <span class="n">prim</span><span class="o">.</span><span class="n">vaos</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">vao</span> <span class="o">=</span> <span class="n">gl</span><span class="o">.</span><span class="n">glGenVertexArrays</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">prim</span><span class="o">.</span><span class="n">vaos</span><span class="p">[</span><span class="n">technique</span><span class="p">]</span> <span class="o">=</span> <span class="n">vao</span>
+                <span class="n">gl</span><span class="o">.</span><span class="n">glBindVertexArray</span><span class="p">(</span><span class="n">vao</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">attribute_name</span><span class="p">,</span> <span class="n">location</span> <span class="ow">in</span> <span class="n">technique</span><span class="o">.</span><span class="n">attribute_locations</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">attribute</span> <span class="o">=</span> <span class="n">prim</span><span class="o">.</span><span class="n">attributes</span><span class="p">[</span><span class="n">attribute_name</span><span class="p">]</span>
+                    <span class="n">gl</span><span class="o">.</span><span class="n">glEnableVertexAttribArray</span><span class="p">(</span><span class="n">location</span><span class="p">)</span>
+                    <span class="n">gl</span><span class="o">.</span><span class="n">glBindBuffer</span><span class="p">(</span><span class="n">gl</span><span class="o">.</span><span class="n">GL_ARRAY_BUFFER</span><span class="p">,</span> <span class="n">prim</span><span class="o">.</span><span class="n">buffers</span><span class="p">[</span><span class="n">attribute_name</span><span class="p">])</span>
+                    <span class="n">gl</span><span class="o">.</span><span class="n">glVertexAttribPointer</span><span class="p">(</span><span class="n">location</span><span class="p">,</span> <span class="n">attribute</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                                             <span class="n">DTYPE_COMPONENT_TYPE</span><span class="p">[</span><span class="n">attribute</span><span class="o">.</span><span class="n">dtype</span><span class="p">],</span> <span class="bp">False</span><span class="p">,</span>
+                                             <span class="n">attribute</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">itemsize</span> <span class="o">*</span> <span class="n">attribute</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                                             <span class="n">NULL_PTR</span><span class="p">)</span>
+                <span class="n">gl</span><span class="o">.</span><span class="n">glBindVertexArray</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">location</span> <span class="ow">in</span> <span class="n">technique</span><span class="o">.</span><span class="n">attribute_locations</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                    <span class="n">gl</span><span class="o">.</span><span class="n">glDisableVertexAttribArray</span><span class="p">(</span><span class="n">location</span><span class="p">)</span>
+        <span class="n">err</span> <span class="o">=</span> <span class="n">gl</span><span class="o">.</span><span class="n">glGetError</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">err</span> <span class="o">!=</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_NO_ERROR</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;failed to init primitive: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">err</span><span class="p">)</span>
+        <span class="n">_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">.init_gl: OK&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="o">.</span><span class="n">__name__</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_initialized</span> <span class="o">=</span> <span class="bp">True</span>
+    <span class="k">def</span> <span class="nf">draw</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">view</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">projection</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">view</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">world_matrix</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">view</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_modelview</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_normal</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">inv</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_modelview</span><span class="p">[:</span><span class="mi">3</span><span class="p">,:</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">T</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">material</span><span class="p">,</span> <span class="n">prims</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">primitives</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">material</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="n">u_view</span><span class="o">=</span><span class="n">view</span><span class="p">,</span> <span class="n">u_projection</span><span class="o">=</span><span class="n">projection</span><span class="p">,</span> <span class="n">u_modelview</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_modelview</span><span class="p">,</span> <span class="n">u_normal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_normal</span><span class="p">)</span>
+            <span class="n">technique</span> <span class="o">=</span> <span class="n">material</span><span class="o">.</span><span class="n">technique</span>
+            <span class="k">for</span> <span class="n">prim</span> <span class="ow">in</span> <span class="n">prims</span><span class="p">:</span>
+                <span class="n">gl</span><span class="o">.</span><span class="n">glBindVertexArray</span><span class="p">(</span><span class="n">prim</span><span class="o">.</span><span class="n">vaos</span><span class="p">[</span><span class="n">technique</span><span class="p">])</span>
+                <span class="n">gl</span><span class="o">.</span><span class="n">glBindBuffer</span><span class="p">(</span><span class="n">gl</span><span class="o">.</span><span class="n">GL_ELEMENT_ARRAY_BUFFER</span><span class="p">,</span> <span class="n">prim</span><span class="o">.</span><span class="n">index_buffer</span><span class="p">)</span>
+                <span class="n">gl</span><span class="o">.</span><span class="n">glDrawElements</span><span class="p">(</span><span class="n">prim</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="n">prim</span><span class="o">.</span><span class="n">indices</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="n">DTYPE_COMPONENT_TYPE</span><span class="p">[</span><span class="n">prim</span><span class="o">.</span><span class="n">indices</span><span class="o">.</span><span class="n">dtype</span><span class="p">],</span>
+                                  <span class="n">c_void_p</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">CHECK_GL_ERRORS</span><span class="p">:</span>
+                    <span class="n">err</span> <span class="o">=</span> <span class="n">gl</span><span class="o">.</span><span class="n">glGetError</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">err</span> <span class="o">!=</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_NO_ERROR</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;error drawing primitive elements: </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">err</span><span class="p">)</span>
+            <span class="n">gl</span><span class="o">.</span><span class="n">glBindVertexArray</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="c1"># for location in technique.attribute_locations.values():</span>
+            <span class="c1">#     gl.glDisableVertexAttribArray(location)</span>
+            <span class="n">material</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+            <span class="n">material</span><span class="o">.</span><span class="n">technique</span><span class="o">.</span><span class="n">release</span><span class="p">()</span>
+
+</div>
+<span class="k">def</span> <span class="nf">calc_projection_matrix</span><span class="p">(</span><span class="n">yfov</span><span class="p">,</span> <span class="n">aspectRatio</span><span class="p">,</span> <span class="n">znear</span><span class="p">,</span> <span class="n">zfar</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculates a standard OpenGL perspective projection matrix, it might be transposed, i forget.</span>
+<span class="sd">    </span>
+<span class="sd">    :param yfov: the field of view measured vertically, in radians</span>
+<span class="sd">    :param aspectRatio: the frustum width to height ratio (&lt;width&gt; divided by &lt;height&gt;)</span>
+<span class="sd">    :param znear: the :math:`z` coordinate of the near clipping plane</span>
+<span class="sd">    :param zfar: the :math:`z` coordinate of the far clipping plane</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">tan</span><span class="p">(</span><span class="n">yfov</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">f</span><span class="o">/</span><span class="n">aspectRatio</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                     <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                     <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">znear</span> <span class="o">+</span> <span class="n">zfar</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">znear</span> <span class="o">-</span> <span class="n">zfar</span><span class="p">),</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">znear</span> <span class="o">*</span> <span class="n">zfar</span> <span class="o">/</span> <span class="p">(</span><span class="n">znear</span> <span class="o">-</span> <span class="n">zfar</span><span class="p">)],</span>
+                     <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">]],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="OpenGLRenderer"><a class="viewcode-back" href="../../developer_guide.html#poolvr.gl_rendering.OpenGLRenderer">[docs]</a><span class="k">class</span> <span class="nc">OpenGLRenderer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">multisample</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">znear</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">zfar</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">window_size</span><span class="o">=</span><span class="p">(</span><span class="mi">960</span><span class="p">,</span><span class="mi">1080</span><span class="p">)):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Renderer for non-VR OpenGL renderering</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">window_size</span> <span class="o">=</span> <span class="n">window_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">znear</span> <span class="o">=</span> <span class="n">znear</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">zfar</span> <span class="o">=</span> <span class="n">zfar</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">camera_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">camera_position</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">camera_matrix</span><span class="p">[</span><span class="mi">3</span><span class="p">,:</span><span class="mi">3</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">view_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">projection_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="mi">4</span><span class="p">,</span><span class="mi">4</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_projection_matrix</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">update_projection_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">window_size</span><span class="p">,</span> <span class="n">znear</span><span class="p">,</span> <span class="n">zfar</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">window_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">znear</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">zfar</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">projection_matrix</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">calc_projection_matrix</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">/</span> <span class="mi">180</span> <span class="o">*</span> <span class="mi">60</span><span class="p">,</span> <span class="n">window_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">window_size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">znear</span><span class="p">,</span> <span class="n">zfar</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+    <span class="k">def</span> <span class="nf">init_gl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">clear_color</span><span class="o">=</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)):</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glClearColor</span><span class="p">(</span><span class="o">*</span><span class="n">clear_color</span><span class="p">)</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glEnable</span><span class="p">(</span><span class="n">gl</span><span class="o">.</span><span class="n">GL_DEPTH_TEST</span><span class="p">)</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glViewport</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">window_size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">window_size</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="nd">@contextmanager</span>
+<div class="viewcode-block" id="OpenGLRenderer.render"><a class="viewcode-back" href="../../developer_guide.html#poolvr.gl_rendering.OpenGLRenderer.render">[docs]</a>    <span class="k">def</span> <span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">meshes</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Render the given meshes.</span>
+<span class="sd">        </span>
+<span class="sd">        This method returns a managed context for drawing the frame.</span>
+<span class="sd">        If used in a :code:`with`-statement, the rendering takes place when the </span>
+<span class="sd">        :code:`with` block is exited.</span>
+<span class="sd">        </span>
+<span class="sd">        :param meshes *optional*: iterable collection of :ref:`Mesh`-like objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">view_matrix</span><span class="p">[</span><span class="mi">3</span><span class="p">,:</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">camera_matrix</span><span class="p">[</span><span class="mi">3</span><span class="p">,:</span><span class="mi">3</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">view_matrix</span><span class="p">[:</span><span class="mi">3</span><span class="p">,:</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">camera_matrix</span><span class="p">[:</span><span class="mi">3</span><span class="p">,:</span><span class="mi">3</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+        <span class="k">yield</span> <span class="bp">None</span>
+        <span class="n">gl</span><span class="o">.</span><span class="n">glClear</span><span class="p">(</span><span class="n">gl</span><span class="o">.</span><span class="n">GL_COLOR_BUFFER_BIT</span> <span class="o">|</span> <span class="n">gl</span><span class="o">.</span><span class="n">GL_DEPTH_BUFFER_BIT</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">meshes</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">mesh</span> <span class="ow">in</span> <span class="n">meshes</span><span class="p">:</span>
+                <span class="n">mesh</span><span class="o">.</span><span class="n">draw</span><span class="p">(</span><span class="n">projection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">projection_matrix</span><span class="p">,</span>
+                          <span class="n">view</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">view_matrix</span><span class="p">)</span></div>
+    <span class="k">def</span> <span class="nf">process_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">pass</span>
+    <span class="k">def</span> <span class="nf">shutdown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Jeffrey Zitelli.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

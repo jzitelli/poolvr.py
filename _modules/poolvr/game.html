@@ -1,0 +1,183 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>poolvr.game &mdash; poolvr.py 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="poolvr.py 0.0.1 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for poolvr.game</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+
+
+<span class="n">_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+
+<span class="n">INCH2METER</span> <span class="o">=</span> <span class="mf">0.0254</span>
+
+
+<span class="kn">from</span> <span class="nn">.table</span> <span class="kn">import</span> <span class="n">PoolTable</span>
+<span class="kn">from</span> <span class="nn">.physics</span> <span class="kn">import</span> <span class="n">PoolPhysics</span>
+
+
+<div class="viewcode-block" id="PoolGame"><a class="viewcode-back" href="../../developer_guide.html#poolvr.game.PoolGame">[docs]</a><span class="k">class</span> <span class="nc">PoolGame</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Game state for a pool &quot;game&quot;</span>
+
+<span class="sd">    :param ball_colors: array defining a base color for each ball</span>
+<span class="sd">    :param stripe_colors: *optional* map defining a stripe color</span>
+<span class="sd">                          for each ball that is striped</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">BALL_COLORS</span> <span class="o">=</span> <span class="p">[</span><span class="mh">0xddddde</span><span class="p">,</span>
+                   <span class="mh">0xeeee00</span><span class="p">,</span>
+                   <span class="mh">0x0000ee</span><span class="p">,</span>
+                   <span class="mh">0xee0000</span><span class="p">,</span>
+                   <span class="mh">0xee00ee</span><span class="p">,</span>
+                   <span class="mh">0xee7700</span><span class="p">,</span>
+                   <span class="mh">0x00ee00</span><span class="p">,</span>
+                   <span class="mh">0xbb2244</span><span class="p">,</span>
+                   <span class="mh">0x111111</span><span class="p">]</span>
+    <span class="n">BALL_COLORS</span> <span class="o">=</span> <span class="n">BALL_COLORS</span> <span class="o">+</span> <span class="n">BALL_COLORS</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ball_colors</span><span class="o">=</span><span class="n">BALL_COLORS</span><span class="p">,</span> <span class="n">ball_radius</span><span class="o">=</span><span class="mf">1.125</span><span class="o">*</span><span class="n">INCH2METER</span><span class="p">,</span>
+                 <span class="n">table</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span>
+                 <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">table</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">table</span> <span class="o">=</span> <span class="n">PoolTable</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">table</span> <span class="o">=</span> <span class="n">table</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ball_colors</span> <span class="o">=</span> <span class="n">ball_colors</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_balls</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">ball_colors</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ball_positions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">num_balls</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ball_radius</span> <span class="o">=</span> <span class="n">ball_radius</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_positions</span><span class="p">(</span><span class="n">out</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ball_positions</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">physics</span> <span class="o">=</span> <span class="n">PoolPhysics</span><span class="p">(</span><span class="n">num_balls</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_balls</span><span class="p">,</span>
+                                   <span class="n">ball_radius</span><span class="o">=</span><span class="n">ball_radius</span><span class="p">,</span>
+                                   <span class="n">initial_positions</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ball_positions</span><span class="p">,</span>
+                                   <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ntt</span> <span class="o">=</span> <span class="mf">0.0</span>
+<div class="viewcode-block" id="PoolGame.initial_positions"><a class="viewcode-back" href="../../developer_guide.html#poolvr.game.PoolGame.initial_positions">[docs]</a>    <span class="k">def</span> <span class="nf">initial_positions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">d</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set balls to initial (racked) positions&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">d</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="mf">0.04</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">ball_radius</span>
+        <span class="k">if</span> <span class="n">out</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">num_balls</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">table</span><span class="o">.</span><span class="n">height</span>
+        <span class="n">length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">table</span><span class="o">.</span><span class="n">length</span>
+        <span class="n">ball_diameter</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">ball_radius</span>
+        <span class="c1"># triangle racked:</span>
+        <span class="n">out</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">height</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">ball_radius</span> <span class="o">+</span> <span class="mf">0.0001</span>
+        <span class="n">side_length</span> <span class="o">=</span> <span class="mi">4</span> <span class="o">*</span> <span class="p">(</span><span class="n">ball_diameter</span> <span class="o">+</span> <span class="n">d</span><span class="p">)</span>
+        <span class="n">x_positions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span>                        <span class="mf">0.5</span> <span class="o">*</span> <span class="n">side_length</span><span class="p">,</span>                         <span class="mi">5</span><span class="p">),</span>
+                                      <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="n">ball_diameter</span> <span class="o">+</span> <span class="n">d</span><span class="p">),</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">side_length</span> <span class="o">-</span> <span class="p">(</span><span class="n">ball_diameter</span> <span class="o">+</span> <span class="n">d</span><span class="p">),</span>   <span class="mi">4</span><span class="p">),</span>
+                                      <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="p">(</span><span class="n">ball_diameter</span> <span class="o">+</span> <span class="n">d</span><span class="p">),</span>     <span class="mf">0.5</span> <span class="o">*</span> <span class="n">side_length</span> <span class="o">-</span> <span class="mi">2</span><span class="o">*</span><span class="p">(</span><span class="n">ball_diameter</span> <span class="o">+</span> <span class="n">d</span><span class="p">),</span> <span class="mi">3</span><span class="p">),</span>
+                                      <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mf">1.5</span><span class="o">*</span><span class="p">(</span><span class="n">ball_diameter</span> <span class="o">+</span> <span class="n">d</span><span class="p">),</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">side_length</span> <span class="o">-</span> <span class="mi">3</span><span class="o">*</span><span class="p">(</span><span class="n">ball_diameter</span> <span class="o">+</span> <span class="n">d</span><span class="p">),</span> <span class="mi">2</span><span class="p">),</span>
+                                      <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mi">2</span><span class="o">*</span><span class="p">(</span><span class="n">ball_diameter</span> <span class="o">+</span> <span class="n">d</span><span class="p">)])])</span>
+        <span class="n">z_positions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span>                                    <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="o">*</span> <span class="n">side_length</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span>
+                                      <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">0.5</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">ball_diameter</span> <span class="o">+</span> <span class="n">d</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="o">*</span> <span class="n">side_length</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span>
+                                      <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">ball_diameter</span> <span class="o">+</span> <span class="n">d</span><span class="p">),</span>     <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="o">*</span> <span class="n">side_length</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+                                      <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">1.5</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">ball_diameter</span> <span class="o">+</span> <span class="n">d</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="o">*</span> <span class="n">side_length</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+                                      <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span> <span class="o">*</span> <span class="n">side_length</span><span class="p">])])</span>
+        <span class="n">z_positions</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="n">z_positions</span> <span class="o">-=</span> <span class="n">length</span> <span class="o">/</span> <span class="mi">8</span>
+        <span class="n">out</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">x_positions</span>
+        <span class="n">out</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">z_positions</span>
+        <span class="c1"># cue ball at head spot:</span>
+        <span class="n">out</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">out</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.25</span> <span class="o">*</span> <span class="n">length</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+<div class="viewcode-block" id="PoolGame.reset"><a class="viewcode-back" href="../../developer_guide.html#poolvr.game.PoolGame.reset">[docs]</a>    <span class="k">def</span> <span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Resets the game state, which means: set balls in their initial stationary </span>
+<span class="sd">        positions; reset physics engine.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_positions</span><span class="p">(</span><span class="n">out</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ball_positions</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">physics</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ball_positions</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">t</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ntt</span> <span class="o">=</span> <span class="mf">0.0</span></div>
+<div class="viewcode-block" id="PoolGame.advance_time"><a class="viewcode-back" href="../../developer_guide.html#poolvr.game.PoolGame.advance_time">[docs]</a>    <span class="k">def</span> <span class="nf">advance_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">interp</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Advances the game time to the instant that all balls have come to rest.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ntt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">physics</span><span class="o">.</span><span class="n">next_turn_time</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">ntt</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ntt</span> <span class="o">=</span> <span class="n">ntt</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">t</span> <span class="o">=</span> <span class="n">ntt</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Jeffrey Zitelli.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

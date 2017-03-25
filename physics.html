@@ -24,8 +24,6 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <link rel="top" title="poolvr.py 0.0.1 documentation" href="index.html" />
-    <link rel="up" title="Developer guide:" href="developer_guide.html" />
-    <link rel="prev" title="Developer guide:" href="developer_guide.html" />
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
   
@@ -42,28 +40,31 @@
             
   <div class="section" id="module-poolvr.physics">
 <span id="poolvr-physics-event-based-physics-engine"></span><h1><code class="docutils literal"><span class="pre">poolvr.physics</span></code>: event-based physics engine<a class="headerlink" href="#module-poolvr.physics" title="Permalink to this headline">¶</a></h1>
-<p>Event-based pool physics simulation engine based on the paper
+<p>This module implements an event-based pool physics simulator based on the paper
 (available at <a class="reference external" href="http://web.stanford.edu/group/billiards/AnEventBasedPoolPhysicsSimulator.pdf">http://web.stanford.edu/group/billiards/AnEventBasedPoolPhysicsSimulator.pdf</a>):</p>
-<blockquote>
-<div>AN EVENT-BASED POOL PHYSICS SIMULATOR
+<div class="highlight-python"><div class="highlight"><pre><span></span>AN EVENT-BASED POOL PHYSICS SIMULATOR
 Will Leckie, Michael Greenspan
 DOI: 10.1007/11922155_19 · Source: DBLP
 Conference: Advances in Computer Games, 11th International Conference,
-Taipei, Taiwan, September 6-9, 2005.</div></blockquote>
+Taipei, Taiwan, September 6-9, 2005.
+</pre></div>
+</div>
 <dl class="class">
 <dt id="poolvr.physics.PoolPhysics">
-<em class="property">class </em><code class="descclassname">poolvr.physics.</code><code class="descname">PoolPhysics</code><span class="sig-paren">(</span><em>num_balls=16</em>, <em>ball_mass=0.17</em>, <em>ball_radius=0.028575</em>, <em>mu_r=0.016</em>, <em>mu_sp=0.044</em>, <em>mu_s=0.2</em>, <em>e=0.93</em>, <em>g=9.81</em>, <em>initial_positions=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/poolvr/physics.html#PoolPhysics"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#poolvr.physics.PoolPhysics" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">poolvr.physics.</code><code class="descname">PoolPhysics</code><span class="sig-paren">(</span><em>num_balls=16</em>, <em>ball_mass=0.17</em>, <em>ball_radius=0.028575</em>, <em>mu_r=0.016</em>, <em>mu_sp=0.044</em>, <em>mu_s=0.2</em>, <em>mu_b=0.06</em>, <em>c_b=3600.0</em>, <em>E_Y_b=22000000000.0</em>, <em>g=9.81</em>, <em>initial_positions=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/poolvr/physics.html#PoolPhysics"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#poolvr.physics.PoolPhysics" title="Permalink to this definition">¶</a></dt>
 <dd><p>Pool physics simulator</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>mu_r</strong> &#8211; friction coefficient (rolling)</li>
-<li><strong>mu_sp</strong> &#8211; friction coefficient (spining)</li>
-<li><strong>mu_s</strong> &#8211; friction coefficient (sliding)</li>
-<li><strong>e</strong> &#8211; coefficient of restitution for ball collisions</li>
-<li><strong>g</strong> &#8211; gravity</li>
+<li><strong>mu_r</strong> &#8211; <img class="math" src="_images/math/26861aa1dcbdce504b8d2b56de05b1929490c72b.png" alt="\mu_r"/>, rolling friction coefficient</li>
+<li><strong>mu_sp</strong> &#8211; <img class="math" src="_images/math/b9be20acf804464caac5c8c9ee6b1667d007d8a7.png" alt="\mu_{sp}"/>, spinning friction coefficient</li>
+<li><strong>mu_s</strong> &#8211; <img class="math" src="_images/math/a7fe9b759cd188e747e3c1682152e14b94e2b116.png" alt="\mu_s"/>, sliding friction coefficient</li>
+<li><strong>mu_b</strong> &#8211; <img class="math" src="_images/math/fa81c642bd991cd9258ad5e6385fb2c06697ef2c.png" alt="\mu_b"/>, ball-to-ball collision friction coefficient</li>
+<li><strong>c_b</strong> &#8211; <img class="math" src="_images/math/8484c257e3d6343a0f96d88b2884b87ddf4b4ab0.png" alt="c_b"/>, ball material&#8217;s speed of sound</li>
+<li><strong>E_Y_b</strong> &#8211; <img class="math" src="_images/math/5c848cfa2703e68617298cbd0d9149ba77ea2107.png" alt="{E_Y}_b"/>, ball material&#8217;s Young&#8217;s modulus</li>
+<li><strong>g</strong> &#8211; downward acceleration due to gravity</li>
 </ul>
 </td>
 </tr>
@@ -85,8 +86,8 @@ Taipei, Taiwan, September 6-9, 2005.</div></blockquote>
 
 <dl class="method">
 <dt id="poolvr.physics.PoolPhysics.eval_positions">
-<code class="descname">eval_positions</code><span class="sig-paren">(</span><em>t</em>, <em>out=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/poolvr/physics.html#PoolPhysics.eval_positions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#poolvr.physics.PoolPhysics.eval_positions" title="Permalink to this definition">¶</a></dt>
-<dd><p>Evaluate the positions of all balls at game time <em>t</em>.</p>
+<code class="descname">eval_positions</code><span class="sig-paren">(</span><em>t</em>, <em>balls=None</em>, <em>out=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/poolvr/physics.html#PoolPhysics.eval_positions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#poolvr.physics.PoolPhysics.eval_positions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Evaluate the positions of a set of balls at game time <em>t</em>.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -100,7 +101,7 @@ Taipei, Taiwan, September 6-9, 2005.</div></blockquote>
 <dl class="method">
 <dt id="poolvr.physics.PoolPhysics.eval_quaternions">
 <code class="descname">eval_quaternions</code><span class="sig-paren">(</span><em>t</em>, <em>out=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/poolvr/physics.html#PoolPhysics.eval_quaternions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#poolvr.physics.PoolPhysics.eval_quaternions" title="Permalink to this definition">¶</a></dt>
-<dd><p>Evaluate the rotations of all balls (represented as quaternions) at game time <em>t</em>.</p>
+<dd><p>Evaluate the rotations of a set of balls (represented as quaternions) at game time <em>t</em>.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -113,8 +114,8 @@ Taipei, Taiwan, September 6-9, 2005.</div></blockquote>
 
 <dl class="method">
 <dt id="poolvr.physics.PoolPhysics.eval_velocities">
-<code class="descname">eval_velocities</code><span class="sig-paren">(</span><em>t</em>, <em>out=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/poolvr/physics.html#PoolPhysics.eval_velocities"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#poolvr.physics.PoolPhysics.eval_velocities" title="Permalink to this definition">¶</a></dt>
-<dd><p>Evaluate the velocities of all balls at game time <em>t</em>.</p>
+<code class="descname">eval_velocities</code><span class="sig-paren">(</span><em>t</em>, <em>balls=None</em>, <em>out=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/poolvr/physics.html#PoolPhysics.eval_velocities"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#poolvr.physics.PoolPhysics.eval_velocities" title="Permalink to this definition">¶</a></dt>
+<dd><p>Evaluate the velocities of a set of balls at game time <em>t</em>.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -126,14 +127,22 @@ Taipei, Taiwan, September 6-9, 2005.</div></blockquote>
 </dd></dl>
 
 <dl class="method">
+<dt id="poolvr.physics.PoolPhysics.reset">
+<code class="descname">reset</code><span class="sig-paren">(</span><em>ball_positions</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/poolvr/physics.html#PoolPhysics.reset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#poolvr.physics.PoolPhysics.reset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reset the state of the balls to at rest at the specified positions</p>
+</dd></dl>
+
+<dl class="method">
 <dt id="poolvr.physics.PoolPhysics.strike_ball">
-<code class="descname">strike_ball</code><span class="sig-paren">(</span><em>t</em>, <em>i</em>, <em>q</em>, <em>Q</em>, <em>V</em>, <em>cue_mass</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/poolvr/physics.html#PoolPhysics.strike_ball"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#poolvr.physics.PoolPhysics.strike_ball" title="Permalink to this definition">¶</a></dt>
-<dd><p>Strike ball <em>i</em> at game time <em>t</em>.  The cue points in the direction specified
-by the unit vector <em>q</em> = <img class="math" src="_images/math/42db8c9a0969681c17146c28c8ec8135be2f597c.png" alt="\hat{q}"/>, and strikes the ball at point <em>Q</em> =
-<img class="math" src="_images/math/a120924d08f9280ab90fbba625e5e8022bccd449.png" alt="Q_x \hat{i} + Q_y \hat{j} + Q_z \hat{k}"/> which is specified
-in coordinates relative to the ball&#8217;s center with <img class="math" src="_images/math/fa8a43fd984fd7fb47ea90109e3010adc8ab09cc.png" alt="\hat{k}"/>
-aligned with the horizontal component of <img class="math" src="_images/math/42db8c9a0969681c17146c28c8ec8135be2f597c.png" alt="\hat{q}"/>.
-<em>V</em> is the velocity of the cue at the instant when it strikes the ball.</p>
+<code class="descname">strike_ball</code><span class="sig-paren">(</span><em>t</em>, <em>i</em>, <em>Q</em>, <em>V</em>, <em>cue_mass</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/poolvr/physics.html#PoolPhysics.strike_ball"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#poolvr.physics.PoolPhysics.strike_ball" title="Permalink to this definition">¶</a></dt>
+<dd><p>Strike ball <em>i</em> at game time <em>t</em>.  The cue strikes the ball at point <em>Q</em> =
+<img class="math" src="_images/math/f27adfe64ac14424c15076bd7a68ad3ef424902b.png" alt="a \hat{i} + b \hat{j} + c \hat{k}"/>, which is specified
+in coordinates relative to the ball&#8217;s center with the <img class="math" src="_images/math/fa8a43fd984fd7fb47ea90109e3010adc8ab09cc.png" alt="\hat{k}"/>-axis
+aligned with the horizontal component of the cue&#8217;s impact velocity
+<em>V</em> = <img class="math" src="_images/math/fe6745f57751dfdb368c0341e4d4af0094c8698a.png" alt="\vec{V}"/>, i.e.</p>
+<div class="math">
+<p><img src="_images/math/d691b27e00e921fbb2a25dca1a9b6695166d5608.png" alt="\hat{k} = - \frac{\vec{V} - (\vec{V} \cdot \hat{j}) \hat{j}}{ \| \vec{V} - (\vec{V} \cdot \hat{j}) \hat{j} \| }"/></p>
+</div><p>and <img class="math" src="_images/math/fae13eefa9a27032f6f8e37c90430ee7752efe0c.png" alt="c &gt; 0"/>.</p>
 </dd></dl>
 
 </dd></dl>
@@ -149,9 +158,6 @@ aligned with the horizontal component of <img class="math" src="_images/math/42d
 <h3>Related Topics</h3>
 <ul>
   <li><a href="index.html">Documentation overview</a><ul>
-  <li><a href="developer_guide.html">Developer guide:</a><ul>
-      <li>Previous: <a href="developer_guide.html" title="previous chapter">Developer guide:</a></li>
-  </ul></li>
   </ul></li>
 </ul>
 </div>
