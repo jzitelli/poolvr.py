@@ -9,7 +9,7 @@ poolvr.py
 .. toctree::
    user_guide
    developer_guide
-   :maxdepth: 2
+   :maxdepth: 3
 
 
 .. Indices and tables

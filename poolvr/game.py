@@ -77,11 +77,18 @@ class PoolGame(object):
         out[0,2] = 0.25 * length
         return out
     def reset(self):
+        """
+        Resets the game state, which means: set balls in their initial stationary 
+        positions; reset physics engine.
+        """
         self.initial_positions(out=self.ball_positions)
         self.physics.reset(self.ball_positions)
         self.t = 0.0
         self.ntt = 0.0
-    def advance_time(self):
+    def advance_time(self, interp=None):
+        """
+        Advances the game time to the instant that all balls have come to rest.
+        """
         ntt = self.physics.next_turn_time()
         if ntt:
             self.ntt = ntt
