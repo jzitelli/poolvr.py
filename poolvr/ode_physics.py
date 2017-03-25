@@ -5,6 +5,8 @@ import logging
 import numpy as np
 import ode
 
+
+from .table import PoolTable
 from .exceptions import TODO
 
 
@@ -77,9 +79,9 @@ class ODEPoolPhysics(object):
                 body.setPosition(position)
             # for geom, position in zip(self.ball_geoms, initial_positions):
             #     geom.setPosition(position)
-        self.table_surface_geom = ode.GeomPlane(self.space, (0.0, 1, 0.0), self.table.height)
-        # self.table_surface_geom.setBody(self.table_surface_body)
-        # self.table_surface_body = ode.Body(self.world)
+        self.table_geom = ode.GeomBox(space=self.space, lengths=(self.table.width, self.table.height, self.table.length))
+        self.table_body = ode.Body(self.world)
+        self.table_geom.setBody(self.table_body)
         self._contactgroup = ode.JointGroup()
 
     def reset(self, ball_positions):
