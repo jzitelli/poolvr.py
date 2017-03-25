@@ -131,7 +131,15 @@ class Technique(object):
 
 class Primitive(object):
     def __init__(self, mode, indices, index_buffer=None, attribute_usage=None, **attributes):
-        """attributes kwargs should take the form: <attribute_name>=<ndarray of data>"""
+        """
+        
+        A class for specifying GL vertex attribute objects and providing vertex buffer data
+
+        :param **attributes: all other passed keywords are interpreted as providing
+                             array data for the named (by keyword) attribute:
+                             ``<attribute_name>=<ndarray of data>``
+        
+        """
         self.mode = mode
         self.indices = indices
         self.index_buffer = index_buffer
@@ -170,10 +178,21 @@ class Primitive(object):
 
 class Texture(object):
     def __init__(self, uri):
+        """
+
+        An OpenGL Texture / Sampler2D which is loaded from an image file
+
+        """
         self.uri = uri
         self.texture_id = None
         self.sampler_id = None
     def init_gl(self, force=False):
+        """
+        Perform initialization for the texture on the current GL context
+        
+        :param force: if True, force reinitialization of the GL context for this
+                      Texture and all of the GL entities that it depends on
+        """
         if self.texture_id is not None:
             if not force: return
         image = Image.open(self.uri)
@@ -203,6 +222,10 @@ class Texture(object):
 class Material(object):
     _current = None
     def __init__(self, technique, values=None, textures=None):
+        """
+        A Material object is a customization of a :ref:`Technique` with a 
+        particular set of uniform values and textures.
+        """
         self.technique = technique
         if values is None:
             values = {}
@@ -356,6 +379,14 @@ class Mesh(Node):
 
 
 def calc_projection_matrix(yfov, aspectRatio, znear, zfar):
+    """
+    Calculates a standard OpenGL perspective projection matrix, it might be transposed, i forget.
+    
+    :param yfov: the field of view measured vertically, in radians
+    :param aspectRatio: the frustum width to height ratio (<width> divided by <height>)
+    :param znear: the :math:`z` coordinate of the near clipping plane
+    :param zfar: the :math:`z` coordinate of the far clipping plane
+    """
     f = 1.0 / np.tan(yfov / 2)
     return np.array([[f/aspectRatio, 0, 0, 0],
                      [0, f, 0, 0],
@@ -365,6 +396,11 @@ def calc_projection_matrix(yfov, aspectRatio, znear, zfar):
 
 class OpenGLRenderer(object):
     def __init__(self, multisample=0, znear=0.1, zfar=1000, window_size=(960,1080)):
+        """
+
+        Renderer for non-VR OpenGL renderering
+
+        """
         self.window_size = window_size
         self.znear = znear
         self.zfar = zfar
@@ -382,6 +418,15 @@ class OpenGLRenderer(object):
         gl.glViewport(0, 0, self.window_size[0], self.window_size[1])
     @contextmanager
     def render(self, meshes=None):
+        """
+        Render the given meshes.
+        
+        This method returns a managed context for drawing the frame.
+        If used in a :code:`with`-statement, the rendering takes place when the 
+        :code:`with` block is exited.
+        
+        :param meshes *optional*: iterable collection of :ref:`Mesh`-like objects
+        """
         self.view_matrix[3,:3] = -self.camera_matrix[3,:3]
         self.view_matrix[:3,:3] = self.camera_matrix[:3,:3].T
         yield None
