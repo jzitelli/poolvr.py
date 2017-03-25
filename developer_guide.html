@@ -8,8 +8,8 @@
 
     <title>Developer guide: &mdash; poolvr.py 0.0.1 documentation</title>
 
-    <link rel="stylesheet" href="alabaster.css" type="text/css" />
-    <link rel="stylesheet" href="pygments.css" type="text/css" />
+    <link rel="stylesheet" href="static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="static/pygments.css" type="text/css" />
 
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
@@ -20,13 +20,13 @@
         HAS_SOURCE:  true
       };
     </script>
-    <script type="text/javascript" src="jquery.js"></script>
-    <script type="text/javascript" src="underscore.js"></script>
-    <script type="text/javascript" src="doctools.js"></script>
+    <script type="text/javascript" src="static/jquery.js"></script>
+    <script type="text/javascript" src="static/underscore.js"></script>
+    <script type="text/javascript" src="static/doctools.js"></script>
     <link rel="top" title="poolvr.py 0.0.1 documentation" href="index.html" />
     <link rel="prev" title="User guide:" href="user_guide.html" />
 
-  <link rel="stylesheet" href="custom.css" type="text/css" />
+  <link rel="stylesheet" href="static/custom.css" type="text/css" />
 
   <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
 
@@ -69,12 +69,12 @@ Taipei, Taiwan, September 6-9, 2005.
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>mu_r</strong> &#8211; <img class="math" src="_images/math/26861aa1dcbdce504b8d2b56de05b1929490c72b.png" alt="\mu_r"/>, rolling friction coefficient</li>
-<li><strong>mu_sp</strong> &#8211; <img class="math" src="_images/math/b9be20acf804464caac5c8c9ee6b1667d007d8a7.png" alt="\mu_{sp}"/>, spinning friction coefficient</li>
-<li><strong>mu_s</strong> &#8211; <img class="math" src="_images/math/a7fe9b759cd188e747e3c1682152e14b94e2b116.png" alt="\mu_s"/>, sliding friction coefficient</li>
-<li><strong>mu_b</strong> &#8211; <img class="math" src="_images/math/fa81c642bd991cd9258ad5e6385fb2c06697ef2c.png" alt="\mu_b"/>, ball-to-ball collision friction coefficient</li>
-<li><strong>c_b</strong> &#8211; <img class="math" src="_images/math/8484c257e3d6343a0f96d88b2884b87ddf4b4ab0.png" alt="c_b"/>, ball material&#8217;s speed of sound</li>
-<li><strong>E_Y_b</strong> &#8211; <img class="math" src="_images/math/5c848cfa2703e68617298cbd0d9149ba77ea2107.png" alt="{E_Y}_b"/>, ball material&#8217;s Young&#8217;s modulus</li>
+<li><strong>mu_r</strong> &#8211; <img class="math" src="images/math/26861aa1dcbdce504b8d2b56de05b1929490c72b.png" alt="\mu_r"/>, rolling friction coefficient</li>
+<li><strong>mu_sp</strong> &#8211; <img class="math" src="images/math/b9be20acf804464caac5c8c9ee6b1667d007d8a7.png" alt="\mu_{sp}"/>, spinning friction coefficient</li>
+<li><strong>mu_s</strong> &#8211; <img class="math" src="images/math/a7fe9b759cd188e747e3c1682152e14b94e2b116.png" alt="\mu_s"/>, sliding friction coefficient</li>
+<li><strong>mu_b</strong> &#8211; <img class="math" src="images/math/fa81c642bd991cd9258ad5e6385fb2c06697ef2c.png" alt="\mu_b"/>, ball-to-ball collision friction coefficient</li>
+<li><strong>c_b</strong> &#8211; <img class="math" src="images/math/8484c257e3d6343a0f96d88b2884b87ddf4b4ab0.png" alt="c_b"/>, ball material&#8217;s speed of sound</li>
+<li><strong>E_Y_b</strong> &#8211; <img class="math" src="images/math/5c848cfa2703e68617298cbd0d9149ba77ea2107.png" alt="{E_Y}_b"/>, ball material&#8217;s Young&#8217;s modulus</li>
 <li><strong>g</strong> &#8211; downward acceleration due to gravity</li>
 </ul>
 </td>
@@ -181,13 +181,13 @@ Taipei, Taiwan, September 6-9, 2005.
 <dt id="poolvr.physics.PoolPhysics.strike_ball">
 <code class="descname">strike_ball</code><span class="sig-paren">(</span><em>t</em>, <em>i</em>, <em>Q</em>, <em>V</em>, <em>cue_mass</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/poolvr/physics.html#PoolPhysics.strike_ball"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#poolvr.physics.PoolPhysics.strike_ball" title="Permalink to this definition">¶</a></dt>
 <dd><p>Strike ball <em>i</em> at game time <em>t</em>.  The cue strikes the ball at point <em>Q</em> =
-<img class="math" src="_images/math/f27adfe64ac14424c15076bd7a68ad3ef424902b.png" alt="a \hat{i} + b \hat{j} + c \hat{k}"/>, which is specified
-in coordinates relative to the ball&#8217;s center with the <img class="math" src="_images/math/fa8a43fd984fd7fb47ea90109e3010adc8ab09cc.png" alt="\hat{k}"/>-axis
+<img class="math" src="images/math/f27adfe64ac14424c15076bd7a68ad3ef424902b.png" alt="a \hat{i} + b \hat{j} + c \hat{k}"/>, which is specified
+in coordinates relative to the ball&#8217;s center with the <img class="math" src="images/math/fa8a43fd984fd7fb47ea90109e3010adc8ab09cc.png" alt="\hat{k}"/>-axis
 aligned with the horizontal component of the cue&#8217;s impact velocity
-<em>V</em> = <img class="math" src="_images/math/fe6745f57751dfdb368c0341e4d4af0094c8698a.png" alt="\vec{V}"/>, i.e.</p>
+<em>V</em> = <img class="math" src="images/math/fe6745f57751dfdb368c0341e4d4af0094c8698a.png" alt="\vec{V}"/>, i.e.</p>
 <div class="math">
-<p><img src="_images/math/d691b27e00e921fbb2a25dca1a9b6695166d5608.png" alt="\hat{k} = - \frac{\vec{V} - (\vec{V} \cdot \hat{j}) \hat{j}}{ \| \vec{V} - (\vec{V} \cdot \hat{j}) \hat{j} \| }"/></p>
-</div><p>and <img class="math" src="_images/math/fae13eefa9a27032f6f8e37c90430ee7752efe0c.png" alt="c &gt; 0"/>.</p>
+<p><img src="images/math/d691b27e00e921fbb2a25dca1a9b6695166d5608.png" alt="\hat{k} = - \frac{\vec{V} - (\vec{V} \cdot \hat{j}) \hat{j}}{ \| \vec{V} - (\vec{V} \cdot \hat{j}) \hat{j} \| }"/></p>
+</div><p>and <img class="math" src="images/math/fae13eefa9a27032f6f8e37c90430ee7752efe0c.png" alt="c &gt; 0"/>.</p>
 </dd></dl>
 
 </dd></dl>
@@ -321,8 +321,8 @@ If used in a <code class="code docutils literal"><span class="pre">with</span></
 <dd></dd></dl>
 
 </div>
-<div class="section" id="poolvr-billboard-particles-opengl-billboard-particle-class-which-is-used-to-render-the-balls">
-<h2><code class="docutils literal"><span class="pre">poolvr.billboard_particles</span></code>: OpenGL billboard particle class which is used to render the balls<a class="headerlink" href="#poolvr-billboard-particles-opengl-billboard-particle-class-which-is-used-to-render-the-balls" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="module-poolvr.billboards">
+<span id="poolvr-billboards-opengl-billboard-particle-class-which-is-used-to-render-the-balls"></span><h2><code class="docutils literal"><span class="pre">poolvr.billboards</span></code>: OpenGL billboard particle class which is used to render the balls<a class="headerlink" href="#module-poolvr.billboards" title="Permalink to this headline">¶</a></h2>
 </div>
 <div class="section" id="module-poolvr.ode_physics">
 <span id="poolvr-ode-physics-open-dynamics-engine-ode-based-physics-simulator-time-stepped"></span><h2><code class="docutils literal"><span class="pre">poolvr.ode_physics</span></code>: Open Dynamics Engine (ODE)-based physics simulator (time-stepped)<a class="headerlink" href="#module-poolvr.ode_physics" title="Permalink to this headline">¶</a></h2>
@@ -349,7 +349,7 @@ If used in a <code class="code docutils literal"><span class="pre">with</span></
 <li><a class="reference internal" href="#module-poolvr.game"><code class="docutils literal"><span class="pre">poolvr.game</span></code>: Pool game classes which implement game rules, initial conditions, table setup, etc.</a></li>
 <li><a class="reference internal" href="#module-poolvr.gl_rendering"><code class="docutils literal"><span class="pre">poolvr.gl_rendering</span></code>: OpenGL renderer, node-based scenegraph with glTF-like datatypes</a></li>
 <li><a class="reference internal" href="#module-poolvr.primitives"><code class="docutils literal"><span class="pre">poolvr.primitives</span></code>: Various primitive geometry classes for the OpenGL renderer and the physics engine</a></li>
-<li><a class="reference internal" href="#poolvr-billboard-particles-opengl-billboard-particle-class-which-is-used-to-render-the-balls"><code class="docutils literal"><span class="pre">poolvr.billboard_particles</span></code>: OpenGL billboard particle class which is used to render the balls</a></li>
+<li><a class="reference internal" href="#module-poolvr.billboards"><code class="docutils literal"><span class="pre">poolvr.billboards</span></code>: OpenGL billboard particle class which is used to render the balls</a></li>
 <li><a class="reference internal" href="#module-poolvr.ode_physics"><code class="docutils literal"><span class="pre">poolvr.ode_physics</span></code>: Open Dynamics Engine (ODE)-based physics simulator (time-stepped)</a></li>
 </ul>
 </li>
