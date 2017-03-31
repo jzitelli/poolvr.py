@@ -8,6 +8,7 @@ import ode
 
 from .table import PoolTable
 from .exceptions import TODO
+from .physics import _I, _J, _K
 
 
 _logger = logging.getLogger(__name__)
