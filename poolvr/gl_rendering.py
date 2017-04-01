@@ -174,7 +174,16 @@ class Primitive(object):
             self.index_buffer = vao
             gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, 0)
         _logger.info('%s.init_gl: OK' % self.__class__.__name__)
-
+    # @property
+    # def faces(self):
+    #     if self.mode == gl.GL_TRIANGLES:
+    #         return [list(face) for face in self.indices.reshape(-1, 3)]
+    #     elif self.mode == gl.GL_TRIANGLE_STRIP:
+    #         return [face for face in zip(self.indices.reshape(-1, 3)[:-2],
+    #                                      self.indices.reshape(-1, 3)[1:-1],
+    #                                      self.indices.reshape(-1, 3)[2:])]
+    #     else:
+    #         raise Exception('TODO')
 
 class Texture(object):
     def __init__(self, uri):

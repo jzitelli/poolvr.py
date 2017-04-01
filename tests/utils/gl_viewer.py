@@ -84,7 +84,7 @@ def show(game,
         list(mesh.primitives.values())[0][0].attributes['a_position'] = list(mesh.primitives.values())[0][0].attributes['vertices']
     sphere_positions = [mesh.world_matrix[3,:3] for mesh in sphere_meshes]
     # meshes = [game.table.mesh, ball_billboards, cue] + sphere_meshes
-    meshes = [game.table.mesh] + sphere_meshes
+    meshes = [table.mesh] + sphere_meshes
     for mesh in meshes:
         mesh.init_gl(force=True)
 
@@ -104,7 +104,7 @@ def show(game,
         glfw.PollEvents()
         process_keyboard_input(dt, camera_world_matrix, cue=cue)
         renderer.process_input()
-        with renderer.render(meshes=sphere_meshes) as frame_data:
+        with renderer.render(meshes=meshes) as frame_data:
             physics.eval_positions(pt, out=ball_positions)
             ball_positions[~physics.on_table] = renderer.camera_position # hacky way to only show balls that are on table
             for i, pos in enumerate(ball_positions):

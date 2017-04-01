@@ -38,8 +38,15 @@ def _near_callback(args, geom1, geom2):
             c.setBounce(0.13)
             c.setMu(0.15)
             c.setBounceVel(0.3)
-            c.setSoftERP(0.6)
-            c.setSoftCFM(0.6)
+            c.setSoftERP(0.4)
+            c.setSoftCFM(1e4)
+            c.setSlip1(0.03)
+        elif isinstance(geom1, ode.GeomTriMesh) or isinstance(geom2, ode.GeomTriMesh):
+            c.setBounce(0.83)
+            c.setMu(0.15)
+            c.setBounceVel(0.07)
+            c.setSoftERP(0.4)
+            c.setSoftCFM(1e4)
             c.setSlip1(0.03)
         else:
             c.setBounce(0.93)
@@ -116,6 +123,12 @@ class ODEPoolPhysics(object):
         # self.table_body = ode.Body(self.world)
         # self.table_geom.setBody(self.table_body)
         self.table_geom = ode.GeomPlane(space=self.space, normal=(0.0, 1.0, 0.0), dist=self.table.height)
+        tri_mesh_data = ode.TriMeshData()
+        tri_mesh_data.build(self.table.headCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.headCushionGeom.indices.reshape(-1,3)[:,::-1])
+        self.head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+        tri_mesh_data = ode.TriMeshData()
+        tri_mesh_data.build(self.table.footCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.footCushionGeom.indices.reshape(-1,3)[:,::-1])
+        self.foot_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
         self._contactgroup = ode.JointGroup()
         self.events = []
         self.ball_events = {i: [] for i in self.all_balls}
@@ -175,7 +188,7 @@ class ODEPoolPhysics(object):
         return 1
 
     def step(self, dt):
-        self.space.collide((self.world, self._contactgroup), _near_callback)
+        self.space.collide((self.world, self._contactgroup), self._near_callback)
         self.world.step(dt)
         self._contactgroup.empty()
         self.t += dt
@@ -223,3 +236,32 @@ class ODEPoolPhysics(object):
     def _add_event(self, event):
         self.events.append(event)
         self.ball_events[event.i].append(event)
+
+    def _near_callback(self, args, geom1, geom2):
+        world, contactgroup = args
+        try:
+            i = self.ball_geoms.index(geom1)
+            if not self.on_table[i]:
+                return
+        except:
+            pass
+        try:
+            j = self.ball_geoms.index(geom2)
+            if not self.on_table[j]:
+                return
+        except:
+            pass
+        contacts = ode.collide(geom1, geom2)
+        for c in contacts:
+            if isinstance(geom1, ode.GeomPlane) or isinstance(geom2, ode.GeomPlane):
+                c.setBounce(0.13)
+                c.setMu(0.15)
+                c.setBounceVel(0.3)
+                c.setSoftERP(0.4)
+                c.setSoftCFM(1e4)
+                c.setSlip1(0.03)
+            else:
+                c.setBounce(0.93)
+                c.setMu(0.06)
+            j = ode.ContactJoint(world, contactgroup, c)
+            j.attach(geom1.getBody(), geom2.getBody())

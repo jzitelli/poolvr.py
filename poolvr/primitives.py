@@ -1,3 +1,4 @@
+import itertools
 import numpy as np
 import OpenGL.GL as gl
 
@@ -19,6 +20,7 @@ class HexaPrimitive(Primitive):
              [1,2,6,5], # right
              [2,3,7,6], # rear
              [7,3,0,4]] # left
+    tri_faces = list(itertools.chain.from_iterable(itertools.chain.from_iterable([triangulate_quad(quad) for quad in faces])))
     indices = np.array([triangulate_quad(quad) for quad in faces], dtype=np.uint16).reshape(-1)
     index_buffer = None
     def __init__(self, vertices=None):

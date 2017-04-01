@@ -27,6 +27,7 @@ from .game import PoolGame
 from .physics import PoolPhysics
 from .keyboard_controls import init_keyboard
 from .mouse_controls import init_mouse
+# from .gl_text import TexturedText
 try:
     from .ode_physics import ODEPoolPhysics
 except ImportError as err:
@@ -103,6 +104,8 @@ def main(window_size=(800,600),
         process_keyboard_input(dt, camera_world_matrix, cue)
         process_mouse_input(dt, cue)
 
+    # textured_text = TexturedText()
+
     ball_billboards = BillboardParticles(Texture(os.path.join(TEXTURES_DIR, 'ball.png')), num_particles=game.num_balls,
                                          scale=2*physics.ball_radius,
                                          color=np.array([[(c&0xff0000) / 0xff0000, (c&0x00ff00) / 0x00ff00, (c&0x0000ff) / 0x0000ff]
@@ -175,6 +178,7 @@ def main(window_size=(800,600),
                 for i, pos in enumerate(ball_positions):
                     sphere_positions[i][:] = pos
                 # ball_billboards.update_gl()
+                # textured_text.set_text("%f" % dt)
 
             ##### desktop mode: #####
 
