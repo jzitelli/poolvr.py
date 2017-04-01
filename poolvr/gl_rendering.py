@@ -132,13 +132,13 @@ class Technique(object):
 class Primitive(object):
     def __init__(self, mode, indices, index_buffer=None, attribute_usage=None, **attributes):
         """
-        
+
         A class for specifying GL vertex attribute objects and providing vertex buffer data
 
         :param **attributes: all other passed keywords are interpreted as providing
                              array data for the named (by keyword) attribute:
                              ``<attribute_name>=<ndarray of data>``
-        
+
         """
         self.mode = mode
         self.indices = indices
@@ -189,7 +189,7 @@ class Texture(object):
     def init_gl(self, force=False):
         """
         Perform initialization for the texture on the current GL context
-        
+
         :param force: if True, force reinitialization of the GL context for this
                       Texture and all of the GL entities that it depends on
         """
@@ -223,7 +223,7 @@ class Material(object):
     _current = None
     def __init__(self, technique, values=None, textures=None):
         """
-        A Material object is a customization of a :ref:`Technique` with a 
+        A Material object is a customization of a :ref:`Technique` with a
         particular set of uniform values and textures.
         """
         self.technique = technique
@@ -302,12 +302,23 @@ class Material(object):
 
 class Node(object):
     def __init__(self, matrix=None):
+        """
+        A node in a scenegraph.
+
+        Each node has a TRS transformation which is expressed in
+        coordinates local to the parent node (or in global coordinates in the case of the root node).
+        """
         if matrix is None:
             matrix = np.eye(4, dtype=np.float32)
         self.matrix = matrix
         self.world_matrix = matrix.copy()
         self.children = []
     def update_world_matrices(self, world_matrix=None):
+        """
+        Update all world transformations for the subtree rooted at this node
+
+        :param world_matrix: Matrix which transforms the node's local coordinates to world coordinates
+        """
         if world_matrix is None:
             self.world_matrix[...] = self.matrix
         else:
@@ -321,7 +332,11 @@ class Mesh(Node):
     _modelview = np.eye(4, dtype=np.float32)
     _normal = np.eye(3, dtype=np.float32)
     def __init__(self, primitives, matrix=None):
-        "primitives argument should be a dict which maps material to list of primitives which use that material"
+        """
+        A drawable collection of :ref:`Primitive`s, with a :ref:`Material` assigned for each one.
+
+        :param primitives: should be a dict which maps :ref:`Material` to list of :ref:`Primitive` which use that material
+        """
         Node.__init__(self, matrix=matrix)
         self.primitives = primitives
         self._initialized = False
@@ -381,7 +396,7 @@ class Mesh(Node):
 def calc_projection_matrix(yfov, aspectRatio, znear, zfar):
     """
     Calculates a standard OpenGL perspective projection matrix, it might be transposed, i forget.
-    
+
     :param yfov: the field of view measured vertically, in radians
     :param aspectRatio: the frustum width to height ratio (<width> divided by <height>)
     :param znear: the :math:`z` coordinate of the near clipping plane
@@ -392,6 +407,29 @@ def calc_projection_matrix(yfov, aspectRatio, znear, zfar):
                      [0, f, 0, 0],
                      [0, 0, (znear + zfar) / (znear - zfar), 2 * znear * zfar / (znear - zfar)],
                      [0, 0, -1, 0]], dtype=np.float32)
+
+
+def set_matrix_from_quaternion(quat, out):
+    x, y, z, w = quat
+    y2 = y**2
+    x2 = x**2
+    z2 = z**2
+    xy = x * y
+    xz = x * z
+    yz = y * z
+    wx = w * x
+    wy = w * y
+    wz = w * z
+    out[0] = [1.0 - 2.0 * (y2 + z2),
+              2.0 * (xy - wz),
+              2.0 * (xz + wy)]
+    out[1] = [2.0 * (xy + wz),
+              1.0 - 2.0 * (x2 + z2),
+              2.0 * (yz - wx)]
+    out[2] = [2.0 * (xz - wy),
+              2.0 * (yz + wx),
+              1.0 - 2.0 * (x2 + y2)]
+    return out
 
 
 class OpenGLRenderer(object):
@@ -420,11 +458,11 @@ class OpenGLRenderer(object):
     def render(self, meshes=None):
         """
         Render the given meshes.
-        
+
         This method returns a managed context for drawing the frame.
-        If used in a :code:`with`-statement, the rendering takes place when the 
+        If used in a :code:`with`-statement, the rendering takes place when the
         :code:`with` block is exited.
-        
+
         :param meshes *optional*: iterable collection of :ref:`Mesh`-like objects
         """
         self.view_matrix[3,:3] = -self.camera_matrix[3,:3]

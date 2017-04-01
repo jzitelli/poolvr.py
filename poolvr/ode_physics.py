@@ -18,7 +18,7 @@ INCH2METER = 0.0254
 ZERO3 = np.zeros(3, dtype=np.float64)
 
 
-def create_ball(ball_mass, ball_radius, world, space=None):
+def _create_ball(ball_mass, ball_radius, world, space=None):
     body = ode.Body(world)
     mass = ode.Mass()
     mass.setSphereTotal(ball_mass, ball_radius)
@@ -30,19 +30,17 @@ def create_ball(ball_mass, ball_radius, world, space=None):
     return body, geom
 
 
-def near_callback(args, geom1, geom2):
+def _near_callback(args, geom1, geom2):
     world, contactgroup = args
     contacts = ode.collide(geom1, geom2)
     for c in contacts:
-        # c.setBounce(0.93)
-        # c.setMu(5000)
         if isinstance(geom1, ode.GeomPlane) or isinstance(geom2, ode.GeomPlane):
             c.setBounce(0.13)
-            c.setMu(0.16)
+            c.setMu(0.15)
             c.setBounceVel(0.3)
             c.setSoftERP(0.6)
             c.setSoftCFM(0.6)
-            c.setSlip1(0.2)
+            c.setSlip1(0.03)
         else:
             c.setBounce(0.93)
             c.setMu(0.06)
@@ -111,7 +109,7 @@ class ODEPoolPhysics(object):
         self.ball_bodies = []
         self.ball_geoms = []
         for i in range(num_balls):
-            body, geom = create_ball(ball_mass, ball_radius, self.world, self.space)
+            body, geom = _create_ball(ball_mass, ball_radius, self.world, self.space)
             self.ball_bodies.append(body)
             self.ball_geoms.append(geom)
         # self.table_geom = ode.GeomBox(space=self.space, lengths=(self.table.width, self.table.height, self.table.length))
@@ -179,7 +177,7 @@ class ODEPoolPhysics(object):
         self.ball_events[event.i].append(event)
 
     def step(self, dt):
-        self.space.collide((self.world, self._contactgroup), near_callback)
+        self.space.collide((self.world, self._contactgroup), _near_callback)
         self.world.step(dt)
         self._contactgroup.empty()
         self.t += dt

@@ -14,7 +14,7 @@ _logger = logging.getLogger('poolvr')
 
 
 from .exceptions import TODO
-from .gl_rendering import OpenGLRenderer, Texture, Mesh, Material
+from .gl_rendering import OpenGLRenderer, Texture, Mesh, Material, set_matrix_from_quaternion
 try:
     from .pyopenvr_renderer import openvr, OpenVRRenderer
 except ImportError as err:
@@ -109,6 +109,8 @@ def main(window_size=(800,600),
                                                          for c in game.ball_colors], dtype=np.float32),
                                          translate=game.ball_positions)
     ball_positions = ball_billboards.primitive.attributes['translate']
+    ball_quaternions = np.zeros((game.num_balls, 4), dtype=np.float32)
+    ball_quaternions[:,3] = 1
     sphere_meshes = [Mesh({Material(LAMBERT_TECHNIQUE,
                                     values={'u_color': [(c&0xff0000) / 0xff0000,
                                                         (c&0x00ff00) / 0x00ff00,
@@ -119,6 +121,7 @@ def main(window_size=(800,600),
     for mesh in sphere_meshes:
         list(mesh.primitives.values())[0][0].attributes['a_position'] = list(mesh.primitives.values())[0][0].attributes['vertices']
     sphere_positions = [mesh.world_matrix[3,:3] for mesh in sphere_meshes]
+    ball_rotations = [mesh.world_matrix[:3,:3].T for mesh in sphere_meshes]
     # meshes = [game.table.mesh, ball_billboards, cue]
     meshes = [game.table.mesh] + sphere_meshes + [cue]
 
@@ -165,6 +168,9 @@ def main(window_size=(800,600),
                                 game.ntt = physics.next_turn_time()
                                 break
                 physics.eval_positions(game.t, out=ball_positions)
+                physics.eval_quaternions(game.t, out=ball_quaternions)
+                for i, quat in enumerate(ball_quaternions):
+                    set_matrix_from_quaternion(quat, ball_rotations[i])
                 ball_positions[~physics.on_table] = hmd_pose[:,3] # hacky way to only show balls that are on table
                 for i, pos in enumerate(ball_positions):
                     sphere_positions[i][:] = pos
