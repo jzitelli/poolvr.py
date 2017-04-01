@@ -187,8 +187,7 @@ def main(window_size=(800,600),
                     sphere_positions[i][:] = pos
                 # ball_billboards.update_gl()
 
-        if isinstance(physics, ODEPoolPhysics):
-            physics.step(dt)
+        physics.step(dt)
         game.t += dt
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:

@@ -11,10 +11,15 @@ VR pool simulator written in Python (using pyopenvr)
 - pyopenvr
 - numpy
 - pillow
-
-If you want to run the tests, the following are also required:
-
 - matplotlib
+
+Time-stepped physics using the [Open Dynamics Engine](https://github.com/jzitelli/ode) is also supported if the ODE library with Python bindings is installed.
+
+You can probably install most of the required packages listed above using `pip`, e.g.
+```
+pip install pillow
+```
+Others, such as `cyglfw3` and `ode`, I found I had to build from source.
 
 
 ## HOW TO INSTALL:
