@@ -26,7 +26,6 @@ class PoolTable(object):
             width = 0.5 * length
         self.width = width
         self.width_rail = width_rail
-        # surface_material = Material(EGA_TECHNIQUE, values={'u_color': [0.0, 0.3, 0.0, 0.0]})
         surface_material = Material(LAMBERT_TECHNIQUE, values={'u_color': [0.0, 0.3, 0.0, 0.0]})
         surface = PlanePrimitive(width=width, depth=length)
         surface.attributes['vertices'][:,1] = height
@@ -54,4 +53,5 @@ class PoolTable(object):
         vertices.reshape(-1,3)[:,2] *= -1
         self.footCushionGeom = HexaPrimitive(vertices=vertices)
         self.footCushionGeom.attributes['a_position'] = self.footCushionGeom.attributes['vertices']
+        # self.footCushionGeom.attributes['normals']
         self.mesh = Mesh({surface_material: [surface, self.headCushionGeom, self.footCushionGeom]})

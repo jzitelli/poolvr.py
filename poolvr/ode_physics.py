@@ -124,7 +124,7 @@ class ODEPoolPhysics(object):
         # self.table_geom.setBody(self.table_body)
         self.table_geom = ode.GeomPlane(space=self.space, normal=(0.0, 1.0, 0.0), dist=self.table.height)
         tri_mesh_data = ode.TriMeshData()
-        tri_mesh_data.build(self.table.headCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.headCushionGeom.indices.reshape(-1,3)[:,::-1])
+        tri_mesh_data.build(self.table.headCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.headCushionGeom.indices.reshape(-1,3))
         self.head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
         tri_mesh_data = ode.TriMeshData()
         tri_mesh_data.build(self.table.footCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.footCushionGeom.indices.reshape(-1,3)[:,::-1])
@@ -231,7 +231,7 @@ class ODEPoolPhysics(object):
         return out
 
     def next_turn_time(self):
-        return self._t_last_strike + 2.0
+        return self._t_last_strike + 0.04
 
     def _add_event(self, event):
         self.events.append(event)

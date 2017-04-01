@@ -305,7 +305,10 @@ class PoolPhysics(object):
         """
         if out is None:
             out = np.empty((self.num_balls, 4), dtype=np.float64)
-        raise TODO()
+        # TODO
+        out[:] = 0
+        out[:,3] = 1
+        return out
 
     def eval_velocities(self, t, balls=None, out=None):
         """

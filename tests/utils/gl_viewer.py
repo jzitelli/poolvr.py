@@ -18,7 +18,7 @@ _logger = logging.getLogger(__name__)
 from poolvr.app import TEXTURES_DIR
 from poolvr.keyboard_controls import init_keyboard
 from poolvr.mouse_controls import init_mouse
-from poolvr.gl_rendering import OpenGLRenderer, Texture, Mesh, Material
+from poolvr.gl_rendering import OpenGLRenderer, Texture, Mesh, Material, set_matrix_from_quaternion
 from poolvr.techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
 from poolvr.primitives import SpherePrimitive
 from poolvr.billboards import BillboardParticles
@@ -83,6 +83,9 @@ def show(game,
     for mesh in sphere_meshes:
         list(mesh.primitives.values())[0][0].attributes['a_position'] = list(mesh.primitives.values())[0][0].attributes['vertices']
     sphere_positions = [mesh.world_matrix[3,:3] for mesh in sphere_meshes]
+    ball_quaternions = np.zeros((game.num_balls, 4), dtype=np.float32)
+    ball_quaternions[:,3] = 1
+    ball_rotations = [mesh.world_matrix[:3,:3].T for mesh in sphere_meshes]
     # meshes = [game.table.mesh, ball_billboards, cue] + sphere_meshes
     meshes = [table.mesh] + sphere_meshes
     for mesh in meshes:
@@ -106,12 +109,15 @@ def show(game,
         renderer.process_input()
         with renderer.render(meshes=meshes) as frame_data:
             physics.eval_positions(pt, out=ball_positions)
+            physics.eval_quaternions(game.t, out=ball_quaternions)
             ball_positions[~physics.on_table] = renderer.camera_position # hacky way to only show balls that are on table
             for i, pos in enumerate(ball_positions):
                 if not physics.on_table[i]:
                     sphere_positions[i][:] = renderer.camera_position
                 else:
                     sphere_positions[i][:] = pos
+            for i, quat in enumerate(ball_quaternions):
+                set_matrix_from_quaternion(quat, ball_rotations[i])
             # ball_billboards.update_gl()
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:

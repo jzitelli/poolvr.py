@@ -307,6 +307,30 @@ class Material(object):
                 if err != gl.GL_NO_ERROR:
                     raise Exception('error setting material state: %d' % err)
         Material._current = self
+    def set_uniform_value(self, uniform_name, value):
+        uniform = self.technique.uniforms[uniform_name]
+        uniform_type = uniform['type']
+        location = self.technique.uniform_locations[uniform_name]
+        if uniform_type == gl.GL_SAMPLER_2D:
+            raise Exception('TODO')
+        elif uniform_type == gl.GL_FLOAT:
+            gl.glUniform1f(location, value)
+        elif uniform_type == gl.GL_FLOAT_VEC2:
+            gl.glUniform2f(location, *value)
+        elif uniform_type == gl.GL_FLOAT_VEC3:
+            gl.glUniform3f(location, *value)
+        elif uniform_type == gl.GL_FLOAT_VEC4:
+            gl.glUniform4f(location, *value)
+        elif uniform_type == gl.GL_FLOAT_MAT3:
+            gl.glUniformMatrix3fv(location, 1, False, value)
+        elif uniform_type == gl.GL_FLOAT_MAT4:
+            gl.glUniformMatrix4fv(location, 1, False, value)
+        else:
+            raise Exception('unhandled uniform type: %d' % uniform_type)
+        if CHECK_GL_ERRORS:
+            err = gl.glGetError()
+            if err != gl.GL_NO_ERROR:
+                raise Exception('error setting material state: %d' % err)
     def release(self):
         Material._current = None
 

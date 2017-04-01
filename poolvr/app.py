@@ -1,5 +1,6 @@
 import sys
 import os.path
+from collections import defaultdict
 import logging
 import numpy as np
 import OpenGL
@@ -39,7 +40,7 @@ BG_COLOR = (0.0, 0.0, 0.0, 0.0)
 
 
 # TODO: pkgutils way
-TEXTURES_DIR = os.path.join(os.path.dirname(__file__),
+TEXTURES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             os.path.pardir,
                             'textures')
 
@@ -70,6 +71,11 @@ def main(window_size=(800,600),
          novr=False,
          use_simple_ball_collisions=False,
          use_ode_physics=False):
+    """
+    The main routine.
+
+    Performs initializations, setups, kicks off the render loop.
+    """
     _logger.info('HELLO')
     game = PoolGame(use_simple_ball_collisions=use_simple_ball_collisions)
     if use_ode_physics and ODEPoolPhysics is not None:
@@ -137,6 +143,7 @@ def main(window_size=(800,600),
     _logger.info('entering render loop...')
     sys.stdout.flush()
 
+    last_contact_t = defaultdict(float)
     nframes = 0
     max_frame_time = 0.0
     lt = glfw.GetTime()
@@ -162,23 +169,26 @@ def main(window_size=(800,600),
                     cue.angular_velocity = angular_velocities[-1]
                     if game.t >= game.ntt:
                         for i, position in cue.aabb_check(ball_positions, ball_radius):
+                            if game.t - last_contact_t[i] < 0.02:
+                                continue
                             poc = cue.contact(position, ball_radius)
                             if poc is not None:
-                                poc[:] = [0.0, 0.0, ball_radius]
                                 renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1],
-                                                                      0, 1300)
+                                                                      0, int(np.linalg.norm(cue.velocity + np.cross(position, cue.angular_velocity))**2 / 2.0 * 2700))
+                                poc[:] = [0.0, 0.0, ball_radius]
                                 physics.strike_ball(game.t, i, poc, cue.velocity, cue.mass)
                                 game.ntt = physics.next_turn_time()
                                 break
                 physics.eval_positions(game.t, out=ball_positions)
                 physics.eval_quaternions(game.t, out=ball_quaternions)
-                for i, quat in enumerate(ball_quaternions):
-                    set_matrix_from_quaternion(quat, ball_rotations[i])
                 ball_positions[~physics.on_table] = hmd_pose[:,3] # hacky way to only show balls that are on table
                 for i, pos in enumerate(ball_positions):
                     sphere_positions[i][:] = pos
+                for i, quat in enumerate(ball_quaternions):
+                    set_matrix_from_quaternion(quat, ball_rotations[i])
                 # ball_billboards.update_gl()
-                # textured_text.set_text("%f" % dt)
+                # textured_text.set_text("%9.3f" % dt)
+                # textured_text.update_gl()
 
             ##### desktop mode: #####
 
@@ -192,10 +202,15 @@ def main(window_size=(800,600),
                             game.ntt = physics.next_turn_time()
                             break
                 physics.eval_positions(game.t, out=ball_positions)
+                physics.eval_quaternions(game.t, out=ball_quaternions)
                 ball_positions[~physics.on_table] = renderer.camera_position # hacky way to only show balls that are on table
                 for i, pos in enumerate(ball_positions):
                     sphere_positions[i][:] = pos
+                for i, quat in enumerate(ball_quaternions):
+                    set_matrix_from_quaternion(quat, ball_rotations[i])
                 # ball_billboards.update_gl()
+                # textured_text.set_text("%9.3f" % dt)
+                # textured_text.update_gl()
 
         physics.step(dt)
         game.t += dt
