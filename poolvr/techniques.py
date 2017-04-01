@@ -20,4 +20,4 @@ LAMBERT_TECHNIQUE = Technique(Program(pkgutil.get_data('poolvr', 'shaders/lamber
                                         'u_color': {'type': gl.GL_FLOAT_VEC4,
                                                     'value': [0.0, 1.0, 1.0, 0.0]},
                                         'u_lightpos': {'type': gl.GL_FLOAT_VEC3,
-                                                       'value': [1.0, 10.0, 2.0]}})
+                                                       'value': [1.0, 15.0, 1.5]}})

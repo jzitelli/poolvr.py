@@ -255,7 +255,7 @@ class Material(object):
             raise Exception('failed to init material: %s' % err)
         self._initialized = True
         _logger.info('%s.init_gl: OK' % self.__class__.__name__)
-    def use(self, u_view=None, u_modelview=None, u_projection=None, u_normal=None):
+    def use(self, u_view=None, u_modelview=None, u_projection=None, u_normal=None, u_modelview_inverse=None):
         # if Material._current is self:
         #     return
         if not self._initialized:
@@ -283,10 +283,12 @@ class Material(object):
             else:
                 if u_modelview is not None and uniform_name == 'u_modelview':
                     gl.glUniformMatrix4fv(location, 1, False, u_modelview)
-                elif u_projection is not None and uniform_name == 'u_projection':
-                    gl.glUniformMatrix4fv(location, 1, False, u_projection)
+                elif u_modelview_inverse is not None and uniform_name == 'u_modelview_inverse':
+                    gl.glUniformMatrix4fv(location, 1, False, u_modelview_inverse)
                 elif u_view is not None and uniform_name == 'u_view':
                     gl.glUniformMatrix4fv(location, 1, False, u_view)
+                elif u_projection is not None and uniform_name == 'u_projection':
+                    gl.glUniformMatrix4fv(location, 1, False, u_projection)
                 elif u_normal is not None and uniform_name == 'u_normal':
                     gl.glUniformMatrix3fv(location, 1, False, u_normal)
                 else:
@@ -330,6 +332,7 @@ class Node(object):
 
 class Mesh(Node):
     _modelview = np.eye(4, dtype=np.float32)
+    _modelview_inverse = np.eye(4, dtype=np.float32)
     _normal = np.eye(3, dtype=np.float32)
     def __init__(self, primitives, matrix=None):
         """
@@ -373,6 +376,7 @@ class Mesh(Node):
     def draw(self, view=None, projection=None):
         if view is not None:
             self.world_matrix.dot(view, out=self._modelview)
+            self._modelview_inverse = np.linalg.inv(self._modelview)
             self._normal[:] = np.linalg.inv(self._modelview[:3,:3].T)
         for material, prims in self.primitives.items():
             material.use(u_view=view, u_projection=projection, u_modelview=self._modelview, u_normal=self._normal)
@@ -410,7 +414,7 @@ def calc_projection_matrix(yfov, aspectRatio, znear, zfar):
 
 
 def set_matrix_from_quaternion(quat, out):
-    x, y, z, w = quat
+    w, x, y, z = quat
     y2 = y**2
     x2 = x**2
     z2 = z**2

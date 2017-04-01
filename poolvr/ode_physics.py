@@ -1,5 +1,5 @@
 """
-Open Dynamic Engine-based pool physics simulator
+Open Dynamics Engine-based pool physics simulator
 """
 import logging
 import numpy as np
@@ -76,7 +76,7 @@ class ODEPoolPhysics(object):
                  E_Y_b=2.4e9,
                  g=9.81,
                  linear_damping=0.012,
-                 angular_damping=0.023,
+                 angular_damping=0.02,
                  initial_positions=None,
                  table=None,
                  **kwargs):
@@ -127,6 +127,7 @@ class ODEPoolPhysics(object):
             for geom, position in zip(self.ball_geoms, initial_positions):
                 geom.setPosition(position)
             self._a[:,0] = initial_positions
+
     def reset(self, ball_positions):
         self.nsteps = 0
         self.t = 0.0
@@ -142,6 +143,7 @@ class ODEPoolPhysics(object):
         self.ball_events = {i: [] for i in self.all_balls}
         self._a[:] = 0
         self._a[:,0] = ball_positions
+
     def strike_ball(self, t, i, Q, V, cue_mass):
         if not self.on_table[i]:
             return
@@ -171,10 +173,6 @@ class ODEPoolPhysics(object):
         self._add_event(self.StrikeBallEvent(t, i, Q, V, cue_mass))
         self._add_event(self.RollToRestEvent(t + 12, i, self._a[i,0]))
         return 1
-
-    def _add_event(self, event):
-        self.events.append(event)
-        self.ball_events[event.i].append(event)
 
     def step(self, dt):
         self.space.collide((self.world, self._contactgroup), _near_callback)
@@ -221,3 +219,7 @@ class ODEPoolPhysics(object):
 
     def next_turn_time(self):
         return self._t_last_strike + 2.0
+
+    def _add_event(self, event):
+        self.events.append(event)
+        self.ball_events[event.i].append(event)
