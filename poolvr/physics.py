@@ -72,6 +72,7 @@ class PoolPhysics(object):
             self._a[:,0] = initial_positions
         if use_simple_ball_collisions:
             self.BallCollisionEvent = self.SimpleBallCollisionEvent
+        self.t = 0.0
 
     def strike_ball(self, t, i, Q, V, cue_mass):
         r"""
@@ -382,6 +383,9 @@ class PoolPhysics(object):
         self._a[:,0] = ball_positions
         self._b[:] = 0
         self.ball_events = {i: [] for i in self.all_balls}
+
+    def step(self, dt):
+        self.t += dt
 
     def _add_event(self, event):
         self.events.append(event)

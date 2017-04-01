@@ -118,6 +118,7 @@ def show(game,
             st = glfw.GetTime()
         nframes += 1
         pt += dt * playback_rate
+        physics.step(dt)
         glfw.SwapBuffers(window)
 
     _logger.info('...exited render loop: average FPS: %f, maximum frame time: %f',

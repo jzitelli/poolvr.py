@@ -16,6 +16,14 @@ from poolvr.game import PoolGame
 from poolvr.ode_physics import ODEPoolPhysics
 
 
+from .utils import plot_ball_motion, savefig, plot_energy
+from .utils.gl_viewer import show
+
+
+PLOTS_DIR = os.path.join(os.path.dirname(__file__), 'plots')
+SCREENSHOTS_DIR = os.path.join(os.path.dirname(__file__), 'screenshots')
+
+
 class ODEPhysicsTests(TestCase):
     def setUp(self):
         self.game = PoolGame()
@@ -45,22 +53,14 @@ class ODEPhysicsTests(TestCase):
         n_events = self.physics.strike_ball(0.0, i, Q, self.cue.velocity, self.cue.mass)
         _logger.debug('strike on %d resulted in %d events', i, n_events)
         events = self.physics.events
-        fig = plt.figure()
-        plt.xlabel('$t$ (seconds)')
-        plt.ylabel('$x, y, z$ (meters)')
-        for e in events:
-            plt.axvline(e.t)
-            if e.T < float('inf'):
-                plt.axvline(e.t + e.T)
-        plt.axhline(self.table.height)
-        plt.axhline(-0.5 * self.table.length)
-        ts = np.linspace(events[0].t, events[-1].t, 50) #int((events[-1].t - events[0].t) * 23 + 1))
-        ts = np.concatenate([[a.t] + list(ts[(ts >= a.t) & (ts < b.t)]) + [b.t]
-                             for a, b in zip(events[:-1], events[1:])])
-        for i, ls, xyz in zip(range(3), ['-o', '-s', '-d'], 'xyz'):
-            plt.plot(ts, [self.physics.eval_positions(t)[0,i] for t in ts], ls, label='$%s$' % xyz)
-        plt.legend()
-        plt.show()
+        test_name = 'ODE_' + traceback.extract_stack(None, 1)[0][2]
+        plot_ball_motion(i, self.game, title=test_name)
+        savefig(os.path.join(PLOTS_DIR, test_name + '.png'))
+        # plot_energy(self.game, title=test_name + ' - energy')
+        # savefig(os.path.join(PLOTS_DIR, test_name + '_energy.png'))
+        if self.show:
+            show(self.game, title=test_name,
+                 screenshots_dir=SCREENSHOTS_DIR)
 
 
     def test_ball_collision(self):
@@ -72,32 +72,12 @@ class ODEPhysicsTests(TestCase):
         i = 0
         n_events = self.physics.strike_ball(0.0, i, Q, self.cue.velocity, self.cue.mass)
         _logger.debug('strike on %d resulted in %d events', i, n_events)
-        fig = plt.figure()
-        plt.xlabel('$t$ (seconds)')
-        plt.ylabel('$x, y, z$ (meters)')
         events = self.physics.events
-        for e in events:
-            plt.axvline(e.t)
-            if e.T < float('inf'):
-                plt.axvline(e.t + e.T)
-        plt.axhline(self.table.height)
-        plt.axhline(-0.5 * self.table.length)
-        ts = np.linspace(events[0].t, events[-1].t, 50)
-        ts = np.concatenate([[a.t] + list(ts[(ts >= a.t) & (ts < b.t)]) + [b.t]
-                             for a, b in zip(events[:-1], events[1:])])
-        for i, ls, xyz in zip(range(3), ['-o', '-s', '-d'], 'xyz'):
-            plt.plot(ts, [self.physics.eval_positions(t)[0,i] for t in ts], ls, label='$%s$' % xyz)
-        plt.legend()
-        plt.show()
-        # energy plot:
-        plt.figure()
-        plt.xlabel('$t$ (seconds)')
-        plt.ylabel('energy (Joules)')
-        for e in events:
-            plt.axvline(e.t)
-            if e.T < float('inf'):
-                plt.axvline(e.t + e.T)
-        plt.axhline(self.table.height)
-        plt.axhline(-0.5 * self.table.length)
-        plt.plot(ts, [self.physics._calc_energy(t) for t in ts], '-xy')
-        plt.show()
+        test_name = 'ODE_' + traceback.extract_stack(None, 1)[0][2]
+        plot_ball_motion(i, self.game, title=test_name)
+        savefig(os.path.join(PLOTS_DIR, test_name + '.png'))
+        # plot_energy(self.game, title=test_name + ' - energy')
+        # savefig(os.path.join(PLOTS_DIR, test_name + '_energy.png'))
+        if self.show:
+            show(self.game, title=test_name,
+                 screenshots_dir=SCREENSHOTS_DIR)
