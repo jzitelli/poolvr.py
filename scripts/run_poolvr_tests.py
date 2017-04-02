@@ -1,7 +1,6 @@
 import unittest
 import logging
 import argparse
-import sys
 
 
 from tests.physics_tests import *

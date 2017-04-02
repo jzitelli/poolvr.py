@@ -1,15 +1,22 @@
 import pkgutil
+import os.path
 from ctypes import c_void_p
 import numpy as np
-import PIL.Image as Image
 import OpenGL.GL as gl
 import OpenGL.error
 
-from .gl_rendering import Node, Technique, Program, DTYPE_COMPONENT_TYPE
+
+from .gl_rendering import Node, Technique, Program, DTYPE_COMPONENT_TYPE, Texture
 from .primitives import PlanePrimitive
 
 
 NULL_PTR = c_void_p(0)
+
+
+# TODO: pkgutils way
+TEXTURES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            os.path.pardir,
+                            'textures')
 
 
 class BillboardParticles(Node):
@@ -83,3 +90,20 @@ class BillboardParticles(Node):
         # for location in self.technique.attribute_locations.values():
         #     gl.glDisableVertexAttribArray(location)
         self.technique.release()
+
+
+class BillboardGrid(BillboardParticles):
+    def __init__(self, texture, nrows=64, ncols=64,
+                 index_to_texcoords=None, **kwargs):
+        BillboardParticles.__init__(self, texture, num_particles=nrows*ncols, **kwargs)
+        self.nrows = nrows
+        self.ncols = ncols
+        self.index_to_texcoords = index_to_texcoords
+
+
+class TextMesh(BillboardGrid):
+    TEXTURE_URI = os.path.join(TEXTURES_DIR, 'chars.png')
+    INDEX_TO_TEXCOORDS = np.zeros((95,4,2), dtype=np.uint8)
+    def __init__(self, nrows=64, ncols=64, **kwargs):
+        BillboardGrid.__init__(self, Texture(self.TEXTURE_URI), nrows=nrows, ncols=ncols,
+                               index_to_texcoords=self.INDEX_TO_TEXCOORDS, **kwargs)

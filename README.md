@@ -13,6 +13,8 @@ VR pool simulator written in Python (using [pyopenvr](https://github.com/cmbruns
 - numpy
 - pillow
 - matplotlib
+- python-sounddevice
+- soundfile
 
 Time-stepped physics using the [Open Dynamics Engine](https://github.com/jzitelli/ode) is also supported if the ODE library with Python bindings is installed.
 

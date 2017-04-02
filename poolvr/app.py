@@ -14,18 +14,16 @@ import cyglfw3 as glfw
 _logger = logging.getLogger('poolvr')
 
 
-from .exceptions import TODO
 from .gl_rendering import OpenGLRenderer, Texture, Mesh, Material, set_matrix_from_quaternion
 try:
     from .pyopenvr_renderer import openvr, OpenVRRenderer
 except ImportError as err:
     OpenVRRenderer = None
-from .techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
 from .primitives import SpherePrimitive
+from .techniques import LAMBERT_TECHNIQUE
 from .billboards import BillboardParticles
 from .cue import PoolCue
 from .game import PoolGame
-from .physics import PoolPhysics
 from .keyboard_controls import init_keyboard
 from .mouse_controls import init_mouse
 # from .gl_text import TexturedText
@@ -163,8 +161,8 @@ def main(window_size=(800,600),
                 hmd_pose = poses[0]
                 if len(poses) > 1:
                     pose = poses[-1]
-                    cue.world_matrix[:3,:3] = poses[-1][:,:3].dot(cue.rotation).T
-                    cue.world_matrix[3,:3] = poses[-1][:,3]
+                    cue.world_matrix[:3,:3] = pose[:,:3].dot(cue.rotation).T
+                    cue.world_matrix[3,:3] = pose[:,3]
                     cue.velocity[:] = velocities[-1]
                     cue.angular_velocity = angular_velocities[-1]
                     if game.t >= game.ntt:

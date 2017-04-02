@@ -7,6 +7,7 @@ from .techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
 
 
 INCH2METER = 0.0254
+SQRT2 = np.sqrt(2)
 
 
 class PoolTable(object):
@@ -34,24 +35,24 @@ class PoolTable(object):
         H_rail = 1.25 * H_cushion
         H_nose = 0.5 * H_cushion
         W_nose = 0.05 * W_cushion
-        sqrt2 = np.sqrt(2)
+
         self.headCushionGeom = HexaPrimitive(vertices=np.array([
             # bottom quad:
             [[-0.5*W_playable + 0.4*W_cushion,       0.0,           0.5*W_cushion],
              [ 0.5*W_playable - 0.4*W_cushion,       0.0,           0.5*W_cushion],
-             [ 0.5*W_playable - 1.2*sqrt2*W_cushion, 0.0, -0.5*W_cushion + W_nose],
-             [-0.5*W_playable + 1.2*sqrt2*W_cushion, 0.0, -0.5*W_cushion + W_nose]],
+             [ 0.5*W_playable - 1.2*SQRT2*W_cushion, 0.0, -0.5*W_cushion + W_nose],
+             [-0.5*W_playable + 1.2*SQRT2*W_cushion, 0.0, -0.5*W_cushion + W_nose]],
             # top quad:
             [[-0.5*W_playable + 0.4*W_cushion,       H_rail,     0.5*W_cushion],
              [ 0.5*W_playable - 0.4*W_cushion,       H_rail,     0.5*W_cushion],
-             [ 0.5*W_playable - 1.2*sqrt2*W_cushion, H_cushion, -0.5*W_cushion],
-             [-0.5*W_playable + 1.2*sqrt2*W_cushion, H_cushion, -0.5*W_cushion]]], dtype=np.float32))
+             [ 0.5*W_playable - 1.2*SQRT2*W_cushion, H_cushion, -0.5*W_cushion],
+             [-0.5*W_playable + 1.2*SQRT2*W_cushion, H_cushion, -0.5*W_cushion]]], dtype=np.float32))
         self.headCushionGeom.attributes['vertices'].reshape(-1,3)[:,1] += self.height
         self.headCushionGeom.attributes['vertices'].reshape(-1,3)[:,2] += 0.5 * self.length - 0.5*W_cushion
         self.headCushionGeom.attributes['a_position'] = self.headCushionGeom.attributes['vertices']
+
         vertices = self.headCushionGeom.attributes['vertices'].copy()
         vertices.reshape(-1,3)[:,2] *= -1
         self.footCushionGeom = HexaPrimitive(vertices=vertices)
         self.footCushionGeom.attributes['a_position'] = self.footCushionGeom.attributes['vertices']
-        # self.footCushionGeom.attributes['normals']
         self.mesh = Mesh({surface_material: [surface, self.headCushionGeom, self.footCushionGeom]})
