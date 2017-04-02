@@ -76,7 +76,6 @@ def main(window_size=(800,600),
 
     Performs initializations, setups, kicks off the render loop.
     """
-    from .sound import open_output_stream
     _logger.info('HELLO')
     game = PoolGame(use_simple_ball_collisions=use_simple_ball_collisions)
     if use_ode_physics and ODEPoolPhysics is not None:

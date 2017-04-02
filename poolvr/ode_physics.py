@@ -30,31 +30,6 @@ def _create_ball(ball_mass, ball_radius, world, space=None):
     return body, geom
 
 
-def _near_callback(args, geom1, geom2):
-    world, contactgroup = args
-    contacts = ode.collide(geom1, geom2)
-    for c in contacts:
-        if isinstance(geom1, ode.GeomPlane) or isinstance(geom2, ode.GeomPlane):
-            c.setBounce(0.13)
-            c.setMu(0.15)
-            c.setBounceVel(0.3)
-            c.setSoftERP(0.4)
-            c.setSoftCFM(1e4)
-            c.setSlip1(0.03)
-        elif isinstance(geom1, ode.GeomTriMesh) or isinstance(geom2, ode.GeomTriMesh):
-            c.setBounce(0.83)
-            c.setMu(0.15)
-            c.setBounceVel(0.07)
-            c.setSoftERP(0.4)
-            c.setSoftCFM(1e4)
-            c.setSlip1(0.03)
-        else:
-            c.setBounce(0.93)
-            c.setMu(0.06)
-        j = ode.ContactJoint(world, contactgroup, c)
-        j.attach(geom1.getBody(), geom2.getBody())
-
-
 class ODEPoolPhysics(object):
     PhysicsEvent = PoolPhysics.PhysicsEvent
     StrikeBallEvent = PoolPhysics.StrikeBallEvent
@@ -238,6 +213,7 @@ class ODEPoolPhysics(object):
         self.ball_events[event.i].append(event)
 
     def _near_callback(self, args, geom1, geom2):
+        from .sound import play_ball_ball_collision_sound
         world, contactgroup = args
         try:
             i = self.ball_geoms.index(geom1)
@@ -252,6 +228,8 @@ class ODEPoolPhysics(object):
         except:
             pass
         contacts = ode.collide(geom1, geom2)
+        if contacts:
+            body1, body2 = geom1.getBody(), geom2.getBody()
         for c in contacts:
             if isinstance(geom1, ode.GeomPlane) or isinstance(geom2, ode.GeomPlane):
                 c.setBounce(0.13)
@@ -260,8 +238,18 @@ class ODEPoolPhysics(object):
                 c.setSoftERP(0.4)
                 c.setSoftCFM(1e4)
                 c.setSlip1(0.03)
+            elif isinstance(geom1, ode.GeomTriMesh) or isinstance(geom2, ode.GeomTriMesh):
+                c.setBounce(0.83)
+                c.setMu(0.15)
+                c.setBounceVel(0.07)
+                c.setSoftERP(0.4)
+                c.setSoftCFM(1e4)
+                c.setSlip1(0.03)
             else:
                 c.setBounce(0.93)
                 c.setMu(0.06)
+                pos, normal, depth, g1, g2 = c.getContactGeomParams()
+                v_n = np.array(normal).dot(np.array(body1.getLinearVel()) - np.array(body2.getLinearVel()))
+                play_ball_ball_collision_sound(vol=(v_n**2 / 5))
             j = ode.ContactJoint(world, contactgroup, c)
-            j.attach(geom1.getBody(), geom2.getBody())
+            j.attach(body1, body2)

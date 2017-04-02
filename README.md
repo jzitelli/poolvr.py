@@ -1,6 +1,6 @@
 # poolvr.py
 
-VR pool simulator written in Python (using pyopenvr)
+VR pool simulator written in Python (using [pyopenvr](https://github.com/cmbruns/pyopenvr))
 
 ![screenshot](https://jzitelli.github.io/poolvr.py/images/screenshots/Screenshot%202017-04-01%2013.39.21.png)
 
