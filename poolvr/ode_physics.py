@@ -58,7 +58,7 @@ class ODEPoolPhysics(object):
                  E_Y_b=2.4e9,
                  g=9.81,
                  linear_damping=0.012,
-                 angular_damping=0.02,
+                 angular_damping=0.013,
                  initial_positions=None,
                  table=None,
                  **kwargs):

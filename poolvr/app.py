@@ -88,7 +88,9 @@ def main(window_size=(800,600),
     cue.position[1] = game.table.height + 0.1
     ball_radius = physics.ball_radius
     game.reset()
-    game.table.setup_balls(game.ball_positions, use_billboards=use_billboards)
+    game.table.setup_balls(game.ball_radius, game.ball_colors[:9], game.ball_positions,
+                           striped_balls=set(range(9, game.num_balls)),
+                           use_billboards=use_billboards)
     window, fallback_renderer = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=novr, multisample=multisample)
     if not novr and OpenVRRenderer is not None:
         try:
