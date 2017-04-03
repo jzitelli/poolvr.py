@@ -69,7 +69,8 @@ def main(window_size=(800,600),
          novr=False,
          use_simple_ball_collisions=False,
          use_ode_physics=False,
-         multisample=0):
+         multisample=0,
+         use_billboards=False):
     """
     The main routine.
 
@@ -87,7 +88,7 @@ def main(window_size=(800,600),
     cue.position[1] = game.table.height + 0.1
     ball_radius = physics.ball_radius
     game.reset()
-
+    game.table.setup_balls(game.ball_positions, use_billboards=use_billboards)
     window, fallback_renderer = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=novr, multisample=multisample)
     if not novr and OpenVRRenderer is not None:
         try:
@@ -110,34 +111,19 @@ def main(window_size=(800,600),
         process_mouse_input(dt, cue)
 
     # textured_text = TexturedText()
+    meshes = [game.table.mesh] + game.table.ball_meshes + [cue]
 
-    ball_billboards = BillboardParticles(Texture(os.path.join(TEXTURES_DIR, 'ball.png')), num_particles=game.num_balls,
-                                         scale=2*physics.ball_radius,
-                                         color=np.array([[(c&0xff0000) / 0xff0000, (c&0x00ff00) / 0x00ff00, (c&0x0000ff) / 0x0000ff]
-                                                         for c in game.ball_colors], dtype=np.float32),
-                                         translate=game.ball_positions)
-    ball_positions = ball_billboards.primitive.attributes['translate']
-    ball_quaternions = np.zeros((game.num_balls, 4), dtype=np.float32)
-    ball_quaternions[:,3] = 1
-    sphere_meshes = [Mesh({Material(LAMBERT_TECHNIQUE,
-                                    values={'u_color': [(c&0xff0000) / 0xff0000,
-                                                        (c&0x00ff00) / 0x00ff00,
-                                                        (c&0x0000ff) / 0x0000ff,
-                                                        0.0]})
-                           : [SpherePrimitive(radius=ball_radius)]})
-                     for c in game.ball_colors]
-    for mesh in sphere_meshes:
-        list(mesh.primitives.values())[0][0].attributes['a_position'] = list(mesh.primitives.values())[0][0].attributes['vertices']
-    sphere_positions = [mesh.world_matrix[3,:3] for mesh in sphere_meshes]
-    ball_rotations = [mesh.world_matrix[:3,:3].T for mesh in sphere_meshes]
-    # meshes = [game.table.mesh, ball_billboards, cue]
-    meshes = [game.table.mesh] + sphere_meshes + [cue]
+    for mesh in meshes:
+        mesh.init_gl()
+
+    ball_positions = game.table.ball_positions
+    ball_quaternions = game.table.ball_quaternions
+    sphere_positions = [mesh.world_matrix[3,:3] for mesh in game.table.ball_meshes]
+    sphere_rotations = [mesh.world_matrix[:3,:3].T for mesh in game.table.ball_meshes]
 
     gl.glViewport(0, 0, window_size[0], window_size[1])
     gl.glClearColor(*BG_COLOR)
     gl.glEnable(gl.GL_DEPTH_TEST)
-    for mesh in meshes:
-        mesh.init_gl()
 
     #sound.init()
 
@@ -180,16 +166,7 @@ def main(window_size=(800,600),
                                 physics.strike_ball(game.t, i, poc, cue.velocity, cue.mass)
                                 game.ntt = physics.next_turn_time()
                                 break
-                physics.eval_positions(game.t, out=ball_positions)
-                physics.eval_quaternions(game.t, out=ball_quaternions)
                 ball_positions[~physics.on_table] = hmd_pose[:,3] # hacky way to only show balls that are on table
-                for i, pos in enumerate(ball_positions):
-                    sphere_positions[i][:] = pos
-                for i, quat in enumerate(ball_quaternions):
-                    set_matrix_from_quaternion(quat, ball_rotations[i])
-                # ball_billboards.update_gl()
-                # textured_text.set_text("%9.3f" % dt)
-                # textured_text.update_gl()
 
             ##### desktop mode: #####
 
@@ -202,18 +179,20 @@ def main(window_size=(800,600),
                             physics.strike_ball(game.t, i, poc, cue.velocity, cue.mass)
                             game.ntt = physics.next_turn_time()
                             break
-                physics.eval_positions(game.t, out=ball_positions)
-                physics.eval_quaternions(game.t, out=ball_quaternions)
                 ball_positions[~physics.on_table] = renderer.camera_position # hacky way to only show balls that are on table
-                for i, pos in enumerate(ball_positions):
-                    sphere_positions[i][:] = pos
-                for i, quat in enumerate(ball_quaternions):
-                    set_matrix_from_quaternion(quat, ball_rotations[i])
-                # ball_billboards.update_gl()
-                # textured_text.set_text("%9.3f" % dt)
-                # textured_text.update_gl()
+
+            # ball_billboards.update_gl()
+            # textured_text.set_text("%9.3f" % dt)
+            # textured_text.update_gl()
 
         physics.step(dt)
+        physics.eval_positions(game.t, out=ball_positions)
+        physics.eval_quaternions(game.t, out=ball_quaternions)
+        for i, pos in enumerate(ball_positions):
+            sphere_positions[i][:] = pos
+        for i, quat in enumerate(ball_quaternions):
+            set_matrix_from_quaternion(quat, sphere_rotations[i])
+
         game.t += dt
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:

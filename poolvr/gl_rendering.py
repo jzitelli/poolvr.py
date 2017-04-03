@@ -11,7 +11,11 @@ c_float_p = POINTER(c_float)
 
 
 NULL_PTR = c_void_p(0)
+
+
 CHECK_GL_ERRORS = False
+
+
 DTYPE_COMPONENT_TYPE = {
     np.dtype(np.uint16): gl.GL_UNSIGNED_SHORT,
     np.dtype(np.uint32): gl.GL_UNSIGNED_INT,
@@ -20,6 +24,8 @@ DTYPE_COMPONENT_TYPE = {
     np.dtype(np.float32): gl.GL_FLOAT
 }
 DTYPE_COMPONENT_TYPE_INV = {v: k for k, v in DTYPE_COMPONENT_TYPE.items()}
+
+
 GLSL_TYPE_SPEC = {
     'float': gl.GL_FLOAT,
     'vec2': gl.GL_FLOAT_VEC2,
@@ -101,7 +107,7 @@ class Technique(object):
     GL rendering technique (based off of Technique defined by glTF schema)
     """
     _current = None
-    def __init__(self, program, attributes=None, uniforms=None, states=None):
+    def __init__(self, program, attributes=None, uniforms=None, states=None, attribute_divisors=None):
         self.program = program
         if attributes is None:
             attributes = {}
@@ -112,6 +118,9 @@ class Technique(object):
         if states is None:
             states = []
         self.states = states
+        if attribute_divisors is None:
+            attribute_divisors = {}
+        self.attribute_divisors = attribute_divisors
     def init_gl(self, force=False):
         if force:
             Technique._current = None
@@ -130,7 +139,8 @@ class Technique(object):
 
 
 class Primitive(object):
-    def __init__(self, mode, indices, index_buffer=None, attribute_usage=None, **attributes):
+    def __init__(self, mode, indices, index_buffer=None, attribute_usage=None, attribute_divisors=None,
+                 **attributes):
         """
 
         A class for specifying GL vertex attribute objects and providing vertex buffer data
@@ -298,30 +308,6 @@ class Material(object):
                 if err != gl.GL_NO_ERROR:
                     raise Exception('error setting material state: %d' % err)
         Material._current = self
-    def set_uniform_value(self, uniform_name, value):
-        uniform = self.technique.uniforms[uniform_name]
-        uniform_type = uniform['type']
-        location = self.technique.uniform_locations[uniform_name]
-        if uniform_type == gl.GL_SAMPLER_2D:
-            raise Exception('TODO')
-        elif uniform_type == gl.GL_FLOAT:
-            gl.glUniform1f(location, value)
-        elif uniform_type == gl.GL_FLOAT_VEC2:
-            gl.glUniform2f(location, *value)
-        elif uniform_type == gl.GL_FLOAT_VEC3:
-            gl.glUniform3f(location, *value)
-        elif uniform_type == gl.GL_FLOAT_VEC4:
-            gl.glUniform4f(location, *value)
-        elif uniform_type == gl.GL_FLOAT_MAT3:
-            gl.glUniformMatrix3fv(location, 1, False, value)
-        elif uniform_type == gl.GL_FLOAT_MAT4:
-            gl.glUniformMatrix4fv(location, 1, False, value)
-        else:
-            raise Exception('unhandled uniform type: %d' % uniform_type)
-        if CHECK_GL_ERRORS:
-            err = gl.glGetError()
-            if err != gl.GL_NO_ERROR:
-                raise Exception('error setting material state: %d' % err)
     def release(self):
         Material._current = None
 
@@ -338,6 +324,7 @@ class Node(object):
             matrix = np.eye(4, dtype=np.float32)
         self.matrix = matrix
         self.world_matrix = matrix.copy()
+        self.world_position = self.world_matrix[3,:3]
         self.children = []
     def update_world_matrices(self, world_matrix=None):
         """
@@ -356,7 +343,6 @@ class Node(object):
 
 class Mesh(Node):
     _modelview = np.eye(4, dtype=np.float32)
-    _modelview_inverse = np.eye(4, dtype=np.float32)
     _normal = np.eye(3, dtype=np.float32)
     def __init__(self, primitives, matrix=None):
         """
@@ -389,6 +375,8 @@ class Mesh(Node):
                                              DTYPE_COMPONENT_TYPE[attribute.dtype], False,
                                              attribute.dtype.itemsize * attribute.shape[-1],
                                              NULL_PTR)
+                    if attribute_name in technique.attribute_divisors:
+                        gl.glVertexAttribDivisor(location, technique.attribute_divisors[attribute_name])
                 gl.glBindVertexArray(0)
                 for location in technique.attribute_locations.values():
                     gl.glDisableVertexAttribArray(location)
@@ -400,7 +388,6 @@ class Mesh(Node):
     def draw(self, view=None, projection=None):
         if view is not None:
             self.world_matrix.dot(view, out=self._modelview)
-            self._modelview_inverse = np.linalg.inv(self._modelview)
             self._normal[:] = np.linalg.inv(self._modelview[:3,:3].T)
         for material, prims in self.primitives.items():
             material.use(u_view=view, u_projection=projection, u_modelview=self._modelview, u_normal=self._normal)

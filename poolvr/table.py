@@ -56,3 +56,26 @@ class PoolTable(object):
         self.footCushionGeom = HexaPrimitive(vertices=vertices)
         self.footCushionGeom.attributes['a_position'] = self.footCushionGeom.attributes['vertices']
         self.mesh = Mesh({surface_material: [surface, self.headCushionGeom, self.footCushionGeom]})
+    def setup_balls(self, ball_positions, use_billboards=False):
+        self.ball_positions = ball_positions
+        self.ball_quaternions = np.zeros((self.num_balls, 4), dtype=np.float32)
+        self.ball_quaternions[:,3] = 1
+        if use_billboards:
+            self.ball_billboards = BillboardParticles(Texture(os.path.join(TEXTURES_DIR, 'ball.png')), num_particles=self.num_balls,
+                                                      scale=2*physics.ball_radius,
+                                                      color=np.array([[(c&0xff0000) / 0xff0000, (c&0x00ff00) / 0x00ff00, (c&0x0000ff) / 0x0000ff]
+                                                                      for c in self.ball_colors], dtype=np.float32),
+                                                      translate=self.ball_positions)
+            self.ball_meshes = [ball_billboards]
+        else:
+            ball_meshes = [Mesh({Material(LAMBERT_TECHNIQUE,
+                                          values={'u_color': [(c&0xff0000) / 0xff0000,
+                                                              (c&0x00ff00) / 0x00ff00,
+                                                              (c&0x0000ff) / 0x0000ff,
+                                                              0.0]})
+                                 : [SpherePrimitive(radius=self.ball_radius)]})
+                           for c in self.ball_colors]
+            for i, mesh in enumerate(ball_meshes):
+                list(mesh.primitives.values())[0][0].attributes['a_position'] = list(mesh.primitives.values())[0][0].attributes['vertices']
+                mesh.world_position[:] = ball_positions[i]
+            self.ball_meshes = ball_meshes
