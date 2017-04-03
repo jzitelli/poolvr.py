@@ -15,6 +15,7 @@ class OpenVRRenderer(object):
         self.vr_system = openvr.init(openvr.VRApplication_Scene)
         w, h = self.vr_system.getRecommendedRenderTargetSize()
         self.window_size = window_size
+        self.multisample = multisample
         self.vr_framebuffers = (OpenVRFramebuffer(w, h, multisample=multisample),
                                 OpenVRFramebuffer(w, h, multisample=multisample))
         self.vr_compositor = openvr.VRCompositor()
@@ -76,8 +77,10 @@ class OpenVRRenderer(object):
                 for mesh in meshes:
                     mesh.draw(projection=self.projection_matrices[eye],
                               view=self.view_matrices[eye])
-        self.vr_compositor.submit(openvr.Eye_Left, self.vr_framebuffers[0].texture)
-        self.vr_compositor.submit(openvr.Eye_Right, self.vr_framebuffers[1].texture)
+        #self.vr_compositor.submit(openvr.Eye_Left, self.vr_framebuffers[0].texture)
+        self.vr_framebuffers[0].submit(openvr.Eye_Left)
+        #self.vr_compositor.submit(openvr.Eye_Right, self.vr_framebuffers[1].texture)
+        self.vr_framebuffers[1].submit(openvr.Eye_Right)
         # mirror left eye framebuffer to screen:
         gl.glBlitNamedFramebuffer(self.vr_framebuffers[0].fb, 0,
                                   0, 0, self.vr_framebuffers[0].width, self.vr_framebuffers[0].height,

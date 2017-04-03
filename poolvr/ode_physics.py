@@ -7,8 +7,8 @@ import ode
 
 
 from .table import PoolTable
-from .exceptions import TODO
-from .physics import _I, _J, _K, PoolPhysics
+from .physics import _J, PoolPhysics
+#from .sound import play_ball_ball_collision_sound
 
 
 _logger = logging.getLogger(__name__)
@@ -213,7 +213,6 @@ class ODEPoolPhysics(object):
         self.ball_events[event.i].append(event)
 
     def _near_callback(self, args, geom1, geom2):
-        from .sound import play_ball_ball_collision_sound
         world, contactgroup = args
         try:
             i = self.ball_geoms.index(geom1)
@@ -248,8 +247,8 @@ class ODEPoolPhysics(object):
             else:
                 c.setBounce(0.93)
                 c.setMu(0.06)
-                pos, normal, depth, g1, g2 = c.getContactGeomParams()
-                v_n = np.array(normal).dot(np.array(body1.getLinearVel()) - np.array(body2.getLinearVel()))
-                play_ball_ball_collision_sound(vol=(v_n**2 / 5))
+                #pos, normal, depth, g1, g2 = c.getContactGeomParams()
+                #v_n = np.array(normal).dot(np.array(body1.getLinearVel()) - np.array(body2.getLinearVel()))
+                #play_ball_ball_collision_sound(vol=(v_n**2 / 5))
             j = ode.ContactJoint(world, contactgroup, c)
             j.attach(body1, body2)

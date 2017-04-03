@@ -90,31 +90,3 @@ class BillboardParticles(Node):
         # for location in self.technique.attribute_locations.values():
         #     gl.glDisableVertexAttribArray(location)
         self.technique.release()
-
-
-class BillboardGrid(BillboardParticles):
-    def __init__(self, texture, nrows=64, ncols=64,
-                 index_to_texcoords=None, **kwargs):
-        BillboardParticles.__init__(self, texture, num_particles=nrows*ncols, **kwargs)
-        self.nrows = nrows
-        self.ncols = ncols
-        self.index_to_texcoords = index_to_texcoords
-
-
-class TextMesh(BillboardGrid):
-    TEXTURE_URI = os.path.join(TEXTURES_DIR, 'chars.png')
-    COL_WIDTH = 28
-    ROW_HEIGHT = 40
-    INDEX_TO_TEXCOORDS = np.zeros((95,4,2), dtype=np.float32)
-    INDEX_TO_TEXCOORDS[:19,0,0] = [COL_WIDTH * i for i in range(19)]
-    INDEX_TO_TEXCOORDS[:19,0,1] = ROW_HEIGHT
-    INDEX_TO_TEXCOORDS[19:2*19,0,0] = [COL_WIDTH * i for i in range(19)]
-    INDEX_TO_TEXCOORDS[19:2*19,0,1] = ROW_HEIGHT
-    INDEX_TO_TEXCOORDS[:,1::2,0] = INDEX_TO_TEXCOORDS[:,1::2,0] + COL_WIDTH
-    INDEX_TO_TEXCOORDS[:,2,0] = INDEX_TO_TEXCOORDS[:,0,0]
-    INDEX_TO_TEXCOORDS[:,2,1] = INDEX_TO_TEXCOORDS[:,0,1] + ROW_HEIGHT
-    def __init__(self, nrows=64, ncols=64, **kwargs):
-        BillboardGrid.__init__(self, Texture(self.TEXTURE_URI), nrows=nrows, ncols=ncols,
-                               index_to_texcoords=self.INDEX_TO_TEXCOORDS, **kwargs)
-    def _char_texcoords(self, c):
-        pass

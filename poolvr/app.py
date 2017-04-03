@@ -22,11 +22,12 @@ except ImportError as err:
 from .primitives import SpherePrimitive
 from .techniques import LAMBERT_TECHNIQUE
 from .billboards import BillboardParticles
+# from .gl_text import TexturedText
 from .cue import PoolCue
 from .game import PoolGame
 from .keyboard_controls import init_keyboard
 from .mouse_controls import init_mouse
-# from .gl_text import TexturedText
+#from . import sound
 try:
     from .ode_physics import ODEPoolPhysics
 except ImportError as err:
@@ -43,7 +44,7 @@ TEXTURES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             'textures')
 
 
-def setup_glfw(width=800, height=600, double_buffered=False, title="poolvr.py 0.0.1"):
+def setup_glfw(width=800, height=600, double_buffered=False, title="poolvr.py 0.0.1", multisample=0):
     if not glfw.Init():
         raise Exception('failed to initialize glfw')
     if not double_buffered:
@@ -64,11 +65,11 @@ def setup_glfw(width=800, height=600, double_buffered=False, title="poolvr.py 0.
     return window, renderer
 
 
-
 def main(window_size=(800,600),
          novr=False,
          use_simple_ball_collisions=False,
-         use_ode_physics=False):
+         use_ode_physics=False,
+         multisample=0):
     """
     The main routine.
 
@@ -87,10 +88,10 @@ def main(window_size=(800,600),
     ball_radius = physics.ball_radius
     game.reset()
 
-    window, fallback_renderer = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=novr)
+    window, fallback_renderer = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=novr, multisample=multisample)
     if not novr and OpenVRRenderer is not None:
         try:
-            renderer = OpenVRRenderer(window_size=window_size)
+            renderer = OpenVRRenderer(window_size=window_size, multisample=multisample)
             button_press_callbacks = {openvr.k_EButton_Grip: game.reset,
                                       openvr.k_EButton_ApplicationMenu: game.advance_time}
         except Exception as err:
@@ -137,6 +138,8 @@ def main(window_size=(800,600),
     gl.glEnable(gl.GL_DEPTH_TEST)
     for mesh in meshes:
         mesh.init_gl()
+
+    #sound.init()
 
     _logger.info('entering render loop...')
     sys.stdout.flush()
