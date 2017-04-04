@@ -32,7 +32,8 @@ def show(game,
          before_frame_cb=None, after_frame_cb=None,
          double_buffered=True,
          playback_rate=1.0,
-         screenshots_dir=''):
+         screenshots_dir='',
+         use_billboards=False):
     if not glfw.Init():
         raise Exception('failed to initialize glfw')
     if not double_buffered:
@@ -49,12 +50,13 @@ def show(game,
         renderer.window_size = (width, height)
         renderer.update_projection_matrix()
     glfw.SetWindowSizeCallback(window, on_resize)
-    gl.glClearColor(*gl_clear_color)
-    gl.glViewport(0, 0, window_size[0], window_size[1])
-    gl.glEnable(gl.GL_DEPTH_TEST)
+
     table = game.table
     physics = game.physics
     ball_radius = game.ball_radius
+    table.setup_balls(game.ball_radius, game.ball_colors[:9], game.ball_positions,
+                      striped_balls=set(range(9, game.num_balls)),
+                      use_billboards=use_billboards)
     camera_world_matrix = renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
     camera_position[1] = table.height + 0.19
@@ -67,29 +69,19 @@ def show(game,
         renderer.update_projection_matrix()
     glfw.SetWindowSizeCallback(window, on_resize)
     process_keyboard_input = init_keyboard(window)
-    ball_billboards = BillboardParticles(Texture(os.path.join(TEXTURES_DIR, 'ball.png')), num_particles=game.num_balls,
-                                         scale=2*ball_radius,
-                                         color=np.array([[(c&0xff0000) / 0xff0000, (c&0x00ff00) / 0x00ff00, (c&0x0000ff) / 0x0000ff]
-                                                         for c in game.ball_colors], dtype=np.float32),
-                                         translate=game.ball_positions)
-    ball_positions = ball_billboards.primitive.attributes['translate']
-    sphere_meshes = [Mesh({Material(LAMBERT_TECHNIQUE,
-                                    values={'u_color': [(c&0xff0000) / 0xff0000,
-                                                        (c&0x00ff00) / 0x00ff00,
-                                                        (c&0x0000ff) / 0x0000ff,
-                                                        0.0]})
-                           : [SpherePrimitive(radius=ball_radius)]})
-                     for c in game.ball_colors]
-    for mesh in sphere_meshes:
-        list(mesh.primitives.values())[0][0].attributes['a_position'] = list(mesh.primitives.values())[0][0].attributes['vertices']
-    sphere_positions = [mesh.world_matrix[3,:3] for mesh in sphere_meshes]
-    ball_quaternions = np.zeros((game.num_balls, 4), dtype=np.float32)
-    ball_quaternions[:,3] = 1
-    ball_rotations = [mesh.world_matrix[:3,:3].T for mesh in sphere_meshes]
-    # meshes = [game.table.mesh, ball_billboards, cue] + sphere_meshes
-    meshes = [table.mesh] + sphere_meshes
+
+    meshes = [table.mesh] + table.ball_meshes #+ [cue]
     for mesh in meshes:
         mesh.init_gl(force=True)
+
+    ball_positions = game.table.ball_positions
+    ball_quaternions = game.table.ball_quaternions
+    sphere_positions = [mesh.world_matrix[3,:3] for mesh in game.table.ball_meshes]
+    sphere_rotations = [mesh.world_matrix[:3,:3].T for mesh in game.table.ball_meshes]
+
+    gl.glViewport(0, 0, window_size[0], window_size[1])
+    gl.glClearColor(*gl_clear_color)
+    gl.glEnable(gl.GL_DEPTH_TEST)
 
     _logger.info('entering render loop...')
     stdout.flush()
@@ -108,23 +100,22 @@ def show(game,
         process_keyboard_input(dt, camera_world_matrix, cue=cue)
         renderer.process_input()
         with renderer.render(meshes=meshes) as frame_data:
-            physics.eval_positions(pt, out=ball_positions)
-            physics.eval_quaternions(game.t, out=ball_quaternions)
             ball_positions[~physics.on_table] = renderer.camera_position # hacky way to only show balls that are on table
-            for i, pos in enumerate(ball_positions):
-                if not physics.on_table[i]:
-                    sphere_positions[i][:] = renderer.camera_position
-                else:
-                    sphere_positions[i][:] = pos
-            for i, quat in enumerate(ball_quaternions):
-                set_matrix_from_quaternion(quat, ball_rotations[i])
             # ball_billboards.update_gl()
+
+        physics.step(dt)
+        physics.eval_positions(pt, out=ball_positions)
+        physics.eval_quaternions(pt, out=ball_quaternions)
+        for i, pos in enumerate(ball_positions):
+            sphere_positions[i][:] = pos
+        for i, quat in enumerate(ball_quaternions):
+            set_matrix_from_quaternion(quat, sphere_rotations[i])
+
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:
             st = glfw.GetTime()
         nframes += 1
         pt += dt * playback_rate
-        physics.step(dt)
         glfw.SwapBuffers(window)
 
     _logger.info('...exited render loop: average FPS: %f, maximum frame time: %f',
