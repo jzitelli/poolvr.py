@@ -101,11 +101,13 @@ class PoolTable(object):
         ball_materials += ball_materials[1:-1]
         num_balls = len(ball_materials)
         sphere_prim = SpherePrimitive(radius=ball_radius)
+        sphere_prim.attributes['a_position'] = sphere_prim.attributes['vertices']
         if striped_balls is None:
             striped_balls = set()
         else:
             stripe_prim = SpherePrimitive(radius=1.012*ball_radius, phiStart=0.0, phiLength=2*np.pi,
                                           thetaStart=np.pi/3, thetaLength=np.pi/3)
+            stripe_prim.attributes['a_position'] = stripe_prim.attributes['vertices']
         self.ball_positions = ball_positions
         self.ball_quaternions = np.zeros((num_balls, 4), dtype=np.float32)
         self.ball_quaternions[:,3] = 1
@@ -122,6 +124,5 @@ class PoolTable(object):
                            Mesh({ball_materials[0]: [sphere_prim], material: [stripe_prim]})
                            for i, material in enumerate(ball_materials)]
             for i, mesh in enumerate(ball_meshes):
-                list(mesh.primitives.values())[0][0].attributes['a_position'] = list(mesh.primitives.values())[0][0].attributes['vertices']
                 mesh.world_position[:] = ball_positions[i]
             self.ball_meshes = ball_meshes
