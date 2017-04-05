@@ -1,6 +1,6 @@
 import os.path
 import numpy as np
-
+import itertools
 
 from .gl_rendering import Mesh, Material, Texture
 from .primitives import BoxPrimitive, PlanePrimitive, HexaPrimitive, SpherePrimitive
@@ -24,7 +24,7 @@ class PoolTable(object):
                  height=0.77,
                  width=None,
                  width_rail=2*INCH2METER,
-                 W_cushion=2*INCH2METER,
+                 W_cushion=1.6*INCH2METER,
                  H_cushion=0.635*2.25*INCH2METER,
                  **kwargs):
         self.length = length
@@ -36,17 +36,16 @@ class PoolTable(object):
         self.width = width
         self.width_rail = width_rail
         #surface_material = Material(LAMBERT_TECHNIQUE, values={'u_color': [0.0, 0.3, 0.0, 0.0]})
-        surface_material = Material(EGA_TECHNIQUE, values={'u_color': [0.0, 0xaa/0xff, 0.0, 0.0]})
-        cushion_material = Material(EGA_TECHNIQUE, values={'u_color': [0x02/0xff, 0x88/0xff, 0x44/0xff, 0.0]})
+        surface_material = Material(LAMBERT_TECHNIQUE, values={'u_color': [0.0, 0xaa/0xff, 0.0, 0.0]})
+        cushion_material = Material(LAMBERT_TECHNIQUE, values={'u_color': [0x02/0xff, 0x88/0xff, 0x44/0xff, 0.0]})
         surface = PlanePrimitive(width=width, depth=length)
         surface.attributes['vertices'][:,1] = height
         surface.attributes['a_position'] = surface.attributes['vertices']
         W_playable = width - 2*W_cushion
-        H_rail = 1.2 * H_cushion
-        H_nose = 0.5 * H_cushion
-        W_nose = 0.072 * W_cushion
+        H_rail = 1.4 * H_cushion
+        W_nose = 0.045 * W_cushion
         ball_diameter = 2.25*INCH2METER
-        H_cushion = 0.8*ball_diameter
+        H_cushion = 0.82*ball_diameter
         self.headCushionGeom = HexaPrimitive(vertices=np.array([
             # bottom quad:
             [[-0.5*W_playable + 0.4*W_cushion,       0.0,           0.5*W_cushion],
@@ -59,22 +58,40 @@ class PoolTable(object):
              [ 0.5*W_playable - 1.2*SQRT2*W_cushion, H_cushion, -0.5*W_cushion],
              [-0.5*W_playable + 1.2*SQRT2*W_cushion, H_cushion, -0.5*W_cushion]]], dtype=np.float32))
         self.headCushionGeom.attributes['vertices'].reshape(-1,3)[:,1] += self.height
+        _vertices = self.headCushionGeom.attributes['vertices'].copy()
         self.headCushionGeom.attributes['vertices'].reshape(-1,3)[:,2] += 0.5 * self.length - 0.5*W_cushion
         self.headCushionGeom.attributes['a_position'] = self.headCushionGeom.attributes['vertices']
-
-        vertices = self.headCushionGeom.attributes['vertices'].copy()
+        vertices = _vertices.copy()
         vertices.reshape(-1,3)[:,2] *= -1
+        vertices.reshape(-1,3)[:,2] -= 0.5 * self.length - 0.5*W_cushion
         self.footCushionGeom = HexaPrimitive(vertices=vertices)
         self.footCushionGeom.attributes['a_position'] = self.footCushionGeom.attributes['vertices']
-
-        vertices = self.headCushionGeom.attributes['vertices'].copy()
+        rotation = np.array([[0.0, 0.0, -1.0],
+                             [0.0, 1.0,  0.0],
+                             [1.0, 0.0,  0.0]], dtype=np.float32).T
+        vertices = _vertices.copy()
         vertices[0, 2, 0] = 0.5*W_playable - 0.6*SQRT2*W_cushion
         vertices[1, 2, 0] = vertices[0, 2, 0]
+        vertices.reshape(-1,3)[:] = rotation.dot(vertices.reshape(-1,3).T).T
+        vertices.reshape(-1,3)[:,2] += 0.25 * self.length
+        vertices.reshape(-1,3)[:,0] += 0.5 * self.width - 0.5*W_cushion
         self.rightHeadCushionGeom = HexaPrimitive(vertices=vertices)
         self.rightHeadCushionGeom.attributes['a_position'] = self.rightHeadCushionGeom.attributes['vertices']
-
+        rotation = np.array([[ 0.0, 0.0,  1.0],
+                             [ 0.0, 1.0,  0.0],
+                             [-1.0, 0.0,  0.0]], dtype=np.float32).T
+        vertices = _vertices.copy()
+        vertices[0, 3, 0] = -(0.5*W_playable - 0.6*SQRT2*W_cushion)
+        vertices[1, 3, 0] = -vertices[0, 3, 0]
+        vertices.reshape(-1,3)[:] = rotation.dot(vertices.reshape(-1,3).T).T
+        vertices.reshape(-1,3)[:,2] += 0.25 * self.length
+        vertices.reshape(-1,3)[:,0] -= 0.5 * self.width - 0.5*W_cushion
+        self.leftHeadCushionGeom = HexaPrimitive(vertices=vertices)
+        self.leftHeadCushionGeom.attributes['a_position'] = self.leftHeadCushionGeom.attributes['vertices']
+        self.cushionGeoms = [self.headCushionGeom, self.footCushionGeom, self.leftHeadCushionGeom, self.rightHeadCushionGeom]
         self.mesh = Mesh({surface_material: [surface],
-                          cushion_material: [self.headCushionGeom, self.footCushionGeom, self.rightHeadCushionGeom]})
+                          cushion_material: [self.headCushionGeom, self.footCushionGeom,
+                                             self.rightHeadCushionGeom, self.leftHeadCushionGeom]})
     def setup_balls(self, ball_radius, ball_colors, ball_positions, striped_balls=None, use_billboards=False):
         ball_materials = [Material(EGA_TECHNIQUE, values={'u_color': [(c&0xff0000) / 0xff0000,
                                                                       (c&0x00ff00) / 0x00ff00,

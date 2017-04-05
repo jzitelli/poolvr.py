@@ -104,6 +104,12 @@ class ODEPoolPhysics(object):
         tri_mesh_data = ode.TriMeshData()
         tri_mesh_data.build(self.table.footCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.footCushionGeom.indices.reshape(-1,3)[:,::-1])
         self.foot_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+        tri_mesh_data = ode.TriMeshData()
+        tri_mesh_data.build(self.table.leftHeadCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.leftHeadCushionGeom.indices.reshape(-1,3))
+        self.left_head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+        tri_mesh_data = ode.TriMeshData()
+        tri_mesh_data.build(self.table.rightHeadCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.rightHeadCushionGeom.indices.reshape(-1,3))
+        self.right_head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
         self._contactgroup = ode.JointGroup()
         self.events = []
         self.ball_events = {i: [] for i in self.all_balls}
