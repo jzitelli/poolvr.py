@@ -117,10 +117,10 @@ def main(window_size=(800,600),
     for mesh in meshes:
         mesh.init_gl()
 
-    ball_positions = game.table.ball_positions
-    ball_quaternions = game.table.ball_quaternions
-    sphere_positions = [mesh.world_matrix[3,:3] for mesh in ball_meshes]
-    sphere_rotations = [mesh.world_matrix[:3,:3].T for mesh in ball_meshes]
+    ball_positions = game.ball_positions.copy()
+    ball_quaternions = game.ball_quaternions
+    ball_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_meshes]
+    ball_mesh_rotations = [mesh.world_matrix[:3,:3].T for mesh in ball_meshes]
 
     gl.glViewport(0, 0, window_size[0], window_size[1])
     gl.glClearColor(*BG_COLOR)
@@ -136,20 +136,22 @@ def main(window_size=(800,600),
     max_frame_time = 0.0
     lt = glfw.GetTime()
     while not glfw.WindowShouldClose(window):
-        with renderer.render(meshes=meshes) as frame_data:
+        t = glfw.GetTime()
+        dt = t - lt
+        lt = t
+        process_input(dt)
 
-            t = glfw.GetTime()
-            dt = t - lt
-            lt = t
-            process_input(dt)
+        with renderer.render(meshes=meshes) as frame_data:
 
             ##### VR mode: #####
 
-            if frame_data:
+            if isinstance(renderer, OpenVRRenderer):
                 renderer.process_input(button_press_callbacks=button_press_callbacks)
                 hmd_pose = frame_data['hmd_pose']
                 camera_position[:] = hmd_pose[:,3]
-                for pose, velocity, angular_velocity in list(zip(frame_data['controller_poses'], frame_data['controller_velocities'], frame_data['controller_angular_velocities']))[-1:]:
+                for i, pose in enumerate(frame_data['controller_poses'][:1]):
+                    velocity = frame_data['controller_velocities'][i]
+                    angular_velocity = frame_data['controller_angular_velocities'][i]
                     cue.world_matrix[:3,:3] = pose[:,:3].dot(cue.rotation).T
                     cue.world_matrix[3,:3] = pose[:,3]
                     cue.velocity[:] = velocity
@@ -179,19 +181,20 @@ def main(window_size=(800,600),
                             game.ntt = physics.next_turn_time()
                             break
 
-            physics.step(dt)
             physics.eval_positions(game.t, out=ball_positions)
             physics.eval_quaternions(game.t, out=ball_quaternions)
             ball_positions[~physics.on_table] = camera_position # hacky way to only show balls that are on table
             for i, pos in enumerate(ball_positions):
-                sphere_positions[i][:] = pos
+                ball_mesh_positions[i][:] = pos
             for i, quat in enumerate(ball_quaternions):
-                set_matrix_from_quaternion(quat, sphere_rotations[i])
+                set_matrix_from_quaternion(quat, ball_mesh_rotations[i])
             # ball_billboards.update_gl()
             # textured_text.set_text("%9.3f" % dt)
             # textured_text.update_gl()
 
         game.t += dt
+        physics.step(dt)
+
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:
             st = glfw.GetTime()

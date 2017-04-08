@@ -82,7 +82,7 @@ class PoolTable(object):
                              [-1.0, 0.0,  0.0]], dtype=np.float32).T
         vertices = _vertices.copy()
         vertices[0, 3, 0] = -(0.5*W_playable - 0.6*SQRT2*W_cushion)
-        vertices[1, 3, 0] = -vertices[0, 3, 0]
+        vertices[1, 3, 0] = vertices[0, 3, 0]
         vertices.reshape(-1,3)[:] = rotation.dot(vertices.reshape(-1,3).T).T
         vertices.reshape(-1,3)[:,2] += 0.25 * self.length
         vertices.reshape(-1,3)[:,0] -= 0.5 * self.width - 0.5*W_cushion
@@ -101,11 +101,12 @@ class PoolTable(object):
                              self.leftFootCushionGeom, self.rightFootCushionGeom]
         self.mesh = Mesh({surface_material: [surface],
                           cushion_material: self.cushionGeoms})
-    def setup_balls(self, ball_radius, ball_colors, ball_positions, striped_balls=None, use_billboards=False):
-        ball_materials = [Material(EGA_TECHNIQUE, values={'u_color': [(c&0xff0000) / 0xff0000,
-                                                                      (c&0x00ff00) / 0x00ff00,
-                                                                      (c&0x0000ff) / 0x0000ff,
-                                                                      0.0]})
+    def setup_balls(self, ball_radius, ball_colors, ball_positions, striped_balls=None, use_billboards=False,
+                    technique=LAMBERT_TECHNIQUE):
+        ball_materials = [Material(technique, values={'u_color': [(c&0xff0000) / 0xff0000,
+                                                                  (c&0x00ff00) / 0x00ff00,
+                                                                  (c&0x0000ff) / 0x0000ff,
+                                                                  0.0]})
                           for c in ball_colors]
         ball_materials += ball_materials[1:-1]
         num_balls = len(ball_materials)

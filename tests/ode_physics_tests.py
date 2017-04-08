@@ -22,6 +22,8 @@ SCREENSHOTS_DIR = os.path.join(os.path.dirname(__file__), 'screenshots')
 
 
 class ODEPhysicsTests(TestCase):
+    show = True
+
     def setUp(self):
         self.game = PoolGame()
         self.table = self.game.table
