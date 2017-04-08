@@ -38,6 +38,8 @@ class PoolGame(object):
         self.ball_colors = ball_colors
         self.num_balls = len(ball_colors)
         self.ball_positions = np.empty((self.num_balls, 3), dtype=np.float32)
+        self.ball_quaternions = np.zeros((self.num_balls, 4), dtype=np.float32)
+        self.ball_quaternions[:,3] = 1
         self.ball_radius = ball_radius
         self.initial_positions(out=self.ball_positions)
         self.physics = PoolPhysics(num_balls=self.num_balls,
@@ -56,7 +58,7 @@ class PoolGame(object):
         length = self.table.length
         ball_diameter = 2 * self.ball_radius
         # triangle racked:
-        out[:,1] = height + self.ball_radius + 0.0001
+        out[:,1] = height + self.ball_radius + 0.005
         side_length = 4 * (ball_diameter + d)
         x_positions = np.concatenate([np.linspace(0,                        0.5 * side_length,                         5),
                                       np.linspace(-0.5*(ball_diameter + d), 0.5 * side_length - (ball_diameter + d),   4),
@@ -78,7 +80,7 @@ class PoolGame(object):
         return out
     def reset(self):
         """
-        Resets the game state, which means: set balls in their initial stationary 
+        Resets the game state, which means: set balls in their initial stationary
         positions; reset physics engine.
         """
         self.initial_positions(out=self.ball_positions)

@@ -1,17 +1,14 @@
-from sys import stdout
 import os.path
 import logging
-from unittest import TestCase, skip
+from unittest import TestCase
 import traceback
 import numpy as np
-import matplotlib.pyplot as plt
 
 
 _logger = logging.getLogger(__name__)
 
 
 from poolvr.cue import PoolCue
-from poolvr.table import PoolTable
 from poolvr.game import PoolGame
 from poolvr.ode_physics import ODEPoolPhysics
 
@@ -52,7 +49,6 @@ class ODEPhysicsTests(TestCase):
         i = 0
         n_events = self.physics.strike_ball(0.0, i, Q, self.cue.velocity, self.cue.mass)
         _logger.debug('strike on %d resulted in %d events', i, n_events)
-        events = self.physics.events
         test_name = 'ODE_' + traceback.extract_stack(None, 1)[0][2]
         plot_ball_motion(i, self.game, title=test_name)
         savefig(os.path.join(PLOTS_DIR, test_name + '.png'))
@@ -72,7 +68,6 @@ class ODEPhysicsTests(TestCase):
         i = 0
         n_events = self.physics.strike_ball(0.0, i, Q, self.cue.velocity, self.cue.mass)
         _logger.debug('strike on %d resulted in %d events', i, n_events)
-        events = self.physics.events
         test_name = 'ODE_' + traceback.extract_stack(None, 1)[0][2]
         plot_ball_motion(i, self.game, title=test_name)
         savefig(os.path.join(PLOTS_DIR, test_name + '.png'))

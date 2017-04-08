@@ -57,8 +57,8 @@ class ODEPoolPhysics(object):
                  c_b=4000.0,
                  E_Y_b=2.4e9,
                  g=9.81,
-                 linear_damping=0.012,
-                 angular_damping=0.013,
+                 linear_damping=0.008,
+                 angular_damping=0.0125,
                  initial_positions=None,
                  table=None,
                  **kwargs):
@@ -110,6 +110,13 @@ class ODEPoolPhysics(object):
         tri_mesh_data = ode.TriMeshData()
         tri_mesh_data.build(self.table.rightHeadCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.rightHeadCushionGeom.indices.reshape(-1,3))
         self.right_head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+        tri_mesh_data = ode.TriMeshData()
+        tri_mesh_data.build(self.table.leftFootCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.leftFootCushionGeom.indices.reshape(-1,3)[:,::-1])
+        self.left_foot_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+        tri_mesh_data = ode.TriMeshData()
+        tri_mesh_data.build(self.table.rightFootCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.rightFootCushionGeom.indices.reshape(-1,3)[:,::-1])
+        self.right_foot_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+
         self._contactgroup = ode.JointGroup()
         self.events = []
         self.ball_events = {i: [] for i in self.all_balls}
@@ -123,8 +130,6 @@ class ODEPoolPhysics(object):
             self._a[:,0] = initial_positions
 
     def reset(self, ball_positions):
-        self.nsteps = 0
-        self.t = 0.0
         self.on_table[:] = True
         for i, body in enumerate(self.ball_bodies):
             body.enable()
@@ -133,6 +138,7 @@ class ODEPoolPhysics(object):
             body.setAngularVel(ZERO3)
         for i, geom in enumerate(self.ball_geoms):
             geom.setPosition(ball_positions[i])
+        self._contactgroup.empty()
         self.events = []
         self.ball_events = {i: [] for i in self.all_balls}
         self._a[:] = 0

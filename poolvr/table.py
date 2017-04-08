@@ -88,10 +88,19 @@ class PoolTable(object):
         vertices.reshape(-1,3)[:,0] -= 0.5 * self.width - 0.5*W_cushion
         self.leftHeadCushionGeom = HexaPrimitive(vertices=vertices)
         self.leftHeadCushionGeom.attributes['a_position'] = self.leftHeadCushionGeom.attributes['vertices']
-        self.cushionGeoms = [self.headCushionGeom, self.footCushionGeom, self.leftHeadCushionGeom, self.rightHeadCushionGeom]
+        vertices = self.rightHeadCushionGeom.attributes['vertices'].copy()
+        vertices.reshape(-1,3)[:,2] *= -1
+        self.rightFootCushionGeom = HexaPrimitive(vertices=vertices)
+        self.rightFootCushionGeom.attributes['a_position'] = self.rightFootCushionGeom.attributes['vertices']
+        vertices = self.leftHeadCushionGeom.attributes['vertices'].copy()
+        vertices.reshape(-1,3)[:,2] *= -1
+        self.leftFootCushionGeom = HexaPrimitive(vertices=vertices)
+        self.leftFootCushionGeom.attributes['a_position'] = self.leftFootCushionGeom.attributes['vertices']
+        self.cushionGeoms = [self.headCushionGeom, self.footCushionGeom,
+                             self.leftHeadCushionGeom, self.rightHeadCushionGeom,
+                             self.leftFootCushionGeom, self.rightFootCushionGeom]
         self.mesh = Mesh({surface_material: [surface],
-                          cushion_material: [self.headCushionGeom, self.footCushionGeom,
-                                             self.rightHeadCushionGeom, self.leftHeadCushionGeom]})
+                          cushion_material: self.cushionGeoms})
     def setup_balls(self, ball_radius, ball_colors, ball_positions, striped_balls=None, use_billboards=False):
         ball_materials = [Material(EGA_TECHNIQUE, values={'u_color': [(c&0xff0000) / 0xff0000,
                                                                       (c&0x00ff00) / 0x00ff00,
@@ -108,21 +117,22 @@ class PoolTable(object):
             stripe_prim = SpherePrimitive(radius=1.012*ball_radius, phiStart=0.0, phiLength=2*np.pi,
                                           thetaStart=np.pi/3, thetaLength=np.pi/3)
             stripe_prim.attributes['a_position'] = stripe_prim.attributes['vertices']
-        self.ball_positions = ball_positions
-        self.ball_quaternions = np.zeros((num_balls, 4), dtype=np.float32)
-        self.ball_quaternions[:,3] = 1
+        ball_quaternions = np.zeros((num_balls, 4), dtype=np.float32)
+        ball_quaternions[:,3] = 1
         if use_billboards:
-            self.ball_billboards = BillboardParticles(Texture(os.path.join(TEXTURES_DIR, 'ball.png')), num_particles=num_balls,
-                                                      scale=2*ball_radius,
-                                                      color=np.array([[(c&0xff0000) / 0xff0000, (c&0x00ff00) / 0x00ff00, (c&0x0000ff) / 0x0000ff]
-                                                                      for c in ball_colors], dtype=np.float32),
-                                                      translate=self.ball_positions)
-            self.ball_meshes = [self.ball_billboards]
+            ball_billboards = BillboardParticles(Texture(os.path.join(TEXTURES_DIR, 'ball.png')),
+                                                 num_particles=num_balls,
+                                                 scale=2*ball_radius,
+                                                 color=np.array([[(c&0xff0000) / 0xff0000, (c&0x00ff00) / 0x00ff00, (c&0x0000ff) / 0x0000ff]
+                                                                 for c in ball_colors], dtype=np.float32),
+                                                 translate=ball_positions)
+            ball_meshes = [ball_billboards]
         else:
             ball_meshes = [Mesh({material : [sphere_prim]})
                            if i not in striped_balls else
-                           Mesh({ball_materials[0]: [sphere_prim], material: [stripe_prim]})
+                           Mesh({ball_materials[0]: [sphere_prim],
+                                 material: [stripe_prim]})
                            for i, material in enumerate(ball_materials)]
             for i, mesh in enumerate(ball_meshes):
                 mesh.world_position[:] = ball_positions[i]
-            self.ball_meshes = ball_meshes
+        return ball_meshes

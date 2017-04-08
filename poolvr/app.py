@@ -14,14 +14,11 @@ import cyglfw3 as glfw
 _logger = logging.getLogger('poolvr')
 
 
-from .gl_rendering import OpenGLRenderer, Texture, Mesh, Material, set_matrix_from_quaternion
+from .gl_rendering import OpenGLRenderer, set_matrix_from_quaternion
 try:
     from .pyopenvr_renderer import openvr, OpenVRRenderer
 except ImportError as err:
     OpenVRRenderer = None
-from .primitives import SpherePrimitive
-from .techniques import LAMBERT_TECHNIQUE
-from .billboards import BillboardParticles
 # from .gl_text import TexturedText
 from .cue import PoolCue
 from .game import PoolGame
@@ -88,9 +85,9 @@ def main(window_size=(800,600),
     cue.position[1] = game.table.height + 0.1
     ball_radius = physics.ball_radius
     game.reset()
-    game.table.setup_balls(game.ball_radius, game.ball_colors[:9], game.ball_positions,
-                           striped_balls=set(range(9, game.num_balls)),
-                           use_billboards=use_billboards)
+    ball_meshes = game.table.setup_balls(game.ball_radius, game.ball_colors[:9], game.ball_positions,
+                                         striped_balls=set(range(9, game.num_balls)),
+                                         use_billboards=use_billboards)
     window, fallback_renderer = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=novr, multisample=multisample)
     if not novr and OpenVRRenderer is not None:
         try:
@@ -107,21 +104,23 @@ def main(window_size=(800,600),
     process_keyboard_input = init_keyboard(window)
     process_mouse_input = init_mouse(window)
     camera_world_matrix = fallback_renderer.camera_matrix
+    camera_position = camera_world_matrix[3,:3]
+
     def process_input(dt):
         glfw.PollEvents()
         process_keyboard_input(dt, camera_world_matrix, cue)
         process_mouse_input(dt, cue)
 
     # textured_text = TexturedText()
-    meshes = [game.table.mesh] + game.table.ball_meshes + [cue]
+    meshes = [game.table.mesh] + ball_meshes + [cue]
 
     for mesh in meshes:
         mesh.init_gl()
 
     ball_positions = game.table.ball_positions
     ball_quaternions = game.table.ball_quaternions
-    sphere_positions = [mesh.world_matrix[3,:3] for mesh in game.table.ball_meshes]
-    sphere_rotations = [mesh.world_matrix[:3,:3].T for mesh in game.table.ball_meshes]
+    sphere_positions = [mesh.world_matrix[3,:3] for mesh in ball_meshes]
+    sphere_rotations = [mesh.world_matrix[:3,:3].T for mesh in ball_meshes]
 
     gl.glViewport(0, 0, window_size[0], window_size[1])
     gl.glClearColor(*BG_COLOR)
@@ -148,14 +147,13 @@ def main(window_size=(800,600),
 
             if frame_data:
                 renderer.process_input(button_press_callbacks=button_press_callbacks)
-                poses, velocities, angular_velocities = frame_data
-                hmd_pose = poses[0]
-                if len(poses) > 1:
-                    pose = poses[-1]
+                hmd_pose = frame_data['hmd_pose']
+                camera_position[:] = hmd_pose[:,3]
+                for pose, velocity, angular_velocity in list(zip(frame_data['controller_poses'], frame_data['controller_velocities'], frame_data['controller_angular_velocities']))[-1:]:
                     cue.world_matrix[:3,:3] = pose[:,:3].dot(cue.rotation).T
                     cue.world_matrix[3,:3] = pose[:,3]
-                    cue.velocity[:] = velocities[-1]
-                    cue.angular_velocity = angular_velocities[-1]
+                    cue.velocity[:] = velocity
+                    cue.angular_velocity = angular_velocity
                     if game.t >= game.ntt:
                         for i, position in cue.aabb_check(ball_positions, ball_radius):
                             if game.t - last_contact_t[i] < 0.02:
@@ -168,7 +166,6 @@ def main(window_size=(800,600),
                                 physics.strike_ball(game.t, i, poc, cue.velocity, cue.mass)
                                 game.ntt = physics.next_turn_time()
                                 break
-                ball_positions[~physics.on_table] = hmd_pose[:,3] # hacky way to only show balls that are on table
 
             ##### desktop mode: #####
 
@@ -181,19 +178,18 @@ def main(window_size=(800,600),
                             physics.strike_ball(game.t, i, poc, cue.velocity, cue.mass)
                             game.ntt = physics.next_turn_time()
                             break
-                ball_positions[~physics.on_table] = renderer.camera_position # hacky way to only show balls that are on table
 
+            physics.step(dt)
+            physics.eval_positions(game.t, out=ball_positions)
+            physics.eval_quaternions(game.t, out=ball_quaternions)
+            ball_positions[~physics.on_table] = camera_position # hacky way to only show balls that are on table
+            for i, pos in enumerate(ball_positions):
+                sphere_positions[i][:] = pos
+            for i, quat in enumerate(ball_quaternions):
+                set_matrix_from_quaternion(quat, sphere_rotations[i])
             # ball_billboards.update_gl()
             # textured_text.set_text("%9.3f" % dt)
             # textured_text.update_gl()
-
-        physics.step(dt)
-        physics.eval_positions(game.t, out=ball_positions)
-        physics.eval_quaternions(game.t, out=ball_quaternions)
-        for i, pos in enumerate(ball_positions):
-            sphere_positions[i][:] = pos
-        for i, quat in enumerate(ball_quaternions):
-            set_matrix_from_quaternion(quat, sphere_rotations[i])
 
         game.t += dt
         max_frame_time = max(max_frame_time, dt)

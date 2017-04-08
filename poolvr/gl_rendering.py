@@ -482,7 +482,11 @@ class OpenGLRenderer(object):
         """
         self.view_matrix[3,:3] = -self.camera_matrix[3,:3]
         self.view_matrix[:3,:3] = self.camera_matrix[:3,:3].T
-        yield None
+        yield {
+            'camera_world_matrix': self.camera_matrix,
+            'camera_position': self.camera_position,
+            'view_matrix': self.view_matrix
+        }
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         if meshes is not None:
             for mesh in meshes:

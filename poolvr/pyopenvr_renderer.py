@@ -67,7 +67,14 @@ class OpenVRRenderer(object):
                 poses.append(pose_34)
                 velocities.append(np.ctypeslib.as_array(controller_pose.vVelocity.v))
                 angular_velocities.append(np.ctypeslib.as_array(controller_pose.vAngularVelocity.v))
-        yield (poses, velocities, angular_velocities)
+        yield {
+            'hmd_pose': hmd_34,
+            'hmd_velocity': velocities[0],
+            'hmd_angular_velocity': angular_velocities[0],
+            'controller_poses': poses[1:],
+            'controller_velocities': velocities[1:],
+            'controller_angular_velocities': angular_velocities[1:]
+        }
         gl.glViewport(0, 0, self.vr_framebuffers[0].width, self.vr_framebuffers[0].height)
         for eye in (0,1):
             gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, self.vr_framebuffers[eye].fb)
