@@ -98,6 +98,7 @@ class ODEPoolPhysics(object):
         # self.table_body = ode.Body(self.world)
         # self.table_geom.setBody(self.table_body)
         self.table_geom = ode.GeomPlane(space=self.space, normal=(0.0, 1.0, 0.0), dist=self.table.height)
+
         tri_mesh_data = ode.TriMeshData()
         tri_mesh_data.build(self.table.headCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.headCushionGeom.indices.reshape(-1,3))
         self.head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
@@ -143,6 +144,20 @@ class ODEPoolPhysics(object):
         self.ball_events = {i: [] for i in self.all_balls}
         self._a[:] = 0
         self._a[:,0] = ball_positions
+
+    def add_cue(self, cue):
+        body = ode.Body(self.world)
+        mass = ode.Mass()
+        mass.setCylinderTotal(cue.mass, 2, cue.radius, cue.length)
+        body.setMass(mass)
+        body.shape = "cylinder"
+        body.boxsize = (2*cue.radius, cue.length, 2*cue.radius)
+        geom = ode.GeomCylinder(space=self.space, radius=cue.radius, length=cue.length)
+        geom.setBody(body)
+        body.setKinematic()
+        self.cue_bodies = [body]
+        self.cue_geoms = [geom]
+        return body, geom
 
     def strike_ball(self, t, i, Q, V, cue_mass):
         if not self.on_table[i]:

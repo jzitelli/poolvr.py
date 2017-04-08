@@ -75,13 +75,14 @@ def main(window_size=(800,600),
     """
     _logger.info('HELLO')
     game = PoolGame(use_simple_ball_collisions=use_simple_ball_collisions)
+    cue = PoolCue()
     if use_ode_physics and ODEPoolPhysics is not None:
         game.physics = ODEPoolPhysics(num_balls=game.num_balls,
                                       ball_radius=game.ball_radius,
                                       initial_positions=game.ball_positions,
                                       table=game.table)
+        cue_body, cue_geom = game.physics.add_cue(cue)
     physics = game.physics
-    cue = PoolCue()
     cue.position[1] = game.table.height + 0.1
     ball_radius = physics.ball_radius
     game.reset()
@@ -156,6 +157,9 @@ def main(window_size=(800,600),
                     cue.world_matrix[3,:3] = pose[:,3]
                     cue.velocity[:] = velocity
                     cue.angular_velocity = angular_velocity
+                    cue_body.setPosition(cue.world_position)
+                    cue_body.setLinearVel(cue.velocity)
+                    cue_body.setAngularVel(cue.angular_velocity)
                     if game.t >= game.ntt:
                         for i, position in cue.aabb_check(ball_positions, ball_radius):
                             if game.t - last_contact_t[i] < 0.02:
