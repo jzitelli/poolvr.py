@@ -107,7 +107,8 @@ class Technique(object):
     GL rendering technique (based off of Technique defined by glTF schema)
     """
     _current = None
-    def __init__(self, program, attributes=None, uniforms=None, states=None, attribute_divisors=None):
+    def __init__(self, program, attributes=None, uniforms=None, states=None, attribute_divisors=None,
+                 front_face=gl.GL_CCW):
         self.program = program
         if attributes is None:
             attributes = {}
@@ -121,6 +122,7 @@ class Technique(object):
         if attribute_divisors is None:
             attribute_divisors = {}
         self.attribute_divisors = attribute_divisors
+        self.front_face = front_face
     def init_gl(self, force=False):
         if force:
             Technique._current = None
@@ -133,6 +135,7 @@ class Technique(object):
         if Technique._current is self:
             return
         self.program.use()
+        gl.glFrontFace(self.front_face)
         Technique._current = self
     def release(self):
         Technique._current = None
@@ -229,6 +232,56 @@ class Texture(object):
         _logger.info('%s.init_gl: OK' % self.__class__.__name__)
 
 
+class CubeTexture(Texture):
+    TARGETS = (gl.GL_TEXTURE_CUBE_MAP_POSITIVE_X,
+               gl.GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+               gl.GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
+               gl.GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
+               gl.GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
+               gl.GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
+    def __init__(self, uris):
+        """
+
+        An OpenGL Cube Texture / SamplerCube which is loaded from 6 image files
+
+        """
+        self.uris = uris
+        self.texture_id = None
+        self.sampler_id = None
+    def init_gl(self, force=False):
+        """
+        Perform initialization for the texture on the current GL context
+
+        :param force: if True, force reinitialization of the GL context for this
+                      Texture and all of the GL entities that it depends on
+        """
+        if self.texture_id is not None:
+            if not force: return
+        texture_id = gl.glGenTextures(1)
+        self.texture_id = texture_id
+        gl.glBindTexture(gl.GL_TEXTURE_CUBE_MAP, texture_id)
+        sampler_id = gl.glGenSamplers(1)
+        self.sampler_id = sampler_id
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR);
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MAG_FILTER, 9729)
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_S, 10497)
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_T, 10497)
+        gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
+        for uri, target in zip(self.uris, self.TARGETS):
+            image = Image.open(uri)
+            gl.glTexImage2D(target, 0,
+                            gl.GL_RGBA,
+                            image.width, image.height, 0,
+                            gl.GL_RGB,
+                            gl.GL_UNSIGNED_BYTE,
+                            np.array(list(image.getdata()), dtype=np.ubyte))
+        gl.glGenerateMipmap(gl.GL_TEXTURE_CUBE_MAP)
+        err = gl.glGetError()
+        if err != gl.GL_NO_ERROR:
+            raise Exception('failed to init cube texture: %s' % err)
+        _logger.info('%s.init_gl: OK' % self.__class__.__name__)
+
+
 class Material(object):
     _current = None
     def __init__(self, technique, values=None, textures=None):
@@ -242,8 +295,8 @@ class Material(object):
         if textures is None:
             textures = {}
         for uniform_name, uniform in self.technique.uniforms.items():
-            if uniform['type'] == gl.GL_SAMPLER_2D:
-                if uniform_name not in textures:
+            if uniform['type'] in [gl.GL_SAMPLER_2D, gl.GL_SAMPLER_CUBE]:
+                if uniform_name not in textures and 'texture' in uniform:
                     textures[uniform_name] = uniform['texture']
             else:
                 if uniform_name not in values and 'value' in uniform:
@@ -278,6 +331,12 @@ class Material(object):
                 texture = self.textures[uniform_name]
                 gl.glActiveTexture(gl.GL_TEXTURE0+0)
                 gl.glBindTexture(gl.GL_TEXTURE_2D, texture.texture_id)
+                gl.glBindSampler(0, texture.sampler_id)
+                gl.glUniform1i(location, 0)
+            elif uniform_type == gl.GL_SAMPLER_CUBE:
+                texture = self.textures[uniform_name]
+                gl.glActiveTexture(gl.GL_TEXTURE0+0)
+                gl.glBindTexture(gl.GL_TEXTURE_CUBE_MAP, texture.texture_id)
                 gl.glBindSampler(0, texture.sampler_id)
                 gl.glUniform1i(location, 0)
             elif uniform_name in self.values:

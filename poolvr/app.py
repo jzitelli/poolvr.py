@@ -102,19 +102,19 @@ def main(window_size=(800,600),
         renderer = fallback_renderer
         renderer.camera_position[1] = game.table.height + 0.6
         renderer.camera_position[2] = game.table.length - 0.1
-    process_keyboard_input = init_keyboard(window)
-    process_mouse_input = init_mouse(window)
     camera_world_matrix = fallback_renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
 
+    process_keyboard_input = init_keyboard(window)
+    process_mouse_input = init_mouse(window)
     def process_input(dt):
         glfw.PollEvents()
         process_keyboard_input(dt, camera_world_matrix, cue)
         process_mouse_input(dt, cue)
 
     # textured_text = TexturedText()
-    meshes = [game.table.mesh] + ball_meshes + [cue]
 
+    meshes = [game.table.mesh] + ball_meshes + [cue]
     for mesh in meshes:
         mesh.init_gl()
 
