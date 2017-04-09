@@ -35,7 +35,6 @@ class PoolTable(object):
             width = 0.5 * length
         self.width = width
         self.width_rail = width_rail
-        #surface_material = Material(LAMBERT_TECHNIQUE, values={'u_color': [0.0, 0.3, 0.0, 0.0]})
         surface_material = Material(LAMBERT_TECHNIQUE, values={'u_color': [0.0, 0xaa/0xff, 0.0, 0.0]})
         cushion_material = Material(LAMBERT_TECHNIQUE, values={'u_color': [0x02/0xff, 0x88/0xff, 0x44/0xff, 0.0]})
         surface = PlanePrimitive(width=width, depth=length)
@@ -60,12 +59,10 @@ class PoolTable(object):
         self.headCushionGeom.attributes['vertices'].reshape(-1,3)[:,1] += self.height
         _vertices = self.headCushionGeom.attributes['vertices'].copy()
         self.headCushionGeom.attributes['vertices'].reshape(-1,3)[:,2] += 0.5 * self.length - 0.5*W_cushion
-        self.headCushionGeom.attributes['a_position'] = self.headCushionGeom.attributes['vertices']
         vertices = _vertices.copy()
         vertices.reshape(-1,3)[:,2] *= -1
         vertices.reshape(-1,3)[:,2] -= 0.5 * self.length - 0.5*W_cushion
         self.footCushionGeom = HexaPrimitive(vertices=vertices)
-        self.footCushionGeom.attributes['a_position'] = self.footCushionGeom.attributes['vertices']
         rotation = np.array([[0.0, 0.0, -1.0],
                              [0.0, 1.0,  0.0],
                              [1.0, 0.0,  0.0]], dtype=np.float32).T
@@ -76,7 +73,6 @@ class PoolTable(object):
         vertices.reshape(-1,3)[:,2] += 0.25 * self.length
         vertices.reshape(-1,3)[:,0] += 0.5 * self.width - 0.5*W_cushion
         self.rightHeadCushionGeom = HexaPrimitive(vertices=vertices)
-        self.rightHeadCushionGeom.attributes['a_position'] = self.rightHeadCushionGeom.attributes['vertices']
         rotation = np.array([[ 0.0, 0.0,  1.0],
                              [ 0.0, 1.0,  0.0],
                              [-1.0, 0.0,  0.0]], dtype=np.float32).T
@@ -87,18 +83,17 @@ class PoolTable(object):
         vertices.reshape(-1,3)[:,2] += 0.25 * self.length
         vertices.reshape(-1,3)[:,0] -= 0.5 * self.width - 0.5*W_cushion
         self.leftHeadCushionGeom = HexaPrimitive(vertices=vertices)
-        self.leftHeadCushionGeom.attributes['a_position'] = self.leftHeadCushionGeom.attributes['vertices']
         vertices = self.rightHeadCushionGeom.attributes['vertices'].copy()
         vertices.reshape(-1,3)[:,2] *= -1
         self.rightFootCushionGeom = HexaPrimitive(vertices=vertices)
-        self.rightFootCushionGeom.attributes['a_position'] = self.rightFootCushionGeom.attributes['vertices']
         vertices = self.leftHeadCushionGeom.attributes['vertices'].copy()
         vertices.reshape(-1,3)[:,2] *= -1
         self.leftFootCushionGeom = HexaPrimitive(vertices=vertices)
-        self.leftFootCushionGeom.attributes['a_position'] = self.leftFootCushionGeom.attributes['vertices']
         self.cushionGeoms = [self.headCushionGeom, self.footCushionGeom,
                              self.leftHeadCushionGeom, self.rightHeadCushionGeom,
                              self.leftFootCushionGeom, self.rightFootCushionGeom]
+        for geom in self.cushionGeoms:
+            geom.attributes['a_position'] = geom.attributes['vertices']
         self.mesh = Mesh({surface_material: [surface],
                           cushion_material: self.cushionGeoms})
     def setup_balls(self, ball_radius, ball_colors, ball_positions, striped_balls=None, use_billboards=False,
