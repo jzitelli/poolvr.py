@@ -14,7 +14,7 @@ import cyglfw3 as glfw
 _logger = logging.getLogger('poolvr')
 
 
-from .gl_rendering import OpenGLRenderer, set_matrix_from_quaternion
+from .gl_rendering import OpenGLRenderer, set_matrix_from_quaternion, set_quaternion_from_matrix
 try:
     from .pyopenvr_renderer import openvr, OpenVRRenderer
 except ImportError as err:
@@ -84,6 +84,8 @@ def main(window_size=(800,600),
         cue_body, cue_geom = game.physics.add_cue(cue)
     physics = game.physics
     cue.position[1] = game.table.height + 0.1
+    cue_quaternion = np.zeros(4, dtype=np.float32)
+    cue_quaternion[3] = 1
     ball_radius = physics.ball_radius
     game.reset()
     ball_meshes = game.table.setup_balls(game.ball_radius, game.ball_colors[:9], game.ball_positions,
@@ -157,7 +159,14 @@ def main(window_size=(800,600),
                     cue.world_matrix[3,:3] = pose[:,3]
                     cue.velocity[:] = velocity
                     cue.angular_velocity = angular_velocity
-                    cue_body.setPosition(cue.world_position)
+                    # cue_position = cue.world_position - 0.5 * cue.length * cue.world_matrix[2,:3]
+                    cue_position = cue.world_position
+                    cue_body.setPosition(cue_position)
+                    cue_geom.setPosition(cue_position)
+                    set_quaternion_from_matrix(pose[:,:3], cue_quaternion)
+                    x, y, z, w = cue_quaternion
+                    cue_body.setQuaternion((w, x, y, z))
+                    cue_geom.setQuaternion((w, x, y, z))
                     cue_body.setLinearVel(cue.velocity)
                     cue_body.setAngularVel(cue.angular_velocity)
                     if game.t >= game.ntt:
@@ -169,7 +178,7 @@ def main(window_size=(800,600),
                                 renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1],
                                                                       0, int(np.linalg.norm(cue.velocity + np.cross(position, cue.angular_velocity))**2 / 2.0 * 2700))
                                 poc[:] = [0.0, 0.0, ball_radius]
-                                physics.strike_ball(game.t, i, poc, cue.velocity, cue.mass)
+                                # physics.strike_ball(game.t, i, poc, cue.velocity, cue.mass)
                                 game.ntt = physics.next_turn_time()
                                 break
 

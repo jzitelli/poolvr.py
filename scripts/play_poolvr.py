@@ -7,8 +7,10 @@ if __name__ == "__main__":
     FORMAT = '  POOLVR.PY 0.0.1  | %(asctime)s | %(name)s --- %(levelname)s *** %(message)s'
     parser = argparse.ArgumentParser()
     parser.add_argument("--novr", help="non-VR mode", action="store_true")
-    parser.add_argument("--use_simple_ball_collisions", help="use simple ball collision model", action="store_true")
-    parser.add_argument("--use_ode_physics", help="use ODE for physics simulation instead of the default event-based engine",
+    parser.add_argument("--use_simple_ball_collisions", help="use simple ball collision model",
+                        action="store_true")
+    parser.add_argument("--use_ode_physics",
+                        help="use ODE for physics simulation instead of the default event-based engine",
                         action="store_true")
     parser.add_argument('--multisample', help="set multisampling level for VR rendering",
                         type=int, default=0)

@@ -505,6 +505,36 @@ def set_matrix_from_quaternion(quat, out):
               1.0 - 2.0 * (x2 + y2)]
     return out
 
+def set_quaternion_from_matrix(U, out):
+    # http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/index.htm
+    # assumes the upper 3x3 of m is a pure rotation matrix (i.e, unscaled)
+    trace = U.trace()
+    if trace > 0:
+        s = 0.5 / np.sqrt( trace + 1.0 );
+        _w = 0.25 / s
+        _x = (U[2,1] - U[1,2]) * s
+        _y = (U[0,2] - U[2,0]) * s
+        _z = (U[1,0] - U[0,1]) * s
+    elif U[0,0] > U[1,1] and U[0,0] > U[2,2]:
+        s = 2.0 * np.sqrt(1.0 + U[0,0] - U[1,1] - U[2,2])
+        _w = (U[2,1] - U[1,2]) / s
+        _x = 0.25 * s
+        _y = (U[0,1] + U[1,0]) / s
+        _z = (U[0,2] + U[2,0]) / s
+    elif U[1,1] > U[2,2]:
+        s = 2.0 * np.sqrt( 1.0 + U[1,1] - U[0,0] - U[2,2])
+        _w = (U[0,2] - U[2,0]) / s
+        _x = (U[0,1] + U[1,0]) / s
+        _y = 0.25 * s
+        _z = (U[1,2] + U[2,1]) / s
+    else:
+        s = 2.0 * np.sqrt( 1.0 + U[2,2] - U[0,0] - U[1,1])
+        _w = (U[1,0] - U[0,1]) / s
+        _x = (U[0,2] + U[2,0]) / s
+        _y = (U[1,2] + U[2,1]) / s
+        _z = 0.25 * s
+    out[:] = np.array([_x, _y, _z, _w])
+    return out
 
 class OpenGLRenderer(object):
     def __init__(self, multisample=0, znear=0.1, zfar=1000, window_size=(960,1080)):

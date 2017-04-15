@@ -87,6 +87,7 @@ class ODEPoolPhysics(object):
         self.world.setAngularDamping(angular_damping)
         self.space = ode.SimpleSpace()
         self.t = 0.0
+        self._t_last_strike = 0.0
         self.nsteps = 0
         self.ball_bodies = []
         self.ball_geoms = []
@@ -95,28 +96,28 @@ class ODEPoolPhysics(object):
             self.ball_bodies.append(body)
             self.ball_geoms.append(geom)
         # self.table_geom = ode.GeomBox(space=self.space, lengths=(self.table.width, self.table.height, self.table.length))
-        # self.table_body = ode.Body(self.world)
-        # self.table_geom.setBody(self.table_body)
-        self.table_geom = ode.GeomPlane(space=self.space, normal=(0.0, 1.0, 0.0), dist=self.table.height)
-
-        tri_mesh_data = ode.TriMeshData()
-        tri_mesh_data.build(self.table.headCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.headCushionGeom.indices.reshape(-1,3))
-        self.head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
-        tri_mesh_data = ode.TriMeshData()
-        tri_mesh_data.build(self.table.footCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.footCushionGeom.indices.reshape(-1,3)[:,::-1])
-        self.foot_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
-        tri_mesh_data = ode.TriMeshData()
-        tri_mesh_data.build(self.table.leftHeadCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.leftHeadCushionGeom.indices.reshape(-1,3))
-        self.left_head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
-        tri_mesh_data = ode.TriMeshData()
-        tri_mesh_data.build(self.table.rightHeadCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.rightHeadCushionGeom.indices.reshape(-1,3))
-        self.right_head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
-        tri_mesh_data = ode.TriMeshData()
-        tri_mesh_data.build(self.table.leftFootCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.leftFootCushionGeom.indices.reshape(-1,3)[:,::-1])
-        self.left_foot_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
-        tri_mesh_data = ode.TriMeshData()
-        tri_mesh_data.build(self.table.rightFootCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.rightFootCushionGeom.indices.reshape(-1,3)[:,::-1])
-        self.right_foot_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+        self.table_geom = ode.GeomPlane(space=self.space, normal=(0.0, 1.0, 0.0),
+                                        dist=self.table.height)
+        def _setup_cushions():
+            tri_mesh_data = ode.TriMeshData()
+            tri_mesh_data.build(self.table.headCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.headCushionGeom.indices.reshape(-1,3))
+            self.head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+            tri_mesh_data = ode.TriMeshData()
+            tri_mesh_data.build(self.table.leftHeadCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.leftHeadCushionGeom.indices.reshape(-1,3))
+            self.left_head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+            tri_mesh_data = ode.TriMeshData()
+            tri_mesh_data.build(self.table.rightHeadCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.rightHeadCushionGeom.indices.reshape(-1,3))
+            self.right_head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+            tri_mesh_data = ode.TriMeshData()
+            tri_mesh_data.build(self.table.footCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.footCushionGeom.indices.reshape(-1,3)[:,::-1])
+            self.foot_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+            tri_mesh_data = ode.TriMeshData()
+            tri_mesh_data.build(self.table.leftFootCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.leftFootCushionGeom.indices.reshape(-1,3)[:,::-1])
+            self.left_foot_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+            tri_mesh_data = ode.TriMeshData()
+            tri_mesh_data.build(self.table.rightFootCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.rightFootCushionGeom.indices.reshape(-1,3)[:,::-1])
+            self.right_foot_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+        _setup_cushions()
 
         self._contactgroup = ode.JointGroup()
         self.events = []
@@ -148,10 +149,10 @@ class ODEPoolPhysics(object):
     def add_cue(self, cue):
         body = ode.Body(self.world)
         mass = ode.Mass()
-        mass.setCylinderTotal(cue.mass, 2, cue.radius, cue.length)
+        mass.setCylinderTotal(cue.mass, 3, cue.radius, cue.length)
         body.setMass(mass)
         body.shape = "cylinder"
-        body.boxsize = (2*cue.radius, cue.length, 2*cue.radius)
+        # body.boxsize = (2*cue.radius, 2*cue.radius, cue.length)
         geom = ode.GeomCylinder(space=self.space, radius=cue.radius, length=cue.length)
         geom.setBody(body)
         body.setKinematic()
