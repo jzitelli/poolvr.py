@@ -1,4 +1,5 @@
 import re
+import copy
 from ctypes import c_float, POINTER, c_void_p
 from contextlib import contextmanager
 import logging
@@ -32,7 +33,9 @@ GLSL_TYPE_SPEC = {
     'vec3': gl.GL_FLOAT_VEC3,
     'vec4': gl.GL_FLOAT_VEC4,
     'mat4': gl.GL_FLOAT_MAT4,
-    'mat3': gl.GL_FLOAT_MAT3
+    'mat3': gl.GL_FLOAT_MAT3,
+    'sampler2D': gl.GL_SAMPLER_2D,
+    'samplerCube': gl.GL_SAMPLER_CUBE
 }
 
 
@@ -43,8 +46,8 @@ class Program(object):
     """
     GLSL program
     """
-    ATTRIBUTE_DECL_RE = re.compile("attribute\s+(?P<type_spec>\w+)\s+(?P<attribute_name>\w+)\s*;")
-    UNIFORM_DECL_RE = re.compile("uniform\s+(?P<type_spec>\w+)\s+(?P<uniform_name>\w+)\s*(=\s*(?P<initialization>.*)\s*;|;)")
+    ATTRIBUTE_DECL_RE = re.compile(r"attribute\s+(?P<type_spec>\w+)\s+(?P<attribute_name>\w+)\s*;")
+    UNIFORM_DECL_RE = re.compile(r"uniform\s+(?P<type_spec>\w+)\s+(?P<uniform_name>\w+)\s*(=\s*(?P<initialization>.*)\s*;|;)")
     _current = None
     def __init__(self, vs_src, fs_src, parse_attributes=True, parse_uniforms=True):
         self.vs_src = vs_src
@@ -52,20 +55,26 @@ class Program(object):
         self.program_id = None
         if parse_attributes:
             attributes = {}
-            uniforms = {}
             for line in vs_src.split('\n'):
                 m = self.ATTRIBUTE_DECL_RE.match(line)
                 if m:
                     attribute_name, type_spec = m.group('attribute_name'), m.group('type_spec')
                     attributes[attribute_name] = {'type': GLSL_TYPE_SPEC[type_spec]}
+            self.attributes = attributes
+        else:
+            self.attributes = {}
+        if parse_uniforms:
+            uniforms = {}
+            for line in vs_src.split('\n') + fs_src.split('\n'):
                 m = self.UNIFORM_DECL_RE.match(line)
                 if m:
                     uniform_name, type_spec, initialization = m.group('uniform_name'), m.group('type_spec'), m.group('initialization')
                     uniforms[uniform_name] = {'type': GLSL_TYPE_SPEC[type_spec]}
                     if initialization:
                         uniforms[uniform_name]['initialization'] = initialization
-            self.attributes = attributes
             self.uniforms = uniforms
+        else:
+            self.uniforms = {}
     def init_gl(self, force=False):
         if force:
             Program._current = None
@@ -111,10 +120,16 @@ class Technique(object):
                  front_face=gl.GL_CCW):
         self.program = program
         if attributes is None:
-            attributes = {}
+            attributes = copy.deepcopy(program.attributes)
         self.attributes = attributes
         if uniforms is None:
-            uniforms = {}
+            uniforms = copy.deepcopy(program.uniforms)
+        else:
+            for uniform_name, uniform in program.uniforms.items():
+                if uniform_name not in uniforms:
+                    uniforms[uniform_name] = uniform
+                else:
+                    uniforms[uniform_name].update(uniform)
         self.uniforms = uniforms
         if states is None:
             states = []
@@ -139,54 +154,6 @@ class Technique(object):
         Technique._current = self
     def release(self):
         Technique._current = None
-
-
-class Primitive(object):
-    def __init__(self, mode, indices, index_buffer=None, attribute_usage=None, attribute_divisors=None,
-                 **attributes):
-        """
-
-        A class for specifying GL vertex attribute objects and providing vertex buffer data
-
-        :param **attributes: all other passed keywords are interpreted as providing
-                             array data for the named (by keyword) attribute:
-                             ``<attribute_name>=<ndarray of data>``
-
-        """
-        self.mode = mode
-        self.indices = indices
-        self.index_buffer = index_buffer
-        self.attribute_usage = attribute_usage
-        self.attributes = attributes
-        self.buffers = None
-        self.vaos = {}
-    def init_gl(self, force=False):
-        if self.buffers is not None:
-            if not force: return
-        self.buffers = {}
-        for name, values in self.attributes.items():
-            values = values.tobytes()
-            vbo = gl.glGenBuffers(1)
-            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
-            if self.attribute_usage and name in self.attribute_usage:
-                usage = self.attribute_usage[name]
-            else:
-                usage = gl.GL_STATIC_DRAW
-            gl.glBufferData(gl.GL_ARRAY_BUFFER, len(values), values, usage)
-            if gl.glGetError() != gl.GL_NO_ERROR:
-                raise Exception('failed to init gl buffer')
-            self.buffers[name] = vbo
-        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
-        if force or (self.index_buffer is None and self.indices is not None):
-            indices = self.indices.tobytes()
-            vao = gl.glGenBuffers(1)
-            gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, vao)
-            gl.glBufferData(gl.GL_ELEMENT_ARRAY_BUFFER, len(indices), indices, gl.GL_STATIC_DRAW)
-            if gl.glGetError() != gl.GL_NO_ERROR:
-                raise Exception('failed to init gl buffer')
-            self.index_buffer = vao
-            gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, 0)
-        _logger.info('%s.init_gl: OK' % self.__class__.__name__)
 
 
 class Texture(object):
@@ -371,6 +338,54 @@ class Material(object):
         Material._current = None
 
 
+class Primitive(object):
+    def __init__(self, mode, indices, index_buffer=None, attribute_usage=None, attribute_divisors=None,
+                 **attributes):
+        """
+
+        A class for specifying GL vertex attribute objects and providing vertex buffer data
+
+        :param **attributes: all other passed keywords are interpreted as providing
+                             array data for the named (by keyword) attribute:
+                             ``<attribute_name>=<ndarray of data>``
+
+        """
+        self.mode = mode
+        self.indices = indices
+        self.index_buffer = index_buffer
+        self.attribute_usage = attribute_usage
+        self.attributes = attributes
+        self.buffers = None
+        self.vaos = {}
+    def init_gl(self, force=False):
+        if self.buffers is not None:
+            if not force: return
+        self.buffers = {}
+        for name, values in self.attributes.items():
+            values = values.tobytes()
+            vbo = gl.glGenBuffers(1)
+            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
+            if self.attribute_usage and name in self.attribute_usage:
+                usage = self.attribute_usage[name]
+            else:
+                usage = gl.GL_STATIC_DRAW
+            gl.glBufferData(gl.GL_ARRAY_BUFFER, len(values), values, usage)
+            if gl.glGetError() != gl.GL_NO_ERROR:
+                raise Exception('failed to init gl buffer')
+            self.buffers[name] = vbo
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+        if force or (self.index_buffer is None and self.indices is not None):
+            indices = self.indices.tobytes()
+            vao = gl.glGenBuffers(1)
+            gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, vao)
+            gl.glBufferData(gl.GL_ELEMENT_ARRAY_BUFFER, len(indices), indices, gl.GL_STATIC_DRAW)
+            if gl.glGetError() != gl.GL_NO_ERROR:
+                raise Exception('failed to init gl buffer')
+            self.index_buffer = vao
+            gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, 0)
+        _logger.info('%s.init_gl: OK' % self.__class__.__name__)
+
+
 class Node(object):
     def __init__(self, matrix=None):
         """
@@ -467,6 +482,58 @@ class Mesh(Node):
             material.technique.release()
 
 
+class OpenGLRenderer(object):
+    def __init__(self, multisample=0, znear=0.1, zfar=1000, window_size=(960,1080)):
+        """
+
+        Renderer for non-VR OpenGL renderering
+
+        """
+        self.window_size = window_size
+        self.znear = znear
+        self.zfar = zfar
+        self.camera_matrix = np.eye(4, dtype=np.float32)
+        self.camera_position = self.camera_matrix[3,:3]
+        self.view_matrix = np.eye(4, dtype=np.float32)
+        self.projection_matrix = np.empty((4,4), dtype=np.float32)
+        self.update_projection_matrix()
+        self._gl_states = {}
+    def update_projection_matrix(self):
+        window_size, znear, zfar = self.window_size, self.znear, self.zfar
+        self.projection_matrix[:] = calc_projection_matrix(np.pi / 180 * 60, window_size[0] / window_size[1], znear, zfar).T
+    def init_gl(self, clear_color=(0.0, 0.0, 0.0, 0.0)):
+        gl.glClearColor(*clear_color)
+        gl.glEnable(gl.GL_DEPTH_TEST)
+        gl.glViewport(0, 0, self.window_size[0], self.window_size[1])
+    @contextmanager
+    def render(self, meshes=None):
+        """
+        Render the given meshes.
+
+        This method returns a managed context for drawing the frame.
+        If used in a :code:`with`-statement, the rendering takes place when the
+        :code:`with` block is exited.
+
+        :param meshes *optional*: iterable collection of :ref:`Mesh`-like objects
+        """
+        self.view_matrix[3,:3] = -self.camera_matrix[3,:3]
+        self.view_matrix[:3,:3] = self.camera_matrix[:3,:3].T
+        yield {
+            'camera_world_matrix': self.camera_matrix,
+            'camera_position': self.camera_position,
+            'view_matrix': self.view_matrix
+        }
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
+        if meshes is not None:
+            for mesh in meshes:
+                mesh.draw(projection=self.projection_matrix,
+                          view=self.view_matrix)
+    def process_input(self, **kwargs):
+        pass
+    def shutdown(self):
+        pass
+
+
 def calc_projection_matrix(yfov, aspectRatio, znear, zfar):
     """
     Calculates a standard OpenGL perspective projection matrix, it might be transposed, i forget.
@@ -535,53 +602,3 @@ def set_quaternion_from_matrix(U, out):
         _z = 0.25 * s
     out[:] = np.array([_x, _y, _z, _w])
     return out
-
-class OpenGLRenderer(object):
-    def __init__(self, multisample=0, znear=0.1, zfar=1000, window_size=(960,1080)):
-        """
-
-        Renderer for non-VR OpenGL renderering
-
-        """
-        self.window_size = window_size
-        self.znear = znear
-        self.zfar = zfar
-        self.camera_matrix = np.eye(4, dtype=np.float32)
-        self.camera_position = self.camera_matrix[3,:3]
-        self.view_matrix = np.eye(4, dtype=np.float32)
-        self.projection_matrix = np.empty((4,4), dtype=np.float32)
-        self.update_projection_matrix()
-    def update_projection_matrix(self):
-        window_size, znear, zfar = self.window_size, self.znear, self.zfar
-        self.projection_matrix[:] = calc_projection_matrix(np.pi / 180 * 60, window_size[0] / window_size[1], znear, zfar).T
-    def init_gl(self, clear_color=(0.0, 0.0, 0.0, 0.0)):
-        gl.glClearColor(*clear_color)
-        gl.glEnable(gl.GL_DEPTH_TEST)
-        gl.glViewport(0, 0, self.window_size[0], self.window_size[1])
-    @contextmanager
-    def render(self, meshes=None):
-        """
-        Render the given meshes.
-
-        This method returns a managed context for drawing the frame.
-        If used in a :code:`with`-statement, the rendering takes place when the
-        :code:`with` block is exited.
-
-        :param meshes *optional*: iterable collection of :ref:`Mesh`-like objects
-        """
-        self.view_matrix[3,:3] = -self.camera_matrix[3,:3]
-        self.view_matrix[:3,:3] = self.camera_matrix[:3,:3].T
-        yield {
-            'camera_world_matrix': self.camera_matrix,
-            'camera_position': self.camera_position,
-            'view_matrix': self.view_matrix
-        }
-        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
-        if meshes is not None:
-            for mesh in meshes:
-                mesh.draw(projection=self.projection_matrix,
-                          view=self.view_matrix)
-    def process_input(self, **kwargs):
-        pass
-    def shutdown(self):
-        pass

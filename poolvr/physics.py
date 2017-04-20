@@ -14,8 +14,6 @@ from bisect import bisect
 import numpy as np
 from copy import copy
 
-from .exceptions import TODO
-
 
 _logger = logging.getLogger(__name__)
 
@@ -389,6 +387,9 @@ class PoolPhysics(object):
 
     def step(self, dt):
         self.t += dt
+
+    def set_cue_ball_collision_callback(self, cb):
+        self._on_cue_ball_collide = cb
 
     def _add_event(self, event):
         self.events.append(event)
