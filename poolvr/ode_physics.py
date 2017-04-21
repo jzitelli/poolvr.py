@@ -271,10 +271,10 @@ class ODEPoolPhysics(object):
             body1, body2 = geom1.getBody(), geom2.getBody()
         for c in contacts:
             if isinstance(geom1, ode.GeomPlane) or isinstance(geom2, ode.GeomPlane):
-                c.setBounce(0.13)
+                c.setBounce(0.22)
                 c.setMu(0.15)
-                c.setBounceVel(0.3)
-                c.setSoftERP(0.4)
+                c.setBounceVel(0.01)
+                c.setSoftERP(0.5)
                 c.setSoftCFM(1e4)
                 c.setSlip1(0.03)
             elif isinstance(geom1, ode.GeomTriMesh) or isinstance(geom2, ode.GeomTriMesh):
@@ -294,8 +294,10 @@ class ODEPoolPhysics(object):
             else:
                 c.setBounce(0.93)
                 c.setMu(0.06)
-                #pos, normal, depth, g1, g2 = c.getContactGeomParams()
-                #v_n = np.array(normal).dot(np.array(body1.getLinearVel()) - np.array(body2.getLinearVel()))
-                #play_ball_ball_collision_sound(vol=(v_n**2 / 5))
+                pos, normal, depth, g1, g2 = c.getContactGeomParams()
+                v_n = np.array(normal).dot(np.array(body1.getLinearVel()) - np.array(body2.getLinearVel()))
+                if abs(v_n) > 0.07:
+                    #play_ball_ball_collision_sound(vol=(v_n**2 / 5))
+                    play_ball_ball_collision_sound(vol=max(0.07, min(0.85, v_n**2 / 7)))
             j = ode.ContactJoint(world, contactgroup, c)
             j.attach(body1, body2)

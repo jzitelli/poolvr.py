@@ -17,13 +17,15 @@ from .gl_rendering import OpenGLRenderer, set_matrix_from_quaternion, set_quater
 try:
     from .pyopenvr_renderer import openvr, OpenVRRenderer
 except ImportError as err:
+    _logger.warning('could not import pyopenvr_renderer:\n%s', err)
+    _logger.warning('\n\n\n**** VR FEATURES ARE NOT AVAILABLE! ****\n\n\n')
     OpenVRRenderer = None
 # from .gl_text import TexturedText
 from .cue import PoolCue
 from .game import PoolGame
 from .keyboard_controls import init_keyboard
 from .mouse_controls import init_mouse
-#from . import sound
+from .sound import init_sound
 try:
     from .ode_physics import ODEPoolPhysics
 except ImportError as err:
@@ -134,7 +136,7 @@ def main(window_size=(800,600),
     gl.glClearColor(*BG_COLOR)
     gl.glEnable(gl.GL_DEPTH_TEST)
 
-    #sound.init()
+    init_sound()
 
     _logger.info('entering render loop...')
     sys.stdout.flush()
