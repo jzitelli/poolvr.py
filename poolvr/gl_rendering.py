@@ -166,7 +166,7 @@ class Texture(object):
         self.uri = uri
         self.texture_id = None
         self.sampler_id = None
-    def init_gl(self, force=False):
+    def init_gl(self, force=False, ):
         """
         Perform initialization for the texture on the current GL context
 
@@ -183,13 +183,15 @@ class Texture(object):
         self.sampler_id = sampler_id
         gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MIN_FILTER, 9986)
         gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MAG_FILTER, 9729)
-        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_S, 10497)
-        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_T, 10497)
+        # gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_S, 10497)
+        # gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_T, 10497)
+        # gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_S, gl.GL_REPEAT)
+        # gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_T, gl.GL_REPEAT)
         gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
         gl.glTexImage2D(gl.GL_TEXTURE_2D, 0,
-                        gl.GL_RGBA,
+                        gl.GL_RGB if image.mode == 'RGB' else gl.GL_RGBA,
                         image.width, image.height, 0,
-                        gl.GL_RGBA,
+                        gl.GL_RGB if image.mode == 'RGB' else gl.GL_RGBA,
                         gl.GL_UNSIGNED_BYTE,
                         np.array(list(image.getdata()), dtype=np.ubyte))
         gl.glGenerateMipmap(gl.GL_TEXTURE_2D)
@@ -285,9 +287,15 @@ class Material(object):
             raise Exception('failed to init material: %s' % err)
         self._initialized = True
         _logger.info('%s.init_gl: OK' % self.__class__.__name__)
-    def use(self, u_view=None, u_modelview=None, u_projection=None, u_normal=None, u_modelview_inverse=None):
-        # if Material._current is self:
-        #     return
+    def use(self,
+            u_view=None,
+            u_modelview=None,
+            u_projection=None,
+            u_normal=None,
+            u_modelview_inverse=None,
+            u_model=None):
+        if Material._current is self:
+            return
         if not self._initialized:
             self.init_gl()
         self.technique.use()
@@ -316,19 +324,21 @@ class Material(object):
                     gl.glUniform3f(location, *value)
                 elif uniform_type == gl.GL_FLOAT_VEC4:
                     gl.glUniform4f(location, *value)
+                else:
+                    raise Exception('unhandled uniform type: %d' % uniform_type)
             else:
                 if u_modelview is not None and uniform_name == 'u_modelview':
                     gl.glUniformMatrix4fv(location, 1, False, u_modelview)
                 elif u_modelview_inverse is not None and uniform_name == 'u_modelview_inverse':
                     gl.glUniformMatrix4fv(location, 1, False, u_modelview_inverse)
+                elif u_model is not None and uniform_name == 'u_model':
+                    gl.glUniformMatrix4fv(location, 1, False, u_model)
                 elif u_view is not None and uniform_name == 'u_view':
                     gl.glUniformMatrix4fv(location, 1, False, u_view)
                 elif u_projection is not None and uniform_name == 'u_projection':
                     gl.glUniformMatrix4fv(location, 1, False, u_projection)
                 elif u_normal is not None and uniform_name == 'u_normal':
                     gl.glUniformMatrix3fv(location, 1, False, u_normal)
-                else:
-                    raise Exception('unhandled uniform type: %d' % uniform_type)
             if CHECK_GL_ERRORS:
                 err = gl.glGetError()
                 if err != gl.GL_NO_ERROR:
@@ -464,7 +474,8 @@ class Mesh(Node):
             self.world_matrix.dot(view, out=self._modelview)
             self._normal[:] = np.linalg.inv(self._modelview[:3,:3].T)
         for material, prims in self.primitives.items():
-            material.use(u_view=view, u_projection=projection, u_modelview=self._modelview, u_normal=self._normal)
+            material.use(u_view=view, u_projection=projection, u_modelview=self._modelview,
+                         u_normal=self._normal, u_model=self.world_matrix)
             technique = material.technique
             for prim in prims:
                 gl.glBindVertexArray(prim.vaos[technique])
