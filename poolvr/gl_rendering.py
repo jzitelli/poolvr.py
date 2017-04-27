@@ -166,7 +166,7 @@ class Texture(object):
         self.uri = uri
         self.texture_id = None
         self.sampler_id = None
-    def init_gl(self, force=False, ):
+    def init_gl(self, force=False):
         """
         Perform initialization for the texture on the current GL context
 
@@ -181,12 +181,10 @@ class Texture(object):
         gl.glBindTexture(gl.GL_TEXTURE_2D, texture_id)
         sampler_id = gl.glGenSamplers(1)
         self.sampler_id = sampler_id
-        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MIN_FILTER, 9986)
-        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MAG_FILTER, 9729)
-        # gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_S, 10497)
-        # gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_T, 10497)
-        # gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_S, gl.GL_REPEAT)
-        # gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_T, gl.GL_REPEAT)
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST_MIPMAP_LINEAR)
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_S, gl.GL_REPEAT)
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_T, gl.GL_REPEAT)
         gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
         gl.glTexImage2D(gl.GL_TEXTURE_2D, 0,
                         gl.GL_RGB if image.mode == 'RGB' else gl.GL_RGBA,
@@ -232,9 +230,9 @@ class CubeTexture(Texture):
         sampler_id = gl.glGenSamplers(1)
         self.sampler_id = sampler_id
         gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR);
-        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MAG_FILTER, 9729)
-        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_S, 10497)
-        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_T, 10497)
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_S, gl.GL_REPEAT)
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_T, gl.GL_REPEAT)
         gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
         for uri, target in zip(self.uris, self.TARGETS):
             image = Image.open(uri)

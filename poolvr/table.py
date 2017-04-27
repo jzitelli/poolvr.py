@@ -1,9 +1,8 @@
 import os.path
 import numpy as np
-import itertools
 
 from .gl_rendering import Mesh, Material, Texture
-from .primitives import BoxPrimitive, PlanePrimitive, HexaPrimitive, SpherePrimitive
+from .primitives import PlanePrimitive, HexaPrimitive, SpherePrimitive
 from .techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
 from .billboards import BillboardParticles
 
@@ -27,8 +26,6 @@ class PoolTable(object):
                  W_cushion=1.6*INCH2METER,
                  H_cushion=0.635*2.25*INCH2METER,
                  **kwargs):
-        self.length = length
-        self.height = height
         self.length = length
         self.height = height
         if width is None:
