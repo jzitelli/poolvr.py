@@ -87,6 +87,7 @@ class ODEPoolPhysics(object):
         self.world.setAngularDamping(angular_damping)
         self.space = ode.SimpleSpace()
         self.t = 0.0
+        self._t_last_strike = 0.0
         self.nsteps = 0
         self.ball_bodies = []
         self.ball_geoms = []
@@ -258,9 +259,9 @@ class ODEPoolPhysics(object):
             body1, body2 = geom1.getBody(), geom2.getBody()
         for c in contacts:
             if isinstance(geom1, ode.GeomPlane) or isinstance(geom2, ode.GeomPlane):
-                c.setBounce(0.13)
+                c.setBounce(0.24)
                 c.setMu(0.15)
-                c.setBounceVel(0.3)
+                c.setBounceVel(0.033)
                 c.setSoftERP(0.4)
                 c.setSoftCFM(1e4)
                 c.setSlip1(0.03)
@@ -271,6 +272,9 @@ class ODEPoolPhysics(object):
                 c.setSoftERP(0.4)
                 c.setSoftCFM(1e4)
                 c.setSlip1(0.03)
+            elif isinstance(geom1, ode.GeomCylinder) or isinstance(geom2, ode.GeomCylinder):
+                c.setBounce(0.6)
+                c.setMu(0.23)
             else:
                 c.setBounce(0.93)
                 c.setMu(0.06)
