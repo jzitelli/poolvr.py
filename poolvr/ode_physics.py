@@ -8,7 +8,7 @@ import ode
 
 from .table import PoolTable
 from .physics import _J, PoolPhysics
-#from .sound import play_ball_ball_collision_sound
+from .sound import play_ball_ball_collision_sound
 
 
 _logger = logging.getLogger(__name__)
@@ -18,7 +18,7 @@ INCH2METER = 0.0254
 ZERO3 = np.zeros(3, dtype=np.float64)
 
 
-def _create_ball(ball_mass, ball_radius, world, space=None):
+def _create_ball(world, ball_mass, ball_radius, space=None):
     body = ode.Body(world)
     mass = ode.Mass()
     mass.setSphereTotal(ball_mass, ball_radius)
@@ -28,6 +28,21 @@ def _create_ball(ball_mass, ball_radius, world, space=None):
     geom = ode.GeomSphere(space=space, radius=ball_radius)
     geom.setBody(body)
     return body, geom
+
+
+def _create_cue(world, cue_mass, cue_radius, cue_length, space=None, kinematic=True):
+        body = ode.Body(world)
+        mass = ode.Mass()
+        mass.setCylinderTotal(cue_mass, 3, cue_radius, cue_length)
+        body.setMass(mass)
+        body.shape = "cylinder"
+        if kinematic:
+            body.setKinematic()
+        if space:
+            geom = ode.GeomCylinder(space=space, radius=cue_radius, length=cue_length)
+            geom.setBody(body)
+            return body, geom
+        return body
 
 
 class ODEPoolPhysics(object):
@@ -92,32 +107,32 @@ class ODEPoolPhysics(object):
         self.ball_bodies = []
         self.ball_geoms = []
         for i in range(num_balls):
-            body, geom = _create_ball(ball_mass, ball_radius, self.world, self.space)
+            body, geom = _create_ball(self.world, ball_mass, ball_radius, space=self.space)
             self.ball_bodies.append(body)
             self.ball_geoms.append(geom)
         # self.table_geom = ode.GeomBox(space=self.space, lengths=(self.table.width, self.table.height, self.table.length))
-        # self.table_body = ode.Body(self.world)
-        # self.table_geom.setBody(self.table_body)
-        self.table_geom = ode.GeomPlane(space=self.space, normal=(0.0, 1.0, 0.0), dist=self.table.height)
-
-        tri_mesh_data = ode.TriMeshData()
-        tri_mesh_data.build(self.table.headCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.headCushionGeom.indices.reshape(-1,3))
-        self.head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
-        tri_mesh_data = ode.TriMeshData()
-        tri_mesh_data.build(self.table.footCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.footCushionGeom.indices.reshape(-1,3)[:,::-1])
-        self.foot_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
-        tri_mesh_data = ode.TriMeshData()
-        tri_mesh_data.build(self.table.leftHeadCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.leftHeadCushionGeom.indices.reshape(-1,3))
-        self.left_head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
-        tri_mesh_data = ode.TriMeshData()
-        tri_mesh_data.build(self.table.rightHeadCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.rightHeadCushionGeom.indices.reshape(-1,3))
-        self.right_head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
-        tri_mesh_data = ode.TriMeshData()
-        tri_mesh_data.build(self.table.leftFootCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.leftFootCushionGeom.indices.reshape(-1,3)[:,::-1])
-        self.left_foot_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
-        tri_mesh_data = ode.TriMeshData()
-        tri_mesh_data.build(self.table.rightFootCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.rightFootCushionGeom.indices.reshape(-1,3)[:,::-1])
-        self.right_foot_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+        self.table_geom = ode.GeomPlane(space=self.space, normal=(0.0, 1.0, 0.0),
+                                        dist=self.table.height)
+        def _setup_cushions():
+            tri_mesh_data = ode.TriMeshData()
+            tri_mesh_data.build(self.table.headCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.headCushionGeom.indices.reshape(-1,3))
+            self.head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+            tri_mesh_data = ode.TriMeshData()
+            tri_mesh_data.build(self.table.leftHeadCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.leftHeadCushionGeom.indices.reshape(-1,3))
+            self.left_head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+            tri_mesh_data = ode.TriMeshData()
+            tri_mesh_data.build(self.table.rightHeadCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.rightHeadCushionGeom.indices.reshape(-1,3))
+            self.right_head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+            tri_mesh_data = ode.TriMeshData()
+            tri_mesh_data.build(self.table.footCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.footCushionGeom.indices.reshape(-1,3)[:,::-1])
+            self.foot_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+            tri_mesh_data = ode.TriMeshData()
+            tri_mesh_data.build(self.table.leftFootCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.leftFootCushionGeom.indices.reshape(-1,3)[:,::-1])
+            self.left_foot_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+            tri_mesh_data = ode.TriMeshData()
+            tri_mesh_data.build(self.table.rightFootCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.rightFootCushionGeom.indices.reshape(-1,3)[:,::-1])
+            self.right_foot_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+        _setup_cushions()
 
         self._contactgroup = ode.JointGroup()
         self.events = []
@@ -130,6 +145,10 @@ class ODEPoolPhysics(object):
             for geom, position in zip(self.ball_geoms, initial_positions):
                 geom.setPosition(position)
             self._a[:,0] = initial_positions
+        self._on_cue_ball_collide = None
+
+    def set_cue_ball_collision_callback(self, cb):
+        self._on_cue_ball_collide = cb
 
     def reset(self, ball_positions):
         self.on_table[:] = True
@@ -147,15 +166,8 @@ class ODEPoolPhysics(object):
         self._a[:,0] = ball_positions
 
     def add_cue(self, cue):
-        body = ode.Body(self.world)
-        mass = ode.Mass()
-        mass.setCylinderTotal(cue.mass, 2, cue.radius, cue.length)
-        body.setMass(mass)
-        body.shape = "cylinder"
-        body.boxsize = (2*cue.radius, cue.length, 2*cue.radius)
-        geom = ode.GeomCylinder(space=self.space, radius=cue.radius, length=cue.length)
-        geom.setBody(body)
-        body.setKinematic()
+        body, geom = _create_cue(self.world, cue.mass, cue.radius, cue.length,
+                                 space=self.space, kinematic=True)
         self.cue_bodies = [body]
         self.cue_geoms = [geom]
         return body, geom
@@ -273,13 +285,19 @@ class ODEPoolPhysics(object):
                 c.setSoftCFM(1e4)
                 c.setSlip1(0.03)
             elif isinstance(geom1, ode.GeomCylinder) or isinstance(geom2, ode.GeomCylinder):
-                c.setBounce(0.6)
-                c.setMu(0.23)
+                c.setBounce(0.66)
+                c.setMu(0.25)
+                pos, normal, depth, g1, g2 = c.getContactGeomParams()
+                v_n = np.array(normal).dot(np.array(body1.getPointVel(pos)) - np.array(body2.getPointVel(pos)))
+                if self._on_cue_ball_collide:
+                    self._on_cue_ball_collide(impact_speed=abs(v_n))
             else:
                 c.setBounce(0.93)
                 c.setMu(0.06)
-                #pos, normal, depth, g1, g2 = c.getContactGeomParams()
-                #v_n = np.array(normal).dot(np.array(body1.getLinearVel()) - np.array(body2.getLinearVel()))
-                #play_ball_ball_collision_sound(vol=(v_n**2 / 5))
+                pos, normal, depth, g1, g2 = c.getContactGeomParams()
+                v_n = np.array(normal).dot(np.array(body1.getLinearVel()) - np.array(body2.getLinearVel()))
+                if abs(v_n) > 0.02:
+                    #play_ball_ball_collision_sound(vol=(v_n**2 / 5))
+                    #play_ball_ball_collision_sound(vol=max(0.15, min(0.03, v_n**2 / 7)))
             j = ode.ContactJoint(world, contactgroup, c)
             j.attach(body1, body2)

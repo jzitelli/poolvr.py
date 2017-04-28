@@ -1,6 +1,9 @@
-from .gl_rendering import *
-from .primitives import *
-from .techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
+import numpy as np
+
+
+from .gl_rendering import Material, Mesh
+from .primitives import CylinderPrimitive
+from .techniques import LAMBERT_TECHNIQUE
 
 
 class PoolCue(Mesh):
@@ -13,7 +16,6 @@ class PoolCue(Mesh):
         self.mass = mass
         cylinder = CylinderPrimitive(radius=radius, height=length)
         cylinder.attributes['a_position'] = cylinder.attributes['vertices']
-        # Mesh.__init__(self, {Material(EGA_TECHNIQUE, values={'u_color': [0.5, 0.5, 0.0, 0.0]}): [cylinder]})
         Mesh.__init__(self, {Material(LAMBERT_TECHNIQUE, values={'u_color': [0.5, 0.5, 0.0, 0.0],
                                                                  'u_lightpos': [1.0, 15.0, 1.5]})
                              : [cylinder]})

@@ -200,3 +200,12 @@ class SpherePrimitive(Primitive):
         uvs = np.array(uvs, dtype=np.float32)
         Primitive.__init__(self, gl.GL_TRIANGLE_STRIP, indices,
                            vertices=vertices, uvs=uvs)
+
+
+class RoundedRectanglePrimitive(Primitive):
+    def __init__(self, width, height, radius=None):
+        if radius is None:
+            radius = 0.15 * min(width, height)
+        self.width = width
+        self.height = height
+        self.radius = radius

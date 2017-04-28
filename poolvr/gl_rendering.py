@@ -1,4 +1,5 @@
 import re
+import copy
 from ctypes import c_float, POINTER, c_void_p
 from contextlib import contextmanager
 import logging
@@ -32,7 +33,9 @@ GLSL_TYPE_SPEC = {
     'vec3': gl.GL_FLOAT_VEC3,
     'vec4': gl.GL_FLOAT_VEC4,
     'mat4': gl.GL_FLOAT_MAT4,
-    'mat3': gl.GL_FLOAT_MAT3
+    'mat3': gl.GL_FLOAT_MAT3,
+    'sampler2D': gl.GL_SAMPLER_2D,
+    'samplerCube': gl.GL_SAMPLER_CUBE
 }
 
 
@@ -43,8 +46,8 @@ class Program(object):
     """
     GLSL program
     """
-    ATTRIBUTE_DECL_RE = re.compile("attribute\s+(?P<type_spec>\w+)\s+(?P<attribute_name>\w+)\s*;")
-    UNIFORM_DECL_RE = re.compile("uniform\s+(?P<type_spec>\w+)\s+(?P<uniform_name>\w+)\s*(=\s*(?P<initialization>.*)\s*;|;)")
+    ATTRIBUTE_DECL_RE = re.compile(r"attribute\s+(?P<type_spec>\w+)\s+(?P<attribute_name>\w+)\s*;")
+    UNIFORM_DECL_RE = re.compile(r"uniform\s+(?P<type_spec>\w+)\s+(?P<uniform_name>\w+)\s*(=\s*(?P<initialization>.*)\s*;|;)")
     _current = None
     def __init__(self, vs_src, fs_src, parse_attributes=True, parse_uniforms=True):
         self.vs_src = vs_src
@@ -52,20 +55,26 @@ class Program(object):
         self.program_id = None
         if parse_attributes:
             attributes = {}
-            uniforms = {}
             for line in vs_src.split('\n'):
                 m = self.ATTRIBUTE_DECL_RE.match(line)
                 if m:
                     attribute_name, type_spec = m.group('attribute_name'), m.group('type_spec')
                     attributes[attribute_name] = {'type': GLSL_TYPE_SPEC[type_spec]}
+            self.attributes = attributes
+        else:
+            self.attributes = {}
+        if parse_uniforms:
+            uniforms = {}
+            for line in vs_src.split('\n') + fs_src.split('\n'):
                 m = self.UNIFORM_DECL_RE.match(line)
                 if m:
                     uniform_name, type_spec, initialization = m.group('uniform_name'), m.group('type_spec'), m.group('initialization')
                     uniforms[uniform_name] = {'type': GLSL_TYPE_SPEC[type_spec]}
                     if initialization:
                         uniforms[uniform_name]['initialization'] = initialization
-            self.attributes = attributes
             self.uniforms = uniforms
+        else:
+            self.uniforms = {}
     def init_gl(self, force=False):
         if force:
             Program._current = None
@@ -111,10 +120,16 @@ class Technique(object):
                  front_face=gl.GL_CCW):
         self.program = program
         if attributes is None:
-            attributes = {}
+            attributes = copy.deepcopy(program.attributes)
         self.attributes = attributes
         if uniforms is None:
-            uniforms = {}
+            uniforms = copy.deepcopy(program.uniforms)
+        else:
+            for uniform_name, uniform in program.uniforms.items():
+                if uniform_name not in uniforms:
+                    uniforms[uniform_name] = uniform
+                else:
+                    uniforms[uniform_name].update(uniform)
         self.uniforms = uniforms
         if states is None:
             states = []
@@ -139,54 +154,6 @@ class Technique(object):
         Technique._current = self
     def release(self):
         Technique._current = None
-
-
-class Primitive(object):
-    def __init__(self, mode, indices, index_buffer=None, attribute_usage=None, attribute_divisors=None,
-                 **attributes):
-        """
-
-        A class for specifying GL vertex attribute objects and providing vertex buffer data
-
-        :param **attributes: all other passed keywords are interpreted as providing
-                             array data for the named (by keyword) attribute:
-                             ``<attribute_name>=<ndarray of data>``
-
-        """
-        self.mode = mode
-        self.indices = indices
-        self.index_buffer = index_buffer
-        self.attribute_usage = attribute_usage
-        self.attributes = attributes
-        self.buffers = None
-        self.vaos = {}
-    def init_gl(self, force=False):
-        if self.buffers is not None:
-            if not force: return
-        self.buffers = {}
-        for name, values in self.attributes.items():
-            values = values.tobytes()
-            vbo = gl.glGenBuffers(1)
-            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
-            if self.attribute_usage and name in self.attribute_usage:
-                usage = self.attribute_usage[name]
-            else:
-                usage = gl.GL_STATIC_DRAW
-            gl.glBufferData(gl.GL_ARRAY_BUFFER, len(values), values, usage)
-            if gl.glGetError() != gl.GL_NO_ERROR:
-                raise Exception('failed to init gl buffer')
-            self.buffers[name] = vbo
-        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
-        if force or (self.index_buffer is None and self.indices is not None):
-            indices = self.indices.tobytes()
-            vao = gl.glGenBuffers(1)
-            gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, vao)
-            gl.glBufferData(gl.GL_ELEMENT_ARRAY_BUFFER, len(indices), indices, gl.GL_STATIC_DRAW)
-            if gl.glGetError() != gl.GL_NO_ERROR:
-                raise Exception('failed to init gl buffer')
-            self.index_buffer = vao
-            gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, 0)
-        _logger.info('%s.init_gl: OK' % self.__class__.__name__)
 
 
 class Texture(object):
@@ -214,15 +181,15 @@ class Texture(object):
         gl.glBindTexture(gl.GL_TEXTURE_2D, texture_id)
         sampler_id = gl.glGenSamplers(1)
         self.sampler_id = sampler_id
-        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MIN_FILTER, 9986)
-        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MAG_FILTER, 9729)
-        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_S, 10497)
-        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_T, 10497)
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST_MIPMAP_LINEAR)
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_S, gl.GL_REPEAT)
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_T, gl.GL_REPEAT)
         gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
         gl.glTexImage2D(gl.GL_TEXTURE_2D, 0,
-                        gl.GL_RGBA,
+                        gl.GL_RGB if image.mode == 'RGB' else gl.GL_RGBA,
                         image.width, image.height, 0,
-                        gl.GL_RGBA,
+                        gl.GL_RGB if image.mode == 'RGB' else gl.GL_RGBA,
                         gl.GL_UNSIGNED_BYTE,
                         np.array(list(image.getdata()), dtype=np.ubyte))
         gl.glGenerateMipmap(gl.GL_TEXTURE_2D)
@@ -263,9 +230,9 @@ class CubeTexture(Texture):
         sampler_id = gl.glGenSamplers(1)
         self.sampler_id = sampler_id
         gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR);
-        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MAG_FILTER, 9729)
-        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_S, 10497)
-        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_T, 10497)
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_S, gl.GL_REPEAT)
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_T, gl.GL_REPEAT)
         gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
         for uri, target in zip(self.uris, self.TARGETS):
             image = Image.open(uri)
@@ -318,9 +285,15 @@ class Material(object):
             raise Exception('failed to init material: %s' % err)
         self._initialized = True
         _logger.info('%s.init_gl: OK' % self.__class__.__name__)
-    def use(self, u_view=None, u_modelview=None, u_projection=None, u_normal=None, u_modelview_inverse=None):
-        # if Material._current is self:
-        #     return
+    def use(self,
+            u_view=None,
+            u_modelview=None,
+            u_projection=None,
+            u_normal=None,
+            u_modelview_inverse=None,
+            u_model=None):
+        if Material._current is self:
+            return
         if not self._initialized:
             self.init_gl()
         self.technique.use()
@@ -349,19 +322,21 @@ class Material(object):
                     gl.glUniform3f(location, *value)
                 elif uniform_type == gl.GL_FLOAT_VEC4:
                     gl.glUniform4f(location, *value)
+                else:
+                    raise Exception('unhandled uniform type: %d' % uniform_type)
             else:
                 if u_modelview is not None and uniform_name == 'u_modelview':
                     gl.glUniformMatrix4fv(location, 1, False, u_modelview)
                 elif u_modelview_inverse is not None and uniform_name == 'u_modelview_inverse':
                     gl.glUniformMatrix4fv(location, 1, False, u_modelview_inverse)
+                elif u_model is not None and uniform_name == 'u_model':
+                    gl.glUniformMatrix4fv(location, 1, False, u_model)
                 elif u_view is not None and uniform_name == 'u_view':
                     gl.glUniformMatrix4fv(location, 1, False, u_view)
                 elif u_projection is not None and uniform_name == 'u_projection':
                     gl.glUniformMatrix4fv(location, 1, False, u_projection)
                 elif u_normal is not None and uniform_name == 'u_normal':
                     gl.glUniformMatrix3fv(location, 1, False, u_normal)
-                else:
-                    raise Exception('unhandled uniform type: %d' % uniform_type)
             if CHECK_GL_ERRORS:
                 err = gl.glGetError()
                 if err != gl.GL_NO_ERROR:
@@ -369,6 +344,54 @@ class Material(object):
         Material._current = self
     def release(self):
         Material._current = None
+
+
+class Primitive(object):
+    def __init__(self, mode, indices, index_buffer=None, attribute_usage=None, attribute_divisors=None,
+                 **attributes):
+        """
+
+        A class for specifying GL vertex attribute objects and providing vertex buffer data
+
+        :param **attributes: all other passed keywords are interpreted as providing
+                             array data for the named (by keyword) attribute:
+                             ``<attribute_name>=<ndarray of data>``
+
+        """
+        self.mode = mode
+        self.indices = indices
+        self.index_buffer = index_buffer
+        self.attribute_usage = attribute_usage
+        self.attributes = attributes
+        self.buffers = None
+        self.vaos = {}
+    def init_gl(self, force=False):
+        if self.buffers is not None:
+            if not force: return
+        self.buffers = {}
+        for name, values in self.attributes.items():
+            values = values.tobytes()
+            vbo = gl.glGenBuffers(1)
+            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
+            if self.attribute_usage and name in self.attribute_usage:
+                usage = self.attribute_usage[name]
+            else:
+                usage = gl.GL_STATIC_DRAW
+            gl.glBufferData(gl.GL_ARRAY_BUFFER, len(values), values, usage)
+            if gl.glGetError() != gl.GL_NO_ERROR:
+                raise Exception('failed to init gl buffer')
+            self.buffers[name] = vbo
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+        if force or (self.index_buffer is None and self.indices is not None):
+            indices = self.indices.tobytes()
+            vao = gl.glGenBuffers(1)
+            gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, vao)
+            gl.glBufferData(gl.GL_ELEMENT_ARRAY_BUFFER, len(indices), indices, gl.GL_STATIC_DRAW)
+            if gl.glGetError() != gl.GL_NO_ERROR:
+                raise Exception('failed to init gl buffer')
+            self.index_buffer = vao
+            gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, 0)
+        _logger.info('%s.init_gl: OK' % self.__class__.__name__)
 
 
 class Node(object):
@@ -449,7 +472,8 @@ class Mesh(Node):
             self.world_matrix.dot(view, out=self._modelview)
             self._normal[:] = np.linalg.inv(self._modelview[:3,:3].T)
         for material, prims in self.primitives.items():
-            material.use(u_view=view, u_projection=projection, u_modelview=self._modelview, u_normal=self._normal)
+            material.use(u_view=view, u_projection=projection, u_modelview=self._modelview,
+                         u_normal=self._normal, u_model=self.world_matrix)
             technique = material.technique
             for prim in prims:
                 gl.glBindVertexArray(prim.vaos[technique])
@@ -465,6 +489,58 @@ class Mesh(Node):
             #     gl.glDisableVertexAttribArray(location)
             material.release()
             material.technique.release()
+
+
+class OpenGLRenderer(object):
+    def __init__(self, multisample=0, znear=0.1, zfar=1000, window_size=(960,1080)):
+        """
+
+        Renderer for non-VR OpenGL renderering
+
+        """
+        self.window_size = window_size
+        self.znear = znear
+        self.zfar = zfar
+        self.camera_matrix = np.eye(4, dtype=np.float32)
+        self.camera_position = self.camera_matrix[3,:3]
+        self.view_matrix = np.eye(4, dtype=np.float32)
+        self.projection_matrix = np.empty((4,4), dtype=np.float32)
+        self.update_projection_matrix()
+        self._gl_states = {}
+    def update_projection_matrix(self):
+        window_size, znear, zfar = self.window_size, self.znear, self.zfar
+        self.projection_matrix[:] = calc_projection_matrix(np.pi / 180 * 60, window_size[0] / window_size[1], znear, zfar).T
+    def init_gl(self, clear_color=(0.0, 0.0, 0.0, 0.0)):
+        gl.glClearColor(*clear_color)
+        gl.glEnable(gl.GL_DEPTH_TEST)
+        gl.glViewport(0, 0, self.window_size[0], self.window_size[1])
+    @contextmanager
+    def render(self, meshes=None):
+        """
+        Render the given meshes.
+
+        This method returns a managed context for drawing the frame.
+        If used in a :code:`with`-statement, the rendering takes place when the
+        :code:`with` block is exited.
+
+        :param meshes *optional*: iterable collection of :ref:`Mesh`-like objects
+        """
+        self.view_matrix[3,:3] = -self.camera_matrix[3,:3]
+        self.view_matrix[:3,:3] = self.camera_matrix[:3,:3].T
+        yield {
+            'camera_world_matrix': self.camera_matrix,
+            'camera_position': self.camera_position,
+            'view_matrix': self.view_matrix
+        }
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
+        if meshes is not None:
+            for mesh in meshes:
+                mesh.draw(projection=self.projection_matrix,
+                          view=self.view_matrix)
+    def process_input(self, **kwargs):
+        pass
+    def shutdown(self):
+        pass
 
 
 def calc_projection_matrix(yfov, aspectRatio, znear, zfar):
@@ -505,53 +581,33 @@ def set_matrix_from_quaternion(quat, out):
               1.0 - 2.0 * (x2 + y2)]
     return out
 
-
-class OpenGLRenderer(object):
-    def __init__(self, multisample=0, znear=0.1, zfar=1000, window_size=(960,1080)):
-        """
-
-        Renderer for non-VR OpenGL renderering
-
-        """
-        self.window_size = window_size
-        self.znear = znear
-        self.zfar = zfar
-        self.camera_matrix = np.eye(4, dtype=np.float32)
-        self.camera_position = self.camera_matrix[3,:3]
-        self.view_matrix = np.eye(4, dtype=np.float32)
-        self.projection_matrix = np.empty((4,4), dtype=np.float32)
-        self.update_projection_matrix()
-    def update_projection_matrix(self):
-        window_size, znear, zfar = self.window_size, self.znear, self.zfar
-        self.projection_matrix[:] = calc_projection_matrix(np.pi / 180 * 60, window_size[0] / window_size[1], znear, zfar).T
-    def init_gl(self, clear_color=(0.0, 0.0, 0.0, 0.0)):
-        gl.glClearColor(*clear_color)
-        gl.glEnable(gl.GL_DEPTH_TEST)
-        gl.glViewport(0, 0, self.window_size[0], self.window_size[1])
-    @contextmanager
-    def render(self, meshes=None):
-        """
-        Render the given meshes.
-
-        This method returns a managed context for drawing the frame.
-        If used in a :code:`with`-statement, the rendering takes place when the
-        :code:`with` block is exited.
-
-        :param meshes *optional*: iterable collection of :ref:`Mesh`-like objects
-        """
-        self.view_matrix[3,:3] = -self.camera_matrix[3,:3]
-        self.view_matrix[:3,:3] = self.camera_matrix[:3,:3].T
-        yield {
-            'camera_world_matrix': self.camera_matrix,
-            'camera_position': self.camera_position,
-            'view_matrix': self.view_matrix
-        }
-        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
-        if meshes is not None:
-            for mesh in meshes:
-                mesh.draw(projection=self.projection_matrix,
-                          view=self.view_matrix)
-    def process_input(self, **kwargs):
-        pass
-    def shutdown(self):
-        pass
+def set_quaternion_from_matrix(U, out):
+    # http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/index.htm
+    # assumes the upper 3x3 of m is a pure rotation matrix (i.e, unscaled)
+    trace = U.trace()
+    if trace > 0:
+        s = 0.5 / np.sqrt( trace + 1.0 );
+        _w = 0.25 / s
+        _x = (U[2,1] - U[1,2]) * s
+        _y = (U[0,2] - U[2,0]) * s
+        _z = (U[1,0] - U[0,1]) * s
+    elif U[0,0] > U[1,1] and U[0,0] > U[2,2]:
+        s = 2.0 * np.sqrt(1.0 + U[0,0] - U[1,1] - U[2,2])
+        _w = (U[2,1] - U[1,2]) / s
+        _x = 0.25 * s
+        _y = (U[0,1] + U[1,0]) / s
+        _z = (U[0,2] + U[2,0]) / s
+    elif U[1,1] > U[2,2]:
+        s = 2.0 * np.sqrt( 1.0 + U[1,1] - U[0,0] - U[2,2])
+        _w = (U[0,2] - U[2,0]) / s
+        _x = (U[0,1] + U[1,0]) / s
+        _y = 0.25 * s
+        _z = (U[1,2] + U[2,1]) / s
+    else:
+        s = 2.0 * np.sqrt( 1.0 + U[2,2] - U[0,0] - U[1,1])
+        _w = (U[1,0] - U[0,1]) / s
+        _x = (U[0,2] + U[2,0]) / s
+        _y = (U[1,2] + U[2,1]) / s
+        _z = 0.25 * s
+    out[:] = np.array([_x, _y, _z, _w])
+    return out
