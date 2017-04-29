@@ -9,17 +9,30 @@ KB_MOVE_SPEED = 0.3
 KB_CUE_MOVE_SPEED = 0.3
 KB_CUE_ROTATE_SPEED = 0.1
 
+_on_keydown_cb = None
+
+key_state = defaultdict(bool)
+
+def __on_keydown(window, key, scancode, action, mods):
+    if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
+        glfw.SetWindowShouldClose(window, gl.GL_TRUE)
+    elif key == glfw.KEY_R and action == glfw.PRESS:
+        glfw
+    elif action == glfw.PRESS:
+        key_state[key] = True
+    elif action == glfw.RELEASE:
+        key_state[key] = False
+    global _on_keydown_cb
+    if _on_keydown_cb:
+        _on_keydown_cb(window, key, scancode, action, mods)
+
+
+def set_on_keydown(window, cb):
+    global _on_keydown_cb
+    _on_keydown_cb = cb
 
 def init_keyboard(window):
-    key_state = defaultdict(bool)
-    def on_keydown(window, key, scancode, action, mods):
-        if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
-            glfw.SetWindowShouldClose(window, gl.GL_TRUE)
-        elif action == glfw.PRESS:
-            key_state[key] = True
-        elif action == glfw.RELEASE:
-            key_state[key] = False
-    glfw.SetKeyCallback(window, on_keydown)
+    glfw.SetKeyCallback(window, __on_keydown)
     theta = 0.0
     def process_keyboard_input(dt, camera_world_matrix, cue=None):
         nonlocal theta
