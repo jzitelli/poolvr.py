@@ -298,6 +298,7 @@ class ODEPoolPhysics(object):
                 v_n = np.array(normal).dot(np.array(body1.getLinearVel()) - np.array(body2.getLinearVel()))
                 if abs(v_n) > 0.02:
                     #play_ball_ball_collision_sound(vol=(v_n**2 / 5))
-                    play_ball_ball_collision_sound(vol=max(0.15, min(0.03, v_n**2 / 7)))
+                    #play_ball_ball_collision_sound(vol=max(0.15, min(0.03, v_n**2 / 7)))
+                    pass
             j = ode.ContactJoint(world, contactgroup, c)
             j.attach(body1, body2)
