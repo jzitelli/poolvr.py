@@ -32,7 +32,8 @@ def init_sound():
     global _initialized
     global ballBall_sound
     global ballBall_sound_fs
-    if not _initialized:
+
+    if sd is not None and not _initialized:
         ballBall_sound, ballBall_sound_fs = sf.read(os.path.join(SOUNDS_DIR, 'ballBall.ogg'))
         ballBall_sound *= 0.2
         _initialized = True
@@ -45,7 +46,8 @@ def open_output_stream(device=None, channels=2, samplerate=44100):
 
 def play_ball_ball_collision_sound(vol=1.0):
     if sd:
-        sd.play(vol * ballBall_sound, ballBall_sound_fs)
+        #sd.play(vol * ballBall_sound, ballBall_sound_fs)
+        sd.play(vol * ballBall_sound)
 
 
 def list_sound_devices():
@@ -60,4 +62,5 @@ def list_sound_devices():
 def set_output_sound_device(device):
     if sd:
         sd.default.device[1] = device
+        sd.default.latency[1] = 'low'
         # _logger.info('set output sound device to %d: %s', device, sd.query_devices()[device]['name'])

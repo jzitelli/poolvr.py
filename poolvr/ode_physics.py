@@ -294,11 +294,10 @@ class ODEPoolPhysics(object):
             else:
                 c.setBounce(0.93)
                 c.setMu(0.06)
-                pos, normal, depth, g1, g2 = c.getContactGeomParams()
-                v_n = np.array(normal).dot(np.array(body1.getLinearVel()) - np.array(body2.getLinearVel()))
-                if abs(v_n) > 0.02:
-                    #play_ball_ball_collision_sound(vol=(v_n**2 / 5))
-                    #play_ball_ball_collision_sound(vol=max(0.15, min(0.03, v_n**2 / 7)))
-                    pass
+                # pos, normal, depth, g1, g2 = c.getContactGeomParams()
+                # v_n = np.array(normal).dot(np.array(body1.getLinearVel()) - np.array(body2.getLinearVel()))
+                # if abs(v_n) > 0.002:
+                #     #play_ball_ball_collision_sound(vol=(v_n**2 / 5))
+                #     play_ball_ball_collision_sound(vol=max(0.15, v_n**2 / 7))
             j = ode.ContactJoint(world, contactgroup, c)
             j.attach(body1, body2)
