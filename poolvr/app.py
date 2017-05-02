@@ -23,7 +23,7 @@ except ImportError as err:
 # from .gl_text import TexturedText
 from .cue import PoolCue
 from .game import PoolGame
-from .keyboard_controls import init_keyboard
+from .keyboard_controls import init_keyboard, set_on_keydown
 from .mouse_controls import init_mouse
 from .sound import init_sound
 try:
@@ -119,7 +119,13 @@ def main(window_size=(800,600),
     camera_position = camera_world_matrix[3,:3]
 
     process_keyboard_input = init_keyboard(window)
+    def on_keydown(window, key, scancode, action, mods):
+        if key == glfw.KEY_R and action == glfw.PRESS:
+            game.reset()
+    set_on_keydown(window, on_keydown)
+
     process_mouse_input = init_mouse(window)
+
     def process_input(dt):
         glfw.PollEvents()
         process_keyboard_input(dt, camera_world_matrix, cue)
