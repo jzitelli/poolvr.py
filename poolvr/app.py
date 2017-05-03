@@ -26,6 +26,7 @@ from .game import PoolGame
 from .keyboard_controls import init_keyboard, set_on_keydown
 from .mouse_controls import init_mouse
 from .sound import init_sound
+import poolvr.room
 try:
     from .ode_physics import ODEPoolPhysics
 except ImportError as err:
@@ -133,7 +134,7 @@ def main(window_size=(800,600),
 
     # textured_text = TexturedText()
 
-    meshes = [game.table.mesh] + ball_meshes + [cue]
+    meshes = [poolvr.room.floor_mesh, game.table.mesh] + ball_meshes + [cue]
     for mesh in meshes:
         mesh.init_gl()
 

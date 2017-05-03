@@ -122,12 +122,13 @@ class QuadPrimitive(Primitive):
         n2 /= np.linalg.norm(n2)
         if not np.allclose(n1, n2):
             raise Exception('quad vertices are not co-planar')
+        normals = np.array(4 * [(n1 + n2) / 2], dtype=np.float32)
         uvs = np.array([[0.0, 0.0],
                         [1.0, 0.0],
                         [1.0, 1.0],
                         [0.0, 1.0]], dtype=np.float32)
         Primitive.__init__(self, gl.GL_TRIANGLE_STRIP, QuadPrimitive.indices, index_buffer=QuadPrimitive.index_buffer,
-                           vertices=vertices, uvs=uvs, **attributes)
+                           vertices=vertices, uvs=uvs, normals=normals, **attributes)
     def init_gl(self, force=False):
         Primitive.init_gl(self, force=force)
         if QuadPrimitive.index_buffer is None:
