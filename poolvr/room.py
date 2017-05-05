@@ -24,6 +24,7 @@ skybox_mesh = Mesh({skybox_material: [skybox_geom]})
 floor_geom = PlanePrimitive(width=3, height=0, depth=3)
 floor_geom.attributes['a_position'] = floor_geom.attributes['vertices']
 floor_geom.attributes['a_texcoord'] = floor_geom.attributes['uvs']
+floor_geom.attributes['a_texcoord'] *= 3
 floor_geom.attributes['a_normal'] = floor_geom.attributes['normals']
 floor_material = Material(PHONG_BUMP_DIFFUSE_ROUGHNESS_TECHNIQUE)
 floor_mesh = Mesh({floor_material: [floor_geom]})

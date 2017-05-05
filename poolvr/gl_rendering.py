@@ -289,7 +289,7 @@ class Material(object):
             u_view=None,
             u_modelview=None,
             u_projection=None,
-            u_normal=None,
+            u_modelview_inverse_transpose=None,
             u_modelview_inverse=None,
             u_model=None):
         if Material._current is self:
@@ -335,8 +335,8 @@ class Material(object):
                     gl.glUniformMatrix4fv(location, 1, False, u_view)
                 elif u_projection is not None and uniform_name == 'u_projection':
                     gl.glUniformMatrix4fv(location, 1, False, u_projection)
-                elif u_normal is not None and uniform_name == 'u_normal':
-                    gl.glUniformMatrix3fv(location, 1, False, u_normal)
+                elif u_modelview_inverse_transpose is not None and uniform_name == 'u_modelview_inverse_transpose':
+                    gl.glUniformMatrix3fv(location, 1, False, u_modelview_inverse_transpose)
             if CHECK_GL_ERRORS:
                 err = gl.glGetError()
                 if err != gl.GL_NO_ERROR:
@@ -473,7 +473,7 @@ class Mesh(Node):
             self._normal[:] = np.linalg.inv(self._modelview[:3,:3].T)
         for material, prims in self.primitives.items():
             material.use(u_view=view, u_projection=projection, u_modelview=self._modelview,
-                         u_normal=self._normal, u_model=self.world_matrix)
+                         u_modelview_inverse_transpose=self._normal, u_model=self.world_matrix)
             technique = material.technique
             for prim in prims:
                 gl.glBindVertexArray(prim.vaos[technique])
