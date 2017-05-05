@@ -32,8 +32,8 @@ SKYBOX_TECHNIQUE = Technique(Program(pkgutil.get_data('poolvr', 'shaders/skybox_
                              front_face=gl.GL_CW)
 
 
-PHONG_BUMP_DIFFUSE_ROUGHNESS_TECHNIQUE = Technique(Program(pkgutil.get_data('poolvr', 'shaders/phong_bump_diffuse_roughness_vs.glsl').decode(),
-                                                           pkgutil.get_data('poolvr', 'shaders/phong_bump_diffuse_roughness_fs.glsl').decode()),
-                                                   uniforms={'u_diffuse_map': {'texture': Texture(os.path.join(TEXTURES_DIR, 'hardwood2_diffuse.jpg'))},
-                                                             'u_bump_map': {'texture': Texture(os.path.join(TEXTURES_DIR, 'hardwood2_bump.jpg'))},
-                                                             'u_roughness_map': {'texture': Texture(os.path.join(TEXTURES_DIR, 'hardwood2_roughness.jpg'))}})
+PHONG_NORMAL_DIFFUSE_ROUGHNESS_TECHNIQUE = Technique(Program(pkgutil.get_data('poolvr', 'shaders/phong_bump_diffuse_roughness_vs.glsl').decode(),
+                                                             pkgutil.get_data('poolvr', 'shaders/phong_bump_diffuse_roughness_fs.glsl').decode()),
+                                                     uniforms={'u_diffuse_map': {'texture': Texture(os.path.join(TEXTURES_DIR, 'hardwood2_diffuse.jpg'))},
+                                                               'u_normal_map': {'texture': Texture(os.path.join(TEXTURES_DIR, 'hardwoodnormal2.png'))},
+                                                               'u_roughness_map': {'texture': Texture(os.path.join(TEXTURES_DIR, 'hardwood2_roughness.jpg'))}})

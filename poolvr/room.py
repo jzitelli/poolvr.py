@@ -3,7 +3,7 @@ import os.path
 
 from .gl_rendering import CubeTexture, Material, Mesh
 from .primitives import BoxPrimitive, PlanePrimitive
-from .techniques import SKYBOX_TECHNIQUE, PHONG_BUMP_DIFFUSE_ROUGHNESS_TECHNIQUE
+from .techniques import SKYBOX_TECHNIQUE, PHONG_NORMAL_DIFFUSE_ROUGHNESS_TECHNIQUE
 
 
 # TODO: pkgutils way
@@ -26,5 +26,5 @@ floor_geom.attributes['a_position'] = floor_geom.attributes['vertices']
 floor_geom.attributes['a_texcoord'] = floor_geom.attributes['uvs']
 floor_geom.attributes['a_texcoord'] *= 3
 floor_geom.attributes['a_normal'] = floor_geom.attributes['normals']
-floor_material = Material(PHONG_BUMP_DIFFUSE_ROUGHNESS_TECHNIQUE)
+floor_material = Material(PHONG_NORMAL_DIFFUSE_ROUGHNESS_TECHNIQUE)
 floor_mesh = Mesh({floor_material: [floor_geom]})
