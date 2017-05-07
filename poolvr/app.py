@@ -199,7 +199,7 @@ def main(window_size=(800,600),
             elif isinstance(renderer, OpenGLRenderer):
                 set_quaternion_from_matrix(cue.rotation.dot(cue.world_matrix[:3,:3].T),
                                            cue_quaternion)
-                frame_data['view_matrix'].T.dot(light_position, out=u_light_position)
+                #frame_data['view_matrix'].T.dot(light_position, out=u_light_position)
 
                 # if game.t >= game.ntt:
                 #     for i, position in cue.aabb_check(ball_positions, ball_radius):

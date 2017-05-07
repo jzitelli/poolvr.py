@@ -484,9 +484,9 @@ class Mesh(Node):
             raise Exception('failed to init primitive: %s' % err)
         _logger.info('%s.init_gl: OK' % self.__class__.__name__)
         self._initialized = True
-    def draw(self, view=None, projection=None):
+    def draw(self, view=None, projection=None, frame_data=None):
         if self._before_draw:
-            self._before_draw(self)
+            self._before_draw(self, frame_data)
         if view is not None:
             self.world_matrix.dot(view, out=self._modelview)
             self._normal[:] = np.linalg.inv(self._modelview[:3,:3].T)
@@ -508,6 +508,8 @@ class Mesh(Node):
             #     gl.glDisableVertexAttribArray(location)
             material.release()
             material.technique.release()
+        if self._after_draw:
+            self._after_draw(self, frame_data)
 
 
 class OpenGLRenderer(object):
@@ -546,16 +548,18 @@ class OpenGLRenderer(object):
         """
         self.view_matrix[3,:3] = -self.camera_matrix[3,:3]
         self.view_matrix[:3,:3] = self.camera_matrix[:3,:3].T
-        yield {
+        frame_data = {
             'camera_world_matrix': self.camera_matrix,
             'camera_position': self.camera_position,
             'view_matrix': self.view_matrix
         }
+        yield frame_data
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         if meshes is not None:
             for mesh in meshes:
                 mesh.draw(projection=self.projection_matrix,
-                          view=self.view_matrix)
+                          view=self.view_matrix,
+                          frame_data=frame_data)
     def process_input(self, **kwargs):
         pass
     def shutdown(self):
