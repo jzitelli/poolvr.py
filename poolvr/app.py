@@ -26,7 +26,7 @@ from .game import PoolGame
 from .keyboard_controls import init_keyboard, set_on_keydown
 from .mouse_controls import init_mouse
 from .sound import init_sound
-from .room import floor_material, floor_mesh, skybox_mesh
+from .room import floor_mesh
 
 try:
     from .ode_physics import ODEPoolPhysics
@@ -152,9 +152,6 @@ def main(window_size=(800,600),
 
     _logger.info('entering render loop...')
     sys.stdout.flush()
-
-    light_position = np.array([0.5, 5.0, 2.0, 1.0], dtype=np.float32)
-    u_light_position = floor_material.values['u_light_position']
 
     nframes = 0
     max_frame_time = 0.0
