@@ -117,7 +117,7 @@ class Technique(object):
     """
     _current = None
     def __init__(self, program, attributes=None, uniforms=None, states=None, attribute_divisors=None,
-                 front_face=gl.GL_CCW):
+                 front_face=gl.GL_CCW, on_use=None, on_release=None):
         self.program = program
         if attributes is None:
             attributes = copy.deepcopy(program.attributes)
@@ -138,6 +138,8 @@ class Technique(object):
             attribute_divisors = {}
         self.attribute_divisors = attribute_divisors
         self.front_face = front_face
+        self._on_use = on_use
+        self._on_release = on_release
     def init_gl(self, force=False):
         if force:
             Technique._current = None
@@ -151,8 +153,12 @@ class Technique(object):
             return
         self.program.use()
         gl.glFrontFace(self.front_face)
+        if self._on_use:
+            self._on_use(self)
         Technique._current = self
     def release(self):
+        if self._on_release:
+            self._on_release(self)
         Technique._current = None
 
 
@@ -237,9 +243,9 @@ class CubeTexture(Texture):
         for uri, target in zip(self.uris, self.TARGETS):
             image = Image.open(uri)
             gl.glTexImage2D(target, 0,
-                            gl.GL_RGBA,
+                            gl.GL_RGB if image.mode == 'RGB' else gl.GL_RGBA,
                             image.width, image.height, 0,
-                            gl.GL_RGB,
+                            gl.GL_RGB if image.mode == 'RGB' else gl.GL_RGBA,
                             gl.GL_UNSIGNED_BYTE,
                             np.array(list(image.getdata()), dtype=np.ubyte))
         gl.glGenerateMipmap(gl.GL_TEXTURE_CUBE_MAP)
@@ -251,7 +257,7 @@ class CubeTexture(Texture):
 
 class Material(object):
     _current = None
-    def __init__(self, technique, values=None, textures=None):
+    def __init__(self, technique, values=None, textures=None, on_use=None, on_release=None):
         """
         A Material object is a customization of a :ref:`Technique` with a
         particular set of uniform values and textures.
@@ -270,6 +276,8 @@ class Material(object):
                     values[uniform_name] = uniform['value']
         self.values = values
         self.textures = textures
+        self._on_use = on_use
+        self._on_release = on_release
         self._initialized = False
     def init_gl(self, force=False):
         if force:
@@ -297,21 +305,26 @@ class Material(object):
         if not self._initialized:
             self.init_gl()
         self.technique.use()
+        if self._on_use:
+            self._on_use(self)
+        tex_unit = 0
         for uniform_name, location in self.technique.uniform_locations.items():
             uniform = self.technique.uniforms[uniform_name]
             uniform_type = uniform['type']
             if uniform_type == gl.GL_SAMPLER_2D:
                 texture = self.textures[uniform_name]
-                gl.glActiveTexture(gl.GL_TEXTURE0+0)
+                gl.glActiveTexture(gl.GL_TEXTURE0+tex_unit)
                 gl.glBindTexture(gl.GL_TEXTURE_2D, texture.texture_id)
-                gl.glBindSampler(0, texture.sampler_id)
-                gl.glUniform1i(location, 0)
+                gl.glBindSampler(tex_unit, texture.sampler_id)
+                gl.glUniform1i(location, tex_unit)
+                tex_unit += 1
             elif uniform_type == gl.GL_SAMPLER_CUBE:
                 texture = self.textures[uniform_name]
-                gl.glActiveTexture(gl.GL_TEXTURE0+0)
+                gl.glActiveTexture(gl.GL_TEXTURE0+tex_unit)
                 gl.glBindTexture(gl.GL_TEXTURE_CUBE_MAP, texture.texture_id)
-                gl.glBindSampler(0, texture.sampler_id)
-                gl.glUniform1i(location, 0)
+                gl.glBindSampler(tex_unit, texture.sampler_id)
+                gl.glUniform1i(location, tex_unit)
+                tex_unit += 1
             elif uniform_name in self.values:
                 value = self.values[uniform_name]
                 if uniform_type == gl.GL_FLOAT:
@@ -343,6 +356,8 @@ class Material(object):
                     raise Exception('error setting material state: %d' % err)
         Material._current = self
     def release(self):
+        if self._on_release:
+            self._on_release(self)
         Material._current = None
 
 
@@ -426,7 +441,7 @@ class Node(object):
 class Mesh(Node):
     _modelview = np.eye(4, dtype=np.float32)
     _normal = np.eye(3, dtype=np.float32)
-    def __init__(self, primitives, matrix=None):
+    def __init__(self, primitives, matrix=None, before_draw=None, after_draw=None):
         """
         A drawable collection of :ref:`Primitive`s, with a :ref:`Material` assigned for each one.
 
@@ -434,6 +449,8 @@ class Mesh(Node):
         """
         Node.__init__(self, matrix=matrix)
         self.primitives = primitives
+        self._before_draw = before_draw
+        self._after_draw = after_draw
         self._initialized = False
     def init_gl(self, force=False):
         if self._initialized and not force:
@@ -468,6 +485,8 @@ class Mesh(Node):
         _logger.info('%s.init_gl: OK' % self.__class__.__name__)
         self._initialized = True
     def draw(self, view=None, projection=None):
+        if self._before_draw:
+            self._before_draw(self)
         if view is not None:
             self.world_matrix.dot(view, out=self._modelview)
             self._normal[:] = np.linalg.inv(self._modelview[:3,:3].T)

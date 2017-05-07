@@ -1,4 +1,5 @@
 import os.path
+import numpy as np
 
 
 from .gl_rendering import CubeTexture, Material, Mesh
@@ -20,11 +21,16 @@ skybox_material = Material(SKYBOX_TECHNIQUE,
                                                            for fn in 'px nx py ny pz nz'.split()])})
 skybox_mesh = Mesh({skybox_material: [skybox_geom]})
 
-
 floor_geom = PlanePrimitive(width=3, height=0, depth=3)
 floor_geom.attributes['a_position'] = floor_geom.attributes['vertices']
 floor_geom.attributes['a_texcoord'] = floor_geom.attributes['uvs']
-floor_geom.attributes['a_texcoord'] *= 3
+floor_geom.attributes['a_texcoord'] *= 4
 floor_geom.attributes['a_normal'] = floor_geom.attributes['normals']
-floor_material = Material(PHONG_NORMAL_DIFFUSE_ROUGHNESS_TECHNIQUE)
+floor_geom.attributes['a_tangent'] = floor_geom.attributes['tangents']
+
+u_light_position = np.array([0.5, 5.0, 2.0, 1.0], dtype=np.float32)
+
+floor_material = Material(PHONG_NORMAL_DIFFUSE_ROUGHNESS_TECHNIQUE,
+                          values={'u_light_position': u_light_position})
+
 floor_mesh = Mesh({floor_material: [floor_geom]})

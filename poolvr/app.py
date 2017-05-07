@@ -26,7 +26,8 @@ from .game import PoolGame
 from .keyboard_controls import init_keyboard, set_on_keydown
 from .mouse_controls import init_mouse
 from .sound import init_sound
-import poolvr.room
+from .room import floor_material, floor_mesh, skybox_mesh
+
 try:
     from .ode_physics import ODEPoolPhysics
 except ImportError as err:
@@ -134,7 +135,7 @@ def main(window_size=(800,600),
 
     # textured_text = TexturedText()
 
-    meshes = [poolvr.room.floor_mesh, game.table.mesh] + ball_meshes + [cue]
+    meshes = [floor_mesh, game.table.mesh] + ball_meshes + [cue]
     for mesh in meshes:
         mesh.init_gl()
 
@@ -151,6 +152,9 @@ def main(window_size=(800,600),
 
     _logger.info('entering render loop...')
     sys.stdout.flush()
+
+    light_position = np.array([0.5, 5.0, 2.0, 1.0], dtype=np.float32)
+    u_light_position = floor_material.values['u_light_position']
 
     nframes = 0
     max_frame_time = 0.0
@@ -195,6 +199,8 @@ def main(window_size=(800,600),
             elif isinstance(renderer, OpenGLRenderer):
                 set_quaternion_from_matrix(cue.rotation.dot(cue.world_matrix[:3,:3].T),
                                            cue_quaternion)
+                frame_data['view_matrix'].T.dot(light_position, out=u_light_position)
+
                 # if game.t >= game.ntt:
                 #     for i, position in cue.aabb_check(ball_positions, ball_radius):
                 #         poc = cue.contact(position, ball_radius)
@@ -205,7 +211,6 @@ def main(window_size=(800,600),
                 #             break
 
             cue_body.setPosition(cue.world_position)
-            #cue_geom.setPosition(cue_position)
             x, y, z, w = cue_quaternion
             cue_body.setQuaternion((w, x, y, z))
             cue_geom.setQuaternion((w, x, y, z))
