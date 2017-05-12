@@ -299,14 +299,15 @@ class Material(object):
             u_projection=None,
             u_modelview_inverse_transpose=None,
             u_modelview_inverse=None,
-            u_model=None):
-        if Material._current is self:
-            return
+            u_model=None,
+            frame_data=None):
+        # if Material._current is self:
+        #     return
         if not self._initialized:
             self.init_gl()
         self.technique.use()
         if self._on_use:
-            self._on_use(self)
+            self._on_use(self, frame_data)
         tex_unit = 0
         for uniform_name, location in self.technique.uniform_locations.items():
             uniform = self.technique.uniforms[uniform_name]
@@ -492,7 +493,8 @@ class Mesh(Node):
             self._normal[:] = np.linalg.inv(self._modelview[:3,:3].T)
         for material, prims in self.primitives.items():
             material.use(u_view=view, u_projection=projection, u_modelview=self._modelview,
-                         u_modelview_inverse_transpose=self._normal, u_model=self.world_matrix)
+                         u_modelview_inverse_transpose=self._normal, u_model=self.world_matrix,
+                         frame_data=frame_data)
             technique = material.technique
             for prim in prims:
                 gl.glBindVertexArray(prim.vaos[technique])

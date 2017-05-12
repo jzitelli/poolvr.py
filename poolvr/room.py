@@ -28,11 +28,15 @@ floor_geom.attributes['a_texcoord'] *= 3
 floor_geom.attributes['a_normal'] = floor_geom.attributes['normals']
 floor_geom.attributes['a_tangent'] = floor_geom.attributes['tangents']
 
-light_position = np.array([0.5, 5.0, 2.0, 1.0], dtype=np.float32)
+light_position = np.array([0.0, 1.0, 0.0, 1.0], dtype=np.float32)
 u_light_position = light_position.copy()
 
-floor_material = Material(PHONG_NORMAL_DIFFUSE_ROUGHNESS_TECHNIQUE,
-                          values={'u_light_position': u_light_position})
+# floor_material = Material(PHONG_NORMAL_DIFFUSE_ROUGHNESS_TECHNIQUE,
+#                           values={'u_light_position': u_light_position})
+# floor_mesh = Mesh({floor_material: [floor_geom]},
+#                   before_draw=lambda self, frame_data: frame_data['view_matrix'].dot(light_position, out=u_light_position))
 
-floor_mesh = Mesh({floor_material: [floor_geom]},
-                  before_draw=lambda self, frame_data: frame_data['view_matrix'].T.dot(light_position, out=u_light_position))
+floor_material = Material(PHONG_NORMAL_DIFFUSE_ROUGHNESS_TECHNIQUE,
+                          values={'u_light_position': u_light_position},
+                          on_use=lambda self, frame_data: frame_data['view_matrix'].T.dot(light_position, out=u_light_position))
+floor_mesh = Mesh({floor_material: [floor_geom]})
