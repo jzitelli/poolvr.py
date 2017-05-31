@@ -3,7 +3,7 @@ import pkgutil
 import OpenGL.GL as gl
 
 
-from .gl_rendering import Program, Technique
+from .gl_rendering import Program, Technique, Texture
 
 
 # TODO: pkgutils way
@@ -30,3 +30,10 @@ SKYBOX_TECHNIQUE = Technique(Program(pkgutil.get_data('poolvr', 'shaders/skybox_
                                        'u_projection': {'type': gl.GL_FLOAT_MAT4},
                                        'u_map': {'type': gl.GL_SAMPLER_CUBE}},
                              front_face=gl.GL_CW)
+
+
+PHONG_NORMAL_DIFFUSE_ROUGHNESS_TECHNIQUE = Technique(Program(pkgutil.get_data('poolvr', 'shaders/phong_bump_diffuse_roughness_vs.glsl').decode(),
+                                                             pkgutil.get_data('poolvr', 'shaders/phong_bump_diffuse_roughness_fs.glsl').decode()),
+                                                     uniforms={'u_diffuse_map': {'texture': Texture(os.path.join(TEXTURES_DIR, 'brick_diffuse.jpg'))},
+                                                               'u_normal_map': {'texture': Texture(os.path.join(TEXTURES_DIR, 'brick_normal.png'))},
+                                                               'u_roughness_map': {'texture': Texture(os.path.join(TEXTURES_DIR, 'brick_roughness.jpg'))}})
