@@ -67,23 +67,29 @@ class OpenVRRenderer(object):
                 poses.append(pose_34)
                 velocities.append(np.ctypeslib.as_array(controller_pose.vVelocity.v))
                 angular_velocities.append(np.ctypeslib.as_array(controller_pose.vAngularVelocity.v))
-        yield {
+        for eye in (0,1):
+            view.dot(self.eye_transforms[eye], out=self.view_matrices[eye])
+        frame_data = {
             'hmd_pose': hmd_34,
             'hmd_velocity': velocities[0],
             'hmd_angular_velocity': angular_velocities[0],
             'controller_poses': poses[1:],
             'controller_velocities': velocities[1:],
-            'controller_angular_velocities': angular_velocities[1:]
+            'controller_angular_velocities': angular_velocities[1:],
+            'view_matrices': self.view_matrices,
+            'view_matrix': view
         }
+
+        yield frame_data
+
         gl.glViewport(0, 0, self.vr_framebuffers[0].width, self.vr_framebuffers[0].height)
         for eye in (0,1):
             gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, self.vr_framebuffers[eye].fb)
             gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
-            view.dot(self.eye_transforms[eye], out=self.view_matrices[eye])
             if meshes is not None:
                 for mesh in meshes:
                     mesh.draw(projection=self.projection_matrices[eye],
-                              view=self.view_matrices[eye])
+                              view=self.view_matrices[eye], frame_data=frame_data)
         #self.vr_compositor.submit(openvr.Eye_Left, self.vr_framebuffers[0].texture)
         self.vr_framebuffers[0].submit(openvr.Eye_Left)
         #self.vr_compositor.submit(openvr.Eye_Right, self.vr_framebuffers[1].texture)
