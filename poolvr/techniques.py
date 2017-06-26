@@ -32,8 +32,8 @@ SKYBOX_TECHNIQUE = Technique(Program(pkgutil.get_data('poolvr', 'shaders/skybox_
                              front_face=gl.GL_CW)
 
 
-PHONG_NORMAL_DIFFUSE_ROUGHNESS_TECHNIQUE = Technique(Program(pkgutil.get_data('poolvr', 'shaders/phong_bump_diffuse_roughness_vs.glsl').decode(),
-                                                             pkgutil.get_data('poolvr', 'shaders/phong_bump_diffuse_roughness_fs.glsl').decode()),
-                                                     uniforms={'u_diffuse_map': {'texture': Texture(os.path.join(TEXTURES_DIR, 'brick_diffuse.jpg'))},
-                                                               'u_normal_map': {'texture': Texture(os.path.join(TEXTURES_DIR, 'brick_normal.png'))},
-                                                               'u_roughness_map': {'texture': Texture(os.path.join(TEXTURES_DIR, 'brick_roughness.jpg'))}})
+PHONG_NORMAL_DIFFUSE_ROUGHNESS_TECHNIQUE = Technique(Program(pkgutil.get_data('poolvr', 'shaders/phong_diffuse_normal_roughness_vs.glsl').decode(),
+                                                             pkgutil.get_data('poolvr', 'shaders/phong_diffuse_normal_roughness_fs.glsl').decode()),
+                                                     uniforms={'u_diffuse_map': {'texture': Texture(os.path.join(TEXTURES_DIR, 'tile-01-ao.png'))},
+                                                               'u_normal_map': {'texture': Texture(os.path.join(TEXTURES_DIR, 'tile-01-normal.png'))},
+                                                               'u_roughness_map': {'texture': Texture(os.path.join(TEXTURES_DIR, 'tile-01-roughness.png'))}})

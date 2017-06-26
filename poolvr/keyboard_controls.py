@@ -4,9 +4,9 @@ import numpy as np
 import OpenGL.GL as gl
 
 
-KB_TURN_SPEED = 1.2
-KB_MOVE_SPEED = 0.3
-KB_CUE_MOVE_SPEED = 0.3
+KB_TURN_SPEED = 1.3
+KB_MOVE_SPEED = 0.5
+KB_CUE_MOVE_SPEED = 0.2
 KB_CUE_ROTATE_SPEED = 0.1
 
 _on_keydown_cb = None
@@ -38,17 +38,13 @@ def init_keyboard(window):
         nonlocal theta
         theta += KB_TURN_SPEED * dt * (key_state[glfw.KEY_LEFT] - key_state[glfw.KEY_RIGHT])
         sin, cos = np.sin(theta), np.cos(theta)
-        camera_position = camera_world_matrix[3,:3]
         camera_world_matrix[0,0] = cos
         camera_world_matrix[0,2] = -sin
         camera_world_matrix[2,0] = sin
         camera_world_matrix[2,2] = cos
-        fb = -key_state[glfw.KEY_W] + key_state[glfw.KEY_S]
-        lr = key_state[glfw.KEY_D] - key_state[glfw.KEY_A]
-        ud = key_state[glfw.KEY_Q] - key_state[glfw.KEY_Z]
-        camera_position[:] += KB_MOVE_SPEED * dt * (fb * camera_world_matrix[2,:3] +
-                                                    lr * camera_world_matrix[0,:3] +
-                                                    ud * camera_world_matrix[1,:3])
+        camera_world_matrix[3,0] += dt * KB_MOVE_SPEED * (key_state[glfw.KEY_D] - key_state[glfw.KEY_A])
+        camera_world_matrix[3,1] += dt * KB_MOVE_SPEED * (key_state[glfw.KEY_Q] - key_state[glfw.KEY_Z])
+        camera_world_matrix[3,2] += dt * KB_MOVE_SPEED * (key_state[glfw.KEY_S] - key_state[glfw.KEY_W])
         if cue is not None:
             fb = key_state[glfw.KEY_I] - key_state[glfw.KEY_K]
             lr = key_state[glfw.KEY_L] - key_state[glfw.KEY_J]

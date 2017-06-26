@@ -8,8 +8,8 @@ uniform sampler2D u_diffuse_map;
 uniform sampler2D u_normal_map;
 uniform sampler2D u_roughness_map;
 
-uniform vec3 u_Ka = vec3(0.04, 0.04, 0.04); // ambient reflectivity
-uniform vec3 u_Ks = vec3(0.23, 0.23, 0.23); // specular reflectivity
+uniform vec3 u_Ka = vec3(0.02, 0.02, 0.02); // ambient reflectivity
+uniform vec3 u_Ks = vec3(0.16, 0.16, 0.16); // specular reflectivity
 
 varying vec3 v_position;
 varying vec3 v_normal;
@@ -27,7 +27,7 @@ vec3 ads() {
   vec3 v = normalize(-v_position.xyz);
   vec3 r = reflect(-s, n);
   float r_dot_v = max(dot(r, v), 0.0);
-  return u_Ka + u_light_intensity / (1.0+dist*dist) * (texture2D(u_diffuse_map, v_texcoord).rgb * max(dot(s, n), 0.0) + u_Ks * pow(r_dot_v, texture2D(u_roughness_map, v_texcoord).r));
+  return u_Ka + u_light_intensity / (1.0+dist*dist) * (texture2D(u_diffuse_map, v_texcoord).rgb * max(dot(s, n), 0.0) + dist * u_Ks * pow(r_dot_v, texture2D(u_roughness_map, v_texcoord).r));
 }
 
 void main() {
