@@ -34,6 +34,6 @@ SKYBOX_TECHNIQUE = Technique(Program(pkgutil.get_data('poolvr', 'shaders/skybox_
 
 PHONG_NORMAL_DIFFUSE_ROUGHNESS_TECHNIQUE = Technique(Program(pkgutil.get_data('poolvr', 'shaders/phong_diffuse_normal_roughness_vs.glsl').decode(),
                                                              pkgutil.get_data('poolvr', 'shaders/phong_diffuse_normal_roughness_fs.glsl').decode()),
-                                                     uniforms={'u_diffuse_map': {'texture': Texture(os.path.join(TEXTURES_DIR, 'tile-01-ao.png'))},
+                                                     uniforms={'u_diffuse_map': {'texture': Texture(os.path.join(TEXTURES_DIR, 'tile-00.1.png'))},
                                                                'u_normal_map': {'texture': Texture(os.path.join(TEXTURES_DIR, 'tile-01-normal.png'))},
                                                                'u_roughness_map': {'texture': Texture(os.path.join(TEXTURES_DIR, 'tile-01-roughness.png'))}})

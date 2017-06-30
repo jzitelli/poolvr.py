@@ -24,7 +24,7 @@ skybox_mesh = Mesh({skybox_material: [skybox_geom]})
 floor_geom = PlanePrimitive(width=3, height=0, depth=3)
 floor_geom.attributes['a_position'] = floor_geom.attributes['vertices']
 floor_geom.attributes['a_texcoord'] = floor_geom.attributes['uvs']
-floor_geom.attributes['a_texcoord'] *= 24
+floor_geom.attributes['a_texcoord'] *= 16
 floor_geom.attributes['a_normal'] = floor_geom.attributes['normals']
 floor_geom.attributes['a_tangent'] = floor_geom.attributes['tangents']
 
