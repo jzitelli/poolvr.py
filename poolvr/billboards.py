@@ -6,7 +6,7 @@ import OpenGL.GL as gl
 import OpenGL.error
 
 
-from .gl_rendering import Node, Technique, Program, DTYPE_COMPONENT_TYPE, Texture
+from .gl_rendering import Node, Technique, Material, Program, DTYPE_COMPONENT_TYPE, Texture
 from .primitives import PlanePrimitive
 
 
@@ -21,18 +21,13 @@ TEXTURES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 class BillboardParticles(Node):
     technique = Technique(Program(pkgutil.get_data('poolvr', 'shaders/bb_particles_vs.glsl').decode(),
-                                  pkgutil.get_data('poolvr', 'shaders/bb_particles_fs.glsl').decode()),
-                          attributes={'position': {'type': gl.GL_FLOAT_VEC3},
-                                      'uv': {'type': gl.GL_FLOAT_VEC2},
-                                      'translate': {'type': gl.GL_FLOAT_VEC3},
-                                      'color': {'type': gl.GL_FLOAT_VEC3}},
-                          uniforms={'map': {'type': gl.GL_SAMPLER_2D},
-                                    'u_modelview': {'type': gl.GL_FLOAT_MAT4},
-                                    'u_projection': {'type': gl.GL_FLOAT_MAT4}})
+                                  pkgutil.get_data('poolvr', 'shaders/bb_particles_fs.glsl').decode()))
     _modelview = np.eye(4, dtype=np.float32)
-    def __init__(self, texture, num_particles=1, scale=1.0, color=None, translate=None):
+    def __init__(self, texture, normal_map, num_particles=1, scale=1.0, color=None, translate=None):
         Node.__init__(self)
         self.texture = texture
+        self.normal_map = normal_map
+        self.material = Material(self.technique, textures={'map': texture, 'u_normal': normal_map})
         self.num_particles = num_particles
         if color is None:
             color = np.array([num_particles*[1.0, 1.0, 1.0]], dtype=np.float32)
@@ -48,8 +43,10 @@ class BillboardParticles(Node):
     def init_gl(self, force=False):
         if self._initialized:
             if not force: return
-        self.texture.init_gl(force=force)
-        self.technique.init_gl(force=force)
+        # self.texture.init_gl(force=force)
+        # self.normal_map.init_gl(force=force)
+        # self.technique.init_gl(force=force)
+        self.material.init_gl(force=force)
         self.primitive.init_gl(force=force)
         self._initialized = True
     def update_gl(self):
@@ -62,16 +59,17 @@ class BillboardParticles(Node):
             gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.primitive.buffers['translate'])
             gl.glBufferSubData(gl.GL_ARRAY_BUFFER, 0, len(values), values)
     def draw(self, view=None, projection=None, frame_data=None):
-        self.technique.use()
+        # self.technique.use()
+        self.material.use()
         if view is not None:
             self.world_matrix.dot(view, out=self._modelview)
             gl.glUniformMatrix4fv(self.technique.uniform_locations['u_modelview'], 1, False, self._modelview)
         if projection is not None:
             gl.glUniformMatrix4fv(self.technique.uniform_locations['u_projection'], 1, False, projection)
-        gl.glActiveTexture(gl.GL_TEXTURE0+0)
-        gl.glBindTexture(gl.GL_TEXTURE_2D, self.texture.texture_id)
-        gl.glBindSampler(0, self.texture.sampler_id)
-        gl.glUniform1i(self.technique.uniform_locations['map'], 0)
+        # gl.glActiveTexture(gl.GL_TEXTURE0+0)
+        # gl.glBindTexture(gl.GL_TEXTURE_2D, self.texture.texture_id)
+        # gl.glBindSampler(0, self.texture.sampler_id)
+        # gl.glUniform1i(self.technique.uniform_locations['map'], 0)
         for attribute_name, location in self.technique.attribute_locations.items():
             attribute = self.primitive.attributes[attribute_name]
             gl.glEnableVertexAttribArray(location)
@@ -89,4 +87,4 @@ class BillboardParticles(Node):
                                    DTYPE_COMPONENT_TYPE[self.primitive.indices.dtype], NULL_PTR, self.num_particles)
         # for location in self.technique.attribute_locations.values():
         #     gl.glDisableVertexAttribArray(location)
-        self.technique.release()
+        self.material.release()

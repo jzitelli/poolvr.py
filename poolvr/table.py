@@ -115,6 +115,7 @@ class PoolTable(object):
         ball_quaternions[:,3] = 1
         if use_bb_particles:
             ball_billboards = BillboardParticles(Texture(os.path.join(TEXTURES_DIR, 'sphere_bb_alpha.png')),
+                                                 Texture(os.path.join(TEXTURES_DIR, 'sphere_bb_normal.png')),
                                                  num_particles=num_balls,
                                                  scale=2*ball_radius / 0.975,
                                                  color=np.array([[(c&0xff0000) / 0xff0000, (c&0x00ff00) / 0x00ff00, (c&0x0000ff) / 0x0000ff]
