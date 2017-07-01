@@ -25,9 +25,7 @@ def gen_sphere_billboards(width=256, height=256, multisample=4,
         normals = np.zeros((_width, _height, 3))
         normals[...,0] = xv
         normals[...,1] = yv
-        # normals[...,2] = np.sqrt(0.975**2 - xv**2 - yv**2)
         normals[mask,2] = np.sqrt(0.975**2*np.ones(xv.shape)[mask] - xv[mask]**2 - yv[mask]**2)
-        # normals = np.nan_to_num(normals)
         normals[~mask,0] = xv[~mask] / np.sqrt(xv[~mask]**2 + yv[~mask]**2)
         normals[~mask,1] = yv[~mask] / np.sqrt(xv[~mask]**2 + yv[~mask]**2)
         normals[~mask,2] = 0
