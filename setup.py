@@ -30,8 +30,7 @@ setup(
         'Programming Language :: Python :: 3.5',
     ],
     keywords='virtual reality vr pool billiards pyopenvr openvr event based physics cue table pocket bumper rail',
-    #install_requires=['cyglfw3', 'openvr', 'numpy', 'pyopengl'],
-    install_requires=['openvr', 'numpy', 'pyopengl', 'pillow'],
+    install_requires=['openvr', 'numpy', 'pyopengl', 'pillow'], # 'cyglfw3', 'openvr', 'pyopengl'],
     extras_require={},
     # If there are data files included in your packages that need to be
     # installed, specify them here.  If using Python 2.6 or less, then these
@@ -44,7 +43,7 @@ setup(
     # http://docs.python.org/3.4/distutils/setupscript.html#installing-additional-files # noqa
     # In this case, 'data_file' will be installed into '<sys.prefix>/my_data'
     data_files=[],
-    scripts=['scripts/play_poolvr.py', 'scripts/run_poolvr_tests.py'],
+    scripts=['scripts/play_poolvr.py', 'scripts/run_poolvr_tests.py', 'scripts/gen_assets.py'],
     # To provide executable scripts, use entry points in preference to the
     # "scripts" keyword. Entry points provide cross-platform support and allow
     # pip to create the appropriate form of executable for the target platform.
