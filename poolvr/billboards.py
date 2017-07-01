@@ -61,7 +61,7 @@ class BillboardParticles(Node):
         except OpenGL.error.NullFunctionError as e:
             gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.primitive.buffers['translate'])
             gl.glBufferSubData(gl.GL_ARRAY_BUFFER, 0, len(values), values)
-    def draw(self, view=None, projection=None):
+    def draw(self, view=None, projection=None, frame_data=None):
         self.technique.use()
         if view is not None:
             self.world_matrix.dot(view, out=self._modelview)

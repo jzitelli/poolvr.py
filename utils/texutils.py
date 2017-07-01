@@ -9,8 +9,8 @@ def gen_sphere_billboards(width=256, height=256, multisample=4,
     _width, _height = multisample * width, multisample * height
     x, y = np.linspace(-1, 1, _width), np.linspace(-1, 1, _height)
     xv, yv = np.meshgrid(x, y)
-    mask = xv**2 + yv**2 < 0.975**2 #*np.ones(xv.shape)
-
+    radius = 0.975
+    mask = xv**2 + yv**2 < radius**2
     if fp_alpha:
         img = np.zeros((_width, _height, 4), dtype=np.uint8)
         img[mask,:4] = (255, 255, 255, 255)
@@ -23,8 +23,8 @@ def gen_sphere_billboards(width=256, height=256, multisample=4,
 
     if fp_normal:
         normals = np.zeros((_width, _height, 3))
-        normals[mask,0] = xv[mask] / 0.975
-        normals[mask,1] = yv[mask] / 0.975
+        normals[mask,0] = xv[mask] / radius
+        normals[mask,1] = yv[mask] / radius
         normals[mask,2] = np.sqrt(1.0 - (normals[mask,0]**2 + normals[mask,1]**2))
         normals[~mask,0] = xv[~mask] / np.sqrt(xv[~mask]**2 + yv[~mask]**2)
         normals[~mask,1] = yv[~mask] / np.sqrt(xv[~mask]**2 + yv[~mask]**2)

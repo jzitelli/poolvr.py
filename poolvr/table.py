@@ -93,7 +93,8 @@ class PoolTable(object):
             geom.attributes['a_position'] = geom.attributes['vertices']
         self.mesh = Mesh({surface_material: [surface],
                           cushion_material: self.cushionGeoms})
-    def setup_balls(self, ball_radius, ball_colors, ball_positions, striped_balls=None, use_billboards=False,
+    def setup_balls(self, ball_radius, ball_colors, ball_positions, striped_balls=None,
+                    use_bb_particles=False,
                     technique=LAMBERT_TECHNIQUE):
         ball_materials = [Material(technique, values={'u_color': [(c&0xff0000) / 0xff0000,
                                                                   (c&0x00ff00) / 0x00ff00,
@@ -112,10 +113,10 @@ class PoolTable(object):
             stripe_prim.attributes['a_position'] = stripe_prim.attributes['vertices']
         ball_quaternions = np.zeros((num_balls, 4), dtype=np.float32)
         ball_quaternions[:,3] = 1
-        if use_billboards:
-            ball_billboards = BillboardParticles(Texture(os.path.join(TEXTURES_DIR, 'ball.png')),
+        if use_bb_particles:
+            ball_billboards = BillboardParticles(Texture(os.path.join(TEXTURES_DIR, 'sphere_bb_alpha.png')),
                                                  num_particles=num_balls,
-                                                 scale=2*ball_radius,
+                                                 scale=2*ball_radius / 0.975,
                                                  color=np.array([[(c&0xff0000) / 0xff0000, (c&0x00ff00) / 0x00ff00, (c&0x0000ff) / 0x0000ff]
                                                                  for c in ball_colors], dtype=np.float32),
                                                  translate=ball_positions)

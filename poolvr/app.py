@@ -92,7 +92,7 @@ def main(window_size=(800,600),
     game.reset()
     ball_meshes = game.table.setup_balls(game.ball_radius, game.ball_colors[:9], game.ball_positions,
                                          striped_balls=set(range(9, game.num_balls)),
-                                         use_billboards=use_bb_particles)
+                                         use_bb_particles=use_bb_particles)
     window, fallback_renderer = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=novr, multisample=multisample)
     if not novr and OpenVRRenderer is not None:
         try:
@@ -141,8 +141,13 @@ def main(window_size=(800,600),
 
     ball_positions = game.ball_positions.copy()
     ball_quaternions = game.ball_quaternions
-    ball_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_meshes]
-    ball_mesh_rotations = [mesh.world_matrix[:3,:3].T for mesh in ball_meshes]
+    if use_bb_particles:
+        billboard_particles = ball_meshes[0]
+        ball_mesh_positions = billboard_particles.primitive.attributes['translate']
+        ball_mesh_rotations = np.array(game.num_balls * [np.eye(3)])
+    else:
+        ball_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_meshes]
+        ball_mesh_rotations = [mesh.world_matrix[:3,:3].T for mesh in ball_meshes]
 
     gl.glViewport(0, 0, window_size[0], window_size[1])
     gl.glClearColor(*BG_COLOR)
@@ -221,7 +226,8 @@ def main(window_size=(800,600),
                 ball_mesh_positions[i][:] = pos
             for i, quat in enumerate(ball_quaternions):
                 set_matrix_from_quaternion(quat, ball_mesh_rotations[i])
-            # ball_billboards.update_gl()
+            if use_bb_particles:
+                billboard_particles.update_gl()
             # textured_text.set_text("%9.3f" % dt)
             # textured_text.update_gl()
 
