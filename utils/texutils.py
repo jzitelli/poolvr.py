@@ -4,7 +4,7 @@ import PIL.Image as Image
 
 _logger = logging.getLogger(__name__)
 
-def gen_sphere_billboards(width=256, height=256, multisample=4,
+def gen_sphere_billboards(width=512, height=512, multisample=4,
                           fp_alpha=None, fp_normal=None, fp_depth=None, fp_uv=None):
     _width, _height = multisample * width, multisample * height
     x, y = np.linspace(-1, 1, _width), np.linspace(-1, 1, _height)

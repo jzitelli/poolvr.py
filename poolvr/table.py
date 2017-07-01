@@ -119,7 +119,7 @@ class PoolTable(object):
                                                  num_particles=num_balls,
                                                  scale=2*ball_radius / 0.975,
                                                  color=np.array([[(c&0xff0000) / 0xff0000, (c&0x00ff00) / 0x00ff00, (c&0x0000ff) / 0x0000ff]
-                                                                 for c in ball_colors], dtype=np.float32),
+                                                                 for c in ball_colors + ball_colors[1:-1]], dtype=np.float32),
                                                  translate=ball_positions)
             ball_meshes = [ball_billboards]
         else:
