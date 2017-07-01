@@ -10,7 +10,8 @@ img = np.zeros((_width, _height, 4), dtype=np.uint8)
 x = np.linspace(-1, 1, _width)
 y = np.linspace(-1, 1, _height)
 xv, yv = np.meshgrid(x, y)
-img[xv**2 + yv**2 < 0.975**2*np.ones(xv.shape),:4] = (255, 255, 255, 255)
+mask = xv**2 + yv**2 < 0.975**2*np.ones(xv.shape)
+img[mask,:4] = (255, 255, 255, 255)
 image = Image.new('RGBA', (_width, _height))
 image.putdata([(int(r), int(g), int(b), int(a)) for (r,g,b,a) in img.reshape(-1,4)])
 image = image.resize((width, height), resample=Image.LANCZOS)
@@ -20,7 +21,8 @@ image.save('mask.png')
 normals = np.zeros((_width, _height, 3))
 normals[...,0] = xv
 normals[...,1] = yv
-normals[...,2] = np.sqrt(0.975**2 - xv**2 - yv**2)
+#normals[...,2] = np.sqrt(0.975**2 - xv**2 - yv**2)
+normals[mask,2] = np.sqrt(0.975**2*np.ones(xv.shape)[mask] - xv[mask]**2 - yv[mask]**2)
 normals = np.nan_to_num(normals)
 normals[xv**2 + yv**2 > 0.975**2*np.ones(xv.shape),:3] = -1
 normals[xv**2 + yv**2 > 0.975**2*np.ones(xv.shape),1] = 1
