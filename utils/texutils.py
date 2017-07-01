@@ -35,6 +35,6 @@ def gen_sphere_billboards(width=256, height=256, multisample=4,
         # normals[xv**2 + yv**2 > 0.975**2*np.ones(xv.shape),:3] = -1
         image = Image.new('RGB', (_width, _height))
         image.putdata([(int((x+1)/2*255), int((-y+1)/2*255), int((z+1)/2*255)) for (x,y,z) in normals.reshape(-1,3)])
-        image.resize((width, height), resample=Image.LANCZOS)
+        image = image.resize((width, height), resample=Image.LANCZOS)
         image.save(fp_normal)
         _logger.info('wrote normal texture to "%s"', fp_normal)
