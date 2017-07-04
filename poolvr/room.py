@@ -13,7 +13,7 @@ TEXTURES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             'textures')
 
 
-skybox_geom = BoxPrimitive(500,500,500)
+skybox_geom = BoxPrimitive(300,300,300)
 skybox_geom.attributes['a_position'] = skybox_geom.attributes['vertices']
 skybox_material = Material(SKYBOX_TECHNIQUE,
                            textures={'u_map': CubeTexture([os.path.join(TEXTURES_DIR, 'cube',

@@ -11,3 +11,8 @@ if __name__ == "__main__":
     import texutils
     texutils.gen_sphere_billboards(fp_alpha='textures/sphere_bb_alpha.png',
                                    fp_normal='textures/sphere_bb_normal.png')
+
+    import bpyutils
+    if bpyutils is not None:
+        bpyutils.create_material()
+        bpyutils.bake_all_faces('textures/baked_faces.png')

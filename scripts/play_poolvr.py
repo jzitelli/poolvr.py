@@ -10,7 +10,7 @@ if __name__ == "__main__":
     parser.add_argument("--novr", help="non-VR mode", action="store_true")
     parser.add_argument("--use_simple_ball_collisions", help="use simple ball collision model",
                         action="store_true")
-    parser.add_argument("--use_ode_physics",
+    parser.add_argument("--use_ode",
                         help="use ODE for physics simulation instead of the default event-based engine",
                         action="store_true")
     parser.add_argument('--multisample', help="set multisampling level for VR rendering",
@@ -18,10 +18,10 @@ if __name__ == "__main__":
     parser.add_argument('--use_bb_particles',
                         help='render balls using billboard particle shader instead of polygon meshes',
                         action='store_true')
-    parser.add_argument('--list_sound_devices', help="list the available sound devices",
-                        action="store_true")
     parser.add_argument('--sound_device', help="specify the sound device to use for output",
                         type=int)
+    parser.add_argument('--list_sound_devices', help="list the available sound devices",
+                        action="store_true")
     parser.add_argument("-v", help="verbose logging", action="store_true")
     args = parser.parse_args()
     if args.v:
@@ -38,6 +38,6 @@ if __name__ == "__main__":
     import poolvr.app
     poolvr.app.main(novr=args.novr,
                     use_simple_ball_collisions=args.use_simple_ball_collisions,
-                    use_ode_physics=args.use_ode_physics,
+                    use_ode=args.use_ode,
                     multisample=args.multisample,
                     use_bb_particles=args.use_bb_particles)

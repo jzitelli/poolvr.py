@@ -2,8 +2,8 @@ import numpy as np
 
 
 from .gl_rendering import Material, Mesh
-from .primitives import CylinderPrimitive
-from .techniques import LAMBERT_TECHNIQUE
+from .primitives import CylinderPrimitive, ProjectedMesh
+from .techniques import LAMBERT_TECHNIQUE, EGA_TECHNIQUE
 
 
 class PoolCue(Mesh):
@@ -20,7 +20,10 @@ class PoolCue(Mesh):
                                                                  'u_lightpos': [1.0, 15.0, 1.5]})
                              : [cylinder]})
         self.update_world_matrices()
-        self._positions = None
+        self.shadow_mesh = ProjectedMesh(self, Material(EGA_TECHNIQUE, values={'u_color': [0.0, 0xaa/0xff, 0.0, 0.0]}))
+        self.shadow_mesh.update_world_matrices()
+        light_position = (0.0, 1.3, 0.0, 0.2)
+        self.shadow_mesh.update(light_position)
         self.position = self.world_matrix[3,:3]
         self.velocity = np.zeros(3, dtype=np.float32)
         self.angular_velocity = np.zeros(3, dtype=np.float32)

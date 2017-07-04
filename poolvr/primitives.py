@@ -216,3 +216,36 @@ class RoundedRectanglePrimitive(Primitive):
         self.width = width
         self.height = height
         self.radius = radius
+
+
+class ProjectedMesh(Mesh):
+    def __init__(self, mesh, material, primitives=None,
+                 normal=(0.0, 1.0, 0.0), c=0.0,
+                 light_position=None):
+        self.mesh = mesh
+        self.material = material
+        if primitives is None:
+            primitives = itertools.chain.from_iterable(mesh.primitives.values())
+        self.primitives = list(primitives)
+        Mesh.__init__(self, {material: primitives})
+        self.normal = np.array(normal)
+        self.c = c
+        self._plane = np.array(list(self.normal[:]) + [-self.c])
+        self._shadow_matrix = np.eye(4)
+        self.light_position = light_position
+        if light_position is not None:
+            self.update(light_position)
+    def update(self, light_position=None):
+        if light_position is None:
+            light_position = self.light_position
+        v = self._plane.dot(light_position)
+        shadow_matrix = self._shadow_matrix
+        shadow_matrix[:,0] = -light_position[0] * self._plane
+        shadow_matrix[0,0] += v
+        shadow_matrix[:,1] = -light_position[1] * self._plane
+        shadow_matrix[1,1] += v
+        shadow_matrix[:,2] = -light_position[2] * self._plane
+        shadow_matrix[2,2] += v
+        shadow_matrix[:,3] = -light_position[3] * self._plane
+        shadow_matrix[3,3] += v
+        self.world_matrix[:] = shadow_matrix.dot(self.world_matrix)

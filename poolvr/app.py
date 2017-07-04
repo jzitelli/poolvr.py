@@ -68,7 +68,7 @@ def setup_glfw(width=800, height=600, double_buffered=False, title="poolvr.py 0.
 def main(window_size=(800,600),
          novr=False,
          use_simple_ball_collisions=False,
-         use_ode_physics=False,
+         use_ode=False,
          multisample=0,
          use_bb_particles=False):
     """
@@ -79,7 +79,7 @@ def main(window_size=(800,600),
     _logger.info('HELLO')
     game = PoolGame(use_simple_ball_collisions=use_simple_ball_collisions)
     cue = PoolCue()
-    if use_ode_physics and ODEPoolPhysics is not None:
+    if use_ode and ODEPoolPhysics is not None:
         game.physics = ODEPoolPhysics(num_balls=game.num_balls,
                                       ball_radius=game.ball_radius,
                                       initial_positions=game.ball_positions,
@@ -103,13 +103,13 @@ def main(window_size=(800,600),
                 def on_cue_ball_collision(renderer=renderer, game=game, physics=physics, impact_speed=None):
                     if impact_speed:
                         renderer.vr_system.triggerHapticPulse(renderer._controller_indices[0], 0,
-                                                              int(max(1.0, impact_speed**2 / 2.0) * 2500))
+                                                              int(max(1.0, impact_speed**2 / 2.0) * 2950))
                     game.ntt = physics.next_turn_time()
                 physics.set_cue_ball_collision_callback(on_cue_ball_collision)
                 def on_cue_surface_collision(renderer=renderer, game=game, physics=physics, impact_speed=None):
-                    if impact_speed > 0.005:
+                    if impact_speed > 0.003:
                         renderer.vr_system.triggerHapticPulse(renderer._controller_indices[0], 0,
-                                                              int(max(1.0, impact_speed**2 * 1.2 / 2.0) * 2500))
+                                                              int(max(0.85, 0.2*impact_speed**2 + 0.07*impact_speed**3) * 2500))
         except Exception as err:
             renderer = fallback_renderer
             _logger.error('could not initialize OpenVRRenderer: %s', err)
@@ -135,7 +135,9 @@ def main(window_size=(800,600),
 
     # textured_text = TexturedText()
 
-    meshes = [skybox_mesh, floor_mesh, game.table.mesh] + ball_meshes + [cue]
+    ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
+
+    meshes = [skybox_mesh, floor_mesh, game.table.mesh] + ball_meshes + ball_shadow_meshes + [cue.shadow_mesh, cue]
     for mesh in meshes:
         mesh.init_gl()
 
@@ -148,7 +150,7 @@ def main(window_size=(800,600),
     else:
         ball_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_meshes]
         ball_mesh_rotations = [mesh.world_matrix[:3,:3].T for mesh in ball_meshes]
-
+        ball_shadow_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_shadow_meshes]
     gl.glViewport(0, 0, window_size[0], window_size[1])
     gl.glClearColor(*BG_COLOR)
     gl.glEnable(gl.GL_DEPTH_TEST)
@@ -181,6 +183,7 @@ def main(window_size=(800,600),
                     cue.world_matrix[:3,:3] = pose[:,:3].dot(cue.rotation).T
                     cue.world_matrix[3,:3] = pose[:,3]
                     cue.velocity[:] = velocity
+                    cue.shadow_mesh.update()
                     cue.angular_velocity = angular_velocity
                     set_quaternion_from_matrix(pose[:,:3], cue_quaternion)
                     # if game.t >= game.ntt:
@@ -224,6 +227,7 @@ def main(window_size=(800,600),
             ball_positions[~physics.on_table] = camera_position # hacky way to only show balls that are on table
             for i, pos in enumerate(ball_positions):
                 ball_mesh_positions[i][:] = pos
+                ball_shadow_mesh_positions[i][0::2] = pos[0::2]
             for i, quat in enumerate(ball_quaternions):
                 set_matrix_from_quaternion(quat, ball_mesh_rotations[i])
             if use_bb_particles:

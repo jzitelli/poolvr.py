@@ -2,7 +2,7 @@ import os.path
 import numpy as np
 
 from .gl_rendering import Mesh, Material, Texture
-from .primitives import PlanePrimitive, HexaPrimitive, SpherePrimitive
+from .primitives import PlanePrimitive, HexaPrimitive, SpherePrimitive, CirclePrimitive
 from .techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
 from .billboards import BillboardParticles
 
@@ -111,6 +111,10 @@ class PoolTable(object):
             stripe_prim = SpherePrimitive(radius=1.012*ball_radius, phiStart=0.0, phiLength=2*np.pi,
                                           thetaStart=np.pi/3, thetaLength=np.pi/3)
             stripe_prim.attributes['a_position'] = stripe_prim.attributes['vertices']
+        circle_prim = CirclePrimitive(radius=ball_radius, num_radial=16)
+        circle_prim.attributes['a_position'] = circle_prim.attributes['vertices']
+        circle_prim.attributes['a_position'][:,1] -= 0.981*ball_radius
+        shadow_material = Material(EGA_TECHNIQUE, values={'u_color': [0.01, 0.03, 0.001, 1.0]})
         ball_quaternions = np.zeros((num_balls, 4), dtype=np.float32)
         ball_quaternions[:,3] = 1
         if use_bb_particles:
@@ -123,11 +127,16 @@ class PoolTable(object):
                                                  translate=ball_positions)
             ball_meshes = [ball_billboards]
         else:
-            ball_meshes = [Mesh({material : [sphere_prim]})
+            ball_meshes = [Mesh({material        : [sphere_prim]})
                            if i not in striped_balls else
-                           Mesh({ball_materials[0]: [sphere_prim],
-                                 material: [stripe_prim]})
+                           Mesh({ball_materials[0] : [sphere_prim],
+                                 material          : [stripe_prim]})
                            for i, material in enumerate(ball_materials)]
+            ball_shadow_meshes = [Mesh({shadow_material : [circle_prim]})
+                                  for i in range(num_balls)]
             for i, mesh in enumerate(ball_meshes):
+                mesh.world_position[:] = ball_positions[i]
+                mesh.shadow_mesh = ball_shadow_meshes[i]
+            for i, mesh in enumerate(ball_shadow_meshes):
                 mesh.world_position[:] = ball_positions[i]
         return ball_meshes

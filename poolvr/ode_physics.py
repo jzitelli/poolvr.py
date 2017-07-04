@@ -293,7 +293,7 @@ class ODEPoolPhysics(object):
                     self._on_cue_ball_collide(impact_speed=abs(v_n))
             else:
                 c.setBounce(0.93)
-                c.setMu(0.06)
+                c.setMu(0.13)
                 #pos, normal, depth, g1, g2 = c.getContactGeomParams()
                 #v_n = np.array(normal).dot(np.array(body1.getLinearVel()) - np.array(body2.getLinearVel()))
                 #if abs(v_n) > 0.02:
