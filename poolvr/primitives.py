@@ -1,3 +1,5 @@
+import logging
+_logger = logging.getLogger(__name__)
 import itertools
 import numpy as np
 import OpenGL.GL as gl
@@ -220,8 +222,8 @@ class RoundedRectanglePrimitive(Primitive):
 
 class ProjectedMesh(Mesh):
     def __init__(self, mesh, material, primitives=None,
-                 normal=(0.0, 1.0, 0.0), c=0.0,
-                 light_position=None):
+                 normal=(0.0, 1.0, 0.0), c=-1.02*0.77,
+                 light_position=(0.2, 4.2, -0.05, 0.1)):
         self.mesh = mesh
         self.material = material
         if primitives is None:
@@ -238,6 +240,7 @@ class ProjectedMesh(Mesh):
     def update(self, light_position=None):
         if light_position is None:
             light_position = self.light_position
+        _logger.debug('%s %s', light_position, self._plane)
         v = self._plane.dot(light_position)
         shadow_matrix = self._shadow_matrix
         shadow_matrix[:,0] = -light_position[0] * self._plane

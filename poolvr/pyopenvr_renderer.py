@@ -96,7 +96,7 @@ class OpenVRRenderer(object):
         self.vr_framebuffers[1].submit(openvr.Eye_Right)
         # mirror left eye framebuffer to screen:
         gl.glBlitNamedFramebuffer(self.vr_framebuffers[0].fb, 0,
-                                  0, 0, self.vr_framebuffers[0].width//self.multisample, self.vr_framebuffers[0].height//self.multisample,
+                                  0, 0, self.vr_framebuffers[0].width//max(1, self.multisample), self.vr_framebuffers[0].height//max(1, self.multisample),
                                   0, 0, self.window_size[0], self.window_size[1],
                                   gl.GL_COLOR_BUFFER_BIT, gl.GL_NEAREST)
         gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, 0)

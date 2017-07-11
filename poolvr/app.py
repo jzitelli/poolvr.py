@@ -101,9 +101,9 @@ def main(window_size=(800,600),
                                       openvr.k_EButton_ApplicationMenu: game.advance_time}
             if ODEPoolPhysics is not None:
                 def on_cue_ball_collision(renderer=renderer, game=game, physics=physics, impact_speed=None):
-                    if impact_speed:
+                    if impact_speed > 0.0015:
                         renderer.vr_system.triggerHapticPulse(renderer._controller_indices[0], 0,
-                                                              int(max(1.0, impact_speed**2 / 2.0) * 2950))
+                                                              int(max(0.8, impact_speed**2 / 4.0 + impact_speed**3 / 16.0) * 2750))
                     game.ntt = physics.next_turn_time()
                 physics.set_cue_ball_collision_callback(on_cue_ball_collision)
                 def on_cue_surface_collision(renderer=renderer, game=game, physics=physics, impact_speed=None):
@@ -137,9 +137,11 @@ def main(window_size=(800,600),
 
     ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
 
+
     meshes = [skybox_mesh, floor_mesh, game.table.mesh] + ball_meshes + ball_shadow_meshes + [cue.shadow_mesh, cue]
     for mesh in meshes:
         mesh.init_gl()
+
 
     ball_positions = game.ball_positions.copy()
     ball_quaternions = game.ball_quaternions
