@@ -50,11 +50,23 @@ def play_ball_ball_collision_sound(vol=1.0):
 
 def list_sound_devices():
     if sd:
-        devices = sd.query_devices(kind='output')
-        if isinstance(devices, dict):
+        _logger.info("""
+
+#####################################################
+
+                        listing sound devices...
+
+#####################################################
+
+                     """)
+        devices = sd.query_devices() #kind='output')
+                   #if device['max_output_channels'] > 0]
+        if isinstance(devices, dict): # i.e. only one sound device found
             devices = [devices]
-        for device in devices:
-            print('%s: %d channels' % (device['name'], device['max_output_channels']))
+        for i, device in enumerate(devices):
+            if device['max_output_channels'] == 0:
+                continue
+            print('device %2d: %s: %d channels' % (i, device['name'], device['max_output_channels']))
 
 
 def set_output_sound_device(device):
