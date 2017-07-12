@@ -1,6 +1,7 @@
 # import pkgutil
 import os.path
 import logging
+import numpy as np
 
 
 _logger = logging.getLogger(__name__)
@@ -26,26 +27,38 @@ SOUNDS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 _initialized = False
 ballBall_sound = None
 ballBall_sound_fs = None
+ballBall_temp = None
+output_stream = None
 
 
 def init_sound():
     global _initialized
     global ballBall_sound
     global ballBall_sound_fs
+    global ballBall_temp
     if not _initialized:
-        ballBall_sound, ballBall_sound_fs = sf.read(os.path.join(SOUNDS_DIR, 'ballBall.ogg'))
-        ballBall_sound *= 0.2
+        if sf:
+            ballBall_sound, ballBall_sound_fs = sf.read(os.path.join(SOUNDS_DIR, 'ballBall.ogg'))
+            ballBall_sound = np.array(ballBall_sound, dtype=np.float32)
+            ballBall_temp = ballBall_sound.copy()
+            if sd:
+                open_output_stream()
         _initialized = True
 
 
 def open_output_stream(device=None, channels=2, samplerate=44100):
+    global output_stream
     if sd:
-        return sd.OutputStream(device=device, channels=channels, samplerate=samplerate)
-
+        output_stream = sd.OutputStream(dtype='float32')#device=device, samplerate=samplerate, latency='low')
+                                        #clip_off=True, never_drop_input=True, dither_off=True, latency='low')
+        output_stream.start()
 
 def play_ball_ball_collision_sound(vol=1.0):
-    if sd:
-        sd.play(vol * ballBall_sound, ballBall_sound_fs)
+    if output_stream:
+        n = output_stream.write_available
+        ballBall_temp[:n] = ballBall_sound[:n]
+        ballBall_temp[:n] *= vol
+        output_stream.write(ballBall_temp[:n])
 
 
 def list_sound_devices():

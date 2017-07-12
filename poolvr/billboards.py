@@ -41,11 +41,8 @@ class BillboardParticles(Node):
         self.primitive.attributes['uv'] = self.primitive.attributes['uvs']
         self._initialized = False
     def init_gl(self, force=False):
-        if self._initialized:
-            if not force: return
-        # self.texture.init_gl(force=force)
-        # self.normal_map.init_gl(force=force)
-        # self.technique.init_gl(force=force)
+        if self._initialized and not force:
+            return
         self.material.init_gl(force=force)
         self.primitive.init_gl(force=force)
         self._initialized = True
@@ -59,17 +56,12 @@ class BillboardParticles(Node):
             gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.primitive.buffers['translate'])
             gl.glBufferSubData(gl.GL_ARRAY_BUFFER, 0, len(values), values)
     def draw(self, view=None, projection=None, frame_data=None):
-        # self.technique.use()
         self.material.use()
         if view is not None:
             self.world_matrix.dot(view, out=self._modelview)
             gl.glUniformMatrix4fv(self.technique.uniform_locations['u_modelview'], 1, False, self._modelview)
         if projection is not None:
             gl.glUniformMatrix4fv(self.technique.uniform_locations['u_projection'], 1, False, projection)
-        # gl.glActiveTexture(gl.GL_TEXTURE0+0)
-        # gl.glBindTexture(gl.GL_TEXTURE_2D, self.texture.texture_id)
-        # gl.glBindSampler(0, self.texture.sampler_id)
-        # gl.glUniform1i(self.technique.uniform_locations['map'], 0)
         for attribute_name, location in self.technique.attribute_locations.items():
             attribute = self.primitive.attributes[attribute_name]
             gl.glEnableVertexAttribArray(location)

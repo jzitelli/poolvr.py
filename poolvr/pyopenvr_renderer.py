@@ -95,10 +95,12 @@ class OpenVRRenderer(object):
         #self.vr_compositor.submit(openvr.Eye_Right, self.vr_framebuffers[1].texture)
         self.vr_framebuffers[1].submit(openvr.Eye_Right)
         # mirror left eye framebuffer to screen:
+        # gl.glBindFramebuffer(gl.GL_DRAW_FRAMEBUFFER, 0)
+        # gl.glDrawBuffer(gl.GL_BACK)
         gl.glBlitNamedFramebuffer(self.vr_framebuffers[0].fb, 0,
-                                  0, 0, self.vr_framebuffers[0].width//max(1, self.multisample), self.vr_framebuffers[0].height//max(1, self.multisample),
+                                  0, 0, self.vr_framebuffers[0].width, self.vr_framebuffers[0].height,
                                   0, 0, self.window_size[0], self.window_size[1],
-                                  gl.GL_COLOR_BUFFER_BIT, gl.GL_NEAREST)
+                                  gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT | gl.GL_STENCIL_BUFFER_BIT, gl.GL_NEAREST)
         gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, 0)
     def process_input(self, button_press_callbacks=None):
         for i in self._controller_indices:
