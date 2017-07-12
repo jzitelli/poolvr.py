@@ -50,6 +50,8 @@ def setup_glfw(width=800, height=600, double_buffered=False, title="poolvr.py 0.
     if not double_buffered:
         glfw.WindowHint(glfw.DOUBLEBUFFER, False)
         glfw.SwapInterval(0)
+    glfw.WindowHint(glfw.SAMPLES, 2)
+    glfw.WindowHint(glfw.AUX_BUFFERS, 1)
     window = glfw.CreateWindow(width, height, title)
     if not window:
         glfw.Terminate()

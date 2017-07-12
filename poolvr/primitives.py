@@ -240,7 +240,6 @@ class ProjectedMesh(Mesh):
     def update(self, light_position=None):
         if light_position is None:
             light_position = self.light_position
-        _logger.debug('%s %s', light_position, self._plane)
         v = self._plane.dot(light_position)
         shadow_matrix = self._shadow_matrix
         shadow_matrix[:,0] = -light_position[0] * self._plane
