@@ -27,6 +27,7 @@ SOUNDS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 _initialized = False
 ballBall_sound = None
 ballBall_sound_fs = None
+ballBall_temp = None
 output_stream = None
 
 
@@ -34,18 +35,14 @@ def init_sound():
     global _initialized
     global ballBall_sound
     global ballBall_sound_fs
+    global ballBall_temp
     if not _initialized:
         if sf:
             ballBall_sound, ballBall_sound_fs = sf.read(os.path.join(SOUNDS_DIR, 'ballBall.ogg'))
-            ballBall_sound *= 0.6
             ballBall_sound = np.array(ballBall_sound, dtype=np.float32)
-        if sd:
-            # sd.default.clip_off = True
-            # sd.default.dither_off = True
-            # sd.default.samplerate = 44100
-            # sd.default.never_drop_input = True
-            output_stream = open_output_stream()
-            output_stream.start()
+            ballBall_temp = ballBall_sound.copy()
+            if sd:
+                open_output_stream()
         _initialized = True
 
 
@@ -54,13 +51,14 @@ def open_output_stream(device=None, channels=2, samplerate=44100):
     if sd:
         output_stream = sd.OutputStream(dtype='float32')#device=device, samplerate=samplerate, latency='low')
                                         #clip_off=True, never_drop_input=True, dither_off=True, latency='low')
-        return output_stream
-
+        output_stream.start()
 
 def play_ball_ball_collision_sound(vol=1.0):
     if output_stream:
-        output_stream.write(vol*ballBall_sound[:output_stream.write_available])
-        #sd.play(vol * ballBall_sound, ballBall_sound_fs)
+        n = output_stream.write_available
+        ballBall_temp[:n] = ballBall_sound[:n]
+        ballBall_temp[:n] *= vol
+        output_stream.write(ballBall_temp[:n])
 
 
 def list_sound_devices():
