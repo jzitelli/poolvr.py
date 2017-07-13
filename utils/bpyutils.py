@@ -11,7 +11,8 @@ except ImportError as err:
 
 
 def load_scene(fp_scene):
-    pass
+    bpy.ops.wm.open_mainfile(filepath=fp_scene)
+    _logger.info('opened scene file "%s"', fp_scene)
 
 
 def bake_all_faces(fp_image, fp_scene=None, mode="full render"):
@@ -44,5 +45,3 @@ def create_material():
     # image.save()
     #bpy.context.object.active_material.texture_slots[0].uv_layer = "UVMap"
     #bpy.context.object.active_material.use_shadeless = True
-
-
