@@ -49,16 +49,27 @@ def init_sound():
 def open_output_stream(device=None, channels=2, samplerate=44100):
     global output_stream
     if sd:
-        output_stream = sd.OutputStream(dtype='float32')#device=device, samplerate=samplerate, latency='low')
-                                        #clip_off=True, never_drop_input=True, dither_off=True, latency='low')
+        output_stream = sd.OutputStream(dtype='float32')# device=device, samplerate=samplerate, latency='low', clip_off=True, dither_off=True, never_drop_input=True)
         output_stream.start()
 
+# _n = 0
+# _vol = 0.0
+# _vols = []
 def play_ball_ball_collision_sound(vol=1.0):
+    # global _n
+    # global _vol
+    # global _vols
     if output_stream:
         n = output_stream.write_available
+        # _n += n
+        # q, r = (_n // len(ballBall_sound),
+        #         _n - (_n // len(ballBall_sound)) * len(ballBall_sound))
         ballBall_temp[:n] = ballBall_sound[:n]
         ballBall_temp[:n] *= vol
+        # r = min(r, n)
+        # ballBall_temp[n-r:n] += _vol * ballBall_sound[r:n]
         output_stream.write(ballBall_temp[:n])
+        # _vol = vol
 
 
 def list_sound_devices():
@@ -85,4 +96,4 @@ def list_sound_devices():
 def set_output_sound_device(device):
     if sd:
         sd.default.device[1] = device
-        # _logger.info('set output sound device to %d: %s', device, sd.query_devices()[device]['name'])
+        _logger.info('set output sound device to %d: %s', device, sd.query_devices()[device]['name'])
