@@ -248,4 +248,3 @@ class ProjectedMesh(Mesh):
         shadow_matrix[:,3] = -light_position[3] * self._plane
         shadow_matrix[3,3] += v
         self.mesh.world_matrix.dot(shadow_matrix, out=self.world_matrix)
-        #self.world_matrix[:] = self.mesh.world_matrix.dot(shadow_matrix.T)

@@ -44,6 +44,10 @@ Developer guide:
    :members:
 .. autoclass:: poolvr.gl_rendering.Technique
    :members:
+.. autoclass:: poolvr.gl_rendering.Texture
+   :members:
+.. autoclass:: poolvr.gl_rendering.CubeTexture
+   :members:
 .. autoclass:: poolvr.gl_rendering.Material
    :members:
 .. autoclass:: poolvr.gl_rendering.Primitive
