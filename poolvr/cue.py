@@ -22,7 +22,6 @@ class PoolCue(Mesh):
         self.update_world_matrices()
         self.shadow_mesh = ProjectedMesh(self,
                                          Material(EGA_TECHNIQUE, values={'u_color': [0.0, 0x12/0xff, 0.0, 0.0]}))
-        self.shadow_mesh.update()
         self.position = self.world_matrix[3,:3]
         self.velocity = np.zeros(3, dtype=np.float32)
         self.angular_velocity = np.zeros(3, dtype=np.float32)

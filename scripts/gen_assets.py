@@ -17,10 +17,10 @@ if __name__ == "__main__":
     texutils.gen_sphere_billboards(fp_alpha='textures/sphere_bb_alpha.png',
                                    fp_normal='textures/sphere_bb_normal.png')
 
-    import bpyutils
-    if bpyutils is not None:
-        filename = 'WebVRDesk1.blend'
-        bpyutils.load_scene(os.path.join(_here, os.path.pardir, 'models', filename))
-        bpyutils.create_material()
-        bpyutils.bake_all_faces(os.path.join(_here, os.path.pardir, 'models', 'textures',
-                                             '%s-baked_faces.png' % filename[:-6]))
+    # import bpyutils
+    # if bpyutils is not None:
+    #     filename = 'WebVRDesk1.blend'
+    #     bpyutils.load_scene(os.path.join(_here, os.path.pardir, 'models', filename))
+    #     bpyutils.create_material()
+    #     bpyutils.bake_all_faces(os.path.join(_here, os.path.pardir, 'models', 'textures',
+    #                                          '%s-baked_faces.png' % filename[:-6]))
