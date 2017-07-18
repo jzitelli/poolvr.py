@@ -187,7 +187,6 @@ def main(window_size=(800,600),
                     cue.world_matrix[:3,:3] = pose[:,:3].dot(cue.rotation).T
                     cue.world_matrix[3,:3] = pose[:,3]
                     cue.velocity[:] = velocity
-                    cue.shadow_mesh.update()
                     cue.angular_velocity = angular_velocity
                     set_quaternion_from_matrix(pose[:,:3], cue_quaternion)
                     # if game.t >= game.ntt:
@@ -225,6 +224,7 @@ def main(window_size=(800,600),
             cue_geom.setQuaternion((w, x, y, z))
             cue_body.setLinearVel(cue.velocity)
             cue_body.setAngularVel(cue.angular_velocity)
+            cue.shadow_mesh.update()
 
             physics.eval_positions(game.t, out=ball_positions)
             physics.eval_quaternions(game.t, out=ball_quaternions)

@@ -222,18 +222,18 @@ class RoundedRectanglePrimitive(Primitive):
 
 class ProjectedMesh(Mesh):
     def __init__(self, mesh, material, primitives=None,
-                 normal=(0.0, 1.0, 0.0), c=-1.02*0.77,
+                 normal=(0.0, 1.0, 0.0), c=1.02*0.77,
                  light_position=(0.2, 4.2, -0.05, 0.1)):
         self.mesh = mesh
         self.material = material
         if primitives is None:
             primitives = itertools.chain.from_iterable(mesh.primitives.values())
         self.primitives = list(primitives)
-        Mesh.__init__(self, {material: primitives})
+        Mesh.__init__(self, {material: self.primitives})
         self.normal = np.array(normal)
         self.c = c
         self._plane = np.array(list(self.normal[:]) + [-self.c])
-        self._shadow_matrix = np.eye(4)
+        self._shadow_matrix = np.eye(4, dtype=np.float32)
         self.light_position = light_position
         if light_position is not None:
             self.update(light_position)
@@ -242,12 +242,12 @@ class ProjectedMesh(Mesh):
             light_position = self.light_position
         v = self._plane.dot(light_position)
         shadow_matrix = self._shadow_matrix
-        shadow_matrix[:,0] = -light_position[0] * self._plane
+        shadow_matrix[0,:] = -light_position[0] * self._plane
         shadow_matrix[0,0] += v
-        shadow_matrix[:,1] = -light_position[1] * self._plane
+        shadow_matrix[1,:] = -light_position[1] * self._plane
         shadow_matrix[1,1] += v
-        shadow_matrix[:,2] = -light_position[2] * self._plane
+        shadow_matrix[2,:] = -light_position[2] * self._plane
         shadow_matrix[2,2] += v
-        shadow_matrix[:,3] = -light_position[3] * self._plane
+        shadow_matrix[3,:] = -light_position[3] * self._plane
         shadow_matrix[3,3] += v
-        self.world_matrix[:] = shadow_matrix.dot(self.world_matrix)
+        shadow_matrix.dot(self.mesh.world_matrix, out=self.world_matrix)
