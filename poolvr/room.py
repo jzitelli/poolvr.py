@@ -17,7 +17,7 @@ skybox_geom = BoxPrimitive(300,300,300)
 skybox_geom.attributes['a_position'] = skybox_geom.attributes['vertices']
 skybox_material = Material(SKYBOX_TECHNIQUE,
                            textures={'u_map': CubeTexture([os.path.join(TEXTURES_DIR, 'cube',
-                                                                        'skybox', '%s.jpg' % fn)
+                                                                        'skybox', '%s.png' % fn)
                                                            for fn in 'px nx py ny pz nz'.split()])})
 skybox_mesh = Mesh({skybox_material: [skybox_geom]})
 

@@ -42,14 +42,20 @@ GLSL_TYPE_SPEC = {
 _logger = logging.getLogger(__name__)
 
 
-class Program(object):
+class GLRendering(object):
+    def __init__(self, *args, name=None, **kwargs):
+        self.name = name
+
+
+class Program(GLRendering):
     """
     GLSL program
     """
     ATTRIBUTE_DECL_RE = re.compile(r"attribute\s+(?P<type_spec>\w+)\s+(?P<attribute_name>\w+)\s*;")
     UNIFORM_DECL_RE = re.compile(r"uniform\s+(?P<type_spec>\w+)\s+(?P<uniform_name>\w+)\s*(=\s*(?P<initialization>.*)\s*;|;)")
     _current = None
-    def __init__(self, vs_src, fs_src, parse_attributes=True, parse_uniforms=True):
+    def __init__(self, vs_src, fs_src, parse_attributes=True, parse_uniforms=True, name=None):
+        super().__init__(name=name)
         self.vs_src = vs_src
         self.fs_src = fs_src
         self.program_id = None
@@ -111,13 +117,14 @@ class Program(object):
         Program._current = None
 
 
-class Technique(object):
+class Technique(GLRendering):
     """
     GL rendering technique (based off of Technique defined by glTF schema)
     """
     _current = None
     def __init__(self, program, attributes=None, uniforms=None, states=None, attribute_divisors=None,
-                 front_face=gl.GL_CCW, on_use=None, on_release=None):
+                 front_face=gl.GL_CCW, on_use=None, on_release=None, name=None):
+        super().__init__(name=name)
         self.program = program
         if attributes is None:
             attributes = copy.deepcopy(program.attributes)
@@ -162,13 +169,14 @@ class Technique(object):
         Technique._current = None
 
 
-class Texture(object):
-    def __init__(self, uri):
+class Texture(GLRendering):
+    def __init__(self, uri, name=None, **kwargs):
         """
 
         An OpenGL Texture / Sampler2D which is loaded from an image file
 
         """
+        super().__init__(name=name)
         self.uri = uri
         self.texture_id = None
         self.sampler_id = None
@@ -202,7 +210,8 @@ class Texture(object):
         err = gl.glGetError()
         if err != gl.GL_NO_ERROR:
             raise Exception('failed to init texture: %s' % err)
-        _logger.info('%s.init_gl: OK' % self.__class__.__name__)
+        _logger.info('%s.init_gl: OK%s', self.__class__.__name__,
+                     ' (%s)' % self.name if self.name else '')
 
 
 class CubeTexture(Texture):
@@ -212,12 +221,13 @@ class CubeTexture(Texture):
                gl.GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
                gl.GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
                gl.GL_TEXTURE_CUBE_MAP_NEGATIVE_Z)
-    def __init__(self, uris):
+    def __init__(self, uris, name=None):
         """
 
         An OpenGL Cube Texture / SamplerCube which is loaded from 6 image files
 
         """
+        GLRendering.__init__(self, name=name)
         self.uris = uris
         self.texture_id = None
         self.sampler_id = None
@@ -255,13 +265,14 @@ class CubeTexture(Texture):
         _logger.info('%s.init_gl: OK' % self.__class__.__name__)
 
 
-class Material(object):
+class Material(GLRendering):
     _current = None
-    def __init__(self, technique, values=None, textures=None, on_use=None, on_release=None):
+    def __init__(self, technique, values=None, textures=None, on_use=None, on_release=None, name=None):
         """
         A Material object is a customization of a :ref:`Technique` with a
         particular set of uniform values and textures.
         """
+        super().__init__(name=name)
         self.technique = technique
         if values is None:
             values = {}
@@ -362,9 +373,9 @@ class Material(object):
         Material._current = None
 
 
-class Primitive(object):
+class Primitive(GLRendering):
     def __init__(self, mode, indices, index_buffer=None, attribute_usage=None, attribute_divisors=None,
-                 **attributes):
+                 name=None, **attributes):
         """
 
         A class for specifying GL vertex attribute objects and providing vertex buffer data
@@ -374,6 +385,7 @@ class Primitive(object):
                              ``<attribute_name>=<ndarray of data>``
 
         """
+        super().__init__(name=name)
         self.mode = mode
         self.indices = indices
         self.index_buffer = index_buffer
@@ -410,14 +422,15 @@ class Primitive(object):
         _logger.info('%s.init_gl: OK' % self.__class__.__name__)
 
 
-class Node(object):
-    def __init__(self, matrix=None):
+class Node(GLRendering):
+    def __init__(self, matrix=None, name=None):
         """
         A node in a scenegraph.
 
         Each node has a TRS transformation which is expressed in
         coordinates local to the parent node (or in global coordinates in the case of the root node).
         """
+        super().__init__(name=name)
         if matrix is None:
             matrix = np.eye(4, dtype=np.float32)
         self.matrix = matrix
@@ -442,13 +455,13 @@ class Node(object):
 class Mesh(Node):
     _modelview = np.eye(4, dtype=np.float32)
     _normal = np.eye(3, dtype=np.float32)
-    def __init__(self, primitives, matrix=None, before_draw=None, after_draw=None):
+    def __init__(self, primitives, matrix=None, before_draw=None, after_draw=None, name=None):
         """
         A drawable collection of :ref:`Primitive`s, with a :ref:`Material` assigned for each one.
 
         :param primitives: should be a dict which maps :ref:`Material` to list of :ref:`Primitive` which use that material
         """
-        Node.__init__(self, matrix=matrix)
+        Node.__init__(self, matrix=matrix, name=name)
         self.primitives = primitives
         self._before_draw = before_draw
         self._after_draw = after_draw
