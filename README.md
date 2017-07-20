@@ -25,6 +25,27 @@ pip install pillow
 Others, such as `cyglfw3` and `ode`, I found I had to build from source.
 
 
+### INSTALLING `cyglfw3`:
+
+First, you need to build or download the `glfw` library binary for your platform - the easiest way is to [download pre-compiled binaries
+from the official `glfw` site: http://www.glfw.org/download.html ](http://www.glfw.org/download.html)
+
+Then build the cyglfw3 package:
+```
+git clone https://github.com/jzitelli/cyglfw3.git
+cd cyglfw3
+python setup.py build_py build_ext install --include-dirs="{path to glfw include dir}" --library-dirs="{path to glfw dll dir}"
+```
+
+
+### INSTALLING `ode`:
+
+`ode` is the Python package of bindings for the Open Dynamics Engine.  The library and bindings are built from the same source repository:
+```
+git clone https://github.com/jzitelli/ode.git
+cd ode
+```
+
 ## HOW TO INSTALL:
 
 ```

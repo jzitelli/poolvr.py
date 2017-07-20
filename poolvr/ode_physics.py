@@ -31,18 +31,18 @@ def _create_ball(world, ball_mass, ball_radius, space=None):
 
 
 def _create_cue(world, cue_mass, cue_radius, cue_length, space=None, kinematic=True):
-        body = ode.Body(world)
-        mass = ode.Mass()
-        mass.setCylinderTotal(cue_mass, 3, cue_radius, cue_length)
-        body.setMass(mass)
-        body.shape = "cylinder"
-        if kinematic:
-            body.setKinematic()
-        if space:
-            geom = ode.GeomCylinder(space=space, radius=cue_radius, length=cue_length)
-            geom.setBody(body)
-            return body, geom
-        return body
+    body = ode.Body(world)
+    mass = ode.Mass()
+    mass.setCylinderTotal(cue_mass, 3, cue_radius, cue_length)
+    body.setMass(mass)
+    body.shape = "cylinder"
+    if kinematic:
+        body.setKinematic()
+    if space:
+        geom = ode.GeomCylinder(space=space, radius=cue_radius, length=cue_length)
+        geom.setBody(body)
+        return body, geom
+    return body
 
 
 class ODEPoolPhysics(object):

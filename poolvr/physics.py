@@ -22,6 +22,18 @@ INCH2METER = 0.0254
 _I, _J, _K = np.eye(3, dtype=np.float64)
 
 
+def _create_cue(cue_mass, cue_radius, cue_length):
+    try:
+        import ode
+    except:
+        from . import fake_ode as ode
+    body = ode.Body(None)
+    mass = ode.Mass()
+    mass.setCylinderTotal(cue_mass, 3, cue_radius, cue_length)
+    body.setMass(mass)
+    return body
+
+
 class PoolPhysics(object):
     """
     Pool physics simulator
@@ -71,6 +83,12 @@ class PoolPhysics(object):
         if use_simple_ball_collisions:
             self.BallCollisionEvent = self.SimpleBallCollisionEvent
         self.t = 0.0
+
+    def add_cue(self, cue):
+        body = _create_cue(cue.mass, cue.radius, cue.length)
+        self.cue_bodies = [body]
+        self.cue_geoms = [body]
+        return body, body
 
     def strike_ball(self, t, i, Q, V, cue_mass):
         r"""

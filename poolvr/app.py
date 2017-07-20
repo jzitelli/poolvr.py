@@ -86,7 +86,7 @@ def main(window_size=(800,600),
                                       ball_radius=game.ball_radius,
                                       initial_positions=game.ball_positions,
                                       table=game.table)
-        cue_body, cue_geom = game.physics.add_cue(cue)
+    cue_body, cue_geom = game.physics.add_cue(cue)
     physics = game.physics
     cue.position[1] = game.table.height + 0.1
     cue_quaternion = np.zeros(4, dtype=np.float32)
