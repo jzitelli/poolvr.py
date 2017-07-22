@@ -25,7 +25,7 @@ pip install pillow
 I was not able to install `cyglfw3`, 'pyopenvr', or `ode` using `pip`, so I built them from source following the steps below:
 
 
-1. INSTALLING `cyglfw3`:
+### 1. INSTALLING `cyglfw3`:
 
 First, you need to build or download the `glfw` library binary for your platform - the easiest way is to [download pre-compiled binaries
 from the official `glfw` site: http://www.glfw.org/download.html ](http://www.glfw.org/download.html)
@@ -38,7 +38,7 @@ python setup.py build_py build_ext install --include-dirs="{path to glfw include
 ```
 
 
-2. INSTALLING `pyopenvr`:
+### 2. INSTALLING `pyopenvr`:
 
 At the moment I am using my own fork of [https://github.com/cmbruns/pyopenvr](https://github.com/cmbruns/pyopenvr).  To clone and install:
 ```
@@ -48,7 +48,7 @@ python setup.py install
 ```
 
 
-3. INSTALLING `ode`:
+### 3. INSTALLING `ode`:
 
 `ode` is the Python package of bindings for the Open Dynamics Engine.  The library and bindings are built from the same source repository.  To clone the repo and generate a Visual Studio solution (`.sln`) for building the library:
 ```
