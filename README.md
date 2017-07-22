@@ -40,13 +40,34 @@ python setup.py build_py build_ext install --include-dirs="{path to glfw include
 
 ### INSTALLING `ode`:
 
-`ode` is the Python package of bindings for the Open Dynamics Engine.  The library and bindings are built from the same source repository:
+`ode` is the Python package of bindings for the Open Dynamics Engine.  The library and bindings are built from the same source repository.  To clone the repo and generate a Visual Studio solution (`.sln`) for building the library:
 ```
 git clone https://github.com/jzitelli/ode.git
 cd ode
+cd build
+premake4.exe --only-shared --only-double --platform=x64 vs2010
 ```
+Then open the generated solution in Visual Studio (probably ok to upgrade the solution to your version of VS if it asks you - I tested successfully with 2015 and 2017).
+Compile a Release build for your target architecture (I believe this should match your version of Python, e.g. x64 or x86).
+It should output a library `ode\lib\Release\ode.dll`.  You should add this location to your PATH environment variable or copy the file to a directory in your PATH.
 
-## HOW TO INSTALL:
+To build the Python bindings, run from the Visual Studio Native Tools Command Line:
+```
+cd {directory where you cloned the repo}
+cd bindings
+cd python
+python setup.py build_ext install
+```
+If installed successfully, from the Python interpreter you should be able to import the `ode` package, e.g.
+```
+import ode
+print(ode.__file__) # <-- assuming Python 3 here
+```
+and see something like `...\Anaconda3\lib\site-packages\ode.cp36-win_amd64.pyd`.
+
+
+
+## HOW TO INSTALL poolvr.py:
 
 ```
 git clone https://github.com/jzitelli/poolvr.py.git
