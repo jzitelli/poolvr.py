@@ -105,7 +105,7 @@ play_poolvr.py -h
 
 ## HOW TO RUN TESTS:
 
-From your cloned *poolvr.py* repository root directory:
+From your cloned `poolvr.py` repository root directory:
 ```
 python scripts/run_poolvr_tests.py
 ```
