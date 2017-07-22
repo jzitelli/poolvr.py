@@ -11,8 +11,8 @@ This module implements an event-based pool physics simulator based on the paper
 """
 import logging
 from bisect import bisect
-import numpy as np
 from copy import copy
+import numpy as np
 
 
 _logger = logging.getLogger(__name__)

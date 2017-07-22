@@ -2,7 +2,7 @@
 
 VR pool simulator written in Python (using [pyopenvr](https://github.com/cmbruns/pyopenvr))
 
-![screenshot](https://jzitelli.github.io/poolvr.py/images/screenshots/Screenshot%202017-04-08%2003.25.27.png)
+![screenshot](https://jzitelli.github.io/poolvr.py/images/screenshots/vrscreenshot.png)
 
 ## REQUIREMENTS:
 
@@ -22,10 +22,10 @@ You can probably install most of the required packages listed above using `pip`,
 ```
 pip install pillow
 ```
-Others, such as `cyglfw3` and `ode`, I found I had to build from source.
+I was not able to install `cyglfw3`, 'pyopenvr', or `ode` using `pip`, so I built them from source following the steps below:
 
 
-### INSTALLING `cyglfw3`:
+1. INSTALLING `cyglfw3`:
 
 First, you need to build or download the `glfw` library binary for your platform - the easiest way is to [download pre-compiled binaries
 from the official `glfw` site: http://www.glfw.org/download.html ](http://www.glfw.org/download.html)
@@ -38,7 +38,17 @@ python setup.py build_py build_ext install --include-dirs="{path to glfw include
 ```
 
 
-### INSTALLING `ode`:
+2. INSTALLING `pyopenvr`:
+
+At the moment I am using my own fork of [https://github.com/cmbruns/pyopenvr](https://github.com/cmbruns/pyopenvr).  To clone and install:
+```
+git clone https://github.com/jzitelli/pyopenvr.git
+cd pyopenvr
+python setup.py install
+```
+
+
+3. INSTALLING `ode`:
 
 `ode` is the Python package of bindings for the Open Dynamics Engine.  The library and bindings are built from the same source repository.  To clone the repo and generate a Visual Studio solution (`.sln`) for building the library:
 ```
@@ -64,7 +74,6 @@ import ode
 print(ode.__file__) # <-- assuming Python 3 here
 ```
 and see something like `...\Anaconda3\lib\site-packages\ode.cp36-win_amd64.pyd`.
-
 
 
 ## HOW TO INSTALL poolvr.py:

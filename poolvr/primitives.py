@@ -3,6 +3,10 @@ _logger = logging.getLogger(__name__)
 import itertools
 import numpy as np
 import OpenGL.GL as gl
+try:
+    import ode
+except:
+    import fake_ode as ode
 
 
 from .gl_rendering import Primitive, Mesh
@@ -24,21 +28,25 @@ class HexaPrimitive(Primitive):
              [7,3,0,4]] # left
     tri_faces = list(itertools.chain.from_iterable(itertools.chain.from_iterable([triangulate_quad(quad) for quad in faces])))
     indices = np.array([triangulate_quad(quad) for quad in faces], dtype=np.uint16).reshape(-1)
-    index_buffer = None
+    INDEX_BUFFER = None
     def __init__(self, vertices=None):
-        Primitive.__init__(self, gl.GL_TRIANGLES, HexaPrimitive.indices, index_buffer=HexaPrimitive.index_buffer,
+        "A :ref:`Primitive` with the geometry of a hexahedron."
+        Primitive.__init__(self, gl.GL_TRIANGLES, HexaPrimitive.indices, index_buffer=HexaPrimitive.INDEX_BUFFER,
                            vertices=vertices)
     def init_gl(self, force=False):
         Primitive.init_gl(self, force=force)
-        if HexaPrimitive.index_buffer is None:
-            HexaPrimitive.index_buffer = self.index_buffer
+        if HexaPrimitive.INDEX_BUFFER is None:
+            HexaPrimitive.INDEX_BUFFER = self.index_buffer
 
 
 class BoxPrimitive(HexaPrimitive):
+    # *** TODO *** use unambigous variable names (e.g. "length_x", "l_x", "size_x", ..., instead of "width")
     def __init__(self, width=1.0, height=1.0, length=1.0):
+        "A :ref:`Primitive` with the geometry of a box."
         self.width = width
         self.height = height
         self.length = length
+        self.lengths = [width, height, length]
         w, h, l = width, height, length
         vertices = np.array([[-0.5*w, -0.5*h,  0.5*l],
                              [ 0.5*w, -0.5*h,  0.5*l],
@@ -49,6 +57,17 @@ class BoxPrimitive(HexaPrimitive):
                              [ 0.5*w,  0.5*h, -0.5*l],
                              [-0.5*w,  0.5*h, -0.5*l]], dtype=np.float32)
         HexaPrimitive.__init__(self, vertices=vertices)
+
+    def create_ode_mass(self, total_mass):
+        mass = ode.Mass()
+        mass.setSphereTotal(total_mass, self.width, self.height, self.length)
+        return mass
+
+    @property
+    def ode_geom(self):
+        if not hasattr(self, '_ode_geom'):
+            self._ode_geom = ode.GeomBox(lengths=self.lengths)
+        return self._ode_geom
 
 
 class CylinderPrimitive(Primitive):
@@ -115,8 +134,8 @@ class ConeMesh(Mesh):
 
 
 class QuadPrimitive(Primitive):
-    indices = np.array([0,1,3,2], dtype=np.uint16)
-    index_buffer = None
+    INDICES = np.array([0,1,3,2], dtype=np.uint16)
+    INDEX_BUFFER = None
     def __init__(self, vertices, **attributes):
         n1 = np.cross(vertices[1] - vertices[0], vertices[2] - vertices[1])
         n1 /= np.linalg.norm(n1)
@@ -135,12 +154,12 @@ class QuadPrimitive(Primitive):
                         [1.0, 0.0],
                         [1.0, 1.0],
                         [0.0, 1.0]], dtype=np.float32)
-        Primitive.__init__(self, gl.GL_TRIANGLE_STRIP, QuadPrimitive.indices, index_buffer=QuadPrimitive.index_buffer,
+        Primitive.__init__(self, gl.GL_TRIANGLE_STRIP, QuadPrimitive.INDICES, index_buffer=QuadPrimitive.INDEX_BUFFER,
                            vertices=vertices, uvs=uvs, normals=normals, tangents=tangents, **attributes)
     def init_gl(self, force=False):
         Primitive.init_gl(self, force=force)
-        if QuadPrimitive.index_buffer is None:
-            QuadPrimitive.index_buffer = self.index_buffer
+        if QuadPrimitive.INDEX_BUFFER is None:
+            QuadPrimitive.INDEX_BUFFER = self.index_buffer
 
 
 class PlanePrimitive(QuadPrimitive):
@@ -180,6 +199,7 @@ class SpherePrimitive(Primitive):
         vertices = []
         uvs = []
         positions = []
+        # *** TODO *** vectorize:
         for iy in range(0, heightSegments+1):
             verticesRow = []
             v = iy / heightSegments
@@ -248,3 +268,17 @@ class ProjectedMesh(Mesh):
         shadow_matrix[:,3] = -light_position[3] * self._plane
         shadow_matrix[3,3] += v
         self.mesh.world_matrix.dot(shadow_matrix, out=self.world_matrix)
+
+
+class BoxMesh(Mesh):
+    def __init__(self, material, *args, **kwargs):
+        self.primitive = BoxPrimitive(*args, **kwargs)
+        self.primitives = [self.primitive]
+        Mesh.__init__(self, {material: self.primitives})
+
+    def create_ode_body(self, world, total_mass):
+        body = ode.Body(world)
+        body.setMass(self.primitive.create_ode_mass(total_mass))
+        body.shape = "box"
+        body.boxsize = tuple(self.primitive.lengths)
+        return body

@@ -19,9 +19,9 @@ ZERO3 = np.zeros(3, dtype=np.float64)
 
 
 def _create_ball(world, ball_mass, ball_radius, space=None):
-    body = ode.Body(world)
     mass = ode.Mass()
     mass.setSphereTotal(ball_mass, ball_radius)
+    body = ode.Body(world)
     body.setMass(mass)
     body.shape = "sphere"
     body.boxsize = (2*ball_radius, 2*ball_radius, 2*ball_radius)

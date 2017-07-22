@@ -1,3 +1,5 @@
 numpy
 pyopengl
 pillow
+sounddevice
+soundfile
