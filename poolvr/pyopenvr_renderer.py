@@ -69,6 +69,7 @@ class OpenVRRenderer(object):
                 angular_velocities.append(np.ctypeslib.as_array(controller_pose.vAngularVelocity.v))
         for eye in (0,1):
             view.dot(self.eye_transforms[eye], out=self.view_matrices[eye])
+
         frame_data = {
             'hmd_pose': hmd_34,
             'hmd_velocity': velocities[0],
@@ -77,7 +78,7 @@ class OpenVRRenderer(object):
             'controller_velocities': velocities[1:],
             'controller_angular_velocities': angular_velocities[1:],
             'view_matrices': self.view_matrices,
-            'view_matrix': view
+            'projection_matrices': self.projection_matrices,
         }
 
         yield frame_data
@@ -86,10 +87,11 @@ class OpenVRRenderer(object):
         for eye in (0,1):
             gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, self.vr_framebuffers[eye].fb)
             gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
+            frame_data['view_matrix'] = self.view_matrices[eye]
+            frame_data['projection_matrix'] = self.projection_matrices[eye]
             if meshes is not None:
                 for mesh in meshes:
-                    mesh.draw(projection=self.projection_matrices[eye],
-                              view=self.view_matrices[eye], frame_data=frame_data)
+                    mesh.draw(**frame_data)
         #self.vr_compositor.submit(openvr.Eye_Left, self.vr_framebuffers[0].texture)
         self.vr_framebuffers[0].submit(openvr.Eye_Left)
         #self.vr_compositor.submit(openvr.Eye_Right, self.vr_framebuffers[1].texture)
@@ -100,7 +102,7 @@ class OpenVRRenderer(object):
         gl.glBlitNamedFramebuffer(self.vr_framebuffers[0].fb, 0,
                                   0, 0, self.vr_framebuffers[0].width, self.vr_framebuffers[0].height,
                                   0, 0, self.window_size[0], self.window_size[1],
-                                  gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT | gl.GL_STENCIL_BUFFER_BIT, gl.GL_NEAREST)
+                                  gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT | gl.GL_STENCIL_BUFFER_BIT, gl.GL_LINEAR)
         gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, 0)
     def process_input(self, button_press_callbacks=None):
         for i in self._controller_indices:

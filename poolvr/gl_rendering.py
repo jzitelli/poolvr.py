@@ -389,6 +389,8 @@ class Primitive(GLRendering):
         self.mode = mode
         self.indices = indices
         self.index_buffer = index_buffer
+        if attribute_usage is None:
+            attribute_usage = {}
         self.attribute_usage = attribute_usage
         self.attributes = attributes
         self.buffers = None
@@ -401,7 +403,7 @@ class Primitive(GLRendering):
             values = values.tobytes()
             vbo = gl.glGenBuffers(1)
             gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
-            if self.attribute_usage and name in self.attribute_usage:
+            if name in self.attribute_usage:
                 usage = self.attribute_usage[name]
             else:
                 usage = gl.GL_STATIC_DRAW
@@ -420,6 +422,16 @@ class Primitive(GLRendering):
             self.index_buffer = vao
             gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, 0)
         _logger.info('%s.init_gl: OK' % self.__class__.__name__)
+    def alias(self, attribute_name, alias):
+        if attribute_name not in self.attributes:
+            raise Exception('attribute "%s" is not defined' % attribute_name)
+        self.attributes[alias] = self.attributes[attribute_name]
+    def update_buffer_data(self, name, buffer_data):
+        vbo = self.buffers[name]
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, vbo)
+        buffer_data = buffer_data.tobytes()
+        gl.glBufferSubData(gl.GL_ARRAY_BUFFER, 0, len(buffer_data), buffer_data)
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
 
 
 class Node(GLRendering):
@@ -498,7 +510,9 @@ class Mesh(Node):
             raise Exception('failed to init primitive: %s' % err)
         _logger.info('%s.init_gl: OK' % self.__class__.__name__)
         self._initialized = True
-    def draw(self, view=None, projection=None, frame_data=None):
+    def draw(self, **frame_data):
+        view = frame_data.get('view_matrix', None)
+        projection = frame_data.get('projection_matrix', None)
         if self._before_draw:
             self._before_draw(self, frame_data)
         if view is not None:
@@ -566,15 +580,14 @@ class OpenGLRenderer(object):
         frame_data = {
             'camera_world_matrix': self.camera_matrix,
             'camera_position': self.camera_position,
-            'view_matrix': self.view_matrix
+            'view_matrix': self.view_matrix,
+            'projection_matrix': self.projection_matrix
         }
         yield frame_data
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         if meshes is not None:
             for mesh in meshes:
-                mesh.draw(projection=self.projection_matrix,
-                          view=self.view_matrix,
-                          frame_data=frame_data)
+                mesh.draw(**frame_data)
     def process_input(self, **kwargs):
         pass
     def shutdown(self):
@@ -598,6 +611,9 @@ def calc_projection_matrix(yfov, aspectRatio, znear, zfar):
 
 
 def set_matrix_from_quaternion(quat, out):
+    """
+    Set the values of a 3x3 matrix to those of a rotation matrix.
+    """
     w, x, y, z = quat
     y2 = y**2
     x2 = x**2
@@ -619,9 +635,13 @@ def set_matrix_from_quaternion(quat, out):
               1.0 - 2.0 * (x2 + y2)]
     return out
 
+
 def set_quaternion_from_matrix(U, out):
-    # http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/index.htm
-    # assumes the upper 3x3 of m is a pure rotation matrix (i.e, unscaled)
+    """
+    http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/index.htm
+
+    assumes the upper 3x3 of m is a pure rotation matrix (i.e, unscaled)
+    """
     trace = U.trace()
     if trace > 0:
         s = 0.5 / np.sqrt( trace + 1.0 );

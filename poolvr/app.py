@@ -111,14 +111,14 @@ def main(window_size=(800,600),
                 def on_cue_surface_collision(renderer=renderer, game=game, physics=physics, impact_speed=None):
                     if impact_speed > 0.003:
                         renderer.vr_system.triggerHapticPulse(renderer._controller_indices[0], 0,
-                                                              int(max(0.85, 0.2*impact_speed**2 + 0.07*impact_speed**3) * 2500))
+                                                              int(max(0.75, 0.2*impact_speed**2 + 0.07*impact_speed**3) * 2500))
         except Exception as err:
             renderer = fallback_renderer
+            renderer.camera_position[1] = game.table.height + 0.6
+            renderer.camera_position[2] = game.table.length - 0.1
             _logger.error('could not initialize OpenVRRenderer: %s', err)
     else:
         renderer = fallback_renderer
-        renderer.camera_position[1] = game.table.height + 0.6
-        renderer.camera_position[2] = game.table.length - 0.1
     camera_world_matrix = fallback_renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
 
@@ -136,14 +136,14 @@ def main(window_size=(800,600),
         process_mouse_input(dt, cue)
 
     # textured_text = TexturedText()
-
-    ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
-
+    if use_bb_particles:
+        ball_shadow_meshes = []
+    else:
+        ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
 
     meshes = [skybox_mesh, floor_mesh, game.table.mesh] + ball_meshes + ball_shadow_meshes + [cue.shadow_mesh, cue]
     for mesh in meshes:
         mesh.init_gl()
-
 
     ball_positions = game.ball_positions.copy()
     ball_quaternions = game.ball_quaternions
@@ -229,13 +229,15 @@ def main(window_size=(800,600),
             physics.eval_positions(game.t, out=ball_positions)
             physics.eval_quaternions(game.t, out=ball_quaternions)
             ball_positions[~physics.on_table] = camera_position # hacky way to only show balls that are on table
-            for i, pos in enumerate(ball_positions):
-                ball_mesh_positions[i][:] = pos
-                ball_shadow_mesh_positions[i][0::2] = pos[0::2]
             for i, quat in enumerate(ball_quaternions):
                 set_matrix_from_quaternion(quat, ball_mesh_rotations[i])
             if use_bb_particles:
                 billboard_particles.update_gl()
+            else:
+                for i, pos in enumerate(ball_positions):
+                    ball_mesh_positions[i][:] = pos
+                    ball_shadow_mesh_positions[i][0::2] = pos[0::2]
+
             # textured_text.set_text("%9.3f" % dt)
             # textured_text.update_gl()
 
@@ -248,8 +250,9 @@ def main(window_size=(800,600),
         nframes += 1
         glfw.SwapBuffers(window)
 
-    _logger.info('...exited render loop: average FPS: %f, maximum frame time: %f, average frame time: %f',
-                 (nframes - 1) / (t - st), max_frame_time, (t - st) / (nframes - 1))
+    if nframes > 1:
+        _logger.info('...exited render loop: average FPS: %f, maximum frame time: %f, average frame time: %f',
+                     (nframes - 1) / (t - st), max_frame_time, (t - st) / (nframes - 1))
 
     renderer.shutdown()
     _logger.info('...shut down renderer')
