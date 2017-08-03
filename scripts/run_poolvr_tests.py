@@ -3,11 +3,13 @@ import logging
 import argparse
 
 
-from tests.physics_tests import *
-from tests.ode_physics_tests import *
-
-
 _logger = logging.getLogger(__name__)
+
+
+# from tests.physics_tests import *
+# from tests.ode_physics_tests import *
+# from tests.opengl_tests import *
+from tests.gltf_tests import *
 
 
 if __name__ == "__main__":
@@ -22,7 +24,9 @@ if __name__ == "__main__":
 
     if args.v:
         _logger.debug('OpenGL enabled')
-        PhysicsTests.show = True
-        ODEPhysicsTests.show = True
+        # PhysicsTests.show = True
+        # ODEPhysicsTests.show = True
+        # OpenGLTests.show = True
+        GLTFTests.show = True
 
     unittest.main()

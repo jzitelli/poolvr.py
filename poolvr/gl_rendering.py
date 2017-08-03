@@ -170,7 +170,8 @@ class Technique(GLRendering):
 
 
 class Texture(GLRendering):
-    def __init__(self, uri, name=None, **kwargs):
+    def __init__(self, uri, name=None, min_filter=gl.GL_NEAREST_MIPMAP_LINEAR,
+                 mag_filter=gl.GL_LINEAR, wrap_s=gl.GL_REPEAT, wrap_t=gl.GL_REPEAT, **kwargs):
         """
 
         An OpenGL Texture / Sampler2D which is loaded from an image file
@@ -180,6 +181,10 @@ class Texture(GLRendering):
         self.uri = uri
         self.texture_id = None
         self.sampler_id = None
+        self.min_filter = min_filter
+        self.mag_filter = mag_filter
+        self.wrap_s = wrap_s
+        self.wrap_t = wrap_t
     def init_gl(self, force=False):
         """
         Perform initialization for the texture on the current GL context
@@ -195,21 +200,21 @@ class Texture(GLRendering):
         gl.glBindTexture(gl.GL_TEXTURE_2D, texture_id)
         sampler_id = gl.glGenSamplers(1)
         self.sampler_id = sampler_id
-        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST_MIPMAP_LINEAR)
-        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
-        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_S, gl.GL_REPEAT)
-        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_T, gl.GL_REPEAT)
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MIN_FILTER, self.min_filter)
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MAG_FILTER, self.mag_filter)
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_S, self.wrap_s)
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_T, self.wrap_t)
         gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
         gl.glTexImage2D(gl.GL_TEXTURE_2D, 0,
                         gl.GL_RGB if image.mode == 'RGB' else gl.GL_RGBA,
                         image.width, image.height, 0,
                         gl.GL_RGB if image.mode == 'RGB' else gl.GL_RGBA,
                         gl.GL_UNSIGNED_BYTE,
-                        np.array(list(image.getdata()), dtype=np.ubyte))
+                        np.array(image.getdata(), dtype=np.ubyte))
         gl.glGenerateMipmap(gl.GL_TEXTURE_2D)
         err = gl.glGetError()
         if err != gl.GL_NO_ERROR:
-            raise Exception('failed to init texture: %s' % err)
+            raise Exception('failed to init texture: 0x%02x' % err)
         _logger.info('%s.init_gl: OK%s', self.__class__.__name__,
                      ' (%s)' % self.name if self.name else '')
 
@@ -374,7 +379,8 @@ class Material(GLRendering):
 
 
 class Primitive(GLRendering):
-    def __init__(self, mode, indices, index_buffer=None, attribute_usage=None, attribute_divisors=None,
+    def __init__(self, mode, indices=None, index_buffer=None,
+                 attribute_buffers=None, attribute_usage=None, attribute_divisors=None,
                  name=None, **attributes):
         """
 
@@ -393,11 +399,11 @@ class Primitive(GLRendering):
             attribute_usage = {}
         self.attribute_usage = attribute_usage
         self.attributes = attributes
-        self.buffers = None
+        self.buffers = attribute_buffers
         self.vaos = {}
     def init_gl(self, force=False):
-        if self.buffers is not None:
-            if not force: return
+        if not force and self.buffers is not None:
+            return
         self.buffers = {}
         for name, values in self.attributes.items():
             values = values.tobytes()
@@ -462,6 +468,9 @@ class Node(GLRendering):
         world_matrix = self.world_matrix
         for child in self.children:
             child.update_world_matrices(world_matrix=world_matrix)
+    def draw(self, **frame_data):
+        for child in self.children:
+            child.draw(**frame_data)
 
 
 class Mesh(Node):
@@ -539,6 +548,7 @@ class Mesh(Node):
             material.technique.release()
         if self._after_draw:
             self._after_draw(self, frame_data)
+        super().draw(**frame_data)
 
 
 class OpenGLRenderer(object):

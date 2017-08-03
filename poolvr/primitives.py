@@ -33,6 +33,7 @@ class HexaPrimitive(Primitive):
         "A :ref:`Primitive` with the geometry of a hexahedron."
         Primitive.__init__(self, gl.GL_TRIANGLES, HexaPrimitive.indices, index_buffer=HexaPrimitive.INDEX_BUFFER,
                            vertices=vertices)
+
     def init_gl(self, force=False):
         Primitive.init_gl(self, force=force)
         if HexaPrimitive.INDEX_BUFFER is None:
@@ -46,7 +47,7 @@ class BoxPrimitive(HexaPrimitive):
         self.width = width
         self.height = height
         self.length = length
-        self.lengths = [width, height, length]
+        self.lengths = (width, height, length)
         w, h, l = width, height, length
         vertices = np.array([[-0.5*w, -0.5*h,  0.5*l],
                              [ 0.5*w, -0.5*h,  0.5*l],
@@ -63,11 +64,24 @@ class BoxPrimitive(HexaPrimitive):
         mass.setSphereTotal(total_mass, self.width, self.height, self.length)
         return mass
 
-    @property
-    def ode_geom(self):
-        if not hasattr(self, '_ode_geom'):
-            self._ode_geom = ode.GeomBox(lengths=self.lengths)
-        return self._ode_geom
+    def create_ode_geom(self, space):
+        return ode.GeomBox(space=space, lengths=self.lengths)
+
+
+class BoxMesh(Mesh):
+    def __init__(self, material, *args, **kwargs):
+        self.primitive = BoxPrimitive(*args, **kwargs)
+        self.primitives = [self.primitive]
+        Mesh.__init__(self, {material: self.primitives})
+
+    def create_ode_body(self, world, space, total_mass):
+        body = ode.Body(world)
+        body.setMass(self.primitive.create_ode_mass(total_mass))
+        body.shape = "box"
+        body.boxsize = tuple(self.primitive.lengths)
+        geom = self.primitive.create_ode_geom(space)
+        geom.setBody(body)
+        return body
 
 
 class CylinderPrimitive(Primitive):
@@ -93,6 +107,18 @@ class CylinderPrimitive(Primitive):
                                   np.array([(len(vertices)-1, i+1, i+3) for i in range(0, 2*(num_radial-1), 2)], dtype=np.uint16).reshape(-1),
                                   np.array([(len(vertices)-1, 2*num_radial-1, 1)], dtype=np.uint16).reshape(-1)])
         Primitive.__init__(self, gl.GL_TRIANGLES, indices, vertices=vertices, normals=normals)
+
+    def create_ode_mass(self, total_mass, direction=3):
+        mass = ode.Mass()
+        mass.setCylinderTotal(total_mass, direction, self.radius, self.height)
+        return mass
+
+    def create_ode_geom(self, space):
+        return ode.GeomCylinder(space=space, radius=self.radius, length=self.height)
+
+
+class CylinderMesh(Primitive):
+    pass
 
 
 class CirclePrimitive(Primitive):
@@ -156,6 +182,7 @@ class QuadPrimitive(Primitive):
                         [0.0, 1.0]], dtype=np.float32)
         Primitive.__init__(self, gl.GL_TRIANGLE_STRIP, QuadPrimitive.INDICES, index_buffer=QuadPrimitive.INDEX_BUFFER,
                            vertices=vertices, uvs=uvs, normals=normals, tangents=tangents, **attributes)
+
     def init_gl(self, force=False):
         Primitive.init_gl(self, force=force)
         if QuadPrimitive.INDEX_BUFFER is None:
@@ -229,6 +256,29 @@ class SpherePrimitive(Primitive):
         uvs = np.array(uvs, dtype=np.float32)
         Primitive.__init__(self, gl.GL_TRIANGLE_STRIP, indices,
                            vertices=vertices, uvs=uvs)
+    def create_ode_mass(self, total_mass):
+        mass = ode.Mass()
+        mass.setSphereTotal(total_mass, self.radius)
+        return mass
+
+    def create_ode_geom(self, space):
+        return ode.GeomSphere(space=space, radius=self.radius)
+
+
+class SphereMesh(Mesh):
+    def __init__(self, material, *args, **kwargs):
+        self.primitive = SpherePrimitive(*args, **kwargs)
+        self.primitives = [self.primitive]
+        Mesh.__init__(self, {material: self.primitives})
+
+    def create_ode_body(self, world, space, total_mass):
+        body = ode.Body(world)
+        body.setMass(self.primitive.create_ode_mass(total_mass))
+        body.shape = "sphere"
+        body.boxsize = tuple(self.primitive.lengths)
+        geom = self.primitive.create_ode_geom(space)
+        geom.setBody(body)
+        return body
 
 
 class RoundedRectanglePrimitive(Primitive):
@@ -255,6 +305,7 @@ class ProjectedMesh(Mesh):
         self._plane = np.array(list(self.normal[:]) + [-self.c])
         self._shadow_matrix = np.eye(4, dtype=np.float32)
         self.light_position = light_position
+
     def update(self):
         light_position = self.light_position
         v = self._plane.dot(light_position)
@@ -268,17 +319,3 @@ class ProjectedMesh(Mesh):
         shadow_matrix[:,3] = -light_position[3] * self._plane
         shadow_matrix[3,3] += v
         self.mesh.world_matrix.dot(shadow_matrix, out=self.world_matrix)
-
-
-class BoxMesh(Mesh):
-    def __init__(self, material, *args, **kwargs):
-        self.primitive = BoxPrimitive(*args, **kwargs)
-        self.primitives = [self.primitive]
-        Mesh.__init__(self, {material: self.primitives})
-
-    def create_ode_body(self, world, total_mass):
-        body = ode.Body(world)
-        body.setMass(self.primitive.create_ode_mass(total_mass))
-        body.shape = "box"
-        body.boxsize = tuple(self.primitive.lengths)
-        return body

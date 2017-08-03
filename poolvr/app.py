@@ -114,13 +114,13 @@ def main(window_size=(800,600),
                                                               int(max(0.75, 0.2*impact_speed**2 + 0.07*impact_speed**3) * 2500))
         except Exception as err:
             renderer = fallback_renderer
-            renderer.camera_position[1] = game.table.height + 0.6
-            renderer.camera_position[2] = game.table.length - 0.1
             _logger.error('could not initialize OpenVRRenderer: %s', err)
     else:
         renderer = fallback_renderer
     camera_world_matrix = fallback_renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
+    camera_position[1] = game.table.height + 0.6
+    camera_position[2] = game.table.length - 0.1
 
     process_keyboard_input = init_keyboard(window)
     def on_keydown(window, key, scancode, action, mods):
@@ -219,9 +219,12 @@ def main(window_size=(800,600),
                 #             break
 
             cue_body.setPosition(cue.world_position)
-            x, y, z, w = cue_quaternion
-            cue_body.setQuaternion((w, x, y, z))
-            cue_geom.setQuaternion((w, x, y, z))
+            # x, y, z, w = cue_quaternion
+            w = cue_quaternion[3]; cue_quaternion[1:] = cue_quaternion[:3]; cue_quaternion[0] = w
+            # cue_body.setQuaternion((w, x, y, z))
+            # cue_geom.setQuaternion((w, x, y, z))
+            cue_body.setQuaternion(cue_quaternion)
+            cue_geom.setQuaternion(cue_quaternion)
             cue_body.setLinearVel(cue.velocity)
             cue_body.setAngularVel(cue.angular_velocity)
             cue.shadow_mesh.update()
@@ -238,8 +241,8 @@ def main(window_size=(800,600),
                     ball_mesh_positions[i][:] = pos
                     ball_shadow_mesh_positions[i][0::2] = pos[0::2]
 
-            # textured_text.set_text("%9.3f" % dt)
-            # textured_text.update_gl()
+            # sdf_text.set_text("%9.3f" % dt)
+            # sdf_text.update_gl()
 
         game.t += dt
         physics.step(dt)

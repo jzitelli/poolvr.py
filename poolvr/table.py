@@ -56,9 +56,9 @@ class PoolTable(object):
             # bottom quad:
             [[-0.5*W_playable + 0.4*W_cushion,       0.0,           0.5*W_cushion],
              [ 0.5*W_playable - 0.4*W_cushion,       0.0,           0.5*W_cushion],
-             # [ 0.5*W_playable - 1.2*SQRT2*W_cushion, 0.71*ball_diameter, -0.5*W_cushion + W_nose],
-             [0.5 * W_playable - 1.2 * SQRT2 * W_cushion, 0.0, -0.5 * W_cushion + W_nose],
-             [-0.5*W_playable + 1.2*SQRT2*W_cushion, 0.0, -0.5*W_cushion + W_nose]],
+             [ 0.5*W_playable - 1.2*SQRT2*W_cushion, 0.57*ball_diameter, -0.5*W_cushion + W_nose],
+             #[0.5 * W_playable - 1.2 * SQRT2 * W_cushion, 0.0, -0.5 * W_cushion + W_nose],
+             [-0.5*W_playable + 1.2*SQRT2*W_cushion, 0.57*ball_diameter, -0.5*W_cushion + W_nose]],
             # top quad:
             [[-0.5*W_playable + 0.4*W_cushion,       H_rail,     0.5*W_cushion],
              [ 0.5*W_playable - 0.4*W_cushion,       H_rail,     0.5*W_cushion],
