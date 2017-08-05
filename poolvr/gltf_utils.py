@@ -65,19 +65,18 @@ class GLTFPrimitive(GLTFDict):
     def __init__(self, gltf, primitive):
         GLTFDict.__init__(self, primitive)
         self.mode = self['mode']
-        self.index_buffer_view = gltf['bufferViews'][glft['accessors'][self['indices']]['bufferView']]
+        self.index_buffer_view = gltf['bufferViews'][gltf['accessors'][self['indices']]['bufferView']]
         self.attribute_buffer_views = [gltf['bufferViews'][gltf['accessors'][attribute_accessor_id]['bufferView']]
                                        for attribute_name, attribute_accessor_id in self['attributes']]
         self.material = GLTFMaterial(gltf, self['material'])
-        semantic2accessor = deepcopy(self['attributes'])
-        for semantic, accessor_id in self['attributes'].items():
-            print(semantic, accessor_id, gltf['accessors'][accessor_id])
+        self._semantic2accessor = deepcopy(self['attributes'])
     def init_gl(self, force=False):
         self.material.init_gl(force=force)
         technique = self.material.technique
     def draw(self, **frame_data):
-        self.material.use()
-
+        view = frame_data.get('view_matrix', None)
+        projection = frame_data.get('projection_matrix', None)
+        self.material.use(**frame_data)
 
 class GLTFMesh(GLTFDict):
     def __init__(self, gltf, mesh_id):

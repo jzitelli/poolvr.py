@@ -417,7 +417,7 @@ class Primitive(GLRendering):
             if gl.glGetError() != gl.GL_NO_ERROR:
                 raise Exception('failed to init gl buffer')
             self.buffers[name] = vbo
-        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
         if force or (self.index_buffer is None and self.indices is not None):
             indices = self.indices.tobytes()
             vao = gl.glGenBuffers(1)
