@@ -25,19 +25,21 @@ SCREENSHOTS_DIR = os.path.join(os.path.dirname(__file__), 'screenshots')
 
 
 class GLTFTests(TestCase):
+    GLTF_PATH = os.path.join(_here, os.path.pardir, os.path.pardir,
+                             'glTF-Sample-Models', '1.0', 'Duck', 'glTF', 'Duck.gltf')
+    URI_PATH = os.path.dirname(GLTF_PATH)
+    _gltf = None
     show = True
-    # GLTF_PATH = os.path.join(_here, os.path.pardir, os.path.pardir,
-    #                          'glTF', 'sampleModels', 'Duck', 'glTF',
-    #                          'Duck.gltf')
-    GLTF_PATH = os.path.join(os.environ['HOME'], 'GitHub',
-                             'glTF', 'sampleModels', 'Duck', 'glTF',
-                             'Duck.gltf')
 
     def setUp(self):
         title = traceback.extract_stack(None, 2)[0][2]
         window_size = (800, 600)
         self.window, self.renderer = setup_glfw(width=window_size[0], height=window_size[1],
                                                 double_buffered=True, title=title)
+        if GLTFTests._gltf is None:
+            with open(GLTFTests.GLTF_PATH) as f:
+                GLTFTests._gltf = json.loads(f.read())
+        self.gltf = GLTFTests._gltf
 
     def tearDown(self):
         self.renderer.shutdown()
@@ -46,40 +48,27 @@ class GLTFTests(TestCase):
 
 
     def test_program(self):
-        gltf = json.loads("""{
-    "programs": {
-        "program_0": {
-            "attributes": [
-                "a_normal",
-                "a_position",
-                "a_texcoord0"
-            ],
-            "fragmentShader": "Duck0FS",
-            "vertexShader": "Duck0VS"
-        }
-    },
-    "shaders": {
-        "Duck0FS": {
-            "type": 35632,
-            "uri": "Duck0FS.glsl"
-        },
-        "Duck0VS": {
-            "type": 35633,
-            "uri": "Duck0VS.glsl"
-        }
-    }
-}""")
-        program = gltfu.GLTFProgram(gltf, "program_0", os.path.dirname(self.GLTF_PATH))
+        program = gltfu.GLTFProgram(self.gltf, "program_0", self.URI_PATH)
         program.init_gl()
+
+
+    def test_technique(self):
+        technique = gltfu.GLTFTechnique(self.gltf, 'technique0', self.URI_PATH)
+        technique.init_gl()
+
+
+    def test_material(self):
+        material = gltfu.GLTFMaterial(self.gltf, 'blinn3-fx', self.URI_PATH)
+        material.init_gl()
+
+    def test_primitive(self):
+        primitive = gltfu.GLTFPrimitive(self.gltf, self.gltf['meshes']['LOD3spShape-lib']['primitives'][0],
+                                        self.URI_PATH)
+        primitive.init_gl()
 
     @skip
     def test_duck(self):
-        with open(self.GLTF_PATH) as f:
-            json_str = f.read()
-        _logger.debug('read "%s"', self.GLTF_PATH)
-        json_dict = json.loads(json_str)
-        gltf_dict = gltfu.GLTFDict(json_dict)
-        gltf_scene = gltfu.GLTFScene.load_from(gltf_dict)
+        gltf_scene = gltfu.GLTFScene.load_from(self.gltf)
         self._view(gltf_scene)
 
 

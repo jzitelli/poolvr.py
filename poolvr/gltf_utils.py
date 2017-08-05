@@ -44,39 +44,86 @@ class GLTFProgram(GLTFDict, Program):
                          name=program_id)
 
 
-class GLTFTechnique(GLTFDict, Technique):
-    def __init__(self, gltf, technique_id):
+class GLTFTechnique(GLTFDict):
+    def __init__(self, gltf, technique_id, uri_path):
         GLTFDict.__init__(self, gltf['techniques'][technique_id])
-        self.program = GLTFProgram(gltf, self['program'])
-        values = {}
-        for parameter_name, parameter in self['parameters'].items():
-            if 'value' in parameter:
-                values[parameter_name] = parameter['value']
+        self.program = GLTFProgram(gltf, self['program'], uri_path)
+        self._attr2param = dict(self['attributes'])
+        self._unif2param = dict(self['uniforms'])
+        self._attr2semantic = {attr: self['parameters'][param]['semantic']
+                               for attr, param in self._attr2param.items()
+                               if 'semantic' in self['parameters'][param]}
+        self._unif2semantic = {unif: self['parameters'][param]['semantic']
+                               for unif, param in self._unif2param.items()
+                               if 'semantic' in self['parameters'][param]}
+    def init_gl(self, force=False):
+        self.program.init_gl(force=force)
+        self._attr_locations = {attr: gl.glGetAttribLocation(self.program.program_id, attr)
+                                for attr in self['attributes']}
+        self._unif_locations = {unif: gl.glGetUniformLocation(self.program.program_id, unif)
+                                for unif in self['uniforms']}
+        _logger.info('%s.init_gl: OK', self.__class__.__name__)
 
 
-class GLTFMaterial(GLTFDict, Material):
-    def __init__(self, gltf, material_id):
+class GLTFMaterial(GLTFDict):
+    def __init__(self, gltf, material_id, uri_path):
         GLTFDict.__init__(self, gltf['materials'][material_id])
-        # self.technique = GLTFTechnique(gltf, self['technique'])
-        Material.__init__(self, GLTFTechnique(gltf, self['technique']))
+        self.technique = GLTFTechnique(gltf, self['technique'], uri_path)
+    def init_gl(self, force=False):
+        self.technique.init_gl(force=force)
+        _logger.info('%s.init_gl: OK', self.__class__.__name__)
+
+
+class GLTFBufferView(GLTFDict):
+    def __init__(self, gltf, buffer_view_id, uri_path):
+        GLTFDict.__init__(self, gltf['bufferViews'][buffer_view_id])
+        self._gltf = gltf
+        self._uri_path = uri_path
+        self._initialized = False
+    def init_gl(self, force=False):
+        if self._initialized and not force:
+            return
+        self.id = gl.glGenBuffers(1)
+        gl.glBindBuffer(self['target'], self.id)
+        buffer_data = self._load_buffer(self._gltf, self['buffer'], self._uri_path)
+        gl.glBufferData(self['target'], len(buffer_data), buffer_data, gl.GL_STATIC_DRAW)
+        if gl.glGetError() != gl.GL_NO_ERROR:
+            raise Exception('failed to init gl buffer')
+        gl.glBindBuffer(self['target'], 0)
+        self._initialized = True
+        _logger.info('%s.init_gl: OK', self.__class__.__name__)
+    @classmethod
+    def _load_buffer(cls, gltf, buffer_id, uri_path):
+        uri = gltf['buffers'][buffer_id]['uri']
+        if uri.startswith('data:application/octet-stream;base64,'):
+            data = base64.b64decode(uri.split(',')[1])
+        else:
+            filename = os.path.join(uri_path, uri)
+            if gltf['buffers'][buffer_id]['type'] == 'arraybuffer':
+                with open(filename, 'rb') as f:
+                    data = f.read()
+            elif gltf['buffers'][buffer_id]['type'] == 'text':
+                raise Exception('TODO')
+            _logger.info('loaded buffer "%s" (from %s)', buffer_id, filename)
+        return data
 
 
 class GLTFPrimitive(GLTFDict):
-    def __init__(self, gltf, primitive):
+    def __init__(self, gltf, primitive, uri_path):
         GLTFDict.__init__(self, primitive)
         self.mode = self['mode']
         self.index_buffer_view = gltf['bufferViews'][gltf['accessors'][self['indices']]['bufferView']]
         self.attribute_buffer_views = [gltf['bufferViews'][gltf['accessors'][attribute_accessor_id]['bufferView']]
-                                       for attribute_name, attribute_accessor_id in self['attributes']]
-        self.material = GLTFMaterial(gltf, self['material'])
+                                       for attribute_name, attribute_accessor_id in self['attributes'].items()]
+        self.material = GLTFMaterial(gltf, self['material'], uri_path)
         self._semantic2accessor = deepcopy(self['attributes'])
     def init_gl(self, force=False):
         self.material.init_gl(force=force)
-        technique = self.material.technique
     def draw(self, **frame_data):
         view = frame_data.get('view_matrix', None)
         projection = frame_data.get('projection_matrix', None)
         self.material.use(**frame_data)
+
 
 class GLTFMesh(GLTFDict):
     def __init__(self, gltf, mesh_id):
@@ -143,7 +190,8 @@ def read_shaders(gltf, uri_path):
             _logger.info('decoded shader "%s":\n%s', shader_name, shader_str)
         else:
             filename = os.path.join(uri_path, shader['uri'])
-            shader_str = open(filename).read()
+            with open(filename) as f:
+                shader_str = f.read()
             _logger.info('loaded shader "%s" (from %s):\n%s', shader_name, filename, shader_str)
         shader_src[shader_name] = shader_str
     return shader_src
@@ -157,42 +205,6 @@ def setup_programs(gltf, uri_path):
                                          shader_src[program['fragmentShader']],
                                          name=program_name)
     return programs
-
-
-def setup_textures(gltf, uri_path):
-    # TODO: support data URIs
-    textures = {}
-    for texture_name, texture in gltf.get('textures', {}).items():
-        sampler = gltf['samplers'][texture['sampler']]
-        textures[texture_name] = Texture(os.path.join(uri_path, gltf['images'][texture['source']]['uri']),
-                                         name=texture_name, min_filter=sampler.get('minFilter', 9986),
-                                         mag_filter=sampler.get('magFilter', 9729),
-                                         wrap_s=sampler.get('wrapS', 10497), wrap_t=sampler.get('wrapT', 10497))
-    return textures
-
-
-def setup_techniques(gltf, uri_path, programs):
-    techniques = {}
-    for technique_name, technique in gltf['techniques'].items():
-        techniques[technique_name] = Technique(programs[technique['program']])
-    return techniques
-
-
-def setup_materials(gltf, uri_path, techniques, textures):
-    materials = {}
-    for material_name, material in gltf['materials'].items():
-        # technique = techniques[material['technique']]
-        technique = gltf['techniques'][material['technique']]
-        texture_params = {param_name: param for param_name, param in technique['parameters'].items()
-                          if param['type'] == gl.GL_SAMPLER_2D}
-        tech_textures = {param_name: texture for param_name, texture in textures.items()
-                         if param_name in texture_params}
-        materials[material_name] = Material(techniques[material['technique']],
-                                            values={param_name: v
-                                                    for param_name, v in material['values'].items()
-                                                    if param_name not in tech_textures},
-                                            textures=tech_textures)
-    return materials
 
 
 def load_buffers(gltf, uri_path):

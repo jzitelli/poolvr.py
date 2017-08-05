@@ -105,7 +105,7 @@ class Program(GLRendering):
         gl.glDetachShader(program_id, vs)
         gl.glDetachShader(program_id, fs)
         self.program_id = program_id
-        _logger.info('%s.init_gl: OK' % self.__class__.__name__)
+        _logger.info('%s.init_gl: OK', self.__class__.__name__)
     def use(self):
         if Program._current is self:
             return
@@ -154,7 +154,7 @@ class Technique(GLRendering):
         program_id = self.program.program_id
         self.attribute_locations = {name: gl.glGetAttribLocation(program_id, name) for name in self.attributes}
         self.uniform_locations = {name: gl.glGetUniformLocation(program_id, name) for name in self.uniforms}
-        _logger.info('%s.init_gl: OK' % self.__class__.__name__)
+        _logger.info('%s.init_gl: OK', self.__class__.__name__)
     def use(self):
         if Technique._current is self:
             return
@@ -267,7 +267,7 @@ class CubeTexture(Texture):
         err = gl.glGetError()
         if err != gl.GL_NO_ERROR:
             raise Exception('failed to init cube texture: %s' % err)
-        _logger.info('%s.init_gl: OK' % self.__class__.__name__)
+        _logger.info('%s.init_gl: OK', self.__class__.__name__)
 
 
 class Material(GLRendering):
@@ -308,7 +308,7 @@ class Material(GLRendering):
         if err != gl.GL_NO_ERROR:
             raise Exception('failed to init material: %s' % err)
         self._initialized = True
-        _logger.info('%s.init_gl: OK' % self.__class__.__name__)
+        _logger.info('%s.init_gl: OK', self.__class__.__name__)
     def use(self,
             u_view=None,
             u_modelview=None,
@@ -380,7 +380,7 @@ class Material(GLRendering):
 
 class Primitive(GLRendering):
     def __init__(self, mode, indices=None, index_buffer=None,
-                 attribute_buffers=None, attribute_usage=None, attribute_divisors=None,
+                 attribute_usage=None, attribute_divisors=None,
                  name=None, **attributes):
         """
 
@@ -399,7 +399,7 @@ class Primitive(GLRendering):
             attribute_usage = {}
         self.attribute_usage = attribute_usage
         self.attributes = attributes
-        self.buffers = attribute_buffers
+        self.buffers = None
         self.vaos = {}
     def init_gl(self, force=False):
         if not force and self.buffers is not None:
@@ -428,7 +428,7 @@ class Primitive(GLRendering):
                 raise Exception('failed to init gl buffer')
             self.index_buffer = vao
             gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, 0)
-        _logger.info('%s.init_gl: OK' % self.__class__.__name__)
+        _logger.info('%s.init_gl: OK', self.__class__.__name__)
     def alias(self, attribute_name, alias):
         if attribute_name not in self.attributes:
             raise Exception('attribute "%s" is not defined' % attribute_name)
