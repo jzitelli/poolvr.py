@@ -18,7 +18,6 @@ import cyglfw3 as glfw
 _logger = logging.getLogger(__name__)
 
 
-import poolvr.gltfutils as gltfu
 from poolvr.app import setup_glfw
 from poolvr.gl_rendering import OpenGLRenderer
 try:
@@ -29,6 +28,7 @@ except ImportError as err:
     OpenVRRenderer = None
 from poolvr.keyboard_controls import init_keyboard, set_on_keydown
 from poolvr.mouse_controls import init_mouse
+import poolvr.gltf_utils as gltfu
 
 
 def view_gltf(gltf, uri_path, scene_name=None, openvr=False,
@@ -64,9 +64,12 @@ def view_gltf(gltf, uri_path, scene_name=None, openvr=False,
     _logger.info('buffer_ids = %s', buffer_ids)
     meshes = gltfu.setup_meshes(gltf, uri_path, buffer_ids, materials)
     _logger.info('meshes = %s', meshes)
-
     scene = gltf['scenes'][scene_name]
     nodes = [gltf['nodes'][n] for n in scene['nodes']]
+    _logger.info('nodes = %s', nodes)
+
+    raise Exception('asdf')
+
     for node in nodes:
         gltfu.update_world_matrices(node, gltf)
     camera_world_matrix = np.eye(4, dtype=np.float32)

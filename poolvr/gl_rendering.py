@@ -48,13 +48,13 @@ class GLRendering(object):
 
 
 class Program(GLRendering):
-    """
-    GLSL program
-    """
     ATTRIBUTE_DECL_RE = re.compile(r"attribute\s+(?P<type_spec>\w+)\s+(?P<attribute_name>\w+)\s*;")
     UNIFORM_DECL_RE = re.compile(r"uniform\s+(?P<type_spec>\w+)\s+(?P<uniform_name>\w+)\s*(=\s*(?P<initialization>.*)\s*;|;)")
     _current = None
     def __init__(self, vs_src, fs_src, parse_attributes=True, parse_uniforms=True, name=None):
+        """
+        GLSL program
+        """
         super().__init__(name=name)
         self.vs_src = vs_src
         self.fs_src = fs_src
@@ -250,7 +250,7 @@ class CubeTexture(Texture):
         gl.glBindTexture(gl.GL_TEXTURE_CUBE_MAP, texture_id)
         sampler_id = gl.glGenSamplers(1)
         self.sampler_id = sampler_id
-        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR);
+        gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
         gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
         gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_S, gl.GL_REPEAT)
         gl.glSamplerParameteri(sampler_id, gl.GL_TEXTURE_WRAP_T, gl.GL_REPEAT)
@@ -262,7 +262,7 @@ class CubeTexture(Texture):
                             image.width, image.height, 0,
                             gl.GL_RGB if image.mode == 'RGB' else gl.GL_RGBA,
                             gl.GL_UNSIGNED_BYTE,
-                            np.array(list(image.getdata()), dtype=np.ubyte))
+                            np.array(image.getdata(), dtype=np.ubyte))
         gl.glGenerateMipmap(gl.GL_TEXTURE_CUBE_MAP)
         err = gl.glGetError()
         if err != gl.GL_NO_ERROR:
@@ -422,7 +422,8 @@ class Primitive(GLRendering):
             indices = self.indices.tobytes()
             vao = gl.glGenBuffers(1)
             gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, vao)
-            gl.glBufferData(gl.GL_ELEMENT_ARRAY_BUFFER, len(indices), indices, gl.GL_STATIC_DRAW)
+            gl.glBufferData(gl.GL_ELEMENT_ARRAY_BUFFER,
+                            len(indices), indices, gl.GL_STATIC_DRAW)
             if gl.glGetError() != gl.GL_NO_ERROR:
                 raise Exception('failed to init gl buffer')
             self.index_buffer = vao

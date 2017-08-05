@@ -1,6 +1,7 @@
 import logging
 import os.path
 import base64
+from copy import deepcopy
 from ctypes import c_void_p
 try: # python 3.3 or later
     from types import MappingProxyType
@@ -31,33 +32,126 @@ GLTF_BUFFERVIEW_TYPE_SIZES = MappingProxyType({
 
 class GLTFDict(dict):
     pass
-    # def __init__(self, gltf):
-    #     self.update(gltf)
+
+
+class GLTFProgram(GLTFDict, Program):
+    def __init__(self, gltf, program_id, uri_path):
+        GLTFDict.__init__(self, gltf['programs'][program_id])
+        shader_src = read_shaders(gltf, uri_path)
+        Program.__init__(self,
+                         shader_src[self['vertexShader']],
+                         shader_src[self['fragmentShader']],
+                         name=program_id)
+
+
+class GLTFTechnique(GLTFDict, Technique):
+    def __init__(self, gltf, technique_id):
+        GLTFDict.__init__(self, gltf['techniques'][technique_id])
+        self.program = GLTFProgram(gltf, self['program'])
+        values = {}
+        for parameter_name, parameter in self['parameters'].items():
+            if 'value' in parameter:
+                values[parameter_name] = parameter['value']
+
+
+class GLTFMaterial(GLTFDict, Material):
+    def __init__(self, gltf, material_id):
+        GLTFDict.__init__(self, gltf['materials'][material_id])
+        # self.technique = GLTFTechnique(gltf, self['technique'])
+        Material.__init__(self, GLTFTechnique(gltf, self['technique']))
+
+
+class GLTFPrimitive(GLTFDict):
+    def __init__(self, gltf, primitive):
+        GLTFDict.__init__(self, primitive)
+        self.mode = self['mode']
+        self.index_buffer_view = gltf['bufferViews'][glft['accessors'][self['indices']]['bufferView']]
+        self.attribute_buffer_views = [gltf['bufferViews'][gltf['accessors'][attribute_accessor_id]['bufferView']]
+                                       for attribute_name, attribute_accessor_id in self['attributes']]
+        self.material = GLTFMaterial(gltf, self['material'])
+        semantic2accessor = deepcopy(self['attributes'])
+        for semantic, accessor_id in self['attributes'].items():
+            print(semantic, accessor_id, gltf['accessors'][accessor_id])
+    def init_gl(self, force=False):
+        self.material.init_gl(force=force)
+        technique = self.material.technique
+    def draw(self, **frame_data):
+        self.material.use()
+
+
+class GLTFMesh(GLTFDict):
+    def __init__(self, gltf, mesh_id):
+        mesh_json = gltf['meshes'][mesh_id]
+        GLTFDict.__init__(self, mesh_json)
+        primitives = [GLTFPrimitive(gltf, prim)
+                      for prim in self['primitives']]
+        accessors = gltf['accessors']
+        buffers = gltf['buffers']
+        buffer_views = gltf['bufferViews']
+
 
 
 class GLTFNode(GLTFDict):
-    pass
+    def __init__(self, gltf, node_id):
+        node_json = gltf['nodes'][node_id]
+        super().__init__(node_json)
+        self.meshes = [gltf['meshes'][mesh_id]
+                       for mesh_id in self.get('meshes', [])]
+        self.children = [GLTFNode(gltf, child)
+                         for child in self.get('children', [])]
+    def init_gl(self, force=False):
+        for mesh in self.meshes:
+            mesh.init_gl(force=force)
+        for child in self.children:
+            child.init_gl(force=force)
+    def draw(self, **frame_data):
+        for mesh in self.meshes:
+            mesh.draw(**frame_data)
+        for child in self.children:
+            child.draw(**frame_data)
 
 
-class GLTFScene(GLTFNode):
+class GLTFScene(GLTFDict):
+    def __init__(self, gltf, scene_id):
+        GLTFDict.__init__(self, gltf['scenes'][scene_id])
+        node_ids = self.get('nodes', [])
+        self.nodes = [GLTFNode(gltf, node_id) for node_id in node_ids]
+    def init_gl(self, force=False):
+        for node in self.nodes:
+            node.init_gl(force=force)
+    def draw(self, **frame_data):
+        for node in self.nodes:
+            node.draw(**frame_data)
     @classmethod
-    def load_from(cls, gltf):
-        pass
+    def load_from(cls, gltf, scene_id=None):
+        if scene_id is None:
+            scene_id = gltf.get('scene', None)
+        # nodes = {node_id: GLTFNode(gltf, node_id) for node_id in gltf['nodes']}
+        # if scene_id:
+        #     nodes = {k: v for k, v in nodes.items() if k in gltf['scenes'][scene_id]['nodes']}
+        # return GLTFScene(list(nodes.values()))
+        return cls(gltf, scene_id)
 
 
-def setup_programs(gltf, uri_path):
+# TODO: caching decorators
+def read_shaders(gltf, uri_path):
     shaders = gltf['shaders']
     shader_src = {}
     for shader_name, shader in shaders.items():
         uri = shader['uri']
         if uri.startswith('data:text/plain;base64,'):
             shader_str = base64.urlsafe_b64decode(uri.split(',')[1]).decode()
-            _logger.info('decoded shader "%s":\n%s' % (shader_name, shader_str))
+            _logger.info('decoded shader "%s":\n%s', shader_name, shader_str)
         else:
             filename = os.path.join(uri_path, shader['uri'])
             shader_str = open(filename).read()
-            _logger.info('loaded shader "%s" (from %s):\n%s' % (shader_name, filename, shader_str))
+            _logger.info('loaded shader "%s" (from %s):\n%s', shader_name, filename, shader_str)
         shader_src[shader_name] = shader_str
+    return shader_src
+
+
+def setup_programs(gltf, uri_path):
+    shader_src = read_shaders(gltf, uri_path)
     programs = {}
     for program_name, program in gltf['programs'].items():
         programs[program_name] = Program(shader_src[program['vertexShader']],
