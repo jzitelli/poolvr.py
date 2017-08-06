@@ -61,6 +61,12 @@ class GLTFTests(TestCase):
         material = gltfu.GLTFMaterial(self.gltf, 'blinn3-fx', self.URI_PATH)
         material.init_gl()
 
+
+    def test_buffer_view(self):
+        buffer_view = gltfu.GLTFBufferView(self.gltf, 'bufferView_29',self.URI_PATH)
+        buffer_view.init_gl()
+
+
     def test_primitive(self):
         primitive = gltfu.GLTFPrimitive(self.gltf, self.gltf['meshes']['LOD3spShape-lib']['primitives'][0],
                                         self.URI_PATH)

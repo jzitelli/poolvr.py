@@ -53,9 +53,11 @@ class GLTFTechnique(GLTFDict):
         self._attr2semantic = {attr: self['parameters'][param]['semantic']
                                for attr, param in self._attr2param.items()
                                if 'semantic' in self['parameters'][param]}
+        self._semantic2attr = {v: k for k, v in self._attr2semantic.items()}
         self._unif2semantic = {unif: self['parameters'][param]['semantic']
                                for unif, param in self._unif2param.items()
                                if 'semantic' in self['parameters'][param]}
+        self._semantic2unif = {v: k for k, v in self._unif2semantic.items()}
     def init_gl(self, force=False):
         self.program.init_gl(force=force)
         self._attr_locations = {attr: gl.glGetAttribLocation(self.program.program_id, attr)
@@ -111,14 +113,15 @@ class GLTFBufferView(GLTFDict):
 class GLTFPrimitive(GLTFDict):
     def __init__(self, gltf, primitive, uri_path):
         GLTFDict.__init__(self, primitive)
-        self.mode = self['mode']
-        self.index_buffer_view = gltf['bufferViews'][gltf['accessors'][self['indices']]['bufferView']]
-        self.attribute_buffer_views = [gltf['bufferViews'][gltf['accessors'][attribute_accessor_id]['bufferView']]
-                                       for attribute_name, attribute_accessor_id in self['attributes'].items()]
         self.material = GLTFMaterial(gltf, self['material'], uri_path)
-        self._semantic2accessor = deepcopy(self['attributes'])
+        self.index_buffer_view = GLTFBufferView(gltf, gltf['accessors'][self['indices']]['bufferView'], uri_path)
+        self.attribute_buffer_views = {semantic: GLTFBufferView(gltf, gltf['accessors'][accessor_id]['bufferView'], uri_path)
+                                       for semantic, accessor_id in self['attributes'].items()}
     def init_gl(self, force=False):
         self.material.init_gl(force=force)
+        self.index_buffer_view.init_gl(force=force)
+        for buffer_view in self.attribute_buffer_views.values():
+            buffer_view.init_gl(force=force)
     def draw(self, **frame_data):
         view = frame_data.get('view_matrix', None)
         projection = frame_data.get('projection_matrix', None)
