@@ -17,7 +17,7 @@ from poolvr.keyboard_controls import init_keyboard
 #from poolvr.mouse_controls import init_mouse
 from poolvr.gl_rendering import OpenGLRenderer, set_matrix_from_quaternion
 from poolvr.cue import PoolCue
-
+from poolvr.room import skybox_mesh, floor_mesh
 
 def show(game,
          title='poolvr.py   ***   GLViewer',
@@ -49,21 +49,18 @@ def show(game,
     physics = game.physics
     ball_meshes = table.setup_balls(game.ball_radius, game.ball_colors[:9], game.ball_positions,
                                     striped_balls=set(range(9, game.num_balls)),
-                                    use_billboards=use_billboards)
+                                    use_bb_particles=use_billboards)
+    ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
     camera_world_matrix = renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
     camera_position[1] = table.height + 0.19
     camera_position[2] = 0.183 * table.length
     cue = PoolCue()
     cue.position[1] = table.height + 0.1
-    def on_resize(window, width, height):
-        gl.glViewport(0, 0, width, height)
-        renderer.window_size = (width, height)
-        renderer.update_projection_matrix()
-    glfw.SetWindowSizeCallback(window, on_resize)
+
     process_keyboard_input = init_keyboard(window)
 
-    meshes = [table.mesh] + ball_meshes #+ [cue]
+    meshes = [table.mesh, floor_mesh, skybox_mesh] + ball_meshes #+ [cue]
     for mesh in meshes:
         mesh.init_gl(force=True)
 
@@ -71,7 +68,7 @@ def show(game,
     ball_quaternions = game.ball_quaternions
     ball_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_meshes]
     ball_mesh_rotations = [mesh.world_matrix[:3,:3].T for mesh in ball_meshes]
-
+    ball_shadow_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_shadow_meshes]
     gl.glViewport(0, 0, window_size[0], window_size[1])
     gl.glClearColor(*gl_clear_color)
     gl.glEnable(gl.GL_DEPTH_TEST)
@@ -102,6 +99,7 @@ def show(game,
             ball_positions[~physics.on_table] = camera_position # hacky way to only show balls that are on table
             for i, pos in enumerate(ball_positions):
                 ball_mesh_positions[i][:] = pos
+                ball_shadow_mesh_positions[i][0::2] = pos[0::2]
             for i, quat in enumerate(ball_quaternions):
                 set_matrix_from_quaternion(quat, ball_mesh_rotations[i])
 

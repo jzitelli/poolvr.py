@@ -85,3 +85,11 @@ Developer guide:
    .. toctree::
       physics
       :maxdepth: 2
+
+
+``poolvr.app``: Main application
+================================
+
+.. automodule:: poolvr.app
+   :members:
+

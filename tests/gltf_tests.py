@@ -50,11 +50,13 @@ class GLTFTests(TestCase):
     def test_program(self):
         program = gltfu.GLTFProgram(self.gltf, "program_0", self.URI_PATH)
         program.init_gl()
+        #program.use()
 
 
     def test_technique(self):
         technique = gltfu.GLTFTechnique(self.gltf, 'technique0', self.URI_PATH)
         technique.init_gl()
+        #technique.use()
 
 
     def test_material(self):

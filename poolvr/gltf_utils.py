@@ -7,7 +7,6 @@ try: # python 3.3 or later
     from types import MappingProxyType
 except ImportError as err:
     MappingProxyType = dict
-
 import numpy as np
 import OpenGL.GL as gl
 
@@ -15,8 +14,8 @@ import OpenGL.GL as gl
 _logger = logging.getLogger(__name__)
 
 
-from .gl_rendering import (Program, Technique, Material, Texture, CubeTexture,
-                           Primitive, Mesh, Node, set_matrix_from_quaternion, CHECK_GL_ERRORS)
+from .gl_rendering import (Program, Primitive, Mesh,
+                           set_matrix_from_quaternion, CHECK_GL_ERRORS)
 
 
 GLTF_BUFFERVIEW_TYPE_SIZES = MappingProxyType({
@@ -48,23 +47,30 @@ class GLTFTechnique(GLTFDict):
     def __init__(self, gltf, technique_id, uri_path):
         GLTFDict.__init__(self, gltf['techniques'][technique_id])
         self.program = GLTFProgram(gltf, self['program'], uri_path)
-        self._attr2param = dict(self['attributes'])
         self._unif2param = dict(self['uniforms'])
-        self._attr2semantic = {attr: self['parameters'][param]['semantic']
-                               for attr, param in self._attr2param.items()
-                               if 'semantic' in self['parameters'][param]}
-        self._semantic2attr = {v: k for k, v in self._attr2semantic.items()}
         self._unif2semantic = {unif: self['parameters'][param]['semantic']
                                for unif, param in self._unif2param.items()
                                if 'semantic' in self['parameters'][param]}
         self._semantic2unif = {v: k for k, v in self._unif2semantic.items()}
+        self._attr2param = dict(self['attributes'])
+        self._attr2semantic = {attr: self['parameters'][param]['semantic']
+                               for attr, param in self._attr2param.items()
+                               if 'semantic' in self['parameters'][param]}
+        self._semantic2attr = {v: k for k, v in self._attr2semantic.items()}
+        self._initialized = False
     def init_gl(self, force=False):
+        if self._initialized and not force:
+            return
         self.program.init_gl(force=force)
         self._attr_locations = {attr: gl.glGetAttribLocation(self.program.program_id, attr)
                                 for attr in self['attributes']}
         self._unif_locations = {unif: gl.glGetUniformLocation(self.program.program_id, unif)
                                 for unif in self['uniforms']}
         _logger.info('%s.init_gl: OK', self.__class__.__name__)
+        self._initialized = True
+    def use(self, **frame_data):
+        # TODO: some decorater-y state management / caching stuff
+        self.program.use(**frame_data)
 
 
 class GLTFMaterial(GLTFDict):
@@ -106,7 +112,7 @@ class GLTFBufferView(GLTFDict):
                     data = f.read()
             elif gltf['buffers'][buffer_id]['type'] == 'text':
                 raise Exception('TODO')
-            _logger.info('loaded buffer "%s" (from %s)', buffer_id, filename)
+            _logger.info('loaded buffer "%s" from "%s"', buffer_id, filename)
         return data
 
 
@@ -117,11 +123,16 @@ class GLTFPrimitive(GLTFDict):
         self.index_buffer_view = GLTFBufferView(gltf, gltf['accessors'][self['indices']]['bufferView'], uri_path)
         self.attribute_buffer_views = {semantic: GLTFBufferView(gltf, gltf['accessors'][accessor_id]['bufferView'], uri_path)
                                        for semantic, accessor_id in self['attributes'].items()}
+        self._initialized = False
     def init_gl(self, force=False):
+        if self._initialized and not force:
+            return
         self.material.init_gl(force=force)
         self.index_buffer_view.init_gl(force=force)
         for buffer_view in self.attribute_buffer_views.values():
             buffer_view.init_gl(force=force)
+        _logger.info('%s.init_gl: OK', self.__class__.__name__)
+        self._initialized = True
     def draw(self, **frame_data):
         view = frame_data.get('view_matrix', None)
         projection = frame_data.get('projection_matrix', None)
@@ -195,7 +206,7 @@ def read_shaders(gltf, uri_path):
             filename = os.path.join(uri_path, shader['uri'])
             with open(filename) as f:
                 shader_str = f.read()
-            _logger.info('loaded shader "%s" (from %s):\n%s', shader_name, filename, shader_str)
+            _logger.info('loaded shader "%s" from "%s"', shader_name, filename)
         shader_src[shader_name] = shader_str
     return shader_src
 
@@ -210,7 +221,7 @@ def setup_programs(gltf, uri_path):
     return programs
 
 
-def load_buffers(gltf, uri_path):
+def read_buffers(gltf, uri_path):
     buffers = gltf['buffers']
     data_buffers = {}
     for buffer_name, buffer in buffers.items():
@@ -229,7 +240,7 @@ def load_buffers(gltf, uri_path):
 
 
 def setup_buffers(gltf, uri_path):
-    data_buffers = load_buffers(gltf, uri_path)
+    data_buffers = read_buffers(gltf, uri_path)
     buffer_ids = {}
     for bufferView_name, bufferView in gltf['bufferViews'].items():
         buffer_id = gl.glGenBuffers(1)
