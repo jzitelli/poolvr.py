@@ -27,7 +27,7 @@ def _create_cue(cue_mass, cue_radius, cue_length):
         import ode
     except:
         from . import fake_ode as ode
-    body = ode.Body(None)
+    body = ode.Body(ode.World())
     mass = ode.Mass()
     mass.setCylinderTotal(cue_mass, 3, cue_radius, cue_length)
     body.setMass(mass)

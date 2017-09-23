@@ -278,15 +278,17 @@ class ODEPoolPhysics(object):
                 c.setSoftCFM(1e4)
                 c.setSlip1(0.05)
             elif isinstance(geom1, ode.GeomTriMesh) or isinstance(geom2, ode.GeomTriMesh):
-                c.setBounce(0.83)
+                c.setBounce(0.86)
                 c.setMu(0.16)
                 c.setBounceVel(0.02)
                 c.setSoftERP(0.4)
                 c.setSoftCFM(1e2)
                 c.setSlip1(0.04)
             elif isinstance(geom1, ode.GeomCylinder) or isinstance(geom2, ode.GeomCylinder):
-                c.setBounce(0.66)
+                c.setBounce(0.69)
                 c.setMu(0.25)
+                c.setSoftERP(0.2)
+                c.setSoftCFM(1e1)
                 pos, normal, depth, g1, g2 = c.getContactGeomParams()
                 v_n = np.array(normal).dot(np.array(body1.getPointVel(pos)) - np.array(body2.getPointVel(pos)))
                 if self._on_cue_ball_collide:

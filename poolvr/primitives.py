@@ -28,16 +28,16 @@ class HexaPrimitive(Primitive):
              [7,3,0,4]] # left
     tri_faces = list(itertools.chain.from_iterable(itertools.chain.from_iterable([triangulate_quad(quad) for quad in faces])))
     indices = np.array([triangulate_quad(quad) for quad in faces], dtype=np.uint16).reshape(-1)
-    INDEX_BUFFER = None
-    def __init__(self, vertices=None):
-        "A :ref:`Primitive` with the geometry of a hexahedron."
-        Primitive.__init__(self, gl.GL_TRIANGLES, HexaPrimitive.indices, index_buffer=HexaPrimitive.INDEX_BUFFER,
+    _INDEX_BUFFER = None
+    def __init__(self, vertices=None, adjust_vertices_if_needed=True):
+        "A :ref:`Primitive` with the geometry of a hexahedron (six-sided three-dimension solid)."
+        Primitive.__init__(self, gl.GL_TRIANGLES, HexaPrimitive.indices, index_buffer=HexaPrimitive._INDEX_BUFFER,
                            vertices=vertices)
 
     def init_gl(self, force=False):
         Primitive.init_gl(self, force=force)
-        if HexaPrimitive.INDEX_BUFFER is None:
-            HexaPrimitive.INDEX_BUFFER = self.index_buffer
+        if HexaPrimitive._INDEX_BUFFER is None:
+            HexaPrimitive._INDEX_BUFFER = self.index_buffer
 
 
 class BoxPrimitive(HexaPrimitive):
@@ -66,6 +66,13 @@ class BoxPrimitive(HexaPrimitive):
 
     def create_ode_geom(self, space):
         return ode.GeomBox(space=space, lengths=self.lengths)
+
+
+class HexaMesh(Mesh):
+    def __init__(self, material, *args, **kwargs):
+        self.primitive = HexaPrimitive(*args, **kwargs)
+        self.primitives = [self.primitive]
+        Mesh.__init__(self, {material: self.primitives})
 
 
 class BoxMesh(Mesh):
@@ -256,6 +263,7 @@ class SpherePrimitive(Primitive):
         uvs = np.array(uvs, dtype=np.float32)
         Primitive.__init__(self, gl.GL_TRIANGLE_STRIP, indices,
                            vertices=vertices, uvs=uvs)
+
     def create_ode_mass(self, total_mass):
         mass = ode.Mass()
         mass.setSphereTotal(total_mass, self.radius)

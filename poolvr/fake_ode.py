@@ -17,3 +17,7 @@ class Mass(object):
 		pass
 	def setCylinderTotal(self, *args, **kwargs):
 		pass
+
+
+class World(object):
+    pass

@@ -26,6 +26,7 @@ class PoolTable(object):
                  H_cushion=0.635*2.25*INCH2METER,
                  width_rail=None,
                  H_rail=None,
+                 ball_diameter=2.25*INCH2METER,
                  **kwargs):
         self.length = length
         self.height = height
@@ -36,10 +37,8 @@ class PoolTable(object):
             width_rail = 1.5 * W_cushion
         self.width_rail = width_rail
         if H_rail is None:
-            # H_rail = 1.4 * H_cushion
             H_rail = 1.25 * H_cushion
         self.H_rail = H_rail
-        # W_nose = 0.045 * W_cushion
         W_nose = 0.05 * W_cushion
         self.W_nose = W_nose
         H_nose = 0.5 * H_cushion
@@ -50,14 +49,12 @@ class PoolTable(object):
         surface.attributes['vertices'][:,1] = height
         surface.attributes['a_position'] = surface.attributes['vertices']
         W_playable = width - 2*W_cushion
-        ball_diameter = 2.25*INCH2METER
         H_cushion = 0.82*ball_diameter
         self.headCushionGeom = HexaPrimitive(vertices=np.array([
             # bottom quad:
             [[-0.5*W_playable + 0.4*W_cushion,       0.0,           0.5*W_cushion],
              [ 0.5*W_playable - 0.4*W_cushion,       0.0,           0.5*W_cushion],
              [ 0.5*W_playable - 1.2*SQRT2*W_cushion, 0.57*ball_diameter, -0.5*W_cushion + W_nose],
-             #[0.5 * W_playable - 1.2 * SQRT2 * W_cushion, 0.0, -0.5 * W_cushion + W_nose],
              [-0.5*W_playable + 1.2*SQRT2*W_cushion, 0.57*ball_diameter, -0.5*W_cushion + W_nose]],
             # top quad:
             [[-0.5*W_playable + 0.4*W_cushion,       H_rail,     0.5*W_cushion],
@@ -111,6 +108,8 @@ class PoolTable(object):
         self.mesh = Mesh({surface_material: [surface],
                           cushion_material: self.cushionGeoms,
                           rail_material   : self.railGeoms})
+
+
     def setup_balls(self, ball_radius, ball_colors, ball_positions, striped_balls=None,
                     use_bb_particles=False,
                     technique=LAMBERT_TECHNIQUE):
