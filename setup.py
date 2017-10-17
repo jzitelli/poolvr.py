@@ -3,7 +3,7 @@ from setuptools import setup
 from codecs import open
 from os import path, listdir
 
-here = path.abspath(path.dirname(__file__))
+here = path.dirname(path.abspath(__file__))
 
 with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
