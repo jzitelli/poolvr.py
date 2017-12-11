@@ -34,7 +34,8 @@ Then build the cyglfw3 package:
 ```
 git clone https://github.com/jzitelli/cyglfw3.git
 cd cyglfw3
-python setup.py build_py build_ext install --include-dirs="{path to glfw include dir}" --library-dirs="{path to glfw dll dir}"
+python setup.py build_py build_ext --include-dirs="{path to glfw include dir}" --library-dirs="{path to glfw dll dir}"
+python setup.py install
 ```
 
 
