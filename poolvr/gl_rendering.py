@@ -238,10 +238,10 @@ class CubeTexture(Texture):
         self.sampler_id = None
     def init_gl(self, force=False):
         """
-        Perform initialization for the texture on the current GL context
+        Perform initialization for the texture within the current GL context
 
         :param force: if True, force reinitialization of the GL context for this
-                      Texture and all of the GL entities that it depends on
+                      Texture and all of the GL entities that it references
         """
         if self.texture_id is not None:
             if not force: return

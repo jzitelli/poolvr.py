@@ -1,11 +1,11 @@
-#!/usr/bin/python
+#!python
 import sys
 import argparse
 import logging
 
+FORMAT = '  POOLVR.PY 0.0.1  | %(asctime)s | %(name)s --- %(levelname)s *** %(message)s'
 
 if __name__ == "__main__":
-    FORMAT = '  POOLVR.PY 0.0.1  | %(asctime)s | %(name)s --- %(levelname)s *** %(message)s'
     parser = argparse.ArgumentParser()
     parser.add_argument("--novr", help="non-VR mode", action="store_true")
     parser.add_argument("--use_simple_ball_collisions", help="use simple ball collision model",
@@ -23,6 +23,8 @@ if __name__ == "__main__":
     parser.add_argument('-l', '--list_sound_devices', help="list the available sound devices",
                         action="store_true")
     parser.add_argument("-v", help="verbose logging", action="store_true")
+
+
     args = parser.parse_args()
     if args.v:
         logging.basicConfig(format=FORMAT, level=logging.DEBUG)

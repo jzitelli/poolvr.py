@@ -9,15 +9,17 @@ _logger = logging.getLogger(__name__)
 
 try:
     import sounddevice as sd
-    try:
-        import soundfile as sf
-    except ImportError as err:
-        _logger.error('could not import soundfile:\n%s', err)
-        sf = None
 except ImportError as err:
-    _logger.error('could not import sounddevice:\n%s', err)
-    _logger.error('SOUND IS NOT AVAILABLE')
     sd = None
+    _logger.error('could not import sounddevice:\n%s', err)
+try:
+    import soundfile as sf
+except ImportError as err:
+    sf = None
+    _logger.error('could not import soundfile:\n%s', err)
+
+if sf is None or sd is None:
+    _logger.error('SOUND IS NOT AVAILABLE')
 
 
 SOUNDS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -37,12 +39,11 @@ def init_sound():
     global ballBall_sound_fs
     global ballBall_temp
     if not _initialized:
-        if sf:
+        if sd is not None and sf is not None:
             ballBall_sound, ballBall_sound_fs = sf.read(os.path.join(SOUNDS_DIR, 'ballBall.ogg'))
             ballBall_sound = np.array(ballBall_sound, dtype=np.float32)
             ballBall_temp = ballBall_sound.copy()
-            if sd:
-                open_output_stream()
+            open_output_stream()
         _initialized = True
 
 
