@@ -95,7 +95,8 @@ def main(window_size=(800,600),
     ball_meshes = game.table.setup_balls(game.ball_radius, game.ball_colors[:9], game.ball_positions,
                                          striped_balls=set(range(9, game.num_balls)),
                                          use_bb_particles=use_bb_particles)
-    window, fallback_renderer = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=novr, multisample=multisample)
+    window, fallback_renderer = setup_glfw(width=window_size[0], height=window_size[1],
+                                           double_buffered=novr, multisample=multisample)
     if not novr and OpenVRRenderer is not None:
         try:
             renderer = OpenVRRenderer(window_size=window_size, multisample=multisample)
