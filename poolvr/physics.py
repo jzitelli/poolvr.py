@@ -491,7 +491,7 @@ class PoolPhysics(object):
             return a, b
         def __str__(self):
             clsname = self.__class__.__name__.split('.')[-1]
-            return "<%17s: t=%8.3f T=%8.3f i=%2d>" % (clsname, self.t, self.T, self.i)
+            return "<%17s t=%f T=%f i=%2d>" % (clsname, self.t, self.T, self.i)
         def __lt__(self, other):
             if isinstance(other, self.physics.PhysicsEvent):
                 return self.t < other.t
@@ -551,7 +551,7 @@ class PoolPhysics(object):
             self.state = self.physics.SLIDING
             self.next_event = self.physics.SlideToRollEvent(t + tau_s, i, end_position, end_velocity)
         def __str__(self):
-            return super().__str__()[:-1] + ' r=%40s v=%40s Q=%40s V=%40s>' % (self._a[0], self._a[1], self.Q, self.V)
+            return super().__str__()[:-1] + ' r=%s v=%s Q=%s V=%s>' % (self._a[0], self._a[1], self.Q, self.V)
 
     class SlideToRollEvent(PhysicsEvent):
         def __init__(self, t, i, position, velocity):
@@ -565,7 +565,7 @@ class PoolPhysics(object):
             self.state = self.physics.ROLLING
             self.next_event = self.physics.RollToRestEvent(t + tau_r, i, end_position)
         def __str__(self):
-            return super().__str__()[:-1] + ' r=%40s v=%40s>' % (self._a[0], self._a[1])
+            return super().__str__()[:-1] + ' r=%s v=%s>' % (self._a[0], self._a[1])
 
     class RestEvent(PhysicsEvent):
         def __init__(self, t, i, position):
@@ -586,7 +586,7 @@ class PoolPhysics(object):
                 out[:] = 0
             return out
         def __str__(self):
-            return super().__str__()[:-1] + ' r=%40s>' % self._a[0]
+            return super().__str__()[:-1] + ' r=%s>' % self._a[0]
 
     class SlideToRestEvent(RestEvent):
         pass
@@ -643,7 +643,7 @@ class PoolPhysics(object):
             paired_event.next_event = self.physics.RollToRestEvent(t + paired_event.T, j,
                                                                    paired_event.eval_position(paired_event.T))
         def __str__(self):
-            return super().__str__()[:-1] + ' j=%2d>' % self.j
+            return ' '.join((super().__str__()[:-1], 'j=%2d>' % self.j))
 
     class BallCollisionEvent(PhysicsEvent):
         def __init__(self, t, i, j, r_i, r_j, v_i, v_j):
@@ -679,4 +679,4 @@ class PoolPhysics(object):
             paired_event.T = tau_j
             paired_event.next_event = self.physics.RollToRestEvent(t + tau_j, j, paired_event.eval_position(tau_j))
         def __str__(self):
-            return super().__str__()[:-1] + ' j=%2d>' % self.j
+            return ' '.join((super().__str__()[:-1], 'j=%2d>' % self.j))
