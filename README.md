@@ -89,19 +89,19 @@ python setup.py develop
 ## HOW TO START:
 
 Installation will place a Python script `play_poolvr.py` into your Python environment's path.
-If you are using a bash command-line, just enter:
+From a command-line, just enter:
 ```
-play_poolvr.py
+poolvr
 ```
 
 To run without VR:
 ```
-play_poolvr.py --novr
+poolvr --novr
 ```
 
 For information on available command-line options and other help:
 ```
-play_poolvr.py -h
+poolvr -h
 ```
 
 ## HOW TO RUN TESTS:
