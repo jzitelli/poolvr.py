@@ -1,4 +1,5 @@
 venv36/
+.pytest_cache
 
 .idea/
 
