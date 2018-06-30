@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from poolvr.physics import PoolPhysics
 
 
+logging.getLogger('matplotlib').setLevel(logging.WARNING)
 _logger = logging.getLogger(__name__)
 
 
@@ -57,7 +58,7 @@ def plot_ball_motion(i, game, title=None, nt=400,
     for i_e, e in enumerate(events):
         if e.i != i:
             continue
-        _logger.debug('event %d:\n%s', i_e, e)
+        _logger.debug('event %d: %s', i_e, e)
         plt.axvline(e.t, color=event_colors[type(e)])
         j = getattr(e, 'j', None)
         if j:
@@ -66,8 +67,6 @@ def plot_ball_motion(i, game, title=None, nt=400,
                                  for a, b in zip(events[i_e:-1], events[i_e+1:])])
             for coord in coords:
                 plt.plot(ts, [physics.eval_positions(t)[j,coord] for t in ts], color=ball_colors[j], label='ball %d' % j)
-        # if e.T < float('inf'):
-        #     plt.axvline(e.t + e.T)
     ts = np.linspace(t_0, t_1, nt)
     ts = np.concatenate([[a.t] + list(ts[(ts >= a.t) & (ts < b.t)]) + [b.t]
                          for a, b in zip(events[:-1], events[1:])])
@@ -80,7 +79,7 @@ def plot_ball_motion(i, game, title=None, nt=400,
 def plot_energy(game, title=None, nt=400,
                 t_0=None, t_1=None):
     physics = game.physics
-    events = physics.events#[:-1]
+    events = physics.events
     if t_0 is None:
         t_0 = events[0].t
     if t_1 is None:
@@ -93,8 +92,6 @@ def plot_energy(game, title=None, nt=400,
     plt.ylabel('energy (Joules)')
     for e in events:
         plt.axvline(e.t, color=event_colors[type(e)])
-        #if e.T < float('inf'):
-        #    plt.axvline(e.t + e.T, color='red')
     ts = np.linspace(t_0, t_1, nt)
     ts = np.concatenate([[a.t] + list(ts[(ts >= a.t) & (ts < b.t)]) + [b.t]
                          for a, b in zip(events[:-1], events[1:])])

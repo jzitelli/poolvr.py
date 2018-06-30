@@ -18,7 +18,6 @@ import numpy as np
 _logger = logging.getLogger(__name__)
 
 INCH2METER = 0.0254
-
 _I, _J, _K = np.eye(3, dtype=np.float64)
 
 
@@ -263,7 +262,7 @@ class PoolPhysics(object):
             self._add_event(determined_event)
             if isinstance(determined_event, self.BallCollisionEvent):
                 n_events += 1
-                paired_event = determined_event.paired_event
+                paired_event = determined_event._paired_event
                 ball_events[paired_event.i] = paired_event
                 self._add_event(paired_event)
             elif isinstance(determined_event, self.RestEvent):
@@ -461,8 +460,13 @@ class PoolPhysics(object):
             self.i = i
             self.T = float('inf')
             self.next_event = None
+            self.child_events = ()
             self._a = np.zeros((3,3), dtype=np.float64)
             self._b = np.zeros((2,3), dtype=np.float64)
+            self._r = self._a[0]
+            self._v = self._a[1]
+            self._omega = self._b[0]
+
         def eval_position(self, tau, out=None):
             if out is None:
                 out = np.empty(3, dtype=np.float64)
@@ -491,7 +495,7 @@ class PoolPhysics(object):
             return a, b
         def __str__(self):
             clsname = self.__class__.__name__.split('.')[-1]
-            return "<%17s t=%f T=%f i=%2d>" % (clsname, self.t, self.T, self.i)
+            return "<%s t=%f T=%f i=%2d>" % (clsname, self.t, self.T, self.i)
         def __lt__(self, other):
             if isinstance(other, self.physics.PhysicsEvent):
                 return self.t < other.t
@@ -508,12 +512,10 @@ class PoolPhysics(object):
         def __hash__(self):
             return hash((self.i, self.t, self.T))
 
-    class StrikeBallEvent(PhysicsEvent):
-        def __init__(self, t, i, Q, V, cue_mass):
+    class BallImpulseEvent(PhysicsEvent):
+        def __init__(self, t, i, Q, V, M):
             super().__init__(t, i)
-            self.Q = Q
-            self.V = V
-            self.cue_mass = cue_mass
+            self.Q, self.V, self.M = Q, V, M
             i_events = self.physics.ball_events[i]
             if i_events:
                 self._a[0] = i_events[-1]._a[0]
@@ -522,7 +524,6 @@ class PoolPhysics(object):
             a, b, c = Q
             V[1] = 0
             sin, cos = 0.0, 1.0
-            M = cue_mass
             m, R = self.physics.ball_mass, self.physics.ball_radius
             norm_V = np.linalg.norm(V)
             F = 2.0 * m * norm_V / (1 + m/M + 5.0/(2*R**2) * (a**2 + (b*cos)**2 + (c*sin)**2 - 2*b*c*cos*sin))
@@ -535,6 +536,9 @@ class PoolPhysics(object):
             omega_k = -F * a * cos / I
             _j = -V[:] / norm_V
             _k = _J
+            # self._v[::2] = F / m * V[::2] / np.linalg.norm(V[::2])
+            # _j = -V / norm_V
+            # _k = np.array((0.0, 1.0, 0.0), dtype=np.float64)
             _i = np.cross(_j, _k)
             omega[:] = omega_i * _i + omega_j * _j + omega_k * _k
             u = v + R * np.cross(_k, omega)
@@ -552,6 +556,9 @@ class PoolPhysics(object):
             self.next_event = self.physics.SlideToRollEvent(t + tau_s, i, end_position, end_velocity)
         def __str__(self):
             return super().__str__()[:-1] + ' r=%s v=%s Q=%s V=%s>' % (self._a[0], self._a[1], self.Q, self.V)
+
+    class StrikeBallEvent(BallImpulseEvent):
+        pass
 
     class SlideToRollEvent(PhysicsEvent):
         def __init__(self, t, i, position, velocity):
@@ -649,6 +656,8 @@ class PoolPhysics(object):
         def __init__(self, t, i, j, r_i, r_j, v_i, v_j):
             super().__init__(t, i)
             self.j = j
+            self.r_i, self.r_j = r_i, r_j
+            self.v_i, self.v_j = v_i, v_j
             self._a[0] = r_i
             v_ij = v_j - v_i
             norm_v_ij = np.linalg.norm(v_ij)
@@ -663,11 +672,11 @@ class PoolPhysics(object):
             self._a[2] = -0.5 * self.physics.mu_r * self.physics.g * (post_v_i / np.linalg.norm(post_v_i))
             tau_i = np.linalg.norm(post_v_i) / (self.physics.mu_r * self.physics.g)
             self.T = tau_i
-            self.next_event = self.physics.RollToRestEvent(t + tau_i, i, self.eval_position(tau_i))
+            #self._tau_i = tau_i
             self.state = self.physics.ROLLING
             paired_event = copy(self)
-            self.paired_event = paired_event
-            paired_event.paired_event = self
+            self._paired_event = paired_event
+            paired_event._paired_event = self
             paired_event.i, paired_event.j = j, i
             paired_event._a = np.zeros((3,3), dtype=np.float64)
             paired_event._b = np.zeros((2,3), dtype=np.float64)
@@ -678,5 +687,21 @@ class PoolPhysics(object):
             tau_j = np.linalg.norm(post_v_j) / (self.physics.mu_r * self.physics.g)
             paired_event.T = tau_j
             paired_event.next_event = self.physics.RollToRestEvent(t + tau_j, j, paired_event.eval_position(tau_j))
+            self.next_event = self.physics.RollToRestEvent(t + tau_i, i, self.eval_position(tau_i))
+            self.child_events = self._to_strike_ball_events()
+            _logger.debug('child events:\n%s', '\n'.join(str(e) for e in self.child_events))
+            for e in self.child_events:
+                _logger.debug('j next event: %s\ni next event: %s', self.child_events[0].next_event, self.child_events[1].next_event)
         def __str__(self):
             return ' '.join((super().__str__()[:-1], 'j=%2d>' % self.j))
+        def _to_strike_ball_events(self):
+            Q_j = self.r_i - self.r_j
+            Q_j *= -self.physics.ball_radius / np.linalg.norm(Q_j)
+            V_j = self.v_i - self.v_j
+            return (self.physics.StrikeBallEvent(self.t, self.j, Q_j, V_j, self.physics.ball_mass),
+                    self.physics.StrikeBallEvent(self.t, self.i, -Q_j, -V_j, self.physics.ball_mass))
+        # def _to_strike_ball_event(self):
+        #     Q_j = self.r_j - self.r_i
+        #     Q_j *= self.physics.ball_radius / np.linalg.norm(Q_j)
+        #     return self.physics.StrikeBallEvent(self.t, self.i, -Q_j, self.v_j - self.v_i, self.physics.ball_mass)
+        #     # return self.physics.StrikeBallEvent(self.t, self.i, self.r_i, self.v_i, self.physics.ball_mass)
