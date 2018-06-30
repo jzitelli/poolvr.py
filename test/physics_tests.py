@@ -105,6 +105,25 @@ class PhysicsTests(TestCase):
             show(self.game, title=test_name,
                  screenshots_dir=SCREENSHOTS_DIR)
 
+    def test_break(self):
+        self.game.reset()
+        self.physics.on_table[:] = True
+        self.cue.velocity[2] = -1.8
+        self.cue.velocity[0] = -0.01
+        Q = np.array((0.0, 0.0, self.physics.ball_radius))
+        i = 0
+        n_events = self.physics.strike_ball(0.0, i, Q, self.cue.velocity, self.cue.mass)
+        _logger.debug('strike on %d resulted in %d events', i, n_events)
+        test_name = traceback.extract_stack(None, 1)[0][2]
+        plot_ball_motion(i, self.game, title=test_name, coords=0)
+        savefig(os.path.join(PLOTS_DIR, '%s-%s.png' % (test_name, 'x')))
+        plot_ball_motion(i, self.game, title=test_name, coords=2)
+        savefig(os.path.join(PLOTS_DIR, '%s-%s.png' % (test_name, 'z')))
+        plot_energy(self.game, title=test_name + ' - energy')
+        savefig(os.path.join(PLOTS_DIR, test_name + '_energy.png'))
+        if self.show:
+            show(self.game, title=test_name,
+                 screenshots_dir=SCREENSHOTS_DIR)
 
     # def test_ball_collision_2(self):
     #     self.game.reset()
