@@ -73,7 +73,7 @@ class BallEvent(PhysicsEvent):
         return hash((self.__class__.__name__, self.i, self.t, self.T))
 
     def __str__(self):
-        return "<%s t=%f T=%f i=%2d>" % (self.__class__.__name__.split('.')[-1], self.t, self.T, self.i)
+        return "<%s t=%f T=%f i=%d>" % (self.__class__.__name__.split('.')[-1], self.t, self.T, self.i)
 
 
 class BallRestEvent(BallEvent):
@@ -196,6 +196,7 @@ class BallRollingEvent(BallMotionEvent):
         self._a[2] = -0.5 * self.mu_r * self.g * v_0 / v_0_mag
         self._b[1]
         self.T = v_0_mag / (self.mu_r * self.g)
+        self.next_motion_event = BallRestEvent(t + self.T, i, r=self.eval_position(self.T))
 
 
 class CueStrikeEvent(BallEvent):
@@ -212,6 +213,7 @@ class CueStrikeEvent(BallEvent):
         self.V = V
         self.M = M
         Q = r_c - r_i
+        self.Q = Q
         _j = V.copy(); _j[1] = 0; _j /= np.linalg.norm(_j)
         _i = np.cross(_j, self._k)
         a, c, b = (Q.dot(_i), #-_j[2] * Q[0] + _j[0] * Q[2],
@@ -225,7 +227,9 @@ class CueStrikeEvent(BallEvent):
         omega_0 = ((-c * F * sin + b * F * cos) * _i +
                    (a * F * sin)                * _j +
                    (-a * F * cos)          * self._k) / I
-        self.child_events = (BallSlidingEvent(t, i, r_0=r_i, v_0=v_0_mag*_j, omega_0=omega_0),)
+        self.next_motion_event = BallSlidingEvent(t, i, r_0=r_i, v_0=v_0_mag*_j, omega_0=omega_0)
+    def __str__(self):
+        return super().__str__()[:-1] + ' Q=%s V=%s M=%s>' % (self.Q, self.V, self.M)
 
 
 class BallCollisionEvent(PhysicsEvent):

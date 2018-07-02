@@ -98,13 +98,11 @@ class PoolPhysics(object):
         if not self.on_table[i]:
             return
         event = CueStrikeEvent(t, i, self.ball_positions[i], r_c, V, cue_mass)
-        events = [event]
         self._add_event(event)
         while self.balls_in_motion:
             event = self._determine_next_event()
-            events.append(event)
             self._add_event(event)
-        return events
+        return self.events
 
     def _add_event(self, event):
         self.events.append(event)
