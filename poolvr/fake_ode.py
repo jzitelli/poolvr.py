@@ -12,6 +12,7 @@ class Body(object):
 	def setAngularVel(self, *args, **kwargs):
 		pass
 
+
 class Mass(object):
 	def __init__(self):
 		pass

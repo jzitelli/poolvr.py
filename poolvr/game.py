@@ -16,8 +16,6 @@ class PoolGame(object):
     Game state for a pool "game"
 
     :param ball_colors: array defining a base color for each ball
-    :param stripe_colors: *optional* map defining a stripe color
-                          for each ball that is striped
     """
     BALL_COLORS = [0xddddde,
                    0xeeee00,
@@ -48,8 +46,9 @@ class PoolGame(object):
                                    **kwargs)
         self.t = 0.0
         self.ntt = 0.0
+
     def initial_positions(self, d=None, out=None):
-        """Set balls to initial (racked) positions"""
+        """Returns an array containing the initial (racked) ball positions"""
         if d is None:
             d = 0.04 * self.ball_radius
         if out is None:
@@ -78,6 +77,7 @@ class PoolGame(object):
         out[0,0] = 0.0
         out[0,2] = 0.25 * length
         return out
+
     def reset(self):
         """
         Resets the game state, which means: set balls in their initial stationary

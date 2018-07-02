@@ -1,19 +1,16 @@
 import logging
 import numpy as np
 import matplotlib.pyplot as plt
-from poolvr.physics import PoolPhysics
-
+from poolvr.physics.events import CueStrikeEvent, BallSlidingEvent, BallRollingEvent, BallRestEvent
 
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
 _logger = logging.getLogger(__name__)
 
 
-event_colors = {PoolPhysics.StrikeBallEvent: 'green',
-                PoolPhysics.SlideToRollEvent: 'yellow',
-                PoolPhysics.RollToRestEvent: 'red',
-                PoolPhysics.SlideToRestEvent: 'cyan',
-                PoolPhysics.BallCollisionEvent: 'orange',
-                PoolPhysics.SimpleBallCollisionEvent: 'orange'}
+event_colors = {CueStrikeEvent: 'green',
+                BallSlidingEvent: 'yellow',
+                BallRollingEvent: 'orange',
+                BallRestEvent: 'red'}
 ball_colors = {0: 'gray',
                1: 'yellow',
                2: 'blue',

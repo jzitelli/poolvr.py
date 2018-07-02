@@ -8,12 +8,6 @@ import PIL.Image as Image
 import OpenGL.GL as gl
 
 
-c_float_p = POINTER(c_float)
-
-
-NULL_PTR = c_void_p(0)
-
-
 CHECK_GL_ERRORS = False
 
 
@@ -39,6 +33,8 @@ GLSL_TYPE_SPEC = {
 }
 
 
+c_float_p = POINTER(c_float)
+NULL_PTR = c_void_p(0)
 _logger = logging.getLogger(__name__)
 
 
@@ -621,10 +617,12 @@ def calc_projection_matrix(yfov, aspectRatio, znear, zfar):
                      [0, 0, -1, 0]], dtype=np.float32)
 
 
-def set_matrix_from_quaternion(quat, out):
+def set_matrix_from_quaternion(quat, out=None):
     """
     Set the values of a 3x3 matrix to those of a rotation matrix.
     """
+    if out is None:
+        out = np.empty((3,3), dtype=quat.dtype)
     w, x, y, z = quat
     y2 = y**2
     x2 = x**2
@@ -647,15 +645,17 @@ def set_matrix_from_quaternion(quat, out):
     return out
 
 
-def set_quaternion_from_matrix(U, out):
+def set_quaternion_from_matrix(U, out=None):
     """
     http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/index.htm
 
     assumes the upper 3x3 of m is a pure rotation matrix (i.e, unscaled)
     """
+    if out is None:
+        out = np.empty(4, dtype=U.dtype)
     trace = U.trace()
     if trace > 0:
-        s = 0.5 / np.sqrt( trace + 1.0 );
+        s = 0.5 / np.sqrt(trace + 1.0)
         _w = 0.25 / s
         _x = (U[2,1] - U[1,2]) * s
         _y = (U[0,2] - U[2,0]) * s
@@ -667,13 +667,13 @@ def set_quaternion_from_matrix(U, out):
         _y = (U[0,1] + U[1,0]) / s
         _z = (U[0,2] + U[2,0]) / s
     elif U[1,1] > U[2,2]:
-        s = 2.0 * np.sqrt( 1.0 + U[1,1] - U[0,0] - U[2,2])
+        s = 2.0 * np.sqrt(1.0 + U[1,1] - U[0,0] - U[2,2])
         _w = (U[0,2] - U[2,0]) / s
         _x = (U[0,1] + U[1,0]) / s
         _y = 0.25 * s
         _z = (U[1,2] + U[2,1]) / s
     else:
-        s = 2.0 * np.sqrt( 1.0 + U[2,2] - U[0,0] - U[1,1])
+        s = 2.0 * np.sqrt(1.0 + U[2,2] - U[0,0] - U[1,1])
         _w = (U[1,0] - U[0,1]) / s
         _x = (U[0,2] + U[2,0]) / s
         _y = (U[1,2] + U[2,1]) / s
