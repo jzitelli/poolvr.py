@@ -143,14 +143,18 @@ class PoolPhysics(object):
         next_event = None
         for i in self.balls_in_motion:
             e_i = self.ball_events[i][-1]
-            if next_event is None or (e_i.next_motion_event and next_event.t > e_i.next_motion_event.t):
+            _logger.debug('e_i = %s', e_i)
+            if e_i.next_motion_event:
+                _logger.debug('e_i.next_motion_event = %s', e_i.next_motion_event)
+            if e_i.next_motion_event and (next_event is None or next_event.t > e_i.next_motion_event.t):
                 next_event = e_i.next_motion_event
         _logger.debug('next_motion_event = %s', next_event)
         for i in self.balls_in_motion:
             e_i = self.ball_events[i][-1]
-            for j in self.balls_on_table:
-                e_j = self.ball_events[j][-1]
-                #_logger.debug('e_i = %s, e_j = %s', e_i, e_j)
+            _logger.debug('e_i = %s', e_i)
+            #for j in self.balls_on_table:
+            #    e_j = self.ball_events[j][-1]
+            #    _logger.debug('e_i = %s, e_j = %s', e_i, e_j)
         _logger.debug('next_event = %s', next_event)
         return next_event
 
