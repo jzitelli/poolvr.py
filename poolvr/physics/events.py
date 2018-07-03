@@ -110,6 +110,8 @@ class BallRestEvent(BallEvent):
         out[:] = 0
         return out
 
+    def __str__(self):
+        return super().__str__()[:-1] + ' r=%s>' % self._r
 
 class BallMotionEvent(BallEvent):
     def __init__(self, t, i, a=None, b=None,
@@ -227,7 +229,9 @@ class CueStrikeEvent(BallEvent):
         omega_0 = ((-c * F * sin + b * F * cos) * _i +
                    (a * F * sin)                * _j +
                    (-a * F * cos)          * self._k) / I
-        self.next_motion_event = BallSlidingEvent(t, i, r_0=r_i, v_0=v_0_mag*_j, omega_0=omega_0)
+        child_event = BallSlidingEvent(t, i, r_0=r_i, v_0=v_0_mag*_j, omega_0=omega_0)
+        self.child_events = (child_event,)
+
     def __str__(self):
         return super().__str__()[:-1] + ' Q=%s V=%s M=%s>' % (self.Q, self.V, self.M)
 

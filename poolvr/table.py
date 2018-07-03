@@ -28,6 +28,7 @@ class PoolTable(object):
                  H_rail=None,
                  ball_diameter=2.25*INCH2METER,
                  **kwargs):
+        self.ball_diameter = ball_diameter
         self.length = length
         self.height = height
         if width is None:
@@ -157,3 +158,36 @@ class PoolTable(object):
             for i, mesh in enumerate(ball_shadow_meshes):
                 mesh.world_position[:] = ball_positions[i]
         return ball_meshes
+
+    def calc_racked_positions(self, num_balls=16,
+                              d=None,
+                              out=None):
+        ball_radius = 0.5 * self.ball_diameter
+        if d is None:
+            d = 0.04 * ball_radius
+        if out is None:
+            out = np.empty((num_balls, 3), dtype=np.float32)
+        height = self.height
+        length = self.length
+        ball_diameter = self.ball_diameter
+        # triangle racked:
+        out[:,1] = height + ball_radius + 0.005
+        side_length = 4 * (ball_diameter + d)
+        x_positions = np.concatenate([np.linspace(0,                        0.5 * side_length,                         5),
+                                      np.linspace(-0.5*(ball_diameter + d), 0.5 * side_length - (ball_diameter + d),   4),
+                                      np.linspace(-(ball_diameter + d),     0.5 * side_length - 2*(ball_diameter + d), 3),
+                                      np.linspace(-1.5*(ball_diameter + d), 0.5 * side_length - 3*(ball_diameter + d), 2),
+                                      np.array([-2*(ball_diameter + d)])])
+        z_positions = np.concatenate([np.linspace(0,                                    np.sqrt(3)/2 * side_length, 5),
+                                      np.linspace(0.5*np.sqrt(3) * (ball_diameter + d), np.sqrt(3)/2 * side_length, 4),
+                                      np.linspace(np.sqrt(3) * (ball_diameter + d),     np.sqrt(3)/2 * side_length, 3),
+                                      np.linspace(1.5*np.sqrt(3) * (ball_diameter + d), np.sqrt(3)/2 * side_length, 2),
+                                      np.array([np.sqrt(3)/2 * side_length])])
+        z_positions *= -1
+        z_positions -= length / 8
+        out[1:,0] = x_positions
+        out[1:,2] = z_positions
+        # cue ball at head spot:
+        out[0,0] = 0.0
+        out[0,2] = 0.25 * length
+        return out

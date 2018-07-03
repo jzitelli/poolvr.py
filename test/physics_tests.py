@@ -15,7 +15,6 @@ from poolvr.physics.events import CueStrikeEvent, BallSlidingEvent, BallRollingE
 
 
 from .utils import plot_ball_motion, savefig, plot_energy
-from .utils.gl_viewer import show
 
 
 PLOTS_DIR = os.path.join(os.path.dirname(__file__), 'plots')
@@ -33,7 +32,7 @@ class PhysicsTests(TestCase):
         self.playback_rate = 1
 
     def test_strike_ball(self):
-        test_name = traceback.extract_stack(None, 1)[0][2]
+        #test_name = traceback.extract_stack(None, 1)[0][2]
         self.physics.on_table[1:] = False
         r_c = self.physics.ball_positions[0].copy()
         r_c[2] += self.physics.ball_radius
@@ -42,7 +41,7 @@ class PhysicsTests(TestCase):
         _logger.debug('strike on %d resulted in %d events', 0, len(events))
         _logger.debug('\n'.join(str(e) for e in events))
         # self.assertEqual(4, len(events))
-        # self.assertIsInstance(events[0], CueStrikeEvent)
+        self.assertIsInstance(events[0], CueStrikeEvent)
         # self.assertIsInstance(events[1], BallSlidingEvent)
         # self.assertIsInstance(events[2], BallRollingEvent)
         # self.assertIsInstance(events[3], BallRestEvent)
