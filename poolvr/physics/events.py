@@ -49,10 +49,16 @@ class PhysicsEvent(object):
         return out
 
     def __lt__(self, other):
-        return self.t < other.t
+        if isinstance(other, PhysicsEvent):
+            return self.t < other.t
+        else:
+            return self.t < other
 
     def __gt__(self, other):
-        return self.t > other.t
+        if isinstance(other, PhysicsEvent):
+            return self.t > other.t
+        else:
+            return self.t > other
 
 
 class BallEvent(PhysicsEvent):
