@@ -2,7 +2,6 @@ import os.path
 import logging
 from unittest import TestCase
 import traceback
-import numpy as np
 
 
 _logger = logging.getLogger(__name__)
@@ -10,11 +9,10 @@ _logger = logging.getLogger(__name__)
 
 from poolvr.cue import PoolCue
 from poolvr.game import PoolGame
-from poolvr.physics import PoolPhysics
 from poolvr.physics.events import CueStrikeEvent, BallSlidingEvent, BallRollingEvent, BallRestEvent
 
 
-from .utils import plot_ball_motion
+from .utils import plot_ball_motion, plot_energy
 
 
 PLOTS_DIR = os.path.join(os.path.dirname(__file__), 'plots')
@@ -39,16 +37,16 @@ class PhysicsTests(TestCase):
         r_c[2] += self.physics.ball_radius
         self.cue.velocity[2] = -0.8
         events = self.physics.strike_ball(0.0, 0, r_c, self.cue.velocity, self.cue.mass)
-        _logger.debug('strike on %d resulted in %d events', 0, len(events))
-        _logger.debug('\n'.join(str(e) for e in events))
+        _logger.debug('strike on %d resulted in %d events: %s', 0, len(events),
+                      '\n'.join(str(e) for e in events))
         self.assertEqual(4, len(events))
         self.assertIsInstance(events[0], CueStrikeEvent)
         self.assertIsInstance(events[1], BallSlidingEvent)
         self.assertIsInstance(events[2], BallRollingEvent)
         self.assertIsInstance(events[3], BallRestEvent)
         plot_ball_motion(0, self.game, title=test_name, coords=(0,2), filename=os.path.join(PLOTS_DIR, test_name + '.png'))
+        plot_energy(self.game, title=test_name + ' - energy', t_1=8.0, filename=os.path.join(PLOTS_DIR, test_name + '_energy.png'))
         # savefig(os.path.join(PLOTS_DIR, test_name + '.png'))
-        # plot_energy(self.game, title=test_name + ' - energy', t_1=8.0)
         # savefig(os.path.join(PLOTS_DIR, test_name + '_energy.png'))
         # if self.show:
         #     show(self.game, title=test_name,

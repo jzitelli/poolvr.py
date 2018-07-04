@@ -220,7 +220,7 @@ class PoolPhysics(object):
         if balls is None:
             balls = range(self.num_balls)
         if out is None:
-            out = np.empty((len(balls), 3), dtype=np.float64)
+            out = np.zeros((len(balls), 3), dtype=np.float64)
         out[:] = 0
         for ii, i in enumerate(balls):
             events = self.ball_events[i]
@@ -277,4 +277,4 @@ class PoolPhysics(object):
             balls = range(self.num_balls)
         velocities = self.eval_velocities(t, balls=balls)
         omegas = self.eval_angular_velocities(t, balls=balls)
-        return self.ball_mass * (velocities**2).sum() / 2 + self._I * (omegas**2).sum() / 2
+        return self.ball_mass * (velocities**2).sum() / 2 + self.ball_I * (omegas**2).sum() / 2

@@ -151,11 +151,12 @@ class BallMotionEvent(BallEvent):
         self._v_0 = a[1]
         self._half_a = a[2]
         self._omega_0 = b[0]
-        v_1 = self.eval_velocity(self.T)
-        omega_1 = self.eval_angular_velocity(self.T)
-        u_1 = v_1 + self.ball_radius * np.cross(self._k, omega_1)
-        _logger.debug('v_1 = %s\nomega_1 = %s\nu_1 = %s', v_1, omega_1, u_1)
-        self._next_motion_event = None
+        self._half_alpha = b[1]
+        # v_1 = self.eval_velocity(self.T)
+        # omega_1 = self.eval_angular_velocity(self.T)
+        # u_1 = v_1 + self.ball_radius * np.cross(self._k, omega_1)
+        # _logger.debug('v_1 = %s\nomega_1 = %s\nu_1 = %s', v_1, omega_1, u_1)
+        # self._next_motion_event = None
 
     @property
     def next_motion_event(self):
@@ -196,6 +197,10 @@ class BallMotionEvent(BallEvent):
         out[:] = b[0] + tau * b[1]
         return out
 
+    def __str__(self):
+        return super().__str__()[:-1] + ' r_0=%s v_0=%s half_a=%s omega_0=%s half_alpha=%s>' % (self._r_0, self._v_0, self._half_a,
+                                                                                                self._omega_0, self._half_alpha)
+
 
 class BallSlidingEvent(BallMotionEvent):
     def __init__(self, t, i, r_0, v_0, omega_0,
@@ -205,6 +210,7 @@ class BallSlidingEvent(BallMotionEvent):
         T = 2 * u_0_mag / (7 * self.mu_s * self.g)
         super().__init__(t, i, T=T, r_0=r_0, v_0=v_0, omega_0=omega_0)
         self._a[2] = -0.5 * self.mu_s * self.g * u_0 / u_0_mag
+        self._b[1] = -5 * self.mu_s * self.g / (2 * self.ball_radius) * np.cross(self._k, u_0 / u_0_mag)
         self._next_motion_event = BallRollingEvent(t + T, i,
                                                    r_0=self.eval_position(T),
                                                    v_0=self.eval_velocity(T))
@@ -217,7 +223,7 @@ class BallRollingEvent(BallMotionEvent):
         omega_0 = v_0 / self.ball_radius; omega_0[::2] = -omega_0[::-2]
         super().__init__(t, i, T=T, r_0=r_0, v_0=v_0, omega_0=omega_0)
         self._a[2] = -0.5 * self.mu_r * self.g * v_0 / v_0_mag
-        self._b[1]
+        self._b[1] = self.mu_r * self.g * omega_0 / np.linalg.norm(omega_0)
         self._next_motion_event = BallRestEvent(t + T, i, r=self.eval_position(self.T))
 
 
