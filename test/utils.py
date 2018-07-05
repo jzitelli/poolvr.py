@@ -1,8 +1,7 @@
 import logging
 import numpy as np
 import matplotlib.pyplot as plt
-from poolvr.physics import PoolPhysics
-from poolvr.physics.events import CueStrikeEvent, BallSlidingEvent, BallRollingEvent, BallRestEvent
+from poolvr.physics.events import CueStrikeEvent, BallSlidingEvent, BallRollingEvent, BallRestEvent, BallCollisionEvent
 
 _logger = logging.getLogger(__name__)
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
@@ -36,48 +35,61 @@ def _savefig(fp):
         plt.show()
 
 
-def plot_ball_motion(i, game, title=None, nt=400,
-                     t_0=None, t_1=None, coords=(0,), filename=None):
+def plot_ball_motion(i, game, title=None, nt=1000,
+                     t_0=None, t_1=None, coords=(0,),
+                     collision_depth=0, hold=False,
+                     filename=None):
     if type(coords) == int:
         coords = (coords,)
     if title is None:
         title = 'ball %d position vs time'
     physics = game.physics
-    events = physics.events
+    #events = physics.events
+    events = physics.ball_events[i]
     if t_0 is None:
         t_0 = events[0].t
     if t_1 is None:
         t_1 = events[-1].t
-    plt.figure()
-    plt.title(title)
-    plt.xlabel('$t$ (seconds)')
-    plt.ylabel('$%s$ (meters)' % ' / '.join('xyz'[coord] for coord in coords))
+        if events[-1].T < float('inf'):
+            t_1 += events[-1].T
+    if not hold:
+        plt.figure()
+        plt.title(title)
+        plt.xlabel('$t$ (seconds)')
+        plt.ylabel('$%s$ (meters)' % ' / '.join('xyz'[coord] for coord in coords))
     for i_e, e in enumerate(events):
         if e.i != i:
             continue
-        plt.axvline(e.t, color=event_colors[type(e)])
-        j = getattr(e, 'j', None)
-        if j:
-            ts = np.linspace(t_0, t_1, nt)
-            ts = np.concatenate([[a.t] + list(ts[(ts >= a.t) & (ts < b.t)]) + [b.t]
-                                 for a, b in zip(events[i_e:-1], events[i_e+1:])])
-            for coord in coords:
-                plt.plot(ts, [physics.eval_positions(t)[j,coord] for t in ts],
-                         color=ball_colors[j], label='ball %d' % j)
-        # if e.T < float('inf'):
-        #     plt.axvline(e.t + e.T)
+        if isinstance(e.parent_event, BallCollisionEvent):
+            parent = e.parent_event
+            plt.axvline(e.t, color=ball_colors[parent.i], ymax=0.5)
+            plt.axvline(e.t, color=ball_colors[parent.j], ymin=0.5)
+            if collision_depth > 0:
+                e_i, e_j = parent.child_events
+                other_ball_event = e_j if parent.i == e.i else e_i
+                plot_ball_motion(other_ball_event.i, game,
+                                 t_0=other_ball_event.t, t_1=t_1,
+                                 coords=coords,
+                                 collision_depth=collision_depth-1,
+                                 hold=True)
+        else:
+            plt.axvline(e.t, color=event_colors[type(e)])
+    linewidth = 5 - 2*collision_depth
     ts = np.linspace(t_0, t_1, nt)
     ts = np.concatenate([[a.t] + list(ts[(ts >= a.t) & (ts < b.t)]) + [b.t]
                          for a, b in zip(events[:-1], events[1:])])
     for coord in coords:
-        plt.plot(ts, [physics.eval_positions(t)[0,coord] for t in ts], ['-', '-.', '--'][coord],
-                 color=ball_colors[i], label='ball %d (%s)' % (i, 'xyz'[coord]))
-    plt.legend()
+        plt.plot(ts, [physics.eval_positions(t)[i,coord] for t in ts],
+                 ['-', '-.', '--'][coord], color=ball_colors[i],
+                 label='ball %d (%s)' % (i, 'xyz'[coord]),
+                 linewidth=linewidth)
+    if not hold:
+        plt.legend()
     if filename:
         _savefig(filename)
 
 
-def plot_energy(game, title=None, nt=400,
+def plot_energy(game, title=None, nt=1000,
                 t_0=None, t_1=None, filename=None):
     physics = game.physics
     events = physics.events

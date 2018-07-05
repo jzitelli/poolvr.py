@@ -2,6 +2,7 @@ import os.path
 import logging
 from unittest import TestCase
 import traceback
+import numpy as np
 
 
 _logger = logging.getLogger(__name__)
@@ -9,7 +10,7 @@ _logger = logging.getLogger(__name__)
 
 from poolvr.cue import PoolCue
 from poolvr.game import PoolGame
-from poolvr.physics.events import CueStrikeEvent, BallSlidingEvent, BallRollingEvent, BallRestEvent
+from poolvr.physics.events import CueStrikeEvent, BallSlidingEvent, BallRollingEvent, BallRestEvent, BallCollisionEvent
 
 
 from .utils import plot_ball_motion, plot_energy
@@ -32,7 +33,10 @@ class PhysicsTests(TestCase):
 
     def test_strike_ball(self):
         test_name = traceback.extract_stack(None, 1)[0][2]
-        self.physics.on_table[1:] = False
+        on_table = np.array(self.physics.num_balls*[False])
+        on_table[:1] = True
+        self.physics.reset(on_table=on_table,
+                           ball_positions=self.physics.ball_positions)
         r_c = self.physics.ball_positions[0].copy()
         r_c[2] += self.physics.ball_radius
         self.cue.velocity[2] = -0.8
@@ -44,13 +48,32 @@ class PhysicsTests(TestCase):
         self.assertIsInstance(events[1], BallSlidingEvent)
         self.assertIsInstance(events[2], BallRollingEvent)
         self.assertIsInstance(events[3], BallRestEvent)
-        plot_ball_motion(0, self.game, title=test_name, coords=(0,2), filename=os.path.join(PLOTS_DIR, test_name + '.png'))
+        plot_ball_motion(0, self.game, title=test_name, coords=(0,2),
+                         filename=os.path.join(PLOTS_DIR, test_name + '.png'))
         plot_energy(self.game, title=test_name + ' - energy', t_1=8.0, filename=os.path.join(PLOTS_DIR, test_name + '_energy.png'))
-        # savefig(os.path.join(PLOTS_DIR, test_name + '.png'))
-        # savefig(os.path.join(PLOTS_DIR, test_name + '_energy.png'))
-        # if self.show:
-        #     show(self.game, title=test_name,
-        #          screenshots_dir=SCREENSHOTS_DIR)
+
+
+    def test_ball_collision(self):
+        test_name = traceback.extract_stack(None, 1)[0][2]
+        on_table = np.array(self.physics.num_balls*[False])
+        on_table[:2] = True
+        ball_positions = self.physics.ball_positions.copy()
+        ball_positions[1] = ball_positions[0]; ball_positions[1,2] -= 4 * self.physics.ball_radius
+        self.physics.reset(on_table=on_table,
+                           ball_positions=ball_positions)
+        start_event = BallRollingEvent(0, 0, self.physics.ball_positions[0], np.array((0.0, 0.0, -1.0)))
+        events = self.physics.add_event_sequence(start_event)
+        _logger.debug('%d events added:\n%s', len(events), self.physics.events_str(events=events))
+        plot_ball_motion(0, self.game, title=test_name, coords=(0,2),
+                         collision_depth=1,
+                         filename=os.path.join(PLOTS_DIR, test_name + '.png'))
+        plot_ball_motion(0, self.game, title=test_name, coords=(0,2),
+                         collision_depth=1,
+                         t_0=events[0].t, t_1=events[0].t + events[0].T,
+                         filename=os.path.join(PLOTS_DIR, test_name + '-truncate-end.png'))
+        #plot_ball_motion(i, self.game, title=test_name, coords=0)
+        #plot_energy(self.game, title=test_name + ' - energy', t_1=8.0, filename=os.path.join(PLOTS_DIR, test_name + '_energy.png'))
+
 
     # def test_simple_ball_collision(self):
     #     self.physics = PoolPhysics(num_balls=self.game.num_balls,
@@ -69,7 +92,6 @@ class PhysicsTests(TestCase):
     #     n_events = self.physics.strike_ball(0.0, i, Q, self.cue.velocity, self.cue.mass)
     #     _logger.debug('strike on %d resulted in %d events', i, n_events)
     #     test_name = traceback.extract_stack(None, 1)[0][2]
-    #     plot_ball_motion(i, self.game, title=test_name, coords=0)
     #     savefig(os.path.join(PLOTS_DIR, '%s-%s.png' % (test_name, 'x')))
     #     plot_ball_motion(i, self.game, title=test_name, coords=2)
     #     savefig(os.path.join(PLOTS_DIR, '%s-%s.png' % (test_name, 'z')))
