@@ -58,19 +58,16 @@ class PhysicsTests(TestCase):
         on_table = np.array(self.physics.num_balls*[False])
         on_table[:2] = True
         ball_positions = self.physics.ball_positions.copy()
-        ball_positions[1] = ball_positions[0]; ball_positions[1,2] -= 4 * self.physics.ball_radius
+        ball_positions[1] = ball_positions[0]; ball_positions[1,2] -= 8 * self.physics.ball_radius
         self.physics.reset(on_table=on_table,
                            ball_positions=ball_positions)
-        start_event = BallRollingEvent(0, 0, self.physics.ball_positions[0], np.array((0.0, 0.0, -1.0)))
+        start_event = BallRollingEvent(0, 0, self.physics.ball_positions[0], np.array((0.0, 0.0, -0.5)))
         events = self.physics.add_event_sequence(start_event)
         _logger.debug('%d events added:\n%s', len(events), self.physics.events_str(events=events))
         plot_ball_motion(0, self.game, title=test_name, coords=(0,2),
                          collision_depth=1,
-                         filename=os.path.join(PLOTS_DIR, test_name + '.png'))
-        plot_ball_motion(0, self.game, title=test_name, coords=(0,2),
-                         collision_depth=1,
-                         t_0=events[0].t, t_1=events[0].t + events[0].T,
-                         filename=os.path.join(PLOTS_DIR, test_name + '-truncate-end.png'))
+                         filename=os.path.join(PLOTS_DIR, test_name + '.png'),
+                         t_0=0.0, t_1=2.0)
         #plot_ball_motion(i, self.game, title=test_name, coords=0)
         #plot_energy(self.game, title=test_name + ' - energy', t_1=8.0, filename=os.path.join(PLOTS_DIR, test_name + '_energy.png'))
 
