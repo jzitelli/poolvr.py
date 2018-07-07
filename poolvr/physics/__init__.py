@@ -15,7 +15,7 @@ from itertools import chain
 import numpy as np
 
 
-from .events import CueStrikeEvent, BallEvent, BallMotionEvent, BallRestEvent, BallCollisionEvent
+from .events import CueStrikeEvent, BallEvent, BallMotionEvent, BallRestEvent, BallCollisionEvent, SimpleBallCollisionEvent
 from ..table import PoolTable
 
 
@@ -188,10 +188,10 @@ class PoolPhysics(object):
             t_c, i, j = next_collision
             tau_i, tau_j = t_c - e_i.t, t_c - e_j.t
             _logger.debug('tau_i, tau_j = %s, %s', tau_i, tau_j)
-            return BallCollisionEvent(t_c, i, j,
-                                      e_i.eval_position(tau_i),         e_j.eval_position(tau_j),
-                                      e_i.eval_velocity(tau_i),         e_j.eval_velocity(tau_j),
-                                      e_i.eval_angular_velocity(tau_i), e_j.eval_angular_velocity(tau_j))
+            return SimpleBallCollisionEvent(t_c, i, j,
+                                            e_i.eval_position(tau_i),         e_j.eval_position(tau_j),
+                                            e_i.eval_velocity(tau_i),         e_j.eval_velocity(tau_j),
+                                            e_i.eval_angular_velocity(tau_i), e_j.eval_angular_velocity(tau_j))
         else:
             return next_motion_event
 

@@ -206,6 +206,7 @@ class BallRollingEvent(BallMotionEvent):
         omega_0 = v_0 / self.ball_radius; omega_0[::2] = -omega_0[::-2]
         super().__init__(t, i, T=T, r_0=r_0, v_0=v_0, omega_0=omega_0, **kwargs)
         self._a[2] = -0.5 * self.mu_r * self.g * v_0 / v_0_mag
+        _logger.debug('T = %s', T)
         self._b[1] = -omega_0 / T
         self._next_motion_event = BallRestEvent(t + T, i, r=self.eval_position(T))
 
@@ -265,8 +266,7 @@ class CueStrikeEvent(BallEvent):
 class BallCollisionEvent(PhysicsEvent):
     def __init__(self, t, i, j, r_i, r_j, v_i, v_j, omega_i, omega_j):
         super().__init__(t)
-        self.i = i
-        self.j = j
+        self.i, self.j = i, j
         v_ij = v_j - v_i
         v_ij_mag = np.linalg.norm(v_ij)
         delta_t = 284e-6 / v_ij_mag**0.294
@@ -278,8 +278,6 @@ class BallCollisionEvent(PhysicsEvent):
                 abs(self.ball_mass * v_ij.dot(_i)))
         v_i_1 = v_i - (J / self.ball_mass) * _i
         v_j_1 = v_j + (J / self.ball_mass) * _i
-        #v_i_1 = v_i - ((J / self.ball_mass) * v_ij.dot(_i) / v_ij_mag) * _i
-        #v_j_1 = v_j + ((J / self.ball_mass) * v_ij.dot(_i) / v_ij_mag) * _i
         self._v_i_1, self._v_j_1 = v_i_1, v_j_1
         self._child_events = (BallRollingEvent(t, i, r_i, v_i_1, parent_event=self),
                               BallRollingEvent(t, j, r_j, v_j_1, parent_event=self))
@@ -289,11 +287,37 @@ class BallCollisionEvent(PhysicsEvent):
     @property
     def key(self):
         return (self.t, min(self.i,self.j), max(self.i,self.j))
+    def __hash__(self):
+        return hash((self.__class__.__name__, self.i, self.j, self.t))
+    def __eq__(self, other):
+        return type(self) == type(other) and self.i == other.i and self.j == other.j and self.t == other.t
     def __str__(self):
         return super().__str__()[:-1] + ' i=%s j=%s v_i_1=%s v_j_1=%s>' % (
             self.i, self.j, self._v_i_1, self._v_j_1)
-    def __eq__(self, other):
-        return self.__class__ == other.__class__ and self.t == other.t and self.T == other.T \
-            and self.i == other.i and self.j == other.j
-    def __hash__(self):
-        return hash((self.__class__.__name__, self.i, self.j, self.t))
+
+
+class SimpleBallCollisionEvent(PhysicsEvent):
+    _ZERO_TOLERANCE = 0.0
+    # TODO: pass events to constructor
+    def __init__(self, t, i, j, r_i, r_j, v_i, v_j, omega_i, omega_j):
+        super().__init__(t)
+        self.i = i
+        self.j = j
+        r_ij = r_j - r_i
+        _i = r_ij / np.linalg.norm(r_ij)
+        v_j_1 = v_i.dot(_i) * _i
+        v_i_1 = v_i - v_j_1
+        self.v_i_1, self.v_j_1 = v_i_1, v_j_1
+        self._child_events = (
+            BallRestEvent(t, i, r_i, parent_event=self) if not v_i_1.any()
+            else BallRollingEvent(t, i, r_i, v_i_1, parent_event=self),
+
+            BallRestEvent(t, j, r_j, parent_event=self) if not v_j_1.any()
+            else BallRollingEvent(t, j, r_j, v_j_1, parent_event=self)
+        )
+    @property
+    def child_events(self):
+        return self._child_events
+    @property
+    def key(self):
+        return (self.t, min(self.i,self.j), max(self.i,self.j))

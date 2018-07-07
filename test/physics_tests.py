@@ -10,7 +10,7 @@ _logger = logging.getLogger(__name__)
 
 from poolvr.cue import PoolCue
 from poolvr.game import PoolGame
-from poolvr.physics.events import CueStrikeEvent, BallSlidingEvent, BallRollingEvent, BallRestEvent, BallCollisionEvent
+from poolvr.physics.events import CueStrikeEvent, BallSlidingEvent, BallRollingEvent, BallRestEvent
 
 
 from .utils import plot_ball_motion, plot_energy
@@ -61,15 +61,17 @@ class PhysicsTests(TestCase):
         ball_positions[1] = ball_positions[0]; ball_positions[1,2] -= 8 * self.physics.ball_radius
         self.physics.reset(on_table=on_table,
                            ball_positions=ball_positions)
-        start_event = BallRollingEvent(0, 0, self.physics.ball_positions[0], np.array((0.0, 0.0, -0.5)))
+        start_event = BallSlidingEvent(0, 0, r_0=self.physics.ball_positions[0],
+                                       v_0=np.array((0.0, 0.0, -0.6)),
+                                       omega_0=np.zeros(3, dtype=np.float64))
         events = self.physics.add_event_sequence(start_event)
         _logger.debug('%d events added:\n%s', len(events), self.physics.events_str(events=events))
         plot_ball_motion(0, self.game, title=test_name, coords=(0,2),
                          collision_depth=1,
                          filename=os.path.join(PLOTS_DIR, test_name + '.png'),
                          t_0=0.0, t_1=2.0)
-        #plot_ball_motion(i, self.game, title=test_name, coords=0)
-        #plot_energy(self.game, title=test_name + ' - energy', t_1=8.0, filename=os.path.join(PLOTS_DIR, test_name + '_energy.png'))
+        plot_energy(self.game, title=test_name + ' - energy',
+                    filename=os.path.join(PLOTS_DIR, test_name + '_energy.png'))
 
 
     # def test_simple_ball_collision(self):

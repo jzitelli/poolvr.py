@@ -1,7 +1,7 @@
 import logging
 import numpy as np
 import matplotlib.pyplot as plt
-from poolvr.physics.events import CueStrikeEvent, BallSlidingEvent, BallRollingEvent, BallRestEvent, BallCollisionEvent
+from poolvr.physics.events import CueStrikeEvent, BallSlidingEvent, BallRollingEvent, BallRestEvent, BallCollisionEvent, SimpleBallCollisionEvent
 
 _logger = logging.getLogger(__name__)
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
@@ -9,7 +9,9 @@ logging.getLogger('matplotlib').setLevel(logging.WARNING)
 EVENT_COLORS = {CueStrikeEvent: 'green',
                 BallSlidingEvent: 'yellow',
                 BallRollingEvent: 'orange',
-                BallRestEvent: 'red'}
+                BallRestEvent: 'red',
+                BallCollisionEvent: 'blue',
+                SimpleBallCollisionEvent: 'blue'}
 BALL_COLORS = {0: 'gray',
                1: 'yellow',
                2: 'blue',
@@ -54,11 +56,12 @@ def plot_ball_motion(i, game, title=None, nt=1000,
     for i_e, e in enumerate(events):
         if e.i != i:
             continue
-        if isinstance(e.parent_event, BallCollisionEvent):
+        if isinstance(e.parent_event, (BallCollisionEvent, SimpleBallCollisionEvent)):
             parent = e.parent_event
             if event_markers:
                 plt.axvline(e.t, color=BALL_COLORS[parent.i], ymax=0.5, linewidth=linewidth)
                 plt.axvline(e.t, color=BALL_COLORS[parent.j], ymin=0.5, linewidth=linewidth)
+                #plt.scatter(x, y, s=None, c=None, marker=None, cmap=None, norm=None, vmin=None, vmax=None, alpha=None, linewidths=None, verts=None, edgecolors=None, hold=None, data=None, **kwarg
             if collision_depth > 0:
                 e_i, e_j = parent.child_events
                 other_ball_event = e_j if parent.i == e.i else e_i
@@ -114,3 +117,4 @@ def plot_energy(game, title=None, nt=1000,
             _logger.info('...saved figure to %s', filename)
         except Exception as err:
             _logger.warning('error saving figure:\n%s', err)
+    plt.show()
