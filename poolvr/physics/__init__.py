@@ -15,7 +15,7 @@ from itertools import chain
 import numpy as np
 
 
-from .events import CueStrikeEvent, BallEvent, BallMotionEvent, BallRestEvent, BallCollisionEvent, SimpleBallCollisionEvent
+from .events import CueStrikeEvent, BallEvent, BallMotionEvent, BallRestEvent, DefaultBallCollisionEvent, SimpleBallCollisionEvent
 from ..table import PoolTable
 
 
@@ -61,6 +61,10 @@ class PoolPhysics(object):
                  initial_positions=None,
                  use_simple_ball_collisions=False,
                  **kwargs):
+        if use_simple_ball_collisions:
+            self._ball_collision_event_class = SimpleBallCollisionEvent
+        else:
+            self._ball_collision_event_class = DefaultBallCollisionEvent
         self.num_balls = num_balls
         self.ball_mass = ball_mass
         self.ball_radius = ball_radius
@@ -138,7 +142,6 @@ class PoolPhysics(object):
         if events is None:
             events = self.events
         return sep.join('%3d (%5.5f, %5.5f): %s' % (i_e, e.t, e.t+e.T, e) for i_e, e in enumerate(events))
-        #return ('\n\n' + 72*'-'[:] + '\n\n').join('%s: %s' % (i_e, str(e)) for i_e, e in enumerate(self.events[num_events:]))
 
     def _add_event(self, event):
         _logger.debug('adding event: %s', event)
@@ -187,28 +190,25 @@ class PoolPhysics(object):
                                            or next_collision[0] < next_motion_event.t):
             t_c, i, j = next_collision
             tau_i, tau_j = t_c - e_i.t, t_c - e_j.t
-            _logger.debug('tau_i, tau_j = %s, %s', tau_i, tau_j)
-            return SimpleBallCollisionEvent(t_c, i, j,
-                                            e_i.eval_position(tau_i),         e_j.eval_position(tau_j),
-                                            e_i.eval_velocity(tau_i),         e_j.eval_velocity(tau_j),
-                                            e_i.eval_angular_velocity(tau_i), e_j.eval_angular_velocity(tau_j))
+            return self._ball_collision_event_class(
+                t_c, i, j,
+                e_i.eval_position(tau_i),         e_j.eval_position(tau_j),
+                e_i.eval_velocity(tau_i),         e_j.eval_velocity(tau_j),
+                e_i.eval_angular_velocity(tau_i), e_j.eval_angular_velocity(tau_j)
+            )
         else:
             return next_motion_event
 
     def _find_collision(self, e_i, e_j):
-        if e_i.parent_event:
-            _logger.debug('e_i.parent_event = %s', e_i.parent_event)
-        if e_j.parent_event:
-            _logger.debug('e_j.parent_event = %s', e_j.parent_event)
+        # if e_i.parent_event:
+        #     _logger.debug('e_i.parent_event = %s', e_i.parent_event)
+        # if e_j.parent_event:
+        #     _logger.debug('e_j.parent_event = %s', e_j.parent_event)
         if e_j.parent_event and e_i.parent_event and e_j.parent_event == e_i.parent_event:
             return None
         t0 = max(e_i.t, e_j.t)
         t1 = min(e_i.t + e_i.T, e_j.t + e_j.T)
-        # t0, t1 = sorted((e_i.t,
-        #                  e_j.t,
-        #                  e_i.t+e_i.T,
-        #                  e_j.t+, e_j.T))[1:3]
-        _logger.debug('t0, t1 = %s', (t0,t1))
+        _logger.debug('t0, t1 = %s', (t0, t1))
         if t0 < self.t:
             _logger.debug('skipping because in the past')
             return None
@@ -314,7 +314,7 @@ class PoolPhysics(object):
         """
         Return the time at which all balls have come to rest.
         """
-        return self.events[-1].t if self.events else None
+        return self.events[-1].t if self.events and isinstance(self.events[-1], BallRestEvent) else None
 
     def step(self, dt):
         self.t += dt

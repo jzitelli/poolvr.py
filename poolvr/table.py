@@ -161,20 +161,18 @@ class PoolTable(object):
                 mesh.world_position[:] = ball_positions[i]
         return ball_meshes
 
-    def calc_racked_positions(self, num_balls=16,
-                              d=None,
+    def calc_racked_positions(self, num_balls=16, d=None,
                               out=None):
+        if out is None:
+            out = np.empty((num_balls, 3), dtype=np.float32)
         ball_radius = 0.5 * self.ball_diameter
         if d is None:
             d = 0.04 * ball_radius
-        if out is None:
-            out = np.empty((num_balls, 3), dtype=np.float32)
-        height = self.height
         length = self.length
         ball_diameter = self.ball_diameter
         # triangle racked:
-        out[:,1] = height + ball_radius + 0.005
-        side_length = 4 * (ball_diameter + d)
+        out[:,1] = self.height + ball_radius + 0.005
+        side_length = 4 * (self.ball_diameter + d)
         x_positions = np.concatenate([np.linspace(0,                        0.5 * side_length,                         5),
                                       np.linspace(-0.5*(ball_diameter + d), 0.5 * side_length - (ball_diameter + d),   4),
                                       np.linspace(-(ball_diameter + d),     0.5 * side_length - 2*(ball_diameter + d), 3),
