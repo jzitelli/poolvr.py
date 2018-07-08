@@ -82,7 +82,7 @@ class PoolPhysics(object):
         self.t = 0.0
         self.balls_in_motion = set()
         self.on_table = np.array(on_table)
-        self.balls_on_table = set(i for i in range(self.num_balls) if self.on_table[i])
+        self._balls_on_table = set(i for i in range(self.num_balls) if self.on_table[i])
         self._a = np.zeros((num_balls, 3, 3), dtype=np.float64)
         self._b = np.zeros((num_balls, 2, 3), dtype=np.float64)
         self.ball_positions = self._a[:,0]
@@ -91,9 +91,21 @@ class PoolPhysics(object):
             initial_positions = PoolTable().calc_racked_positions(num_balls=num_balls)
         self.ball_positions[:] = initial_positions
         self.ball_events = {i: [BallRestEvent(self.t, i, r=self.ball_positions[i])]
-                            for i in self.balls_on_table}
-        self.events = [self.ball_events[i][0] for i in self.balls_on_table]
+                            for i in self._balls_on_table}
+        self.events = [self.ball_events[i][0] for i in self._balls_on_table]
         self._ball_motion_events = {}
+
+    @property
+    def balls_on_table(self):
+        return self._balls_on_table
+
+    @balls_on_table.setter
+    def balls_on_table(self, balls):
+        self._balls_on_table = set(balls)
+        self.on_table[:] = False
+        self.on_table[np.array(balls)] = True
+        self.ball_events = {i: [BallRestEvent(self.t, i, r=self.ball_positions[i])]
+                            for i in balls}
 
     def reset(self, ball_positions=None, on_table=None):
         """
@@ -108,9 +120,9 @@ class PoolPhysics(object):
             self.on_table[:] = True
         else:
             self.on_table[:] = on_table
-        self.balls_on_table = set(i for i in range(self.num_balls) if self.on_table[i])
+        self._balls_on_table = set(i for i in range(self.num_balls) if self.on_table[i])
         self.ball_events = {i: [BallRestEvent(self.t, i, r=self.ball_positions[i])]
-                            for i in self.balls_on_table}
+                            for i in self._balls_on_table}
         self.events = list(chain.from_iterable(self.ball_events.values()))
         self._ball_motion_events.clear()
 

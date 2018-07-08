@@ -26,10 +26,11 @@ def pool_table():
     return PoolTable()
 
 
-@pytest.fixture
-def pool_physics(pool_table):
+@pytest.fixture()
+def pool_physics(request, pool_table):
     return PoolPhysics(initial_positions=np.array(pool_table.calc_racked_positions(), dtype=np.float64),
                        use_simple_ball_collisions=True)
+
 
 
 @pytest.fixture
@@ -40,8 +41,7 @@ def plot_result():
 def test_strike_ball(pool_physics):
     test_name = 'test_strike_ball'
     physics = pool_physics
-    physics.on_table[1:] = False
-    physics.balls_on_table = set([0])
+    physics.balls_on_table = [0]
     cue = PoolCue()
     r_c = physics.ball_positions[0].copy()
     r_c[2] += physics.ball_radius
@@ -49,45 +49,38 @@ def test_strike_ball(pool_physics):
     events = physics.strike_ball(0.0, 0, r_c, cue.velocity, cue.mass)
     _logger.debug('strike on %d resulted in %d events: %s', 0, len(events),
                   '\n'.join(str(e) for e in events))
-    # assert(4 == len(events))
-    # assert(isinstance(events[0], CueStrikeEvent))
-    # assert(isinstance(events[1], BallSlidingEvent))
-    # assert(isinstance(events[2], BallRollingEvent))
-    # assert(isinstance(events[3], BallRestEvent))
+    assert(4 == len(events))
+    assert(isinstance(events[0], CueStrikeEvent))
+    assert(isinstance(events[1], BallSlidingEvent))
+    assert(isinstance(events[2], BallRollingEvent))
+    assert(isinstance(events[3], BallRestEvent))
     plot_ball_motion(0, physics, title=test_name, coords=(0,2),
                      filename=os.path.join(PLOTS_DIR, test_name + '.png'))
     plot_energy(physics, title=test_name + ' - energy', t_1=8.0, filename=os.path.join(PLOTS_DIR, test_name + '_energy.png'))
 
 
+def test_ball_collision(pool_physics):
+    test_name = 'test_ball_collision'
+    physics = pool_physics
+    physics.ball_positions[1] = physics.ball_positions[0]
+    physics.ball_positions[1,2] -= 8 * physics.ball_radius
+    physics.balls_on_table = [0, 1]
+    start_event = BallSlidingEvent(0, 0, r_0=physics.ball_positions[0],
+                                   v_0=np.array((0.0, 0.0, -0.6)),
+                                   omega_0=np.zeros(3, dtype=np.float64))
+    events = physics.add_event_sequence(start_event)
+    _logger.debug('%d events added:\n%s', len(events), physics.events_str(events=events))
+    plot_ball_motion(0, physics, title=test_name, coords=(0,2),
+                     collision_depth=1,
+                     filename=os.path.join(PLOTS_DIR, test_name + '.png'),
+                     t_0=0.0, t_1=2.0)
+    plot_energy(physics, title=test_name + ' - energy',
+                filename=os.path.join(PLOTS_DIR, test_name + '_energy.png'))
 
 
-# class PhysicsTests(TestCase):
-#     show = False
-#     def setUp(self):
-#         self.playback_rate = 1
 
 
 
-
-#     def test_ball_collision(self):
-#         test_name = traceback.extract_stack(None, 1)[0][2]
-#         on_table = np.array(self.physics.num_balls*[False])
-#         on_table[:2] = True
-#         ball_positions = self.physics.ball_positions.copy()
-#         ball_positions[1] = ball_positions[0]; ball_positions[1,2] -= 8 * self.physics.ball_radius
-#         self.physics.reset(on_table=on_table,
-#                            ball_positions=ball_positions)
-#         start_event = BallSlidingEvent(0, 0, r_0=self.physics.ball_positions[0],
-#                                        v_0=np.array((0.0, 0.0, -0.6)),
-#                                        omega_0=np.zeros(3, dtype=np.float64))
-#         events = self.physics.add_event_sequence(start_event)
-#         _logger.debug('%d events added:\n%s', len(events), self.physics.events_str(events=events))
-#         plot_ball_motion(0, self.physics, title=test_name, coords=(0,2),
-#                          collision_depth=1,
-#                          filename=os.path.join(PLOTS_DIR, test_name + '.png'),
-#                          t_0=0.0, t_1=2.0)
-#         plot_energy(self.physics, title=test_name + ' - energy',
-#                     filename=os.path.join(PLOTS_DIR, test_name + '_energy.png'))
 
 
 #     # def test_simple_ball_collision(self):
