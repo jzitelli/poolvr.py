@@ -63,18 +63,8 @@ def plot_ball_motion(i, physics, table=None,
         for e in events:
             plt.axvline(e.t, color=EVENT_COLORS[type(e)], linewidth=linewidth)
     for i_e, e in enumerate(events):
-        # if e.i != i:
-        #     continue
         if isinstance(e.parent_event, BallCollisionEvent):
             parent = e.parent_event
-            # if event_markers:
-            #     plt.axvline(e.t, color=BALL_COLORS[parent.i], ymax=0.5, linewidth=linewidth)
-            #     plt.axvline(e.t, color=BALL_COLORS[parent.j], ymin=0.5, linewidth=linewidth)
-            #     for child in parent.child_events:
-            #         plt.scatter([child.t, child.t], child.eval_position(0)[::2],
-            #                     s=100, c=BALL_COLORS[child.i])
-            #             #marker=None, cmap=None, norm=None, vmin=None, vmax=None, alpha=None,
-            #             #linewidths=None, verts=None, edgecolors=None, hold=None, data=None, **kwarg
             if collision_depth > 0:
                 e_i, e_j = parent.child_events
                 other_ball_event = e_j if parent.i == e.i else e_i
@@ -91,16 +81,15 @@ def plot_ball_motion(i, physics, table=None,
                      ['-', '-.', '--'][coord], color=BALL_COLORS[i],
                      label='ball %d (%s)' % (i, 'xyz'[coord]),
                      linewidth=linewidth)
-    if collision_markers:
-        for i_e, e in enumerate(events):
-            if isinstance(e.parent_event, BallCollisionEvent):
-                parent = e.parent_event
-                plt.axvline(e.t, color=BALL_COLORS[parent.i], ymax=0.5, linewidth=linewidth)
-                plt.axvline(e.t, color=BALL_COLORS[parent.j], ymin=0.5, linewidth=linewidth)
-                for child in parent.child_events:
-                    plt.scatter([child.t, child.t], child.eval_position(0)[::2],
-                                s=110, c=BALL_COLORS[child.i])
     if not hold:
+        if collision_markers:
+            for i_e, e in enumerate(events):
+                if isinstance(e.parent_event, BallCollisionEvent):
+                    parent = e.parent_event
+                    for child in parent.child_events:
+                        r = child.eval_position(0)
+                        plt.gcf().gca().add_patch(plt.Circle((child.t, r[0]), physics.ball_radius, color=BALL_COLORS[child.i]))
+                        plt.gcf().gca().add_patch(plt.Circle((child.t, r[2]), physics.ball_radius, color=BALL_COLORS[child.i]))
         plt.legend()
         if filename:
             try:
@@ -126,8 +115,6 @@ def plot_energy(physics, title=None, nt=1000,
     plt.ylabel('energy (Joules)')
     for e in events:
         plt.axvline(e.t, color=EVENT_COLORS[type(e)])
-        #if e.T < float('inf'):
-        #    plt.axvline(e.t + e.T, color='red')
     ts = np.linspace(t_0, t_1, nt)
     ts = np.concatenate([[a.t] + list(ts[(ts >= a.t) & (ts < b.t)]) + [b.t]
                          for a, b in zip(events[:-1], events[1:])])
