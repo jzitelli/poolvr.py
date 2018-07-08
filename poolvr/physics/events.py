@@ -302,7 +302,6 @@ class DefaultBallCollisionEvent(BallCollisionEvent):
         )
 
 
-
 class SimpleBallCollisionEvent(BallCollisionEvent):
     # TODO: pass events to constructor
     def __init__(self, t, i, j, r_i, r_j, v_i, v_j, omega_i, omega_j):

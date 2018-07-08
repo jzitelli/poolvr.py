@@ -58,17 +58,17 @@ class PoolPhysics(object):
                  c_b=4000.0,
                  E_Y_b=2.4e9,
                  g=9.81,
-                 on_table=None,
+                 balls_on_table=None,
                  initial_positions=None,
                  use_simple_ball_collisions=False,
                  **kwargs):
-        if on_table is None:
-            on_table = num_balls * [True]
+        self.num_balls = num_balls
+        if balls_on_table is None:
+            balls_on_table = range(self.num_balls)
         if use_simple_ball_collisions:
             self._ball_collision_event_class = SimpleBallCollisionEvent
         else:
             self._ball_collision_event_class = DefaultBallCollisionEvent
-        self.num_balls = num_balls
         self.ball_mass = ball_mass
         self.ball_radius = ball_radius
         self.ball_I = 2/5 * ball_mass * ball_radius**2 # moment of inertia
@@ -80,51 +80,50 @@ class PoolPhysics(object):
         self.E_Y_b = E_Y_b
         self.g = g
         self.t = 0.0
-        self.balls_in_motion = set()
-        self.on_table = np.array(on_table)
-        self._balls_on_table = set(i for i in range(self.num_balls) if self.on_table[i])
         self._a = np.zeros((num_balls, 3, 3), dtype=np.float64)
         self._b = np.zeros((num_balls, 2, 3), dtype=np.float64)
         self.ball_positions = self._a[:,0]
         self.ball_velocities = self._a[:,1]
-        if initial_positions is None:
-            initial_positions = PoolTable().calc_racked_positions(num_balls=num_balls)
-        self.ball_positions[:] = initial_positions
-        self.ball_events = {i: [BallRestEvent(self.t, i, r=self.ball_positions[i])]
-                            for i in self._balls_on_table}
-        self.events = [self.ball_events[i][0] for i in self._balls_on_table]
-        self._ball_motion_events = {}
+        self._on_table = np.array(self.num_balls * [True])
+        self.reset(ball_positions=initial_positions, balls_on_table=balls_on_table)
+        # self.balls_in_motion = set()
+        # self._on_table = np.array(on_table)
+        # self._balls_on_table = set(i for i in range(self.num_balls) if self._on_table[i])
+        # if initial_positions is None:
+        #     initial_positions = PoolTable().calc_racked_positions(num_balls=num_balls)
+        # self.ball_positions[:] = initial_positions
+        # self.ball_events = {i: [BallRestEvent(self.t, i, r=self.ball_positions[i])]
+        #                     for i in self._balls_on_table}
 
-    @property
-    def balls_on_table(self):
-        return self._balls_on_table
-
-    @balls_on_table.setter
-    def balls_on_table(self, balls):
-        self._balls_on_table = set(balls)
-        self.on_table[:] = False
-        self.on_table[np.array(balls)] = True
-        self.ball_events = {i: [BallRestEvent(self.t, i, r=self.ball_positions[i])]
-                            for i in balls}
-
-    def reset(self, ball_positions=None, on_table=None):
+    def reset(self, ball_positions=None, balls_on_table=None):
         """
         Reset the state of the balls to at rest, at the specified positions.
         """
         self.t = 0
         self._a[:] = 0
         self._b[:] = 0
+        self._ball_motion_events = {}
+        if ball_positions is None:
+            ball_positions = PoolTable().calc_racked_positions(num_balls=self.num_balls)
         self.ball_positions[:] = ball_positions
+        if balls_on_table is None:
+            balls_on_table = range(self.num_balls)
+        self.balls_on_table = balls_on_table
         self.balls_in_motion = set()
-        if on_table is None:
-            self.on_table[:] = True
-        else:
-            self.on_table[:] = on_table
-        self._balls_on_table = set(i for i in range(self.num_balls) if self.on_table[i])
         self.ball_events = {i: [BallRestEvent(self.t, i, r=self.ball_positions[i])]
-                            for i in self._balls_on_table}
+                            for i in balls_on_table}
         self.events = list(chain.from_iterable(self.ball_events.values()))
         self._ball_motion_events.clear()
+
+    @property
+    def balls_on_table(self):
+        return set(self._balls_on_table)
+
+    @balls_on_table.setter
+    def balls_on_table(self, balls):
+        self._balls_on_table = set(balls)
+        self._on_table[:] = False
+        self._on_table[np.array(balls)] = True #self._balls_on_table, dtype=np.int)] = True
 
     def add_cue(self, cue):
         body = _create_cue(cue.mass, cue.radius, cue.length)
@@ -139,7 +138,7 @@ class PoolPhysics(object):
         :param r_c: point of contact
         :param V: impact velocity
         """
-        if not self.on_table[i]:
+        if not self._on_table[i]:
             return
         event = CueStrikeEvent(t, i, self.ball_positions[i], r_c, V, cue_mass)
         return self.add_event_sequence(event)
@@ -153,13 +152,12 @@ class PoolPhysics(object):
         num_added_events = len(self.events) - num_events
         return self.events[-num_added_events:]
 
-    def events_str(self, events=None, sep='\n\n'):
+    def events_str(self, events=None, sep='\n\n' + 48*'-' + '\n\n'):
         if events is None:
             events = self.events
         return sep.join('%3d (%5.5f, %5.5f): %s' % (i_e, e.t, e.t+e.T, e) for i_e, e in enumerate(events))
 
     def _add_event(self, event):
-        _logger.debug('adding event: %s', event)
         self.events.append(event)
         if isinstance(event, BallEvent):
             if self.ball_events[event.i]:
@@ -179,7 +177,6 @@ class PoolPhysics(object):
 
     def _determine_next_event(self):
         ball_motion_events = list(sorted(self._ball_motion_events.values()))
-        #_logger.debug('ball_motion_events:\n%s', '\n'.join(str(e) for e in ball_motion_events))
         next_motion_events = [e.next_motion_event
                               for e in ball_motion_events if e.next_motion_event is not None]
         next_motion_events.sort()
@@ -187,7 +184,6 @@ class PoolPhysics(object):
             next_motion_event = next_motion_events[0]
         else:
             next_motion_event = None
-        #_logger.debug('next_motion_event:\n%s', next_motion_event)
         collision_times = {}
         next_collision = None
         for i in self.balls_in_motion:
@@ -215,15 +211,10 @@ class PoolPhysics(object):
             return next_motion_event
 
     def _find_collision(self, e_i, e_j):
-        # if e_i.parent_event:
-        #     _logger.debug('e_i.parent_event = %s', e_i.parent_event)
-        # if e_j.parent_event:
-        #     _logger.debug('e_j.parent_event = %s', e_j.parent_event)
         if e_j.parent_event and e_i.parent_event and e_j.parent_event == e_i.parent_event:
             return None
         t0 = max(e_i.t, e_j.t)
         t1 = min(e_i.t + e_i.T, e_j.t + e_j.T)
-        _logger.debug('t0, t1 = %s', (t0, t1))
         if t0 < self.t:
             _logger.debug('skipping because in the past')
             return None
@@ -339,7 +330,7 @@ class PoolPhysics(object):
 
     def _calc_energy(self, t, balls=None):
         if balls is None:
-            balls = self.balls_on_table #(i for i in range(self.num_balls) if self.on_table[i])
+            balls = self.balls_on_table
         velocities = self.eval_velocities(t, balls=balls)
         omegas = self.eval_angular_velocities(t, balls=balls)
         return self.ball_mass * (velocities**2).sum() / 2 + self.ball_I * (omegas**2).sum() / 2
