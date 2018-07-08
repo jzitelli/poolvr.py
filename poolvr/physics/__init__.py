@@ -27,6 +27,7 @@ def _create_cue(cue_mass, cue_radius, cue_length):
     try:
         import ode
     except ImportError as err:
+        _logger.error('could not import ode: %s', err)
         from .. import fake_ode as ode
     body = ode.Body(ode.World())
     mass = ode.Mass()
@@ -108,9 +109,7 @@ class PoolPhysics(object):
                             for i in balls}
 
     def reset(self, ball_positions=None, on_table=None):
-        """
-        Reset the state of the balls to at rest, at the specified positions.
-        """
+        """Reset the state of the balls to at rest, at the specified positions."""
         self.t = 0
         self._a[:] = 0
         self._b[:] = 0
@@ -159,7 +158,6 @@ class PoolPhysics(object):
         return sep.join('%3d (%5.5f, %5.5f): %s' % (i_e, e.t, e.t+e.T, e) for i_e, e in enumerate(events))
 
     def _add_event(self, event):
-        _logger.debug('adding event: %s', event)
         self.events.append(event)
         if isinstance(event, BallEvent):
             if self.ball_events[event.i]:
@@ -179,7 +177,6 @@ class PoolPhysics(object):
 
     def _determine_next_event(self):
         ball_motion_events = list(sorted(self._ball_motion_events.values()))
-        #_logger.debug('ball_motion_events:\n%s', '\n'.join(str(e) for e in ball_motion_events))
         next_motion_events = [e.next_motion_event
                               for e in ball_motion_events if e.next_motion_event is not None]
         next_motion_events.sort()
@@ -187,7 +184,6 @@ class PoolPhysics(object):
             next_motion_event = next_motion_events[0]
         else:
             next_motion_event = None
-        #_logger.debug('next_motion_event:\n%s', next_motion_event)
         collision_times = {}
         next_collision = None
         for i in self.balls_in_motion:
@@ -205,20 +201,11 @@ class PoolPhysics(object):
                                            or next_collision[0] < next_motion_event.t):
             t_c, i, j = next_collision
             tau_i, tau_j = t_c - e_i.t, t_c - e_j.t
-            return self._ball_collision_event_class(
-                t_c, i, j,
-                e_i.eval_position(tau_i),         e_j.eval_position(tau_j),
-                e_i.eval_velocity(tau_i),         e_j.eval_velocity(tau_j),
-                e_i.eval_angular_velocity(tau_i), e_j.eval_angular_velocity(tau_j)
-            )
+            return self._ball_collision_event_class(t_c, e_i, e_j)
         else:
             return next_motion_event
 
     def _find_collision(self, e_i, e_j):
-        # if e_i.parent_event:
-        #     _logger.debug('e_i.parent_event = %s', e_i.parent_event)
-        # if e_j.parent_event:
-        #     _logger.debug('e_j.parent_event = %s', e_j.parent_event)
         if e_j.parent_event and e_i.parent_event and e_j.parent_event == e_i.parent_event:
             return None
         t0 = max(e_i.t, e_j.t)
@@ -326,9 +313,7 @@ class PoolPhysics(object):
         return out
 
     def next_turn_time(self):
-        """
-        Return the time at which all balls have come to rest.
-        """
+        """Return the time at which all balls have come to rest."""
         return self.events[-1].t if self.events and isinstance(self.events[-1], BallRestEvent) else None
 
     def step(self, dt):

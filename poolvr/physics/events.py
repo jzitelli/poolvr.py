@@ -75,7 +75,7 @@ class BallEvent(PhysicsEvent):
     def __hash__(self):
         return hash((self.__class__.__name__, self.i, self.t, self.T))
     def __str__(self):
-        return super().__str__()[:-1] +  " i=%d>" % self.i
+        return super().__str__()[:-1] + " i=%d>" % self.i
 
 
 class BallRestEvent(BallEvent):
@@ -153,11 +153,6 @@ class BallMotionEvent(BallEvent):
         self._omega_0 = b[0]
         self._half_alpha = b[1]
         self._ab_global = None
-        # v_1 = self.eval_velocity(self.T)
-        # omega_1 = self.eval_angular_velocity(self.T)
-        # u_1 = v_1 + self.ball_radius * np.cross(self._k, omega_1)
-        # _logger.debug('v_1 = %s\nomega_1 = %s\nu_1 = %s', v_1, omega_1, u_1)
-        # self._next_motion_event = None
     @property
     def next_motion_event(self):
         return self._next_motion_event
@@ -265,6 +260,15 @@ class CueStrikeEvent(BallEvent):
 
 class BallCollisionEvent(PhysicsEvent):
     _ZERO_TOLERANCE = 1e-7
+    def __init__(self, t, e_i, e_j):
+        """Marlow collision model"""
+        super().__init__(t)
+        self.e_i, self.e_j = e_i, e_j
+        self.i, self.j = e_i.i, e_j.i
+        tau_i, tau_j = t - e_i.t, t - e_j.t
+        self._r_i, self._r_j = e_i.eval_position(tau_i), e_j.eval_position(tau_j)
+        self._v_i, self._v_j = e_i.eval_velocity(tau_i), e_j.eval_velocity(tau_j)
+        self._omega_i, self._omega_j = e_i.eval_angular_velocity(tau_i), e_j.eval_angular_velocity(tau_j)
     @property
     def child_events(self):
         return self._child_events
@@ -276,21 +280,17 @@ class BallCollisionEvent(PhysicsEvent):
             self.i, self.j, self._v_i_1, self._v_j_1)
 
 
-class DefaultBallCollisionEvent(BallCollisionEvent):
-    def __init__(self, t, i, j, r_i, r_j, v_i, v_j, omega_i, omega_j):
-        super().__init__(t)
-        self.i, self.j = i, j
-        v_ij = v_j - v_i
-        v_ij_mag = np.linalg.norm(v_ij)
-        delta_t = 284e-6 / v_ij_mag**0.294
-        s_max = 1.65765 * (v_ij_mag / self.c_b)**0.8
-        F_max = 1.48001 * self.ball_radius**2 * self.E_Y_b * s_max**1.5
-        r_ij = r_j - r_i
+class SimpleBallCollisionEvent(BallCollisionEvent):
+    def __init__(self, t, e_i, e_j):
+        """Perfectly elastic collision with no friction between balls."""
+        super().__init__(t, e_i, e_j)
+        i, j = self.i, self.j
+        r_i, r_j = self._r_i, self._r_j
+        r_ij = r_i - r_j
         _i = r_ij / np.linalg.norm(r_ij)
-        J = max(0.5 * F_max * delta_t,
-                abs(self.ball_mass * v_ij.dot(_i))) # missing 2 factor?
-        v_i_1 = v_i - (J / self.ball_mass) * _i
-        v_j_1 = v_j + (J / self.ball_mass) * _i
+        v_i = self._v_i
+        v_j_1 = v_i.dot(_i) * _i
+        v_i_1 = v_i - v_j_1
         self._v_i_1, self._v_j_1 = v_i_1, v_j_1
         self._child_events = (
             # ball i event:
@@ -302,16 +302,23 @@ class DefaultBallCollisionEvent(BallCollisionEvent):
         )
 
 
-
-class SimpleBallCollisionEvent(BallCollisionEvent):
-    # TODO: pass events to constructor
-    def __init__(self, t, i, j, r_i, r_j, v_i, v_j, omega_i, omega_j):
-        super().__init__(t)
-        self.i, self.j = i, j
-        r_ij = r_j - r_i
+class DefaultBallCollisionEvent(BallCollisionEvent):
+    def __init__(self, t, e_i, e_j):
+        super().__init__(t, e_i, e_j)
+        i, j = self.i, self.j
+        r_i, r_j = self._r_i, self._r_j
+        v_i, v_j = self._v_i, self._v_j
+        v_ij = v_j - v_i
+        v_ij_mag = np.linalg.norm(v_ij)
+        delta_t = 284e-6 / v_ij_mag**0.294
+        s_max = 1.65765 * (v_ij_mag / self.c_b)**0.8
+        F_max = 1.48001 * self.ball_radius**2 * self.E_Y_b * s_max**1.5
+        r_ij = self._r_j - self._r_i
         _i = r_ij / np.linalg.norm(r_ij)
-        v_j_1 = v_i.dot(_i) * _i
-        v_i_1 = v_i - v_j_1
+        J = max(0.5 * F_max * delta_t,
+                abs(self.ball_mass * v_ij.dot(_i))) # missing 2 factor?
+        v_i_1 = v_i - (J / self.ball_mass) * _i
+        v_j_1 = v_j + (J / self.ball_mass) * _i
         self._v_i_1, self._v_j_1 = v_i_1, v_j_1
         self._child_events = (
             # ball i event:
