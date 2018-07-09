@@ -27,6 +27,7 @@ def _create_cue(cue_mass, cue_radius, cue_length):
     try:
         import ode
     except ImportError as err:
+        _logger.error('could not import ode: %s', err)
         from .. import fake_ode as ode
     body = ode.Body(ode.World())
     mass = ode.Mass()
@@ -86,14 +87,6 @@ class PoolPhysics(object):
         self.ball_velocities = self._a[:,1]
         self._on_table = np.array(self.num_balls * [True])
         self.reset(ball_positions=initial_positions, balls_on_table=balls_on_table)
-        # self.balls_in_motion = set()
-        # self._on_table = np.array(on_table)
-        # self._balls_on_table = set(i for i in range(self.num_balls) if self._on_table[i])
-        # if initial_positions is None:
-        #     initial_positions = PoolTable().calc_racked_positions(num_balls=num_balls)
-        # self.ball_positions[:] = initial_positions
-        # self.ball_events = {i: [BallRestEvent(self.t, i, r=self.ball_positions[i])]
-        #                     for i in self._balls_on_table}
 
     def reset(self, ball_positions=None, balls_on_table=None):
         """
@@ -200,13 +193,7 @@ class PoolPhysics(object):
         if next_collision is not None and (next_motion_event is None
                                            or next_collision[0] < next_motion_event.t):
             t_c, i, j = next_collision
-            tau_i, tau_j = t_c - e_i.t, t_c - e_j.t
-            return self._ball_collision_event_class(
-                t_c, i, j,
-                e_i.eval_position(tau_i),         e_j.eval_position(tau_j),
-                e_i.eval_velocity(tau_i),         e_j.eval_velocity(tau_j),
-                e_i.eval_angular_velocity(tau_i), e_j.eval_angular_velocity(tau_j)
-            )
+            return self._ball_collision_event_class(t_c, e_i, e_j)
         else:
             return next_motion_event
 
@@ -317,9 +304,7 @@ class PoolPhysics(object):
         return out
 
     def next_turn_time(self):
-        """
-        Return the time at which all balls have come to rest.
-        """
+        """Return the time at which all balls have come to rest."""
         return self.events[-1].t if self.events and isinstance(self.events[-1], BallRestEvent) else None
 
     def step(self, dt):
