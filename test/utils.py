@@ -30,11 +30,15 @@ BALL_COLORS = {0: 'gray',
 BALL_COLORS.update({i: BALL_COLORS[i-8] for i in range(9, 16)})
 
 
-def plot_ball_motion(i, physics, table=None,
-                     t_0=None, t_1=None, nt=1000, coords=(0,),
-                     title=None, event_markers=True,
+def plot_ball_motion(i, physics,
+                     table=None,
+                     title=None,
+                     t_0=None, t_1=None, nt=1000,
+                     coords=(0,),
+                     event_markers=True,
                      collision_depth=0, collision_markers=True,
-                     hold=False, filename=None, show=False,
+                     hold=False,
+                     filename=None, show=False,
                      dpi=400):
     if table is None:
         table = PoolTable()
@@ -99,6 +103,59 @@ def plot_ball_motion(i, physics, table=None,
                 _logger.warning('error saving figure:\n%s', err)
         if show:
             plt.show()
+
+
+def plot_motion_timelapse(physics, table=None,
+                          title=None,
+                          nt=100,
+                          t_0=None, t_1=None,
+                          filename=None,
+                          show=False):
+    from itertools import chain
+    if table is None:
+        table = PoolTable()
+    if title is None:
+        title = "ball position timelapse"
+    events = sorted(chain.from_iterable(physics.ball_events.values()))
+    if not events:
+        return
+    if t_0 is None:
+        t_0 = events[0].t
+    else:
+        events = [e for e in events if t_0 <= e.t + e.T]
+    if t_1 is None:
+        t_1 = events[-1].t
+        if events[-1].T < float('inf'):
+            t_1 += events[-1].T
+    events = [e for e in events if e.t <= t_1]
+    plt.figure()
+    plt.title(title)
+    ts = np.linspace(t_0, t_1, nt)
+    #ax = plt.subplot(111, facecolor='green')
+    plt.gca().set_xlim(-0.5*table.width, 0.5*table.width)
+    plt.gca().set_ylim(-0.5*table.length, 0.5*table.length)
+    #[-0.5*table.width, 0.5*table.width,
+    # -0.5*table.length, 0.5*table.length])
+    plt.gca().add_patch(plt.Rectangle((-0.5*table.width, -0.5*table.length),
+                                      table.width, table.length,
+                                      color='green'))
+    for t in ts:
+        positions = physics.eval_positions(t)
+        for i in physics.balls_on_table:
+            plt.gca().add_patch(plt.Circle(positions[i,::2], physics.ball_radius,
+                                           color=BALL_COLORS[i], alpha=50/nt))
+    #plt.xlim(-0.5*table.width, 0.5*table.width)
+    #plt.ylim(-0.5*table.length, 0.5*table.length)
+    # plt.xticks(np.linspace(-0.5*table.length, 0.5*table.length, 8))
+    # plt.yticks(np.linspace(-0.5*table.width, 0.5*table.width, 8))
+    if filename:
+        try:
+            plt.savefig(filename, dpi=400)
+            _logger.info('...saved figure to %s', filename)
+        except Exception as err:
+            _logger.warning('error saving figure:\n%s', err)
+    if show:
+        plt.show()
 
 
 def plot_energy(physics, title=None, nt=1000,

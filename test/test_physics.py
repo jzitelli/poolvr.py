@@ -31,11 +31,13 @@ def pool_physics(request, pool_table):
 @pytest.fixture
 def plot_motion(pool_physics, request):
     logging.getLogger('matplotlib').setLevel(logging.WARNING)
-    from .utils import plot_ball_motion
+    from .utils import plot_ball_motion as plot
     yield
     test_name = str(request.function.__name__)
-    plot_ball_motion(0, pool_physics, title=test_name, coords=(0,2),
-                     filename=os.path.join(PLOTS_DIR, test_name + '.png'))
+    plot(0, pool_physics,
+         title=test_name + ' (position)',
+         coords=(0,2),
+         filename=os.path.join(PLOTS_DIR, test_name + '.png'))
 
 
 @pytest.fixture
@@ -44,11 +46,23 @@ def plot_energy(pool_physics, request):
     from .utils import plot_energy as plot
     yield
     test_name = str(request.function.__name__)
-    plot(pool_physics, title=test_name + ' - energy',
+    plot(pool_physics, title=test_name + ' (energy)',
          filename=os.path.join(PLOTS_DIR, test_name + '_energy.png'))
 
 
-def test_strike_ball(pool_physics, plot_motion, plot_energy):
+@pytest.fixture
+def plot_motion_timelapse(pool_physics, pool_table, request):
+    logging.getLogger('matplotlib').setLevel(logging.WARNING)
+    from .utils import plot_motion_timelapse as plot
+    yield
+    test_name = str(request.function.__name__)
+    plot(pool_physics, table=pool_table,
+         title=test_name + ' (timelapse)',
+         filename=os.path.join(PLOTS_DIR, test_name + '_timelapse.png'),
+         show=True)
+
+
+def test_strike_ball(pool_physics, plot_motion_timelapse):
     physics = pool_physics
     physics.reset(balls_on_table=[0])
     r_c = physics.ball_positions[0].copy()
