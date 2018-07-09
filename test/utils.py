@@ -9,7 +9,7 @@ from poolvr.physics.events import (CueStrikeEvent, BallSlidingEvent, BallRolling
 
 
 _logger = logging.getLogger(__name__)
-logging.getLogger('matplotlib').setLevel(logging.WARNING)
+
 
 EVENT_COLORS = {CueStrikeEvent: 'green',
                 BallSlidingEvent: 'yellow',
@@ -34,7 +34,7 @@ def plot_ball_motion(i, physics, table=None,
                      t_0=None, t_1=None, nt=1000, coords=(0,),
                      title=None, event_markers=True,
                      collision_depth=0, collision_markers=True,
-                     hold=False, filename=None,
+                     hold=False, filename=None, show=False,
                      dpi=400):
     if table is None:
         table = PoolTable()
@@ -97,11 +97,12 @@ def plot_ball_motion(i, physics, table=None,
                 _logger.info('...saved figure to %s', filename)
             except Exception as err:
                 _logger.warning('error saving figure:\n%s', err)
-        plt.show()
+        if show:
+            plt.show()
 
 
 def plot_energy(physics, title=None, nt=1000,
-                t_0=None, t_1=None, filename=None):
+                t_0=None, t_1=None, filename=None, show=False):
     events = physics.events
     if t_0 is None:
         t_0 = events[0].t
@@ -125,4 +126,5 @@ def plot_energy(physics, title=None, nt=1000,
             _logger.info('...saved figure to %s', filename)
         except Exception as err:
             _logger.warning('error saving figure:\n%s', err)
-    plt.show()
+    if show:
+        plt.show()
