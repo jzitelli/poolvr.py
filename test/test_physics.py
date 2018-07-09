@@ -34,12 +34,15 @@ def pool_physics(request, pool_table):
 
 
 @pytest.fixture
-def plot_result():
+def plot_motion(pool_physics, request):
     yield
+    test_name = str(request.function.__name__)
+    plot_ball_motion(0, pool_physics, title=test_name, coords=(0,2),
+                     filename=os.path.join(PLOTS_DIR, test_name + '.png'))
 
 
-def test_strike_ball(pool_physics):
-    test_name = 'test_strike_ball'
+def test_strike_ball(pool_physics, plot_motion):
+    # test_name = 'test_strike_ball'
     physics = pool_physics
     physics.balls_on_table = [0]
     cue = PoolCue()
@@ -54,11 +57,12 @@ def test_strike_ball(pool_physics):
     assert(isinstance(events[1], BallSlidingEvent))
     assert(isinstance(events[2], BallRollingEvent))
     assert(isinstance(events[3], BallRestEvent))
-    plot_ball_motion(0, physics, title=test_name, coords=(0,2),
-                     filename=os.path.join(PLOTS_DIR, test_name + '.png'))
-    plot_energy(physics, title=test_name + ' - energy', t_1=8.0, filename=os.path.join(PLOTS_DIR, test_name + '_energy.png'))
+    # plot_ball_motion(0, physics, title=test_name, coords=(0,2),
+    #                  filename=os.path.join(PLOTS_DIR, test_name + '.png'))
+    # plot_energy(physics, title=test_name + ' - energy', t_1=8.0, filename=os.path.join(PLOTS_DIR, test_name + '_energy.png'))
 
 
+@pytest.mark.skip
 def test_ball_collision(pool_physics):
     test_name = 'test_ball_collision'
     physics = pool_physics
