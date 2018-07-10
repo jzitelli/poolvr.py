@@ -18,7 +18,7 @@ EVENT_COLORS = {CueStrikeEvent: 'green',
                 BallCollisionEvent: 'blue',
                 DefaultBallCollisionEvent: 'blue',
                 SimpleBallCollisionEvent: 'blue'}
-BALL_COLORS = {0: 'gray',
+BALL_COLORS = {0: 'white',
                1: 'yellow',
                2: 'blue',
                3: 'red',
@@ -94,6 +94,7 @@ def plot_ball_motion(i, physics,
                         r = child.eval_position(0)
                         plt.gcf().gca().add_patch(plt.Circle((child.t, r[0]), physics.ball_radius, color=BALL_COLORS[child.i]))
                         plt.gcf().gca().add_patch(plt.Circle((child.t, r[2]), physics.ball_radius, color=BALL_COLORS[child.i]))
+        plt.gcf().gca().set_aspect('equal')
         plt.legend()
         if filename:
             try:
@@ -107,7 +108,7 @@ def plot_ball_motion(i, physics,
 
 def plot_motion_timelapse(physics, table=None,
                           title=None,
-                          nt=100,
+                          nt=50,
                           t_0=None, t_1=None,
                           filename=None,
                           show=False):
@@ -136,6 +137,7 @@ def plot_motion_timelapse(physics, table=None,
     plt.gca().set_ylim(-0.5*table.length, 0.5*table.length)
     #[-0.5*table.width, 0.5*table.width,
     # -0.5*table.length, 0.5*table.length])
+    plt.gca().set_aspect('equal')
     plt.gca().add_patch(plt.Rectangle((-0.5*table.width, -0.5*table.length),
                                       table.width, table.length,
                                       color='green'))
@@ -143,7 +145,7 @@ def plot_motion_timelapse(physics, table=None,
         positions = physics.eval_positions(t)
         for i in physics.balls_on_table:
             plt.gca().add_patch(plt.Circle(positions[i,::2], physics.ball_radius,
-                                           color=BALL_COLORS[i], alpha=50/nt))
+                                           color=BALL_COLORS[i], alpha=14/nt))
     #plt.xlim(-0.5*table.width, 0.5*table.width)
     #plt.ylim(-0.5*table.length, 0.5*table.length)
     # plt.xticks(np.linspace(-0.5*table.length, 0.5*table.length, 8))

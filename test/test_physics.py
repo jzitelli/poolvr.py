@@ -79,7 +79,7 @@ def test_strike_ball(pool_physics, plot_motion_timelapse):
     assert isinstance(events[3], BallRestEvent)
 
 
-def test_ball_collision(pool_physics, plot_motion, plot_energy):
+def test_ball_collision(pool_physics, plot_motion, plot_energy, plot_motion_timelapse):
     physics = pool_physics
     ball_positions = physics.ball_positions.copy()
     ball_positions[1] = ball_positions[0]; ball_positions[1,2] -= 8 * physics.ball_radius
@@ -97,10 +97,6 @@ def test_ball_collision(pool_physics, plot_motion, plot_energy):
     assert isinstance(events[3], BallRestEvent)
     assert isinstance(events[4], BallRollingEvent)
     assert isinstance(events[5], BallRestEvent)
-    # plot_ball_motion(0, physics, title=test_name, coords=(0,2),
-    #                  collision_depth=1,
-    #                  filename=os.path.join(PLOTS_DIR, test_name + '.png'),
-    #                  t_0=0.0, t_1=2.0)
 
 
 # def test_break(self):
