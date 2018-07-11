@@ -1,68 +1,13 @@
-import os.path
 import logging
-import numpy as np
-import pytest
-
-
 _logger = logging.getLogger(__name__)
+import numpy as np
 
 
 from poolvr.cue import PoolCue
-from poolvr.table import PoolTable
-from poolvr.physics import PoolPhysics
 from poolvr.physics.events import CueStrikeEvent, BallSlidingEvent, BallRollingEvent, BallRestEvent, BallCollisionEvent
 
 
-PLOTS_DIR = os.path.join(os.path.dirname(__file__), 'plots')
-SCREENSHOTS_DIR = os.path.join(os.path.dirname(__file__), 'screenshots')
-
-
-@pytest.fixture
-def pool_table():
-    return PoolTable()
-
-
-@pytest.fixture()
-def pool_physics(request, pool_table):
-    return PoolPhysics(initial_positions=np.array(pool_table.calc_racked_positions(), dtype=np.float64),
-                       use_simple_ball_collisions=True)
-
-
-@pytest.fixture
-def plot_motion(pool_physics, request):
-    logging.getLogger('matplotlib').setLevel(logging.WARNING)
-    from .utils import plot_ball_motion as plot
-    yield
-    test_name = str(request.function.__name__)
-    plot(0, pool_physics,
-         title=test_name + ' (position)',
-         coords=(0,2),
-         filename=os.path.join(PLOTS_DIR, test_name + '.png'))
-
-
-@pytest.fixture
-def plot_energy(pool_physics, request):
-    logging.getLogger('matplotlib').setLevel(logging.WARNING)
-    from .utils import plot_energy as plot
-    yield
-    test_name = str(request.function.__name__)
-    plot(pool_physics, title=test_name + ' (energy)',
-         filename=os.path.join(PLOTS_DIR, test_name + '_energy.png'))
-
-
-@pytest.fixture
-def plot_motion_timelapse(pool_physics, pool_table, request):
-    logging.getLogger('matplotlib').setLevel(logging.WARNING)
-    from .utils import plot_motion_timelapse as plot
-    yield
-    test_name = str(request.function.__name__)
-    plot(pool_physics, table=pool_table,
-         title=test_name + ' (timelapse)',
-         filename=os.path.join(PLOTS_DIR, test_name + '_timelapse.png'),
-         show=True)
-
-
-def test_strike_ball(pool_physics, plot_motion_timelapse):
+def test_strike_ball(pool_physics, plot_motion_timelapse, plot_motion_z_position):
     physics = pool_physics
     physics.reset(balls_on_table=[0])
     r_c = physics.ball_positions[0].copy()
@@ -79,7 +24,7 @@ def test_strike_ball(pool_physics, plot_motion_timelapse):
     assert isinstance(events[3], BallRestEvent)
 
 
-def test_ball_collision(pool_physics, plot_motion, plot_energy, plot_motion_timelapse):
+def test_ball_collision(pool_physics, plot_motion, plot_energy, plot_motion_timelapse, plot_motion_z_position):
     physics = pool_physics
     ball_positions = physics.ball_positions.copy()
     ball_positions[1] = ball_positions[0]; ball_positions[1,2] -= 8 * physics.ball_radius

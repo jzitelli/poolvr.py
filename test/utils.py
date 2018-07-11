@@ -18,7 +18,7 @@ EVENT_COLORS = {CueStrikeEvent: 'green',
                 BallCollisionEvent: 'blue',
                 DefaultBallCollisionEvent: 'blue',
                 SimpleBallCollisionEvent: 'blue'}
-BALL_COLORS = {0: 'white',
+BALL_COLORS = {0: 'grey',
                1: 'yellow',
                2: 'blue',
                3: 'red',
@@ -36,7 +36,8 @@ def plot_ball_motion(i, physics,
                      t_0=None, t_1=None, nt=1000,
                      coords=(0,),
                      event_markers=True,
-                     collision_depth=0, collision_markers=True,
+                     collision_depth=0,
+                     collision_markers=True,
                      hold=False,
                      filename=None, show=False,
                      dpi=400):
@@ -47,21 +48,22 @@ def plot_ball_motion(i, physics,
     if title is None:
         title = 'ball %d position vs time'
     events = physics.ball_events[i]
-    if t_0 is None:
-        t_0 = events[0].t
-    else:
-        events = [e for e in events if t_0 <= e.t + e.T]
-    if t_1 is None:
-        t_1 = events[-1].t
-        if events[-1].T < float('inf'):
-            t_1 += events[-1].T
+    if events:
+        if t_0 is None:
+            t_0 = events[0].t
+        else:
+            events = [e for e in events if t_0 <= e.t + e.T]
+        if t_1 is None:
+            t_1 = events[-1].t
+            if events[-1].T < float('inf'):
+                t_1 += events[-1].T
     events = [e for e in events if e.t <= t_1]
     if not hold:
         plt.figure()
         plt.title(title)
         plt.xlabel('$t$ (seconds)')
         plt.ylabel('$%s$ (meters)' % ' / '.join('xyz'[coord] for coord in coords))
-        plt.ylim(-0.5*table.length, 0.5*table.length)
+        #plt.ylim(-0.5*table.length, 0.5*table.length)
     linewidth = 5 - 2*collision_depth
     if event_markers:
         for e in events:
@@ -73,7 +75,7 @@ def plot_ball_motion(i, physics,
                 e_i, e_j = parent.child_events
                 other_ball_event = e_j if parent.i == e.i else e_i
                 plot_ball_motion(other_ball_event.i, physics, table=table,
-                                 t_0=other_ball_event.t, t_1=t_1,
+                                 t_0=other_ball_event.t,# t_1=t_1,
                                  coords=coords,
                                  collision_depth=collision_depth-1,
                                  hold=True, event_markers=False, collision_markers=False)
@@ -86,15 +88,14 @@ def plot_ball_motion(i, physics,
                      label='ball %d (%s)' % (i, 'xyz'[coord]),
                      linewidth=linewidth)
     if not hold:
-        if collision_markers:
-            for i_e, e in enumerate(events):
-                if isinstance(e.parent_event, BallCollisionEvent):
-                    parent = e.parent_event
-                    for child in parent.child_events:
-                        r = child.eval_position(0)
-                        plt.gcf().gca().add_patch(plt.Circle((child.t, r[0]), physics.ball_radius, color=BALL_COLORS[child.i]))
-                        plt.gcf().gca().add_patch(plt.Circle((child.t, r[2]), physics.ball_radius, color=BALL_COLORS[child.i]))
-        plt.gcf().gca().set_aspect('equal')
+        # if collision_markers:
+        #     for i_e, e in enumerate(events):
+        #         if isinstance(e.parent_event, BallCollisionEvent):
+        #             parent = e.parent_event
+        #             for child in parent.child_events:
+        #                 r = child.eval_position(0)
+        #                 plt.gcf().gca().add_patch(plt.Circle((child.t, r[0]), physics.ball_radius, color=BALL_COLORS[child.i]))
+        #                 plt.gcf().gca().add_patch(plt.Circle((child.t, r[2]), physics.ball_radius, color=BALL_COLORS[child.i]))
         plt.legend()
         if filename:
             try:
@@ -141,11 +142,13 @@ def plot_motion_timelapse(physics, table=None,
     plt.gca().add_patch(plt.Rectangle((-0.5*table.width, -0.5*table.length),
                                       table.width, table.length,
                                       color='green'))
+    ball_colors = dict(BALL_COLORS)
+    ball_colors[0] = 'white'
     for t in ts:
         positions = physics.eval_positions(t)
         for i in physics.balls_on_table:
             plt.gca().add_patch(plt.Circle(positions[i,::2], physics.ball_radius,
-                                           color=BALL_COLORS[i], alpha=14/nt))
+                                           color=ball_colors[i], alpha=14/nt))
     #plt.xlim(-0.5*table.width, 0.5*table.width)
     #plt.ylim(-0.5*table.length, 0.5*table.length)
     # plt.xticks(np.linspace(-0.5*table.length, 0.5*table.length, 8))
