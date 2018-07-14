@@ -111,7 +111,6 @@ class PoolPhysics(object):
     @property
     def balls_on_table(self):
         return set(self._balls_on_table)
-
     @balls_on_table.setter
     def balls_on_table(self, balls):
         self._balls_on_table = set(balls)

@@ -50,12 +50,6 @@ def _create_cue(world, cue_mass, cue_radius, cue_length, space=None, kinematic=T
 
 
 class ODEPoolPhysics(object):
-
-    STATIONARY = 0
-    SLIDING    = 1
-    ROLLING    = 2
-    SPINNING   = 3
-
     def __init__(self,
                  num_balls=16,
                  ball_mass=0.17,
@@ -265,6 +259,7 @@ class ODEPoolPhysics(object):
             body1, body2 = geom1.getBody(), geom2.getBody()
         for c in contacts:
             if isinstance(geom1, ode.GeomPlane) or isinstance(geom2, ode.GeomPlane):
+                # ball-table contact
                 c.setBounce(0.24)
                 c.setMu(0.16)
                 c.setBounceVel(0.033)
@@ -272,6 +267,7 @@ class ODEPoolPhysics(object):
                 c.setSoftCFM(1e4)
                 c.setSlip1(0.05)
             elif isinstance(geom1, ode.GeomTriMesh) or isinstance(geom2, ode.GeomTriMesh):
+                # ball-cushion contact
                 c.setBounce(0.86)
                 c.setMu(0.16)
                 c.setBounceVel(0.02)
@@ -279,6 +275,7 @@ class ODEPoolPhysics(object):
                 c.setSoftCFM(1e2)
                 c.setSlip1(0.04)
             elif isinstance(geom1, ode.GeomCylinder) or isinstance(geom2, ode.GeomCylinder):
+                # cue-ball contact
                 c.setBounce(0.69)
                 c.setMu(0.25)
                 c.setSoftERP(0.2)
@@ -288,6 +285,7 @@ class ODEPoolPhysics(object):
                 if self._on_cue_ball_collide:
                     self._on_cue_ball_collide(impact_speed=abs(v_n))
             else:
+                # ball-ball contact
                 c.setBounce(0.93)
                 c.setMu(0.13)
                 pos, normal, depth, g1, g2 = c.getContactGeomParams()
