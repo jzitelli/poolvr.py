@@ -31,7 +31,8 @@ def plot_motion(pool_physics, request):
     plot(0, pool_physics,
          title=test_name + ' (position)',
          coords=(0,2),
-         filename=os.path.join(PLOTS_DIR, test_name + '.png'))
+         filename=os.path.join(PLOTS_DIR, test_name + '.png'),
+         show=True)
 
 
 @pytest.fixture

@@ -44,22 +44,33 @@ def test_ball_collision(pool_physics, plot_motion, plot_energy, plot_motion_time
     assert isinstance(events[5], BallRestEvent)
 
 
-# def test_break(self):
-#     self.game.reset()
-#     self.physics.on_table[:] = True
-#     self.cue.velocity[2] = -1.8
-#     self.cue.velocity[0] = -0.01
-#     Q = np.array((0.0, 0.0, self.physics.ball_radius))
-#     i = 0
-#     n_events = self.physics.strike_ball(0.0, i, Q, self.cue.velocity, self.cue.mass)
-#     _logger.debug('strike on %d resulted in %d events', i, n_events)
-#     test_name = traceback.extract_stack(None, 1)[0][2]
-#     plot_ball_motion(i, self.game, title=test_name, coords=0)
-#     savefig(os.path.join(PLOTS_DIR, '%s-%s.png' % (test_name, 'x')))
-#     plot_ball_motion(i, self.game, title=test_name, coords=2)
-#     savefig(os.path.join(PLOTS_DIR, '%s-%s.png' % (test_name, 'z')))
-#     plot_energy(self.game, title=test_name + ' - energy')
-#     savefig(os.path.join(PLOTS_DIR, test_name + '_energy.png'))
-#     if self.show:
-#         show(self.game, title=test_name,
-#              screenshots_dir=SCREENSHOTS_DIR)
+def test_sliding_ball_collision(pool_physics, plot_motion, plot_energy, plot_motion_timelapse, plot_motion_z_position):
+    physics = pool_physics
+    ball_positions = physics.ball_positions.copy()
+    ball_positions[1] = ball_positions[0]; ball_positions[1,2] -= 8 * physics.ball_radius
+    physics.reset(balls_on_table=[0, 1],
+                  ball_positions=ball_positions)
+    start_event = BallSlidingEvent(0, 0, r_0=physics.ball_positions[0],
+                                   v_0=np.array((0.0, 0.0, -2.0)),
+                                   omega_0=np.zeros(3, dtype=np.float64))
+    events = physics.add_event_sequence(start_event)
+    _logger.debug('%d events added:\n\n%s\n', len(events), physics.events_str(events=events))
+    assert 6 == len(events)
+    assert isinstance(events[0], BallSlidingEvent)
+    assert isinstance(events[1], BallCollisionEvent)
+    assert isinstance(events[2], BallRestEvent)
+    assert isinstance(events[3], BallSlidingEvent)
+    assert isinstance(events[4], BallRollingEvent)
+    assert isinstance(events[5], BallRestEvent)
+
+
+def test_break(pool_physics, plot_motion, plot_energy, plot_motion_timelapse, plot_motion_z_position):
+    physics = pool_physics
+    r_c = physics.ball_positions[0].copy()
+    r_c[2] += physics.ball_radius
+    cue = PoolCue()
+    cue.velocity[2] = -1.6
+    cue.velocity[0] = -0.01
+    events = physics.strike_ball(0.0, 0, r_c, cue.velocity, cue.mass)
+    _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
+                  physics.events_str(events))

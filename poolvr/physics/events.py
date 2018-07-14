@@ -20,6 +20,8 @@ class PhysicsEvent(object):
     c_b = 4000.0 # ball material's speed of sound
     E_Y_b = 2.4e9 # ball material's Young's modulus of elasticity
     g = 9.81 # magnitude of acceleration due to gravity
+    _ZERO_TOLERANCE = 1e-7
+    _k = np.array((0,1,0), dtype=np.float64) # basis vector :math`\hat{k}` of any ball-centered frame, following the
     def __init__(self, t, T=0.0, parent_event=None, **kwargs):
         """
         Base class of pool physics events.
@@ -66,7 +68,6 @@ class PhysicsEvent(object):
 
 
 class BallEvent(PhysicsEvent):
-    _k = np.array((0,1,0), dtype=np.float64) # basis vector :math`\hat{k}` of any ball-centered frame, following the
     def __init__(self, t, i, **kwargs):
         super().__init__(t, **kwargs)
         self.i = i
@@ -259,7 +260,6 @@ class CueStrikeEvent(BallEvent):
 
 
 class BallCollisionEvent(PhysicsEvent):
-    _ZERO_TOLERANCE = 1e-7
     def __init__(self, t, e_i, e_j):
         """Marlow collision model"""
         super().__init__(t)
@@ -292,14 +292,28 @@ class SimpleBallCollisionEvent(BallCollisionEvent):
         v_j_1 = v_i.dot(_i) * _i
         v_i_1 = v_i - v_j_1
         self._v_i_1, self._v_j_1 = v_i_1, v_j_1
-        self._child_events = (
-            # ball i event:
-            BallRestEvent(t, i, r_i, parent_event=self) if np.linalg.norm(v_i_1) < self._ZERO_TOLERANCE
-            else BallRollingEvent(t, i, r_i, v_i_1, parent_event=self),
-            # ball j event:
-            BallRestEvent(t, j, r_j, parent_event=self) if np.linalg.norm(v_j_1) < self._ZERO_TOLERANCE
-            else BallRollingEvent(t, j, r_j, v_j_1, parent_event=self)
-        )
+        v_i_1_mag, v_j_1_mag = np.linalg.norm(v_i_1), np.linalg.norm(v_j_1)
+        e_i_1, e_j_1 = None, None
+        if v_i_1_mag < self._ZERO_TOLERANCE:
+            e_i_1 = BallRestEvent(t, i, r_i, parent_event=self)
+        if v_j_1_mag < self._ZERO_TOLERANCE:
+            e_j_1 = BallRestEvent(t, j, r_j, parent_event=self)
+        if isinstance(e_i, BallSlidingEvent) or isinstance(e_j, BallSlidingEvent):
+            if e_i_1 is None:
+                u_i_1 = v_i_1 + self.ball_radius * np.cross(self._k, self._omega_i)
+                u_i_1_mag = np.linalg.norm(u_i_1)
+                if u_i_1_mag >= self._ZERO_TOLERANCE:
+                    e_i_1 = BallSlidingEvent(t, i, r_i, v_i_1, self._omega_i, parent_event=self)
+            if e_j_1 is None:
+                u_j_1 = v_j_1 + self.ball_radius * np.cross(self._k, self._omega_j)
+                u_j_1_mag = np.linalg.norm(u_j_1)
+                if u_j_1_mag >= self._ZERO_TOLERANCE:
+                    e_j_1 = BallSlidingEvent(t, j, r_j, v_j_1, self._omega_j, parent_event=self)
+        if e_i_1 is None:
+            e_i_1 = BallRollingEvent(t, i, r_i, v_i_1, parent_event=self)
+        if e_j_1 is None:
+            e_j_1 = BallRollingEvent(t, j, r_j, v_j_1, parent_event=self)
+        self._child_events = (e_i_1, e_j_1)
 
 
 class DefaultBallCollisionEvent(BallCollisionEvent):
