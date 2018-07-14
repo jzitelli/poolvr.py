@@ -2,20 +2,24 @@
 Open Dynamics Engine-based pool physics simulator
 """
 import logging
+_logger = logging.getLogger(__name__)
 import numpy as np
-import ode
+try:
+    import ode
+except ImportError as err:
+    _logger.error(err)
+    raise err
 
 
 from .table import PoolTable
-from .physics import _J, PoolPhysics
+from .physics import PoolPhysics
+from .physics.events import BallRestEvent, CueStrikeEvent
 from .sound import play_ball_ball_collision_sound
 
 
-_logger = logging.getLogger(__name__)
-
 INCH2METER = 0.0254
-
 ZERO3 = np.zeros(3, dtype=np.float64)
+_J = np.array([0.0, 1.0, 0.0], dtype=np.float64)
 
 
 def _create_ball(world, ball_mass, ball_radius, space=None):
@@ -46,15 +50,6 @@ def _create_cue(world, cue_mass, cue_radius, cue_length, space=None, kinematic=T
 
 
 class ODEPoolPhysics(object):
-    PhysicsEvent = PoolPhysics.PhysicsEvent
-    StrikeBallEvent = PoolPhysics.StrikeBallEvent
-    SlideToRollEvent = PoolPhysics.SlideToRollEvent
-    RestEvent = PoolPhysics.RestEvent
-    SlideToRestEvent = PoolPhysics.SlideToRestEvent
-    RollToRestEvent = PoolPhysics.RollToRestEvent
-    PositionBallEvent = PoolPhysics.PositionBallEvent
-    SimpleBallCollisionEvent = PoolPhysics.SimpleBallCollisionEvent
-    BallCollisionEvent = PoolPhysics.BallCollisionEvent
 
     STATIONARY = 0
     SLIDING    = 1
@@ -77,7 +72,6 @@ class ODEPoolPhysics(object):
                  initial_positions=None,
                  table=None,
                  **kwargs):
-        self.PhysicsEvent.physics = self
         if table is None:
             table = PoolTable(**kwargs)
         self.table = table
@@ -198,8 +192,8 @@ class ODEPoolPhysics(object):
         body.setLinearVel(v)
         body.setAngularVel(omega)
         self._t_last_strike = t
-        self._add_event(self.StrikeBallEvent(t, i, Q, V, cue_mass))
-        self._add_event(self.RollToRestEvent(t + 12, i, self._a[i,0]))
+        self._add_event(CueStrikeEvent(t, i, self._a[i,0], Q + self._a[i,0], V, cue_mass))
+        self._add_event(BallRestEvent(t + 12, i, self._a[i,0]))
         return 1
 
     def step(self, dt):
