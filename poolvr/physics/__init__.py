@@ -149,6 +149,10 @@ class PoolPhysics(object):
             events = self.events
         return sep.join('%3d (%5.5f, %5.5f): %s' % (i_e, e.t, e.t+e.T, e) for i_e, e in enumerate(events))
 
+    @property
+    def ball_collision_model(self):
+        return 'marlow' if self._ball_collision_event_class is MarlowBallCollisionEvent else 'simple'
+
     def _add_event(self, event):
         self.events.append(event)
         if isinstance(event, BallEvent):
