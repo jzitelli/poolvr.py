@@ -237,7 +237,7 @@ class CueStrikeEvent(BallEvent):
         self.Q = Q
         _j = V.copy(); _j[1] = 0; _j /= np.linalg.norm(_j)
         _i = np.cross(_j, self._k)
-        a, c, b = (Q.dot(_i), #-_j[2] * Q[0] + _j[0] * Q[2],
+        a, c, b = (Q.dot(_i),
                    Q.dot(_j),
                    Q[1])
         m, R, I = self.ball_mass, self.ball_radius, self.ball_I
@@ -316,7 +316,7 @@ class SimpleBallCollisionEvent(BallCollisionEvent):
         self._child_events = (e_i_1, e_j_1)
 
 
-class DefaultBallCollisionEvent(BallCollisionEvent):
+class MarlowBallCollisionEvent(BallCollisionEvent):
     def __init__(self, t, e_i, e_j):
         super().__init__(t, e_i, e_j)
         i, j = self.i, self.j

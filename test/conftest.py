@@ -18,8 +18,10 @@ def pool_table():
 @pytest.fixture()
 def pool_physics(request, pool_table):
     from poolvr.physics import PoolPhysics
+    ball_collision_model = getattr(request, 'param', 'simple')
+    _logger.debug("getattr(request, 'param', None) = %s", getattr(request, 'param', None))
     return PoolPhysics(initial_positions=np.array(pool_table.calc_racked_positions(), dtype=np.float64),
-                       use_simple_ball_collisions=True)
+                       ball_collision_model=ball_collision_model)
 
 
 @pytest.fixture

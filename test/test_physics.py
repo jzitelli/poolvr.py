@@ -1,6 +1,7 @@
 import logging
 _logger = logging.getLogger(__name__)
 import numpy as np
+import pytest
 
 
 from poolvr.cue import PoolCue
@@ -24,7 +25,9 @@ def test_strike_ball(pool_physics, plot_motion_timelapse, plot_motion_z_position
     assert isinstance(events[3], BallRestEvent)
 
 
-def test_ball_collision(pool_physics, plot_motion, plot_energy, plot_motion_timelapse, plot_motion_z_position):
+@pytest.mark.parametrize("ball_collision_model", ['simple', 'marlow'])
+def test_ball_collision(pool_physics, plot_motion, plot_energy, plot_motion_timelapse, plot_motion_z_position,
+                        ball_collision_model):
     physics = pool_physics
     ball_positions = physics.ball_positions.copy()
     ball_positions[1] = ball_positions[0]; ball_positions[1,2] -= 8 * physics.ball_radius

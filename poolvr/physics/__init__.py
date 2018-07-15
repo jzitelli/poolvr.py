@@ -15,7 +15,7 @@ from itertools import chain
 import numpy as np
 
 
-from .events import CueStrikeEvent, BallEvent, BallMotionEvent, BallRestEvent, DefaultBallCollisionEvent, SimpleBallCollisionEvent
+from .events import CueStrikeEvent, BallEvent, BallMotionEvent, BallRestEvent, MarlowBallCollisionEvent, SimpleBallCollisionEvent
 from ..table import PoolTable
 
 
@@ -61,15 +61,15 @@ class PoolPhysics(object):
                  g=9.81,
                  balls_on_table=None,
                  initial_positions=None,
-                 use_simple_ball_collisions=False,
+                 ball_collision_model="simple",
                  **kwargs):
         self.num_balls = num_balls
         if balls_on_table is None:
             balls_on_table = range(self.num_balls)
-        if use_simple_ball_collisions:
+        if ball_collision_model == 'simple':
             self._ball_collision_event_class = SimpleBallCollisionEvent
-        else:
-            self._ball_collision_event_class = DefaultBallCollisionEvent
+        elif ball_collision_model == 'marlow':
+            self._ball_collision_event_class = MarlowBallCollisionEvent
         self.ball_mass = ball_mass
         self.ball_radius = ball_radius
         self.ball_I = 2/5 * ball_mass * ball_radius**2 # moment of inertia

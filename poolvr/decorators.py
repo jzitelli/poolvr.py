@@ -1,8 +1,10 @@
+from functools import wraps
 import numpy as np
 
 
 def allocs_out_shape(shape, dtype=np.float64):
     def _decorator(func):
+        @wraps(func)
         def wrapper(*args, out=None, **kwargs):
             if out is None:
                 out = np.empty(shape, dtype=np.float64)
@@ -12,6 +14,7 @@ def allocs_out_shape(shape, dtype=np.float64):
 
 
 def allocs_out(func):
+    @wraps(func)
     def wrapper(*args, out=None, **kwargs):
         if out is None:
             out = np.empty(3, dtype=np.float64)
@@ -20,6 +23,7 @@ def allocs_out(func):
 
 
 def allocs_out_vec4(func):
+    @wraps(func)
     def wrapper(*args, out=None, **kwargs):
         if out is None:
             out = np.empty(4, dtype=np.float64)
