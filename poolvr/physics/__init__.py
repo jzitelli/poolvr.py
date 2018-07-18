@@ -88,6 +88,25 @@ class PoolPhysics(object):
         self._on_table = np.array(self.num_balls * [True])
         self.reset(ball_positions=initial_positions, balls_on_table=balls_on_table)
 
+    @property
+    def ball_collision_model(self):
+        return 'marlow' if self._ball_collision_event_class is MarlowBallCollisionEvent else 'simple'
+    @ball_collision_model.setter
+    def set_ball_collision_model(self, model='simple'):
+        if model == 'marlow':
+            self._ball_collision_event_class = MarlowBallCollisionEvent
+        else:
+            self._ball_collision_event_class = SimpleBallCollisionEvent
+
+    @property
+    def balls_on_table(self):
+        return set(self._balls_on_table)
+    @balls_on_table.setter
+    def balls_on_table(self, balls):
+        self._balls_on_table = set(balls)
+        self._on_table[:] = False
+        self._on_table[np.array(balls)] = True
+
     def reset(self, ball_positions=None, balls_on_table=None):
         """
         Reset the state of the balls to at rest, at the specified positions.
@@ -107,15 +126,6 @@ class PoolPhysics(object):
                             for i in balls_on_table}
         self.events = list(chain.from_iterable(self.ball_events.values()))
         self._ball_motion_events.clear()
-
-    @property
-    def balls_on_table(self):
-        return set(self._balls_on_table)
-    @balls_on_table.setter
-    def balls_on_table(self, balls):
-        self._balls_on_table = set(balls)
-        self._on_table[:] = False
-        self._on_table[np.array(balls)] = True #self._balls_on_table, dtype=np.int)] = True
 
     def add_cue(self, cue):
         body = _create_cue(cue.mass, cue.radius, cue.length)
@@ -149,10 +159,6 @@ class PoolPhysics(object):
             events = self.events
         return sep.join('%3d (%5.5f, %5.5f): %s' % (i_e, e.t, e.t+e.T, e) for i_e, e in enumerate(events))
 
-    @property
-    def ball_collision_model(self):
-        return 'marlow' if self._ball_collision_event_class is MarlowBallCollisionEvent else 'simple'
-
     def _add_event(self, event):
         self.events.append(event)
         if isinstance(event, BallEvent):
@@ -172,7 +178,7 @@ class PoolPhysics(object):
             self._add_event(child_event)
 
     def _determine_next_event(self):
-        ball_motion_events = list(sorted(self._ball_motion_events.values()))
+        ball_motion_events = sorted(self._ball_motion_events.values())
         next_motion_events = [e.next_motion_event
                               for e in ball_motion_events if e.next_motion_event is not None]
         next_motion_events.sort()
