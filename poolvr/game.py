@@ -29,6 +29,7 @@ class PoolGame(object):
     BALL_COLORS = BALL_COLORS + BALL_COLORS[1:-1]
     def __init__(self, ball_colors=BALL_COLORS, ball_radius=1.125*INCH2METER,
                  table=None,
+                 physics=None,
                  **kwargs):
         if table is None:
             table = PoolTable(**kwargs)
@@ -40,10 +41,12 @@ class PoolGame(object):
         self.ball_quaternions[:,3] = 1
         self.ball_radius = ball_radius
         self.initial_positions(out=self.ball_positions)
-        self.physics = PoolPhysics(num_balls=self.num_balls,
-                                   ball_radius=ball_radius,
-                                   initial_positions=self.ball_positions,
-                                   **kwargs)
+        if physics is None:
+            physics = PoolPhysics(num_balls=self.num_balls,
+                                  ball_radius=ball_radius,
+                                  **kwargs)
+        self.physics = physics
+        self.ball_positions[:] = physics.ball_positions
         self.t = 0.0
         self.ntt = 0.0
 
@@ -87,6 +90,7 @@ class PoolGame(object):
         self.physics.reset(self.ball_positions)
         self.t = 0.0
         self.ntt = 0.0
+
     def advance_time(self, interp=None):
         """
         Advances the game time to the instant that all balls have come to rest.

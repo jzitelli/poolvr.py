@@ -77,11 +77,13 @@ class Program(GLRendering):
             self.uniforms = uniforms
         else:
             self.uniforms = {}
+        self._initialized = False
     def init_gl(self, force=False):
         if force:
-            Program._current = None
+            self.program_id = None
         if self.program_id is not None:
-            if not force: return
+            return self.program_id
+        Program._current = None
         vs = gl.glCreateShader(gl.GL_VERTEX_SHADER)
         gl.glShaderSource(vs, self.vs_src)
         gl.glCompileShader(vs)
@@ -143,13 +145,18 @@ class Technique(GLRendering):
         self.front_face = front_face
         self._on_use = on_use
         self._on_release = on_release
+        self._initialized = False
     def init_gl(self, force=False):
         if force:
-            Technique._current = None
+            self._initialized = False
+        if self._initialized:
+            return
         self.program.init_gl(force=force)
         program_id = self.program.program_id
-        self.attribute_locations = {name: gl.glGetAttribLocation(program_id, name) for name in self.attributes}
-        self.uniform_locations = {name: gl.glGetUniformLocation(program_id, name) for name in self.uniforms}
+        _logger.debug(self.attributes)
+        self.attribute_locations = {name: gl.glGetAttribLocation(program_id, name) for name in self.attributes.keys()}
+        self.uniform_locations = {name: gl.glGetUniformLocation(program_id, name) for name in self.uniforms.keys()}
+        self._initialized = True
         _logger.info('%s.init_gl: OK', self.__class__.__name__)
     def use(self):
         if Technique._current is self:
