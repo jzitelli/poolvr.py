@@ -181,7 +181,6 @@ class PoolPhysics(object):
         ball_motion_events = sorted(self._ball_motion_events.values())
         next_motion_events = [e.next_motion_event
                               for e in ball_motion_events if e.next_motion_event is not None]
-        next_motion_events.sort()
         if next_motion_events:
             next_motion_event = next_motion_events[0]
         else:
