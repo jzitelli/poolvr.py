@@ -272,9 +272,6 @@ class BallCollisionEvent(PhysicsEvent):
     @property
     def child_events(self):
         return self._child_events
-    @property
-    def key(self):
-        return (self.t, min(self.i,self.j), max(self.i,self.j))
     def __str__(self):
         return super().__str__()[:-1] + ' i=%s j=%s v_i_1=%s v_j_1=%s>' % (
             self.i, self.j, self._v_i_1, self._v_j_1)
