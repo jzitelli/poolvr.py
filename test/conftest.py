@@ -93,6 +93,7 @@ def gl_rendering(pool_physics, pool_table):
     from poolvr.glfw_app import setup_glfw
     from poolvr.keyboard_controls import init_keyboard, set_on_keydown
     from poolvr.game import PoolGame
+    logging.getLogger('poolvr.gl_rendering').setLevel(logging.WARNING)
     physics = pool_physics
     table = pool_table
     window_size = [960, 680]

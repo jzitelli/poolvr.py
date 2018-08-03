@@ -178,13 +178,9 @@ class PoolPhysics(object):
             self._add_event(child_event)
 
     def _determine_next_event(self):
-        ball_motion_events = sorted(self._ball_motion_events.values())
-        next_motion_events = [e.next_motion_event
-                              for e in ball_motion_events if e.next_motion_event is not None]
-        if next_motion_events:
-            next_motion_event = next_motion_events[0]
-        else:
-            next_motion_event = None
+        next_motion_event = min(e.next_motion_event
+                                for e in self._ball_motion_events.values()
+                                if e.next_motion_event is not None)
         collision_times = {}
         next_collision = None
         for i in self.balls_in_motion:
@@ -201,7 +197,7 @@ class PoolPhysics(object):
         if next_collision is not None and (next_motion_event is None
                                            or next_collision[0] < next_motion_event.t):
             t_c, i, j = next_collision
-            return self._ball_collision_event_class(t_c, e_i, e_j)
+            return self._ball_collision_event_class(t_c, self.ball_events[i][-1], self.ball_events[j][-1])
         else:
             return next_motion_event
 

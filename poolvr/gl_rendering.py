@@ -103,7 +103,7 @@ class Program(GLRendering):
         gl.glDetachShader(program_id, vs)
         gl.glDetachShader(program_id, fs)
         self.program_id = program_id
-        _logger.info('%s.init_gl: OK', self.__class__.__name__)
+        _logger.debug('%s.init_gl: OK', self.__class__.__name__)
     def use(self):
         if Program._current is self:
             return
@@ -157,7 +157,7 @@ class Technique(GLRendering):
         self.attribute_locations = {name: gl.glGetAttribLocation(program_id, name) for name in self.attributes.keys()}
         self.uniform_locations = {name: gl.glGetUniformLocation(program_id, name) for name in self.uniforms.keys()}
         self._initialized = True
-        _logger.info('%s.init_gl: OK', self.__class__.__name__)
+        _logger.debug('%s.init_gl: OK', self.__class__.__name__)
     def use(self):
         if Technique._current is self:
             return
@@ -218,7 +218,7 @@ class Texture(GLRendering):
         err = gl.glGetError()
         if err != gl.GL_NO_ERROR:
             raise Exception('failed to init texture: 0x%02x' % err)
-        _logger.info('%s.init_gl: OK%s', self.__class__.__name__,
+        _logger.debug('%s.init_gl: OK%s', self.__class__.__name__,
                      ' (%s)' % self.name if self.name else '')
 
 
@@ -270,7 +270,7 @@ class CubeTexture(Texture):
         err = gl.glGetError()
         if err != gl.GL_NO_ERROR:
             raise Exception('failed to init cube texture: %s' % err)
-        _logger.info('%s.init_gl: OK', self.__class__.__name__)
+        _logger.debug('%s.init_gl: OK', self.__class__.__name__)
 
 
 class Material(GLRendering):
@@ -311,7 +311,7 @@ class Material(GLRendering):
         if err != gl.GL_NO_ERROR:
             raise Exception('failed to init material: %s' % err)
         self._initialized = True
-        _logger.info('%s.init_gl: OK', self.__class__.__name__)
+        _logger.debug('%s.init_gl: OK', self.__class__.__name__)
     def use(self,
             u_view=None,
             u_modelview=None,
@@ -431,7 +431,7 @@ class Primitive(GLRendering):
                 raise Exception('failed to init gl buffer')
             self.index_buffer = vao
             gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, 0)
-        _logger.info('%s.init_gl: OK', self.__class__.__name__)
+        _logger.debug('%s.init_gl: OK', self.__class__.__name__)
     def alias(self, attribute_name, alias):
         if attribute_name not in self.attributes:
             raise Exception('attribute "%s" is not defined' % attribute_name)
@@ -521,7 +521,7 @@ class Mesh(Node):
         err = gl.glGetError()
         if err != gl.GL_NO_ERROR:
             raise Exception('failed to init primitive: %s' % err)
-        _logger.info('%s.init_gl: OK' % self.__class__.__name__)
+        _logger.debug('%s.init_gl: OK' % self.__class__.__name__)
         self._initialized = True
     def draw(self, **frame_data):
         view = frame_data.get('view_matrix', None)

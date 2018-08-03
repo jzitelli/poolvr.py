@@ -96,13 +96,13 @@ class BallRestEvent(BallEvent):
             self._q = self._q_0 = self.set_quaternion_from_euler_angles(psi=psi, theta=theta, phi=phi)
         else:
             self._q = self._q_0 = q.copy()
-        self._ab_global = None
+        self._a_global = None
     @property
     def global_motion_coeffs(self):
-        if self._ab_global is None:
-            self._ab_global = np.zeros((5,3), dtype=np.float64)
-            self._ab_global[0] = self._r
-        return self._ab_global[:3], self._ab_global[3:]
+        if self._a_global is None:
+            self._a_global = a = np.zeros((3,3), dtype=np.float64)
+            a[0] = self._r
+        return self._a_global, None
     @allocs_out
     def eval_position(self, tau, out=None):
         out[:] = self._r
@@ -205,7 +205,6 @@ class BallRollingEvent(BallMotionEvent):
         omega_0 = v_0 / self.ball_radius; omega_0[::2] = -omega_0[::-2]
         super().__init__(t, i, T=T, r_0=r_0, v_0=v_0, omega_0=omega_0, **kwargs)
         self._a[2] = -0.5 * self.mu_r * self.g * v_0 / v_0_mag
-        _logger.debug('T = %s', T)
         self._b[1] = -omega_0 / T
         self._next_motion_event = BallRestEvent(t + T, i, r=self.eval_position(T))
 
@@ -288,7 +287,9 @@ class SimpleBallCollisionEvent(BallCollisionEvent):
         r_i, r_j = self._r_i, self._r_j
         r_ij = r_i - r_j
         _i = r_ij / np.linalg.norm(r_ij)
-        v_i = self._v_i
+        v_i, v_j = self._v_i, self._v_j
+        v_i_1 = v_i + (v_j - v_i).dot(_i) * _i
+        v_j_1 = v_j + (v_i - v_j).dot(_i) * _i
         v_j_1 = v_i.dot(_i) * _i
         v_i_1 = v_i - v_j_1
         self._v_i_1, self._v_j_1 = v_i_1, v_j_1
