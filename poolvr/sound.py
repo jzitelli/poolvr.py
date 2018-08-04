@@ -20,7 +20,9 @@ except ImportError as err:
 
 if sf is None or sd is None:
     _logger.error('SOUND IS NOT AVAILABLE')
-
+    _avail = False
+else:
+    _avail = True
 
 SOUNDS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                           os.path.pardir, 'sounds')
@@ -33,29 +35,44 @@ ballBall_temp = None
 output_stream = None
 
 
+def only_if_avail(func):
+    from functools import wraps
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        global _avail
+        if _avail:
+            return func(*args, **kwargs)
+    return wrapper
+
+
+@only_if_avail
 def init_sound():
     global _initialized
     global ballBall_sound
     global ballBall_sound_fs
     global ballBall_temp
     if not _initialized:
-        if sd is not None and sf is not None:
-            ballBall_sound, ballBall_sound_fs = sf.read(os.path.join(SOUNDS_DIR, 'ballBall.ogg'))
-            ballBall_sound = np.array(ballBall_sound, dtype=np.float32)
-            ballBall_temp = ballBall_sound.copy()
-            open_output_stream()
+        ballBall_sound, ballBall_sound_fs = sf.read(os.path.join(SOUNDS_DIR, 'ballBall.ogg'))
+        ballBall_sound = np.array(ballBall_sound, dtype=np.float32)
+        ballBall_temp = ballBall_sound.copy()
+        open_output_stream()
         _initialized = True
 
 
+@only_if_avail
 def open_output_stream(device=None, channels=2, samplerate=44100):
     global output_stream
-    if sd:
-        output_stream = sd.OutputStream(dtype='float32')# device=device, samplerate=samplerate, latency='low', clip_off=True, dither_off=True, never_drop_input=True)
-        output_stream.start()
+    output_stream = sd.OutputStream(dtype='float32')
+    # device=device, samplerate=samplerate, latency='low',
+    # clip_off=True, dither_off=True, never_drop_input=True)
+    output_stream.start()
 
 # _n = 0
 # _vol = 0.0
 # _vols = []
+
+
+@only_if_avail
 def play_ball_ball_collision_sound(vol=1.0):
     # global _n
     # global _vol
@@ -73,6 +90,7 @@ def play_ball_ball_collision_sound(vol=1.0):
         # _vol = vol
 
 
+@only_if_avail
 def list_sound_devices():
     if sd:
         _logger.info("""
@@ -94,6 +112,7 @@ def list_sound_devices():
             print('device %2d: %s: %d channels' % (i, device['name'], device['max_output_channels']))
 
 
+@only_if_avail
 def set_output_sound_device(device):
     if sd:
         sd.default.device[1] = device

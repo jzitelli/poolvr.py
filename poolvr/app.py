@@ -232,7 +232,7 @@ def main(window_size=(800,600),
 
             physics.eval_positions(game.t, out=ball_positions)
             physics.eval_quaternions(game.t, out=ball_quaternions)
-            ball_positions[~physics.on_table] = camera_position # hacky way to only show balls that are on table
+            ball_positions[~physics._on_table] = camera_position # hacky way to only show balls that are on table
             for i, quat in enumerate(ball_quaternions):
                 set_matrix_from_quaternion(quat, ball_mesh_rotations[i])
             if use_bb_particles:

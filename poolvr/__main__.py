@@ -39,8 +39,8 @@ def main():
     else:
         logging.basicConfig(format=_LOGGING_FORMAT, level=logging.WARNING)
     if args.list_sound_devices:
-        import poolvr.sound
-        poolvr.sound.list_sound_devices()
+        from .sound import list_sound_devices
+        list_sound_devices()
         exit(0)
     if args.sound_device:
         import poolvr.sound
