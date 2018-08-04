@@ -23,19 +23,6 @@ INCH2METER = 0.0254
 _logger = logging.getLogger(__name__)
 
 
-def _create_cue(cue_mass, cue_radius, cue_length):
-    try:
-        import ode
-    except ImportError as err:
-        _logger.error('could not import ode: %s', err)
-        from .. import fake_ode as ode
-    body = ode.Body(ode.World())
-    mass = ode.Mass()
-    mass.setCylinderTotal(cue_mass, 3, cue_radius, cue_length)
-    body.setMass(mass)
-    return body
-
-
 class PoolPhysics(object):
     r"""
     Pool physics simulator
@@ -92,7 +79,7 @@ class PoolPhysics(object):
     def ball_collision_model(self):
         return 'marlow' if self._ball_collision_event_class is MarlowBallCollisionEvent else 'simple'
     @ball_collision_model.setter
-    def set_ball_collision_model(self, model='simple'):
+    def ball_collision_model(self, model='simple'):
         if model == 'marlow':
             self._ball_collision_event_class = MarlowBallCollisionEvent
         else:
@@ -327,3 +314,16 @@ class PoolPhysics(object):
     def _find_active_events(self, t):
         n = bisect(self.events, t)
         return [e for e in self.events[:n] if e.t <= t <= e.t + e.T]
+
+
+def _create_cue(cue_mass, cue_radius, cue_length):
+    try:
+        import ode
+    except ImportError as err:
+        _logger.error('could not import ode: %s', err)
+        from .. import fake_ode as ode
+    body = ode.Body(ode.World())
+    mass = ode.Mass()
+    mass.setCylinderTotal(cue_mass, 3, cue_radius, cue_length)
+    body.setMass(mass)
+    return body
