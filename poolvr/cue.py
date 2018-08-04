@@ -1,3 +1,5 @@
+import logging
+_logger = logging.getLogger(__name__)
 import numpy as np
 
 
@@ -32,8 +34,8 @@ class PoolCue(Mesh):
     def aabb_check(self, positions, ball_radius):
         if self._positions is None:
             self._positions = np.empty(positions.shape, dtype=positions.dtype)
-        (positions - self.position).dot(self.world_matrix[:3,:3].T,
-                                        out=self._positions)
+        # (positions - self.position).dot(self.world_matrix[:3,:3].T, out=self._positions)
+        self._positions[:] = self.world_matrix[:3,:3].dot((positions - self.position).T).T
         aabb = self.bb
         separate = ((aabb[0] > self._positions + ball_radius) | (aabb[1] < self._positions - ball_radius)).any(axis=-1)
         intersect = ~separate
@@ -72,8 +74,23 @@ class PoolCue(Mesh):
                     n /= np.linalg.norm(n)
                     poc = position + ball_radius * n
         if poc is not None:
-            self.world_matrix[:3,:3].dot(poc, out=poc)
-            poc += self.position
+            # poc[1], poc[2] = poc[2], poc[1]
+            r_c = self.world_matrix[:3,:3].T.dot(poc) + self.position
+            # r_c = poc + self.position
+            _logger.debug('''
+            self.position = %f %f %f
+            position      = %f %f %f
+            poc           = %f %f %f
+            r_c           = %f %f %f
+            ''',
+                          self.position[0], self.position[1], self.position[2],
+                          position[0], position[1], position[2],
+                          poc[0], poc[1], poc[2],
+                          r_c[0], r_c[1], r_c[2])
+            # _logger.debug('''
+            # poc (global)  = %f %f %f
+            # ''', poc[0], poc[1], poc[2])
+            return r_c
         return poc
     @property
     def tip_position(self):

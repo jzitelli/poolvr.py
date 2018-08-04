@@ -89,6 +89,7 @@ def main(window_size=(800,600),
     cue_body, cue_geom = game.physics.add_cue(cue)
     physics = game.physics
     cue.position[1] = game.table.height + 0.1
+    cue.position[2] += game.table.length * 0.3
     cue_quaternion = np.zeros(4, dtype=np.float32)
     cue_quaternion[3] = 1
 
@@ -186,9 +187,9 @@ def main(window_size=(800,600),
             if game.t - last_contact_t[i] < 0.05:
                 continue
             r_c = cue.contact(position, physics.ball_radius)
-            _logger.debug('i = %s\nposition = %f %f %f\nr_c = %s',
-                          i, position[0], position[1], position[2],
-                          '%f %f %f' % r_c if r_c else '')
+            # _logger.debug('i = %s\nposition = %f %f %f\nr_c = %s',
+            #               i, position[0], position[1], position[2],
+            #               '%f %f %f' % (r_c[0], r_c[1], r_c[2]) if r_c is not None else '')
             if r_c is not None:
                 physics.strike_ball(game.t, i, r_c, cue.velocity, cue.mass)
                 game.ntt = physics.next_turn_time
@@ -215,9 +216,9 @@ def main(window_size=(800,600),
                 if game.t - last_contact_t[i] < 0.05:
                     continue
                 r_c = cue.contact(position, physics.ball_radius)
-                _logger.debug('i = %s\nposition = %f %f %f\nr_c = %s',
-                              i, position[0], position[1], position[2],
-                              '%f %f %f' % r_c if r_c else '')
+                # _logger.debug('i = %s\nposition = %f %f %f\nr_c = %s',
+                #               i, position[0], position[1], position[2],
+                #               '%f %f %f' % r_c if r_c else '')
                 if r_c is not None:
                     last_contact_t[i] = physics.t
                     renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1],
