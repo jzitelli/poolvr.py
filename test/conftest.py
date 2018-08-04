@@ -162,12 +162,21 @@ def gl_rendering(pool_physics, pool_table, request):
             st = glfw.GetTime()
         nframes += 1
         glfw.SwapBuffers(window)
+
     if nframes > 1:
         _logger.info('...exited render loop: average FPS: %f, maximum frame time: %f, average frame time: %f',
                      (nframes - 1) / (t - st), max_frame_time, (t - st) / (nframes - 1))
 
+    with renderer.render(meshes=meshes):
+        physics.eval_positions(t_end, out=ball_positions)
+        ball_positions[~pool_physics._on_table] = camera_position
+        for i, pos in enumerate(ball_positions):
+            ball_mesh_positions[i][:] = pos
+            ball_shadow_mesh_positions[i][0::2] = pos[0::2]
+        glfw.SwapBuffers(window)
     screenshot(filename=os.path.join(os.path.dirname(__file__), 'screenshots',
                                      title.replace(' ', '_') + '.png'))
+
     renderer.shutdown()
     glfw.DestroyWindow(window)
     glfw.Terminate()

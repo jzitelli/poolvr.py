@@ -177,21 +177,22 @@ def main(window_size=(800,600),
             cue.velocity[:] = velocity
             cue.angular_velocity = angular_velocity
             set_quaternion_from_matrix(pose[:,:3], cue_quaternion)
-            for i, position in cue.aabb_check(physics.ball_positions, physics.ball_radius):
-                if game.t - last_contact_t[i] < 0.05:
-                    continue
-                r_c = cue.contact(position, physics.ball_radius)
-                _logger.debug('i = %s\nposition = %f %f %f\nr_c = %s',
-                              i, position[0], position[1], position[2],
-                              r_c)
-                if r_c is not None:
-                    last_contact_t[i] = physics.t
-                    renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1],
-                                                          0, int(np.linalg.norm(cue.velocity)**2 / 1.7 * 2700))
-                    #r_c[:] = [0.0, 0.0, physics.ball_radius]
-                    physics.strike_ball(game.t, i, r_c, cue.velocity, cue.mass)
-                    game.ntt = physics.next_turn_time
-                    break
+
+    def render_to_window():
+        set_quaternion_from_matrix(cue.rotation.dot(cue.world_matrix[:3,:3].T),
+                                   cue_quaternion)
+        #frame_data['view_matrix'].T.dot(light_position, out=u_light_position)
+        for i, position in cue.aabb_check(physics.ball_positions, physics.ball_radius):
+            if game.t - last_contact_t[i] < 0.05:
+                continue
+            r_c = cue.contact(position, physics.ball_radius)
+            _logger.debug('i = %s\nposition = %f %f %f\nr_c = %s',
+                          i, position[0], position[1], position[2],
+                          '%f %f %f' % r_c if r_c else '')
+            if r_c is not None:
+                physics.strike_ball(game.t, i, r_c, cue.velocity, cue.mass)
+                game.ntt = physics.next_turn_time
+                break
 
     _logger.info('entering render loop...')
     sys.stdout.flush()
@@ -205,25 +206,26 @@ def main(window_size=(800,600),
         dt = t - lt
         lt = t
         process_input(dt)
-
         with renderer.render(meshes=meshes) as frame_data:
-
             if isinstance(renderer, OpenVRRenderer) and frame_data:
                 render_to_hmd()
-
             elif isinstance(renderer, OpenGLRenderer):
-                set_quaternion_from_matrix(cue.rotation.dot(cue.world_matrix[:3,:3].T),
-                                           cue_quaternion)
-                #frame_data['view_matrix'].T.dot(light_position, out=u_light_position)
-
-                # if game.t >= game.ntt:
-                #     for i, position in cue.aabb_check(ball_positions, ball_radius):
-                #         poc = cue.contact(position, ball_radius)
-                #         if poc is not None:
-                #             poc[:] = [0.0, 0.0, ball_radius]
-                #             physics.strike_ball(game.t, i, poc, cue.velocity, cue.mass)
-                #             game.ntt = physics.next_turn_time()
-                #             break
+                render_to_window()
+            for i, position in cue.aabb_check(physics.ball_positions, physics.ball_radius):
+                if game.t - last_contact_t[i] < 0.05:
+                    continue
+                r_c = cue.contact(position, physics.ball_radius)
+                _logger.debug('i = %s\nposition = %f %f %f\nr_c = %s',
+                              i, position[0], position[1], position[2],
+                              '%f %f %f' % r_c if r_c else '')
+                if r_c is not None:
+                    last_contact_t[i] = physics.t
+                    renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1],
+                                                          0, int(np.linalg.norm(cue.velocity)**2 / 1.7 * 2700))
+                    #r_c[:] = [0.0, 0.0, physics.ball_radius]
+                    physics.strike_ball(game.t, i, r_c, cue.velocity, cue.mass)
+                    game.ntt = physics.next_turn_time
+                    break
 
             cue_body.setPosition(cue.world_position)
             # x, y, z, w = cue_quaternion
@@ -244,7 +246,7 @@ def main(window_size=(800,600),
             if use_bb_particles:
                 billboard_particles.update_gl()
             else:
-                for i, pos in enumerate(physics.ball_positions):
+                for i, pos in enumerate(ball_positions):
                     ball_mesh_positions[i][:] = pos
                     ball_shadow_mesh_positions[i][0::2] = pos[0::2]
 
