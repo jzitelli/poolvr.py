@@ -58,12 +58,14 @@ def plot_ball_motion(i, physics,
             if events[-1].T < float('inf'):
                 t_1 += events[-1].T
     events = [e for e in events if e.t <= t_1]
+
     if not hold:
-        plt.figure()
+        figure = plt.figure()
         plt.title(title)
         plt.xlabel('$t$ (seconds)')
         plt.ylabel('$%s$ (meters)' % ' / '.join('xyz'[coord] for coord in coords))
         #plt.ylim(-0.5*table.length, 0.5*table.length)
+
     linewidth = 5 - 2*collision_depth
     if event_markers:
         for e in events:
@@ -105,6 +107,7 @@ def plot_ball_motion(i, physics,
                 _logger.warning('error saving figure:\n%s', err)
         if show:
             plt.show()
+        plt.close()
 
 
 def plot_motion_timelapse(physics, table=None,

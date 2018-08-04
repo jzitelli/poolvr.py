@@ -33,7 +33,7 @@ def plot_motion(pool_physics, request):
          title=test_name + ' (position)',
          coords=(0,2),
          filename=os.path.join(PLOTS_DIR, test_name + '.png'),
-         show=True)
+         show=False)
 
 
 @pytest.fixture
@@ -45,7 +45,7 @@ def plot_motion_x_position(pool_physics, request):
          title=test_name + " ($x$ position)",
          coords=(0,),
          filename=os.path.join(PLOTS_DIR, test_name + '_x.png'),
-         show=True)
+         show=False)
 
 
 @pytest.fixture
@@ -58,7 +58,7 @@ def plot_motion_z_position(pool_physics, request):
          coords=(2,),
          collision_depth=1,
          filename=os.path.join(PLOTS_DIR, test_name + '_z.png'),
-         show=True)
+         show=False)
 
 
 @pytest.fixture
@@ -68,7 +68,7 @@ def plot_energy(pool_physics, request):
     test_name = '_'.join([request.function.__name__, pool_physics.ball_collision_model])
     plot(pool_physics, title=test_name + ' (energy)',
          filename=os.path.join(PLOTS_DIR, test_name + '_energy.png'),
-         show=True)
+         show=False)
 
 
 @pytest.fixture
@@ -79,17 +79,17 @@ def plot_motion_timelapse(pool_physics, pool_table, request):
     plot(pool_physics, table=pool_table,
          title=test_name + ' (timelapse)',
          filename=os.path.join(PLOTS_DIR, test_name + '_timelapse.png'),
-         show=True)
+         show=False)
 
 
 @pytest.fixture
-def gl_rendering(pool_physics, pool_table):
-    yield
+def gl_rendering(pool_physics, pool_table, request):
     import OpenGL
     OpenGL.ERROR_CHECKING = False
     OpenGL.ERROR_LOGGING = False
     OpenGL.ERROR_ON_COPY = True
     import cyglfw3 as glfw
+    yield
     from poolvr.glfw_app import setup_glfw
     from poolvr.keyboard_controls import init_keyboard, set_on_keydown
     from poolvr.game import PoolGame
@@ -97,8 +97,10 @@ def gl_rendering(pool_physics, pool_table):
     physics = pool_physics
     table = pool_table
     window_size = [960, 680]
+    title = '_'.join([request.function.__name__, pool_physics.ball_collision_model])
     window, renderer = setup_glfw(width=window_size[0], height=window_size[1],
-                                  double_buffered=True, multisample=4)
+                                  double_buffered=True, multisample=4,
+                                  title=title)
     camera_world_matrix = renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
     camera_position[1] = table.height + 0.6
@@ -127,7 +129,8 @@ def gl_rendering(pool_physics, pool_table):
     nframes = 0
     max_frame_time = 0.0
     lt = glfw.GetTime()
-    while not glfw.WindowShouldClose(window):
+    t_end = physics.events[-1].t if physics.events else 0.0
+    while not glfw.WindowShouldClose(window) and physics.t < t_end:
         t = glfw.GetTime()
         dt = t - lt
         lt = t
@@ -147,6 +150,22 @@ def gl_rendering(pool_physics, pool_table):
     if nframes > 1:
         _logger.info('...exited render loop: average FPS: %f, maximum frame time: %f, average frame time: %f',
                      (nframes - 1) / (t - st), max_frame_time, (t - st) / (nframes - 1))
+
+    def screenshot():
+        import OpenGL.GL as gl
+        import PIL
+        mWidth, mHeight = glfw.GetWindowSize(window)
+        #n = 3 * mWidth * mHeight;
+        gl.glPixelStorei(gl.GL_PACK_ALIGNMENT, 1)
+        pixels = gl.glReadPixels(0, 0, mWidth, mHeight, gl.GL_RGB, gl.GL_UNSIGNED_BYTE)
+        pil_image = PIL.Image.frombytes('RGB', (mWidth, mHeight), pixels)
+        pil_image = pil_image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+        filename = title.replace(' ', '_') + '-screenshot.png'
+        filepath = os.path.join(os.path.dirname(__file__), 'screenshots', filename)
+        pil_image.save(filepath)
+        _logger.info('..saved screen capture to "%s"', filepath)
+
+    screenshot()
     renderer.shutdown()
     glfw.DestroyWindow(window)
     glfw.Terminate()
