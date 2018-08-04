@@ -146,6 +146,90 @@ class PoolPhysics(object):
             events = self.events
         return sep.join('%3d (%5.5f, %5.5f): %s' % (i_e, e.t, e.t+e.T, e) for i_e, e in enumerate(events))
 
+    def eval_positions(self, t, balls=None, out=None):
+        """
+        Evaluate the positions of a set of balls at game time *t*.
+
+        :returns: shape (*N*, 3) array, where *N* is the number of balls
+        """
+        if balls is None:
+            balls = range(self.num_balls)
+        if out is None:
+            out = np.zeros((len(balls), 3), dtype=np.float64)
+        out[:] = self._a[balls,0] # TODO: use PositionBallEvent instead
+        for ii, i in enumerate(balls):
+            events = self.ball_events.get(i, ())
+            if events:
+                for e in events[:bisect(events, t)][::-1]:
+                    if t <= e.t + e.T:
+                        out[ii] = e.eval_position(t - e.t)
+                        break
+        return out
+
+    def eval_quaternions(self, t, out=None):
+        """
+        Evaluate the rotations of a set of balls (represented as quaternions) at game time *t*.
+
+        :returns: shape (*N*, 4) array, where *N* is the number of balls
+        """
+        if out is None:
+            out = np.empty((self.num_balls, 4), dtype=np.float64)
+        # TODO
+        out[:] = 0
+        out[:,3] = 1
+        return out
+
+    def eval_velocities(self, t, balls=None, out=None):
+        """
+        Evaluate the velocities of a set of balls at game time *t*.
+
+        :returns: shape (*N*, 3) array, where *N* is the number of balls
+        """
+        if balls is None:
+            balls = range(self.num_balls)
+        if out is None:
+            out = np.empty((len(balls), 3), dtype=np.float64)
+        out[:] = 0
+        for ii, i in enumerate(balls):
+            events = self.ball_events.get(i, ())
+            if events:
+                for e in events[:bisect(events, t)][::-1]:
+                    if t <= e.t + e.T:
+                        out[ii] = e.eval_velocity(t - e.t)
+                        break
+        return out
+
+    def eval_angular_velocities(self, t, balls=None, out=None):
+        """
+        Evaluate the angular velocities of all balls at game time *t*.
+
+        :returns: shape (*N*, 3) array, where *N* is the number of balls
+        """
+        if balls is None:
+            balls = range(self.num_balls)
+        if out is None:
+            out = np.zeros((len(balls), 3), dtype=np.float64)
+        out[:] = 0
+        for ii, i in enumerate(balls):
+            events = self.ball_events.get(i, ())
+            if events:
+                for e in events[:bisect(events, t)][::-1]:
+                    if t <= e.t + e.T:
+                        out[ii] = e.eval_angular_velocity(t - e.t)
+                        break
+        return out
+
+    @property
+    def next_turn_time(self):
+        """The time at which all balls have come to rest."""
+        return self.events[-1].t if self.events and isinstance(self.events[-1], BallRestEvent) else self.t
+
+    def step(self, dt):
+        self.t += dt
+
+    def set_cue_ball_collision_callback(self, cb):
+        self._on_cue_ball_collide = cb
+
     def _add_event(self, event):
         self.events.append(event)
         if isinstance(event, BallEvent):
@@ -220,89 +304,6 @@ class PoolPhysics(object):
             return None
         else:
             return min(roots)
-
-    def eval_positions(self, t, balls=None, out=None):
-        """
-        Evaluate the positions of a set of balls at game time *t*.
-
-        :returns: shape (*N*, 3) array, where *N* is the number of balls
-        """
-        if balls is None:
-            balls = range(self.num_balls)
-        if out is None:
-            out = np.zeros((len(balls), 3), dtype=np.float64)
-        out[:] = self._a[balls,0] # TODO: use PositionBallEvent instead
-        for ii, i in enumerate(balls):
-            events = self.ball_events.get(i, ())
-            if events:
-                for e in events[:bisect(events, t)][::-1]:
-                    if t <= e.t + e.T:
-                        out[ii] = e.eval_position(t - e.t)
-                        break
-        return out
-
-    def eval_quaternions(self, t, out=None):
-        """
-        Evaluate the rotations of a set of balls (represented as quaternions) at game time *t*.
-
-        :returns: shape (*N*, 4) array, where *N* is the number of balls
-        """
-        if out is None:
-            out = np.empty((self.num_balls, 4), dtype=np.float64)
-        # TODO
-        out[:] = 0
-        out[:,3] = 1
-        return out
-
-    def eval_velocities(self, t, balls=None, out=None):
-        """
-        Evaluate the velocities of a set of balls at game time *t*.
-
-        :returns: shape (*N*, 3) array, where *N* is the number of balls
-        """
-        if balls is None:
-            balls = range(self.num_balls)
-        if out is None:
-            out = np.empty((len(balls), 3), dtype=np.float64)
-        out[:] = 0
-        for ii, i in enumerate(balls):
-            events = self.ball_events.get(i, ())
-            if events:
-                for e in events[:bisect(events, t)][::-1]:
-                    if t <= e.t + e.T:
-                        out[ii] = e.eval_velocity(t - e.t)
-                        break
-        return out
-
-    def eval_angular_velocities(self, t, balls=None, out=None):
-        """
-        Evaluate the angular velocities of all balls at game time *t*.
-
-        :returns: shape (*N*, 3) array, where *N* is the number of balls
-        """
-        if balls is None:
-            balls = range(self.num_balls)
-        if out is None:
-            out = np.zeros((len(balls), 3), dtype=np.float64)
-        out[:] = 0
-        for ii, i in enumerate(balls):
-            events = self.ball_events.get(i, ())
-            if events:
-                for e in events[:bisect(events, t)][::-1]:
-                    if t <= e.t + e.T:
-                        out[ii] = e.eval_angular_velocity(t - e.t)
-                        break
-        return out
-
-    def next_turn_time(self):
-        """Return the time at which all balls have come to rest."""
-        return self.events[-1].t if self.events and isinstance(self.events[-1], BallRestEvent) else None
-
-    def step(self, dt):
-        self.t += dt
-
-    def set_cue_ball_collision_callback(self, cb):
-        self._on_cue_ball_collide = cb
 
     def _calc_energy(self, t, balls=None):
         if balls is None:

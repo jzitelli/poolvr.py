@@ -101,6 +101,21 @@ def gl_rendering(pool_physics, pool_table, request):
     window, renderer = setup_glfw(width=window_size[0], height=window_size[1],
                                   double_buffered=True, multisample=4,
                                   title=title)
+
+    def screenshot(filename='%s-screenshot.png' % title):
+        import OpenGL.GL as gl
+        import PIL
+        if not filename.endswith('.png'):
+            filename += '.png'
+        _logger.info('saving screen capture...')
+        mWidth, mHeight = glfw.GetWindowSize(window)
+        gl.glPixelStorei(gl.GL_PACK_ALIGNMENT, 1)
+        pixels = gl.glReadPixels(0, 0, mWidth, mHeight, gl.GL_RGB, gl.GL_UNSIGNED_BYTE)
+        pil_image = PIL.Image.frombytes('RGB', (mWidth, mHeight), pixels)
+        pil_image = pil_image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+        pil_image.save(filename)
+        _logger.info('...saved screen capture to "%s"', filename)
+
     camera_world_matrix = renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
     camera_position[1] = table.height + 0.6
@@ -151,21 +166,8 @@ def gl_rendering(pool_physics, pool_table, request):
         _logger.info('...exited render loop: average FPS: %f, maximum frame time: %f, average frame time: %f',
                      (nframes - 1) / (t - st), max_frame_time, (t - st) / (nframes - 1))
 
-    def screenshot():
-        import OpenGL.GL as gl
-        import PIL
-        mWidth, mHeight = glfw.GetWindowSize(window)
-        #n = 3 * mWidth * mHeight;
-        gl.glPixelStorei(gl.GL_PACK_ALIGNMENT, 1)
-        pixels = gl.glReadPixels(0, 0, mWidth, mHeight, gl.GL_RGB, gl.GL_UNSIGNED_BYTE)
-        pil_image = PIL.Image.frombytes('RGB', (mWidth, mHeight), pixels)
-        pil_image = pil_image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
-        filename = title.replace(' ', '_') + '-screenshot.png'
-        filepath = os.path.join(os.path.dirname(__file__), 'screenshots', filename)
-        pil_image.save(filepath)
-        _logger.info('..saved screen capture to "%s"', filepath)
-
-    screenshot()
+    screenshot(filename=os.path.join(os.path.dirname(__file__), 'screenshots',
+                                     title.replace(' ', '_') + '.png'))
     renderer.shutdown()
     glfw.DestroyWindow(window)
     glfw.Terminate()

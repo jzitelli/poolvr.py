@@ -91,7 +91,9 @@ def main(window_size=(800,600),
     cue.position[1] = game.table.height + 0.1
     cue_quaternion = np.zeros(4, dtype=np.float32)
     cue_quaternion[3] = 1
+
     game.reset()
+
     ball_meshes = game.table.setup_balls(game.ball_radius, game.ball_colors[:9], game.ball_positions,
                                          striped_balls=set(range(9, game.num_balls)),
                                          use_bb_particles=use_bb_particles)
@@ -102,17 +104,15 @@ def main(window_size=(800,600),
             renderer = OpenVRRenderer(window_size=window_size, multisample=multisample)
             button_press_callbacks = {openvr.k_EButton_Grip: game.reset,
                                       openvr.k_EButton_ApplicationMenu: game.advance_time}
-            if ODEPoolPhysics is not None:
-                def on_cue_ball_collision(renderer=renderer, game=game, physics=physics, impact_speed=None):
-                    if impact_speed > 0.0015:
-                        renderer.vr_system.triggerHapticPulse(renderer._controller_indices[0], 0,
-                                                              int(max(0.8, impact_speed**2 / 4.0 + impact_speed**3 / 16.0) * 2750))
-                    game.ntt = physics.next_turn_time()
-                physics.set_cue_ball_collision_callback(on_cue_ball_collision)
-                def on_cue_surface_collision(renderer=renderer, game=game, physics=physics, impact_speed=None):
-                    if impact_speed > 0.003:
-                        renderer.vr_system.triggerHapticPulse(renderer._controller_indices[0], 0,
-                                                              int(max(0.75, 0.2*impact_speed**2 + 0.07*impact_speed**3) * 2500))
+            def on_cue_ball_collision(renderer=renderer, game=game, physics=physics, impact_speed=None):
+                if impact_speed > 0.0015:
+                    renderer.vr_system.triggerHapticPulse(renderer._controller_indices[0], 0,
+                                                          int(max(0.8, impact_speed**2 / 4.0 + impact_speed**3 / 16.0) * 2750))
+            physics.set_cue_ball_collision_callback(on_cue_ball_collision)
+            def on_cue_surface_collision(renderer=renderer, game=game, physics=physics, impact_speed=None):
+                if impact_speed > 0.003:
+                    renderer.vr_system.triggerHapticPulse(renderer._controller_indices[0], 0,
+                                                          int(max(0.75, 0.2*impact_speed**2 + 0.07*impact_speed**3) * 2500))
         except Exception as err:
             renderer = fallback_renderer
             _logger.error('could not initialize OpenVRRenderer: %s', err)
@@ -137,6 +137,7 @@ def main(window_size=(800,600),
         process_mouse_input(dt, cue)
 
     # textured_text = TexturedText()
+
     if use_bb_particles:
         ball_shadow_meshes = []
     else:
@@ -162,12 +163,43 @@ def main(window_size=(800,600),
 
     init_sound()
 
+    last_contact_t = {i: float('-inf') for i in range(physics.num_balls)}
+
+    def render_to_hmd():
+        renderer.process_input(button_press_callbacks=button_press_callbacks)
+        hmd_pose = frame_data['hmd_pose']
+        camera_position[:] = hmd_pose[:,3]
+        for i, pose in enumerate(frame_data['controller_poses'][:1]):
+            velocity = frame_data['controller_velocities'][i]
+            angular_velocity = frame_data['controller_angular_velocities'][i]
+            cue.world_matrix[:3,:3] = pose[:,:3].dot(cue.rotation).T
+            cue.world_matrix[3,:3] = pose[:,3]
+            cue.velocity[:] = velocity
+            cue.angular_velocity = angular_velocity
+            set_quaternion_from_matrix(pose[:,:3], cue_quaternion)
+            for i, position in cue.aabb_check(physics.ball_positions, physics.ball_radius):
+                if game.t - last_contact_t[i] < 0.05:
+                    continue
+                r_c = cue.contact(position, physics.ball_radius)
+                _logger.debug('i = %s\nposition = %f %f %f\nr_c = %s',
+                              i, position[0], position[1], position[2],
+                              r_c)
+                if r_c is not None:
+                    last_contact_t[i] = physics.t
+                    renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1],
+                                                          0, int(np.linalg.norm(cue.velocity)**2 / 1.7 * 2700))
+                    #r_c[:] = [0.0, 0.0, physics.ball_radius]
+                    physics.strike_ball(game.t, i, r_c, cue.velocity, cue.mass)
+                    game.ntt = physics.next_turn_time
+                    break
+
     _logger.info('entering render loop...')
     sys.stdout.flush()
 
     nframes = 0
     max_frame_time = 0.0
     lt = glfw.GetTime()
+
     while not glfw.WindowShouldClose(window):
         t = glfw.GetTime()
         dt = t - lt
@@ -176,34 +208,8 @@ def main(window_size=(800,600),
 
         with renderer.render(meshes=meshes) as frame_data:
 
-            ##### VR mode: #####
-
             if isinstance(renderer, OpenVRRenderer) and frame_data:
-                renderer.process_input(button_press_callbacks=button_press_callbacks)
-                hmd_pose = frame_data['hmd_pose']
-                camera_position[:] = hmd_pose[:,3]
-                for i, pose in enumerate(frame_data['controller_poses'][:1]):
-                    velocity = frame_data['controller_velocities'][i]
-                    angular_velocity = frame_data['controller_angular_velocities'][i]
-                    cue.world_matrix[:3,:3] = pose[:,:3].dot(cue.rotation).T
-                    cue.world_matrix[3,:3] = pose[:,3]
-                    cue.velocity[:] = velocity
-                    cue.angular_velocity = angular_velocity
-                    set_quaternion_from_matrix(pose[:,:3], cue_quaternion)
-                    # if game.t >= game.ntt:
-                    #     for i, position in cue.aabb_check(ball_positions, ball_radius):
-                    #         if game.t - last_contact_t[i] < 0.02:
-                    #             continue
-                    #         poc = cue.contact(position, ball_radius)
-                    #         if poc is not None:
-                    #             renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1],
-                    #                                                   0, int(np.linalg.norm(cue.velocity + np.cross(position, cue.angular_velocity))**2 / 2.0 * 2700))
-                    #             poc[:] = [0.0, 0.0, ball_radius]
-                    #             # physics.strike_ball(game.t, i, poc, cue.velocity, cue.mass)
-                    #             game.ntt = physics.next_turn_time()
-                    #             break
-
-            ##### desktop mode: #####
+                render_to_hmd()
 
             elif isinstance(renderer, OpenGLRenderer):
                 set_quaternion_from_matrix(cue.rotation.dot(cue.world_matrix[:3,:3].T),
@@ -238,7 +244,7 @@ def main(window_size=(800,600),
             if use_bb_particles:
                 billboard_particles.update_gl()
             else:
-                for i, pos in enumerate(ball_positions):
+                for i, pos in enumerate(physics.ball_positions):
                     ball_mesh_positions[i][:] = pos
                     ball_shadow_mesh_positions[i][0::2] = pos[0::2]
 

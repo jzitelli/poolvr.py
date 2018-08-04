@@ -15,6 +15,7 @@ def test_strike_ball(pool_physics, ball_collision_model,
     physics.reset(balls_on_table=[0])
     r_c = physics.ball_positions[0].copy()
     r_c[2] += physics.ball_radius
+    _logger.debug('r_c = %s', r_c)
     cue = PoolCue()
     cue.velocity[2] = -0.6
     events = physics.strike_ball(0.0, 0, r_c, cue.velocity, cue.mass)

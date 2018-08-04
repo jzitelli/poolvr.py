@@ -12,20 +12,22 @@ def parse_args():
                         help="enable verbose logging",
                         action="store_true")
     parser.add_argument("--novr", help="non-VR mode", action="store_true")
-    parser.add_argument("-a", "--msaa", metavar='A',
+    parser.add_argument("-a", "--msaa", metavar='<multisample level>',
                         help='enable multi-sampled anti-aliasing (disabled by default) at level A (1, 2, or 4)',
                         default=0)
-    parser.add_argument("--use_simple_ball_collisions", help="use simple ball collision model",
+    parser.add_argument("--use-simple-ball-collisions", help="use simple ball collision model",
                         action="store_true")
     parser.add_argument('-o', "--ode",
                         help="use ODE for physics simulation instead of the default event-based engine",
                         action="store_true")
-    parser.add_argument('--bb_particles',
+    parser.add_argument('--bb-particles',
                         help='render balls using billboard particle shader instead of polygon meshes',
                         action='store_true')
-    parser.add_argument('-s', '--sound_device', help="specify the sound device to use for output",
+    parser.add_argument('-s', '--sound-device',
+                        metavar='<device ID>',
+                        help="specify the sound device to use for output",
                         type=int)
-    parser.add_argument('-l', '--list_sound_devices', help="list the available sound devices",
+    parser.add_argument('-l', '--list-sound-devices', help="list the available sound devices",
                         action="store_true")
     args = parser.parse_args()
     args.msaa = int(args.msaa)

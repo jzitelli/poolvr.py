@@ -86,8 +86,8 @@ class PoolGame(object):
         Resets the game state, which means: set balls in their initial stationary
         positions; reset physics engine.
         """
-        self.initial_positions(out=self.ball_positions)
-        self.physics.reset(self.ball_positions)
+        racked_positions = self.table.calc_racked_positions(self.num_balls)
+        self.physics.reset(ball_positions=racked_positions)
         self.t = 0.0
         self.ntt = 0.0
 
@@ -95,7 +95,7 @@ class PoolGame(object):
         """
         Advances the game time to the instant that all balls have come to rest.
         """
-        ntt = self.physics.next_turn_time()
+        ntt = self.physics.next_turn_time
         if ntt:
             self.ntt = ntt
             self.t = ntt
