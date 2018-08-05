@@ -13,6 +13,7 @@ _on_keydown_cb = None
 
 key_state = defaultdict(bool)
 
+
 def __on_keydown(window, key, scancode, action, mods):
     if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
         glfw.SetWindowShouldClose(window, gl.GL_TRUE)
@@ -50,9 +51,9 @@ def init_keyboard(window):
             fb = key_state[glfw.KEY_I] - key_state[glfw.KEY_K]
             lr = key_state[glfw.KEY_L] - key_state[glfw.KEY_J]
             ud = key_state[glfw.KEY_U] - key_state[glfw.KEY_M]
-            cue.world_matrix[:3,:3] = cue.rotation.T
-            cue.velocity = KB_CUE_MOVE_SPEED * (fb * cue.world_matrix[1,:3] +
-                                                lr * cue.world_matrix[0,:3] +
-                                                ud * cue.world_matrix[2,:3])
+            # cue.world_matrix[:3,:3] = cue.rotation.T
+            cue.velocity = KB_CUE_MOVE_SPEED * (lr * cue.world_matrix[0,:3] +
+                                                ud * cue.world_matrix[1,:3] +
+                                                fb * cue.world_matrix[2,:3])
             cue.position += cue.velocity * dt
     return process_keyboard_input

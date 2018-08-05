@@ -48,11 +48,12 @@ class PoolCue(Mesh):
         if abs(y) <= 0.5*self.length:
             # potential contact on the side of the cue:
             if r_sqrd > self.radius**2 and r_sqrd <= (self.radius + ball_radius)**2:
-                # find point of contact on ball:
+                # contact on cylinder side of cue:
                 n = position.copy()
                 n[1] = 0.0
                 n /= np.sqrt(r_sqrd)
                 poc = position - ball_radius * n
+                _logger.debug('contact on cylinder side: %s', poc)
         elif abs(y) <= 0.5*self.length + ball_radius:
             # potential contact on flat end of the cue:
             if r_sqrd <= self.radius**2:
@@ -62,6 +63,7 @@ class PoolCue(Mesh):
                     poc[1] -= ball_radius
                 else:
                     poc[1] += ball_radius
+                _logger.debug('contact on flat end: %s', poc)
             else:
                 r = np.sqrt(r_sqrd)
                 if (r - self.radius)**2 + (abs(y) - 0.5*self.length)**2 <= ball_radius**2:
@@ -73,8 +75,8 @@ class PoolCue(Mesh):
                     n[::2] += -(r - self.radius) / r * position[::2]
                     n /= np.linalg.norm(n)
                     poc = position + ball_radius * n
+                    _logger.debug('contact on ring edge: %s', poc)
         if poc is not None:
-            # poc[1], poc[2] = poc[2], poc[1]
             r_c = self.world_matrix[:3,:3].T.dot(poc) + self.position
             _logger.debug('''
             self.position = %f %f %f

@@ -94,6 +94,10 @@ class PoolPhysics(object):
         self._on_table[:] = False
         self._on_table[np.array(balls)] = True
 
+    @property
+    def balls_in_motion(self):
+        return self._ball_motion_events.keys()
+
     def reset(self, ball_positions=None, balls_on_table=None):
         """
         Reset the state of the balls to at rest, at the specified positions.
@@ -108,7 +112,6 @@ class PoolPhysics(object):
         if balls_on_table is None:
             balls_on_table = range(self.num_balls)
         self.balls_on_table = balls_on_table
-        self.balls_in_motion = set()
         self.ball_events = {i: [BallRestEvent(self.t, i, r=self.ball_positions[i])]
                             for i in balls_on_table}
         self.events = list(chain.from_iterable(self.ball_events.values()))
@@ -239,11 +242,9 @@ class PoolPhysics(object):
                     last_ball_event.T = event.t - last_ball_event.t
             self.ball_events[event.i].append(event)
             if isinstance(event, BallRestEvent):
-                self.balls_in_motion.remove(event.i)
                 if event.i in self._ball_motion_events:
                     self._ball_motion_events.pop(event.i)
             elif isinstance(event, BallMotionEvent):
-                self.balls_in_motion.add(event.i)
                 self._ball_motion_events[event.i] = event
         for child_event in event.child_events:
             self._add_event(child_event)
@@ -264,11 +265,11 @@ class PoolPhysics(object):
                 t_c = self._find_collision(e_i, e_j)
                 collision_times[key] = t_c
                 if t_c is not None and (next_collision is None or t_c < next_collision[0]):
-                    next_collision = (t_c, i, j)
+                    next_collision = (t_c, e_i, e_j)
         if next_collision is not None and (next_motion_event is None
                                            or next_collision[0] < next_motion_event.t):
-            t_c, i, j = next_collision
-            return self._ball_collision_event_class(t_c, self.ball_events[i][-1], self.ball_events[j][-1])
+            t_c, e_i, e_j = next_collision
+            return self._ball_collision_event_class(t_c, e_i, e_j)
         else:
             return next_motion_event
 

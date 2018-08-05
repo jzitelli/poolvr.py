@@ -124,10 +124,15 @@ def main(window_size=(800,600),
     camera_position[1] = game.table.height + 0.6
     camera_position[2] = game.table.length - 0.1
 
+    last_contact_t = {i: float('-inf') for i in range(physics.num_balls)}
+
     process_keyboard_input = init_keyboard(window)
     def on_keydown(window, key, scancode, action, mods):
         if key == glfw.KEY_R and action == glfw.PRESS:
             game.reset()
+            for k in last_contact_t.keys():
+                last_contact_t[k] = float('-inf')
+            game.ntt = 0.0
     set_on_keydown(window, on_keydown)
 
     process_mouse_input = init_mouse(window)
@@ -164,8 +169,6 @@ def main(window_size=(800,600),
 
     init_sound()
 
-    last_contact_t = {i: float('-inf') for i in range(physics.num_balls)}
-
     def render_to_hmd():
         renderer.process_input(button_press_callbacks=button_press_callbacks)
         hmd_pose = frame_data['hmd_pose']
@@ -175,7 +178,7 @@ def main(window_size=(800,600),
             angular_velocity = frame_data['controller_angular_velocities'][i]
             cue.world_matrix[:3,:3] = pose[:,:3].dot(cue.rotation).T
             cue.world_matrix[3,:3] = pose[:,3]
-            cue.velocity[:] = velocity
+            cue.velocity[:] = cue.rotation.T.dot(velocity)
             cue.angular_velocity = angular_velocity
             set_quaternion_from_matrix(pose[:,:3], cue_quaternion)
 
@@ -216,14 +219,11 @@ def main(window_size=(800,600),
                 if physics.t - last_contact_t[i] < 0.05:
                     continue
                 r_c = cue.contact(position, physics.ball_radius)
-                # _logger.debug('i = %s\nposition = %f %f %f\nr_c = %s',
-                #               i, position[0], position[1], position[2],
-                #               '%f %f %f' % r_c if r_c else '')
                 if r_c is not None:
                     last_contact_t[i] = physics.t
                     # renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1],
                     #                                       0, int(np.linalg.norm(cue.velocity)**2 / 1.7 * 2700))
-                    #r_c[:] = [0.0, 0.0, physics.ball_radius]
+                    cue.velocity[:] = (0.0, 0.0, -0.5)
                     physics.strike_ball(game.t, i, r_c, cue.velocity, cue.mass)
                     game.ntt = physics.next_turn_time
                     _logger.debug('next_turn_time = %s', game.ntt)
