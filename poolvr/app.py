@@ -182,18 +182,18 @@ def main(window_size=(800,600),
     def render_to_window():
         set_quaternion_from_matrix(cue.rotation.dot(cue.world_matrix[:3,:3].T),
                                    cue_quaternion)
-        #frame_data['view_matrix'].T.dot(light_position, out=u_light_position)
-        for i, position in cue.aabb_check(physics.ball_positions, physics.ball_radius):
-            if game.t - last_contact_t[i] < 0.05:
-                continue
-            r_c = cue.contact(position, physics.ball_radius)
-            # _logger.debug('i = %s\nposition = %f %f %f\nr_c = %s',
-            #               i, position[0], position[1], position[2],
-            #               '%f %f %f' % (r_c[0], r_c[1], r_c[2]) if r_c is not None else '')
-            if r_c is not None:
-                physics.strike_ball(game.t, i, r_c, cue.velocity, cue.mass)
-                game.ntt = physics.next_turn_time
-                break
+        # frame_data['view_matrix'].T.dot(light_position, out=u_light_position)
+        # for i, position in cue.aabb_check(physics.ball_positions, physics.ball_radius):
+        #     if game.t - last_contact_t[i] < 0.05:
+        #         continue
+        #     r_c = cue.contact(position, physics.ball_radius)
+        #     # _logger.debug('i = %s\nposition = %f %f %f\nr_c = %s',
+        #     #               i, position[0], position[1], position[2],
+        #     #               '%f %f %f' % (r_c[0], r_c[1], r_c[2]) if r_c is not None else '')
+        #     if r_c is not None:
+        #         physics.strike_ball(game.t, i, r_c, cue.velocity, cue.mass)
+        #         game.ntt = physics.next_turn_time
+        #         break
 
     _logger.info('entering render loop...')
     sys.stdout.flush()
@@ -213,7 +213,7 @@ def main(window_size=(800,600),
             elif isinstance(renderer, OpenGLRenderer):
                 render_to_window()
             for i, position in cue.aabb_check(physics.ball_positions, physics.ball_radius):
-                if game.t - last_contact_t[i] < 0.05:
+                if physics.t - last_contact_t[i] < 0.05:
                     continue
                 r_c = cue.contact(position, physics.ball_radius)
                 # _logger.debug('i = %s\nposition = %f %f %f\nr_c = %s',
@@ -221,11 +221,12 @@ def main(window_size=(800,600),
                 #               '%f %f %f' % r_c if r_c else '')
                 if r_c is not None:
                     last_contact_t[i] = physics.t
-                    renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1],
-                                                          0, int(np.linalg.norm(cue.velocity)**2 / 1.7 * 2700))
+                    # renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1],
+                    #                                       0, int(np.linalg.norm(cue.velocity)**2 / 1.7 * 2700))
                     #r_c[:] = [0.0, 0.0, physics.ball_radius]
                     physics.strike_ball(game.t, i, r_c, cue.velocity, cue.mass)
                     game.ntt = physics.next_turn_time
+                    _logger.debug('next_turn_time = %s', game.ntt)
                     break
 
             cue_body.setPosition(cue.world_position)

@@ -31,6 +31,7 @@ def set_on_keydown(window, cb):
     global _on_keydown_cb
     _on_keydown_cb = cb
 
+
 def init_keyboard(window):
     glfw.SetKeyCallback(window, __on_keydown)
     theta = 0.0

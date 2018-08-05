@@ -34,8 +34,8 @@ class PoolCue(Mesh):
     def aabb_check(self, positions, ball_radius):
         if self._positions is None:
             self._positions = np.empty(positions.shape, dtype=positions.dtype)
-        # (positions - self.position).dot(self.world_matrix[:3,:3].T, out=self._positions)
-        self._positions[:] = self.world_matrix[:3,:3].dot((positions - self.position).T).T
+        (positions - self.position).dot(self.world_matrix[:3,:3].T, out=self._positions)
+        # self._positions[:] = self.world_matrix[:3,:3].dot((positions - self.position).T).T
         aabb = self.bb
         separate = ((aabb[0] > self._positions + ball_radius) | (aabb[1] < self._positions - ball_radius)).any(axis=-1)
         intersect = ~separate
@@ -76,7 +76,6 @@ class PoolCue(Mesh):
         if poc is not None:
             # poc[1], poc[2] = poc[2], poc[1]
             r_c = self.world_matrix[:3,:3].T.dot(poc) + self.position
-            # r_c = poc + self.position
             _logger.debug('''
             self.position = %f %f %f
             position      = %f %f %f
@@ -87,9 +86,6 @@ class PoolCue(Mesh):
                           position[0], position[1], position[2],
                           poc[0], poc[1], poc[2],
                           r_c[0], r_c[1], r_c[2])
-            # _logger.debug('''
-            # poc (global)  = %f %f %f
-            # ''', poc[0], poc[1], poc[2])
             return r_c
         return poc
     @property
