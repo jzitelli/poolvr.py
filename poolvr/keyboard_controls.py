@@ -28,7 +28,7 @@ def __on_keydown(window, key, scancode, action, mods):
         _on_keydown_cb(window, key, scancode, action, mods)
 
 
-def set_on_keydown(window, cb):
+def set_on_keydown_callback(window, cb):
     global _on_keydown_cb
     _on_keydown_cb = cb
 

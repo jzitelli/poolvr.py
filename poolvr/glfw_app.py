@@ -23,7 +23,7 @@ except ImportError as err:
 # from .gl_text import TexturedText
 from .cue import PoolCue
 from .game import PoolGame
-from .keyboard_controls import init_keyboard, set_on_keydown
+from .keyboard_controls import init_keyboard, set_on_keydown_callback
 from .mouse_controls import init_mouse
 from .sound import init_sound
 from .room import floor_mesh, skybox_mesh
@@ -104,16 +104,16 @@ def main(window_size=(800,600),
     cue_quaternion = np.zeros(4, dtype=np.float32)
     cue_quaternion[3] = 1
     game.reset()
-    ball_meshes = game.table.setup_balls(game.ball_radius, game.ball_colors[:9], game.ball_positions,
-                                         striped_balls=set(range(9, game.num_balls)),
-                                         use_bb_particles=use_bb_particles)
+    ball_meshes = game.table.setup_ball_meshes(game.ball_radius, game.ball_colors[:9], game.ball_positions,
+                                               striped_balls=set(range(9, game.num_balls)),
+                                               use_bb_particles=use_bb_particles)
     window, fallback_renderer = setup_glfw(width=window_size[0], height=window_size[1],
                                            double_buffered=novr, multisample=multisample)
     if not novr and OpenVRRenderer is not None:
         try:
             renderer = OpenVRRenderer(window_size=window_size, multisample=multisample)
             button_press_callbacks = {openvr.k_EButton_Grip: game.reset,
-                                      openvr.k_EButton_ApplicationMenu: game.advance_time}
+                                      }#openvr.k_EButton_ApplicationMenu: game.advance_time}
             if ODEPoolPhysics is not None:
                 def on_cue_ball_collision(renderer=renderer, game=game, physics=physics, impact_speed=None):
                     if impact_speed > 0.0015:
@@ -139,7 +139,7 @@ def main(window_size=(800,600),
     def on_keydown(window, key, scancode, action, mods):
         if key == glfw.KEY_R and action == glfw.PRESS:
             game.reset()
-    set_on_keydown(window, on_keydown)
+    set_on_keydown_callback(window, on_keydown)
 
     process_mouse_input = init_mouse(window)
 

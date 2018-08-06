@@ -91,7 +91,7 @@ def gl_rendering(pool_physics, pool_table, request):
     import cyglfw3 as glfw
     yield
     from poolvr.glfw_app import setup_glfw
-    from poolvr.keyboard_controls import init_keyboard, set_on_keydown
+    from poolvr.keyboard_controls import init_keyboard, set_on_keydown_callback
     from poolvr.game import PoolGame
     logging.getLogger('poolvr.gl_rendering').setLevel(logging.WARNING)
     physics = pool_physics
@@ -122,9 +122,8 @@ def gl_rendering(pool_physics, pool_table, request):
     camera_position[2] = table.length - 0.1
     game = PoolGame(physics=physics, table=table)
     ball_positions = game.ball_positions
-    ball_meshes = table.setup_balls(physics.ball_radius, game.ball_colors[:9], ball_positions,
-                                    striped_balls=set(range(9, physics.num_balls)),
-                                    use_bb_particles=False)
+    ball_meshes = table.setup_ball_meshes(physics.ball_radius, game.ball_colors[:9], ball_positions,
+                                          striped_balls=set(range(9, physics.num_balls)), use_bb_particles=False)
     ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
     meshes = [table.mesh] + ball_meshes + ball_shadow_meshes
     for mesh in meshes:
@@ -135,7 +134,7 @@ def gl_rendering(pool_physics, pool_table, request):
     def on_keydown(window, key, scancode, action, mods):
         if key == glfw.KEY_R and action == glfw.PRESS:
             physics.reset()
-    set_on_keydown(window, on_keydown)
+    set_on_keydown_callback(window, on_keydown)
     def process_input(dt):
         glfw.PollEvents()
         process_keyboard_input(dt, camera_world_matrix)

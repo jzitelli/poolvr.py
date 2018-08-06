@@ -111,9 +111,9 @@ class PoolTable(object):
                           rail_material   : self.railGeoms})
 
 
-    def setup_balls(self, ball_radius, ball_colors, ball_positions, striped_balls=None,
-                    use_bb_particles=False,
-                    technique=LAMBERT_TECHNIQUE):
+    def setup_ball_meshes(self, ball_radius, ball_colors, ball_positions, striped_balls=None,
+                          use_bb_particles=False,
+                          technique=LAMBERT_TECHNIQUE):
         ball_colors = list(ball_colors) + ball_colors[1:-1]
         num_balls = len(ball_colors)
         ball_quaternions = np.zeros((num_balls, 4), dtype=np.float32)

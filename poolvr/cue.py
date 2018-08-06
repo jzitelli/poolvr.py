@@ -25,8 +25,9 @@ class PoolCue(Mesh):
         self.shadow_mesh = ProjectedMesh(self,
                                          Material(EGA_TECHNIQUE, values={'u_color': [0.0, 0x12/0xff, 0.0, 0.0]}))
         self.position = self.world_matrix[3,:3]
-        self.velocity = np.zeros(3, dtype=np.float32)
-        self.angular_velocity = np.zeros(3, dtype=np.float32)
+        self.velocity = np.zeros(3, dtype=np.float64)
+        self.quaternion = np.zeros(4, dtype=np.float64); self.quaternion[3] = 1
+        self.angular_velocity = np.zeros(3, dtype=np.float64)
         self.bb = np.array([[-radius, -0.5*length, -radius],
                             [radius, 0.5*length, radius]], dtype=np.float32)
         self._positions = None
@@ -35,12 +36,10 @@ class PoolCue(Mesh):
         if self._positions is None:
             self._positions = np.empty(positions.shape, dtype=positions.dtype)
         (positions - self.position).dot(self.world_matrix[:3,:3].T, out=self._positions)
-        # self._positions[:] = self.world_matrix[:3,:3].dot((positions - self.position).T).T
         aabb = self.bb
         separate = ((aabb[0] > self._positions + ball_radius) | (aabb[1] < self._positions - ball_radius)).any(axis=-1)
         intersect = ~separate
-        return [(i, self._positions[i])
-                for i, inter in enumerate(intersect) if inter]
+        return [(i, self._positions[i]) for i, inter in enumerate(intersect) if inter]
     def contact(self, position, ball_radius):
         x, y, z = position
         r_sqrd = x**2 + z**2
@@ -48,7 +47,6 @@ class PoolCue(Mesh):
         if abs(y) <= 0.5*self.length:
             # potential contact on the side of the cue:
             if r_sqrd > self.radius**2 and r_sqrd <= (self.radius + ball_radius)**2:
-                # contact on cylinder side of cue:
                 n = position.copy()
                 n[1] = 0.0
                 n /= np.sqrt(r_sqrd)
@@ -57,7 +55,6 @@ class PoolCue(Mesh):
         elif abs(y) <= 0.5*self.length + ball_radius:
             # potential contact on flat end of the cue:
             if r_sqrd <= self.radius**2:
-                # contact on the flat end:
                 poc = position.copy()
                 if y >= 0.0:
                     poc[1] -= ball_radius

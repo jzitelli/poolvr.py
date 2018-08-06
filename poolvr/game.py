@@ -36,66 +36,25 @@ class PoolGame(object):
         self.table = table
         self.ball_colors = ball_colors
         self.num_balls = len(ball_colors)
-        self.ball_positions = np.empty((self.num_balls, 3), dtype=np.float32)
-        self.ball_quaternions = np.zeros((self.num_balls, 4), dtype=np.float32)
-        self.ball_quaternions[:,3] = 1
         self.ball_radius = ball_radius
-        self.initial_positions(out=self.ball_positions)
         if physics is None:
             physics = PoolPhysics(num_balls=self.num_balls,
                                   ball_radius=ball_radius,
                                   **kwargs)
         self.physics = physics
-        self.ball_positions[:] = physics.ball_positions
+        self.ball_positions = self.physics.ball_positions.copy()
+        self.ball_quaternions = np.zeros((self.num_balls, 4), dtype=np.float32)
+        self.ball_quaternions[:,3] = 1
         self.t = 0.0
         self.ntt = 0.0
-
-    def initial_positions(self, d=None, out=None):
-        """Returns an array containing the initial (racked) ball positions"""
-        if d is None:
-            d = 0.04 * self.ball_radius
-        if out is None:
-            out = np.empty((self.num_balls, 3), dtype=np.float32)
-        height = self.table.height
-        length = self.table.length
-        ball_diameter = 2 * self.ball_radius
-        # triangle racked:
-        out[:,1] = height + self.ball_radius + 0.005
-        side_length = 4 * (ball_diameter + d)
-        x_positions = np.concatenate([np.linspace(0,                        0.5 * side_length,                         5),
-                                      np.linspace(-0.5*(ball_diameter + d), 0.5 * side_length - (ball_diameter + d),   4),
-                                      np.linspace(-(ball_diameter + d),     0.5 * side_length - 2*(ball_diameter + d), 3),
-                                      np.linspace(-1.5*(ball_diameter + d), 0.5 * side_length - 3*(ball_diameter + d), 2),
-                                      np.array([-2*(ball_diameter + d)])])
-        z_positions = np.concatenate([np.linspace(0,                                    np.sqrt(3)/2 * side_length, 5),
-                                      np.linspace(0.5*np.sqrt(3) * (ball_diameter + d), np.sqrt(3)/2 * side_length, 4),
-                                      np.linspace(np.sqrt(3) * (ball_diameter + d),     np.sqrt(3)/2 * side_length, 3),
-                                      np.linspace(1.5*np.sqrt(3) * (ball_diameter + d), np.sqrt(3)/2 * side_length, 2),
-                                      np.array([np.sqrt(3)/2 * side_length])])
-        z_positions *= -1
-        z_positions -= length / 8
-        out[1:,0] = x_positions
-        out[1:,2] = z_positions
-        # cue ball at head spot:
-        out[0,0] = 0.0
-        out[0,2] = 0.25 * length
-        return out
 
     def reset(self):
         """
         Resets the game state, which means: set balls in their initial stationary
         positions; reset physics engine.
         """
-        racked_positions = self.table.calc_racked_positions(self.num_balls)
-        self.physics.reset(ball_positions=racked_positions)
+        self.physics.reset()
+        self.ball_positions[:] = self.physics.ball_positions
+        self.ball_quaternions[:] = 0; self.ball_quaternions[:,3] = 1
         self.t = 0.0
         self.ntt = 0.0
-
-    def advance_time(self, interp=None):
-        """
-        Advances the game time to the instant that all balls have come to rest.
-        """
-        ntt = self.physics.next_turn_time
-        if ntt:
-            self.ntt = ntt
-            self.t = ntt
