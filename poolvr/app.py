@@ -201,7 +201,6 @@ def main(window_size=(800,600),
                     if isinstance(renderer, OpenVRRenderer):
                         renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1],
                                                               0, int(np.linalg.norm(cue.velocity)**2 / 1.7 * 2700))
-                    # cue.velocity[:] = (0.0, 0.0, -0.6)
                     physics.strike_ball(game.t, i, r_c, cue.velocity, cue.mass)
                     game.ntt = physics.next_turn_time
                     _logger.debug('next_turn_time = %s', game.ntt)
@@ -215,9 +214,6 @@ def main(window_size=(800,600),
             cue_body.setAngularVel(cue.angular_velocity)
             cue.shadow_mesh.update()
 
-            physics.eval_positions(game.t, out=game.ball_positions)
-            physics.eval_quaternions(game.t, out=game.ball_quaternions)
-            #ball_positions[~physics._on_table] = camera_position # hacky way to only show balls that are on table
             for i, quat in enumerate(game.ball_quaternions):
                 set_matrix_from_quaternion(quat, ball_mesh_rotations[i])
             if use_bb_particles:
@@ -230,8 +226,7 @@ def main(window_size=(800,600),
             # sdf_text.set_text("%9.3f" % dt)
             # sdf_text.update_gl()
 
-        game.t += dt
-        physics.step(dt)
+        game.step(dt)
 
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:

@@ -121,8 +121,7 @@ def gl_rendering(pool_physics, pool_table, request):
     camera_position[1] = table.height + 0.6
     camera_position[2] = table.length - 0.1
     game = PoolGame(physics=physics, table=table)
-    ball_positions = game.ball_positions
-    ball_meshes = table.setup_ball_meshes(physics.ball_radius, game.ball_colors[:9], ball_positions,
+    ball_meshes = table.setup_ball_meshes(physics.ball_radius, game.ball_colors[:9], game.ball_positions,
                                           striped_balls=set(range(9, physics.num_balls)), use_bb_particles=False)
     ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
     meshes = [table.mesh] + ball_meshes + ball_shadow_meshes
@@ -144,18 +143,20 @@ def gl_rendering(pool_physics, pool_table, request):
     max_frame_time = 0.0
     lt = glfw.GetTime()
     t_end = physics.events[-1].t if physics.events else 0.0
+    for ball_mesh, on_table in zip(ball_meshes, physics._on_table):
+        if not on_table:
+            ball_mesh.visible = False
+    game.step(0)
     while not glfw.WindowShouldClose(window) and physics.t < t_end:
         t = glfw.GetTime()
         dt = t - lt
         lt = t
         process_input(dt)
         with renderer.render(meshes=meshes):# as frame_data:
-            physics.eval_positions(physics.t, out=ball_positions)
-            ball_positions[~pool_physics._on_table] = camera_position # hacky way to only show balls that are on table
             for i, pos in enumerate(ball_positions):
                 ball_mesh_positions[i][:] = pos
                 ball_shadow_mesh_positions[i][0::2] = pos[0::2]
-        physics.t += dt
+        game.step(dt)
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:
             st = glfw.GetTime()
@@ -167,9 +168,8 @@ def gl_rendering(pool_physics, pool_table, request):
                      (nframes - 1) / (t - st), max_frame_time, (t - st) / (nframes - 1))
 
     with renderer.render(meshes=meshes):
-        physics.eval_positions(t_end, out=ball_positions)
-        ball_positions[~pool_physics._on_table] = camera_position
-        for i, pos in enumerate(ball_positions):
+        physics.eval_positions(t_end, out=game.ball_positions)
+        for i, pos in enumerate(game.ball_positions):
             ball_mesh_positions[i][:] = pos
             ball_shadow_mesh_positions[i][0::2] = pos[0::2]
         glfw.SwapBuffers(window)

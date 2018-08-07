@@ -35,15 +35,15 @@ class PoolGame(object):
             table = PoolTable(**kwargs)
         self.table = table
         self.ball_colors = ball_colors
-        self.num_balls = len(ball_colors)
         self.ball_radius = ball_radius
         if physics is None:
-            physics = PoolPhysics(num_balls=self.num_balls,
-                                  ball_radius=ball_radius,
+            physics = PoolPhysics(ball_radius=ball_radius,
                                   **kwargs)
         self.physics = physics
         self.ball_positions = self.physics.ball_positions.copy()
-        self.ball_quaternions = np.zeros((self.num_balls, 4), dtype=np.float32)
+        self.ball_velocities = np.zeros((self.num_balls, 3), dtype=np.float64)
+        self.ball_angular_velocities = np.zeros((self.num_balls, 3), dtype=np.float64)
+        self.ball_quaternions = np.zeros((self.num_balls, 4), dtype=np.float64)
         self.ball_quaternions[:,3] = 1
         self.t = 0.0
         self.ntt = 0.0
@@ -55,6 +55,21 @@ class PoolGame(object):
         """
         self.physics.reset()
         self.ball_positions[:] = self.physics.ball_positions
-        self.ball_quaternions[:] = 0; self.ball_quaternions[:,3] = 1
+        self.ball_velocities[:] = 0
+        self.ball_angular_velocities[:] = 0
+        self.ball_quaternions[:] = 0
+        self.ball_quaternions[:,3] = 1
         self.t = 0.0
         self.ntt = 0.0
+
+    @property
+    def num_balls(self):
+        return self.physics.num_balls
+
+    def step(self, dt):
+        self.t += dt
+        self.physics.step(dt)
+        self.physics.eval_positions(self.t, out=self.ball_positions)
+        self.physics.eval_quaternions(self.t, out=self.ball_quaternions)
+        self.physics.eval_velocities(self.t, out=self.ball_velocities)
+        self.physics.eval_angular_velocities(self.t, out=self.ball_angular_velocities)

@@ -488,6 +488,7 @@ class Mesh(Node):
         """
         Node.__init__(self, matrix=matrix, name=name)
         self.primitives = primitives
+        self.visible = True
         self._before_draw = before_draw
         self._after_draw = after_draw
         self._initialized = False
@@ -524,6 +525,8 @@ class Mesh(Node):
         _logger.debug('%s.init_gl: OK' % self.__class__.__name__)
         self._initialized = True
     def draw(self, **frame_data):
+        if not self.visible:
+            return super().draw(**frame_data)
         view = frame_data.get('view_matrix', None)
         projection = frame_data.get('projection_matrix', None)
         if self._before_draw:
