@@ -121,8 +121,8 @@ def gl_rendering(pool_physics, pool_table, request):
     camera_position[1] = table.height + 0.6
     camera_position[2] = table.length - 0.1
     game = PoolGame(physics=physics, table=table)
-    ball_meshes = table.setup_ball_meshes(physics.ball_radius, game.ball_colors[:9], game.ball_positions,
-                                          striped_balls=set(range(9, physics.num_balls)), use_bb_particles=False)
+    game.reset()
+    ball_meshes = table.ball_meshes
     ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
     meshes = [table.mesh] + ball_meshes + ball_shadow_meshes
     for mesh in meshes:
@@ -147,26 +147,24 @@ def gl_rendering(pool_physics, pool_table, request):
         if not on_table:
             ball_mesh.visible = False
     game.step(0)
-    while not glfw.WindowShouldClose(window) and physics.t < t_end:
+    while not glfw.WindowShouldClose(window) and game.t < t_end:
         t = glfw.GetTime()
         dt = t - lt
         lt = t
         process_input(dt)
         with renderer.render(meshes=meshes):# as frame_data:
-            for i, pos in enumerate(ball_positions):
+            game.step(dt)
+            for i, pos in enumerate(game.ball_positions):
                 ball_mesh_positions[i][:] = pos
                 ball_shadow_mesh_positions[i][0::2] = pos[0::2]
-        game.step(dt)
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:
             st = glfw.GetTime()
         nframes += 1
         glfw.SwapBuffers(window)
-
     if nframes > 1:
         _logger.info('...exited render loop: average FPS: %f, maximum frame time: %f, average frame time: %f',
                      (nframes - 1) / (t - st), max_frame_time, (t - st) / (nframes - 1))
-
     with renderer.render(meshes=meshes):
         physics.eval_positions(t_end, out=game.ball_positions)
         for i, pos in enumerate(game.ball_positions):
@@ -175,7 +173,6 @@ def gl_rendering(pool_physics, pool_table, request):
         glfw.SwapBuffers(window)
     screenshot(filename=os.path.join(os.path.dirname(__file__), 'screenshots',
                                      title.replace(' ', '_') + '.png'))
-
     renderer.shutdown()
     glfw.DestroyWindow(window)
     glfw.Terminate()
