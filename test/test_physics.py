@@ -18,7 +18,7 @@ def test_strike_ball(pool_physics, ball_collision_model,
     _logger.debug('r_c = %s', r_c)
     cue = PoolCue()
     cue.velocity[2] = -0.6
-    events = physics.strike_ball(0.0, 0, r_c, cue.velocity, cue.mass)
+    events = physics.strike_ball(0.0, 0, physics.ball_positions[0], r_c, cue.velocity, cue.mass)
     _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
                   physics.events_str(events))
     assert 4 == len(events)
@@ -113,6 +113,6 @@ def test_break(pool_physics, ball_collision_model,
     cue = PoolCue()
     cue.velocity[2] = -1.6
     cue.velocity[0] = -0.01
-    events = physics.strike_ball(0.0, 0, r_c, cue.velocity, cue.mass)
+    events = physics.strike_ball(0.0, 0, physics.ball_positions[0], r_c, cue.velocity, cue.mass)
     _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
                   physics.events_str(events))

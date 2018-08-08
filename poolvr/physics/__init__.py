@@ -123,16 +123,17 @@ class PoolPhysics(object):
         self.cue_geoms = [body]
         return body, body
 
-    def strike_ball(self, t, i, r_c, V, cue_mass):
+    def strike_ball(self, t, i, r_i, r_c, V, cue_mass):
         r"""
         Strike ball *i* at game time *t*.
 
+        :param r_i: position of ball *i*
         :param r_c: point of contact
         :param V: impact velocity
         """
         if not self._on_table[i]:
             return
-        event = CueStrikeEvent(t, i, self.ball_positions[i], r_c, V, cue_mass)
+        event = CueStrikeEvent(t, i, r_i, r_c, V, cue_mass)
         return self.add_event_sequence(event)
 
     def add_event_sequence(self, event):
