@@ -121,9 +121,12 @@ def gl_rendering(pool_physics, pool_table, request):
     camera_position[1] = table.height + 0.6
     camera_position[2] = table.length - 0.1
     game = PoolGame(physics=physics, table=table)
-    game.reset()
     ball_meshes = table.ball_meshes
     ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
+    for ball_mesh, shadow_mesh, on_table in zip(ball_meshes, ball_shadow_meshes, physics._on_table):
+        if not on_table:
+            ball_mesh.visible = False
+            shadow_mesh.visible = False
     meshes = [table.mesh] + ball_meshes + ball_shadow_meshes
     for mesh in meshes:
         mesh.init_gl(force=True)
@@ -132,31 +135,31 @@ def gl_rendering(pool_physics, pool_table, request):
     process_keyboard_input = init_keyboard(window)
     def on_keydown(window, key, scancode, action, mods):
         if key == glfw.KEY_R and action == glfw.PRESS:
-            physics.reset()
+            game.reset()
     set_on_keydown_callback(window, on_keydown)
     def process_input(dt):
         glfw.PollEvents()
         process_keyboard_input(dt, camera_world_matrix)
+
+    game.step(0)
+
     _logger.info('entering render loop...')
     stdout.flush()
+
     nframes = 0
     max_frame_time = 0.0
     lt = glfw.GetTime()
     t_end = physics.events[-1].t if physics.events else 0.0
-    for ball_mesh, on_table in zip(ball_meshes, physics._on_table):
-        if not on_table:
-            ball_mesh.visible = False
-    game.step(0)
     while not glfw.WindowShouldClose(window) and game.t < t_end:
         t = glfw.GetTime()
         dt = t - lt
         lt = t
         process_input(dt)
         with renderer.render(meshes=meshes):# as frame_data:
-            game.step(dt)
             for i, pos in enumerate(game.ball_positions):
                 ball_mesh_positions[i][:] = pos
                 ball_shadow_mesh_positions[i][0::2] = pos[0::2]
+        game.step(dt)
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:
             st = glfw.GetTime()
