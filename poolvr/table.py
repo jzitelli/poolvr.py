@@ -168,7 +168,6 @@ class PoolTable(object):
                 stripe_prim.attributes['a_position'] = stripe_prim.attributes['vertices']
             circle_prim = CirclePrimitive(radius=self.ball_radius, num_radial=16)
             circle_prim.attributes['a_position'] = circle_prim.attributes['vertices']
-            circle_prim.attributes['a_position'][:,1] -= 0.981*self.ball_radius
             shadow_material = Material(EGA_TECHNIQUE, values={'u_color': [0.01, 0.03, 0.001, 0.0]})
             ball_meshes = [Mesh({material        : [sphere_prim]})
                            if i not in striped_balls else
@@ -179,7 +178,7 @@ class PoolTable(object):
                                   for i in range(num_balls)]
             for i, mesh in enumerate(ball_meshes):
                 mesh.shadow_mesh = ball_shadow_meshes[i]
-                mesh.shadow_mesh.world_position[1] = self.height + 0.02
+                mesh.shadow_mesh.world_position[:] = self.height + 0.001
             self._ball_meshes = ball_meshes
 
 

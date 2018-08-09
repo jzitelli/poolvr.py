@@ -209,7 +209,6 @@ def main(window_size=(800,600),
                 for i, pos in enumerate(game.ball_positions):
                     ball_mesh_positions[i][:] = pos
                     ball_shadow_mesh_positions[i][0::2] = pos[0::2]
-                    ball_shadow_mesh_positions[i][1] = game.table.height + 0.03
                 # for i, quat in enumerate(game.ball_quaternions):
                 #     set_matrix_from_quaternion(quat, ball_mesh_rotations[i])
             cue.shadow_mesh.update()

@@ -54,8 +54,8 @@ class PhysicsEvent(object):
         out[3] = c1*c2*c3 - s1*s2*s3
         return out
     @staticmethod
-    def events_str(events=()):
-        return '\n'.join('%4d: %s' % (i, e) for i, e in enumerate(events))
+    def events_str(events, sep='\n\n' + 48*'-' + '\n\n'):
+        return sep.join('%3d (%5.5f, %5.5f): %s' % (i_e, e.t, e.t+e.T, e) for i_e, e in enumerate(events))
     def __lt__(self, other):
         if isinstance(other, PhysicsEvent):
             return self.t < other.t

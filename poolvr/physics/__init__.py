@@ -145,11 +145,6 @@ class PoolPhysics(object):
         num_added_events = len(self.events) - num_events
         return self.events[-num_added_events:]
 
-    def events_str(self, events=None, sep='\n\n' + 48*'-' + '\n\n'):
-        if events is None:
-            events = self.events
-        return sep.join('%3d (%5.5f, %5.5f): %s' % (i_e, e.t, e.t+e.T, e) for i_e, e in enumerate(events))
-
     def eval_positions(self, t, balls=None, out=None):
         """
         Evaluate the positions of a set of balls at game time *t*.
