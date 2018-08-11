@@ -239,10 +239,8 @@ def main(window_size=(800,600),
                 if isinstance(renderer, OpenVRRenderer):
                     renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1],
                                                           0, int(np.linalg.norm(cue.velocity)**2 / 1.7 * 2700))
-                _logger.debug('cue.velocity = %s', cue.velocity)
                 physics.strike_ball(game.t, i, game.ball_positions[i], r_c, cue.velocity, cue.mass)
                 # game.ntt = physics.next_turn_time
-                # _logger.debug('next_turn_time = %s', game.ntt)
                 break
 
         game.step(dt)

@@ -7,7 +7,6 @@ import numpy as np
 
 
 from .table import PoolTable
-#from .physics import PoolPhysics
 from .physics.events import BallRestEvent, CueStrikeEvent
 from .sound import play_ball_ball_collision_sound
 
@@ -87,6 +86,18 @@ class ODEPoolPhysics(object):
                 geom.setPosition(position)
             self._a[:,0] = initial_positions
         self._on_cue_ball_collide = None
+        self._balls_on_table = set(range(self.num_balls))
+        self._on_table = np.array(self.num_balls * [True])
+        self.ball_positions = self._a[:,0]
+
+    @property
+    def balls_on_table(self):
+        return set(self._balls_on_table)
+    @balls_on_table.setter
+    def balls_on_table(self, balls):
+        self._balls_on_table = set(balls)
+        self._on_table[:] = False
+        self._on_table[np.array(balls)] = True
 
     def set_cue_ball_collision_callback(self, cb):
         self._on_cue_ball_collide = cb
@@ -94,12 +105,11 @@ class ODEPoolPhysics(object):
     def reset(self, ball_positions=None, balls_on_table=None):
         self.t = 0
         if ball_positions is None:
-            ball_positions = PoolTable(num_balls=self.num_balls).calc_racked_positions()
-        # self.ball_positions[:] = ball_positions
+            ball_positions = self.table.calc_racked_positions()
+        self.ball_positions[:] = ball_positions
         if balls_on_table is None:
             balls_on_table = range(self.num_balls)
         self.balls_on_table = balls_on_table
-        self.on_table[:] = True
         for i, body in enumerate(self.ball_bodies):
             body.enable()
             body.setPosition(ball_positions[i])

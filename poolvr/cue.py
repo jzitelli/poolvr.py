@@ -51,7 +51,6 @@ class PoolCue(Mesh):
                 n[1] = 0.0
                 n /= np.sqrt(r_sqrd)
                 poc = position - ball_radius * n
-                _logger.debug('contact on cylinder side: %s', poc)
         elif abs(y) <= 0.5*self.length + ball_radius:
             # potential contact on flat end of the cue:
             if r_sqrd <= self.radius**2:
@@ -60,7 +59,6 @@ class PoolCue(Mesh):
                     poc[1] -= ball_radius
                 else:
                     poc[1] += ball_radius
-                _logger.debug('contact on flat end: %s', poc)
             else:
                 r = np.sqrt(r_sqrd)
                 if (r - self.radius)**2 + (abs(y) - 0.5*self.length)**2 <= ball_radius**2:
@@ -72,20 +70,8 @@ class PoolCue(Mesh):
                     n[::2] += -(r - self.radius) / r * position[::2]
                     n /= np.linalg.norm(n)
                     poc = position + ball_radius * n
-                    _logger.debug('contact on ring edge: %s', poc)
         if poc is not None:
-            r_c = self.world_matrix[:3,:3].T.dot(poc) + self.position
-            _logger.debug('''
-            self.position = %f %f %f
-            position      = %f %f %f
-            poc           = %f %f %f
-            r_c           = %f %f %f
-            ''',
-                          self.position[0], self.position[1], self.position[2],
-                          position[0], position[1], position[2],
-                          poc[0], poc[1], poc[2],
-                          r_c[0], r_c[1], r_c[2])
-            return r_c
+            return self.world_matrix[:3,:3].T.dot(poc) + self.position
         return poc
     @property
     def tip_position(self):

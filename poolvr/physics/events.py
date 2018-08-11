@@ -235,17 +235,7 @@ class CueStrikeEvent(BallEvent):
         V[1] = 0 # temporary: set vertical to 0
         self.V = V
         self.M = M
-        Q = r_c - r_i
-        _logger.debug('''
-        r_c = %s
-        r_i = %s
-        Q = %s
-        V = %s
-        np.linalg.norm(Q) = %s
-        ball_radius = %s
-        ''',
-                      r_c, r_i, Q, V, np.linalg.norm(Q), self.ball_radius)
-        self.Q = Q
+        self.Q = Q = r_c - r_i
         _j = V.copy(); _j[1] = 0; _j /= np.linalg.norm(_j)
         _i = np.cross(_j, self._k)
         a, c, b = (Q.dot(_i),

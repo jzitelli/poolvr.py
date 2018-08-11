@@ -73,6 +73,7 @@ class PoolPhysics(object):
         self.ball_positions = self._a[:,0]
         self.ball_velocities = self._a[:,1]
         self._on_table = np.array(self.num_balls * [True])
+        self._balls_on_table = set(range(self.num_balls))
         self.reset(ball_positions=initial_positions, balls_on_table=balls_on_table)
 
     @property
@@ -107,7 +108,7 @@ class PoolPhysics(object):
         self._b[:] = 0
         self._ball_motion_events = {}
         if ball_positions is None:
-            ball_positions = PoolTable().calc_racked_positions(num_balls=self.num_balls)
+            ball_positions = PoolTable(num_balls=self.num_balls).calc_racked_positions()
         self.ball_positions[:] = ball_positions
         if balls_on_table is None:
             balls_on_table = range(self.num_balls)

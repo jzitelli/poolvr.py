@@ -150,7 +150,7 @@ def gl_rendering(pool_physics, pool_table, request):
     nframes = 0
     max_frame_time = 0.0
     lt = glfw.GetTime()
-    t_end = physics.events[-1].t if physics.events else 0.0
+    t_end = 5.0 #physics.events[-1].t if physics.events else 0.0
     while not glfw.WindowShouldClose(window) and game.t < t_end:
         t = glfw.GetTime()
         dt = t - lt
