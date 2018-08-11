@@ -84,7 +84,7 @@ def capture_window(window,
 
 def main(window_size=(800,600),
          novr=False,
-         use_simple_ball_collisions=False,
+         ball_collision_model='simple',
          use_ode=False,
          multisample=0,
          use_bb_particles=False):
@@ -115,9 +115,13 @@ def main(window_size=(800,600),
             physics = ODEPoolPhysics(num_balls=16,
                                      table=table)
         except ImportError as err:
-            physics = PoolPhysics(num_balls=16)
+            physics = PoolPhysics(num_balls=16,
+                                  ball_collision_model=ball_collision_model)
             _logger.warning('could not import ode_physics:\n%s', err)
             ODEPoolPhysics = None
+    else:
+        physics = PoolPhysics(num_balls=16,
+                              ball_collision_model=ball_collision_model)
 
     game = PoolGame(table=table,
                     physics=physics)

@@ -15,11 +15,12 @@ def parse_args():
     parser.add_argument("-a", "--msaa", metavar='<multisample level>',
                         help='enable multi-sampled anti-aliasing (disabled by default) at level A (1, 2, or 4)',
                         default=0)
-    parser.add_argument("--use-simple-ball-collisions", help="use simple ball collision model",
-                        action="store_true")
     parser.add_argument('-o', "--ode",
                         help="use ODE for physics simulation instead of the default event-based engine",
                         action="store_true")
+    parser.add_argument("-c", "--collision-model",
+                        help="name of ball collision model to use (only applies to the event-based physics engine)",
+                        default='simple')
     parser.add_argument('--bb-particles',
                         help='render balls using billboard particle shader instead of polygon meshes',
                         action='store_true')
@@ -49,7 +50,7 @@ def main():
         poolvr.sound.set_output_sound_device(args.sound_device)
     import poolvr.app
     poolvr.app.main(novr=args.novr,
-                    use_simple_ball_collisions=args.use_simple_ball_collisions,
+                    ball_collision_model=args.collision_model,
                     use_ode=args.ode,
                     multisample=args.msaa,
                     use_bb_particles=args.bb_particles)

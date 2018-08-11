@@ -275,11 +275,13 @@ class PoolPhysics(object):
             return None
         t0 = max(e_i.t, e_j.t)
         t1 = min(e_i.t + e_i.T, e_j.t + e_j.T)
-        if t0 < self.t:
-            _logger.debug('skipping because in the past')
+        if t1 < self.t:
             return None
         if e_i.t + e_i.T < e_j.t or e_j.t + e_j.T < e_i.t:
-            _logger.debug('skipping because non-overlapping events')
+            return None
+        tau_i_0, tau_j_0 = t0 - e_i.t, t0 - e_j.t
+        v_ij_0_mag = np.linalg.norm(e_i.eval_velocity(tau_i_0) - e_j.eval_velocity(tau_j_0))
+        if v_ij_0_mag * (t1-t0) < np.linalg.norm(e_i.eval_position(tau_i_0) - e_j.eval_position(tau_j_0)) - self.ball_radius:
             return None
         a_i, b_i = e_i.global_motion_coeffs
         a_j, b_j = e_j.global_motion_coeffs
