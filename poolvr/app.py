@@ -13,7 +13,7 @@ import cyglfw3 as glfw
 _logger = logging.getLogger('poolvr')
 
 
-from .gl_rendering import OpenGLRenderer#, set_matrix_from_quaternion, set_quaternion_from_matrix
+from .gl_rendering import OpenGLRenderer, set_quaternion_from_matrix, set_matrix_from_quaternion
 try:
     from .pyopenvr_renderer import openvr, OpenVRRenderer
 except ImportError as err:
@@ -21,18 +21,14 @@ except ImportError as err:
     _logger.warning('\n\n\n**** VR FEATURES ARE NOT AVAILABLE! ****\n\n\n')
     OpenVRRenderer = None
 # from .gl_text import TexturedText
+from .physics import PoolPhysics
+from .table import PoolTable
 from .cue import PoolCue
 from .game import PoolGame
 from .keyboard_controls import init_keyboard, set_on_keydown_callback
 from .mouse_controls import init_mouse
 from .sound import init_sound
 from .room import floor_mesh, skybox_mesh
-
-try:
-    from .ode_physics import ODEPoolPhysics
-except ImportError as err:
-    _logger.warning('could not import ode_physics:\n%s', err)
-    ODEPoolPhysics = None
 
 
 BG_COLOR = (0.0, 0.0, 0.0, 0.0)
@@ -108,13 +104,23 @@ def main(window_size=(800,600),
             _logger.error('could not initialize OpenVRRenderer: %s', err)
     else:
         renderer = fallback_renderer
-    game = PoolGame(use_simple_ball_collisions=use_simple_ball_collisions)
-    # if use_ode and ODEPoolPhysics is not None:
-    #     game.physics = ODEPoolPhysics(num_balls=game.num_balls,
-    #                                   ball_radius=game.ball_radius,
-    #                                   initial_positions=game.ball_positions,
-    #                                   table=game.table)
-    physics = game.physics
+
+    init_sound()
+
+    table = PoolTable()
+
+    if use_ode:
+        try:
+            from .ode_physics import ODEPoolPhysics
+            physics = ODEPoolPhysics(num_balls=16,
+                                     table=table)
+        except ImportError as err:
+            physics = PoolPhysics(num_balls=16)
+            _logger.warning('could not import ode_physics:\n%s', err)
+            ODEPoolPhysics = None
+
+    game = PoolGame(table=table,
+                    physics=physics)
     game.reset()
     ball_meshes = game.table.ball_meshes
     if use_bb_particles:
@@ -122,20 +128,22 @@ def main(window_size=(800,600),
     else:
         ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
     cue = PoolCue()
-    # cue_body, cue_geom = game.physics.add_cue(cue)
     cue.position[1] = game.table.height + 0.1
     cue.position[2] += game.table.length * 0.3
+
+    cue_body, cue_geom = game.physics.add_cue(cue)
+
     # textured_text = TexturedText()
     meshes = [skybox_mesh, floor_mesh, game.table.mesh] + ball_meshes + ball_shadow_meshes + [cue.shadow_mesh, cue]
     for mesh in meshes:
         mesh.init_gl()
-    if use_bb_particles:
-        billboard_particles = ball_meshes[0]
-        ball_mesh_positions = billboard_particles.primitive.attributes['translate']
-        #ball_mesh_rotations = np.array(game.num_balls * [np.eye(3)])
+        if use_bb_particles:
+            billboard_particles = ball_meshes[0]
+            ball_mesh_positions = billboard_particles.primitive.attributes['translate']
+        ball_mesh_rotations = np.array(game.num_balls * [np.eye(3)])
     else:
         ball_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_meshes]
-        #ball_mesh_rotations = [mesh.world_matrix[:3,:3].T for mesh in ball_meshes]
+        ball_mesh_rotations = [mesh.world_matrix[:3,:3].T for mesh in ball_meshes]
         ball_shadow_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_shadow_meshes]
 
     camera_world_matrix = fallback_renderer.camera_matrix
@@ -160,18 +168,19 @@ def main(window_size=(800,600),
     if isinstance(renderer, OpenVRRenderer):
         button_press_callbacks = {openvr.k_EButton_Grip: game.reset,
                                   }#openvr.k_EButton_ApplicationMenu: game.advance_time}
-        def on_cue_ball_collision(renderer=renderer, game=game, physics=physics, impact_speed=None):
-            if impact_speed > 0.0015:
-                renderer.vr_system.triggerHapticPulse(renderer._controller_indices[0], 0,
-                                                      int(max(0.8, impact_speed**2 / 4.0 + impact_speed**3 / 16.0) * 2750))
-        #physics.set_cue_ball_collision_callback(on_cue_ball_collision)
-        def on_cue_surface_collision(renderer=renderer, game=game, physics=physics, impact_speed=None):
-            if impact_speed > 0.003:
-                renderer.vr_system.triggerHapticPulse(renderer._controller_indices[0], 0,
-                                                      int(max(0.75, 0.2*impact_speed**2 + 0.07*impact_speed**3) * 2500))
-        #physics.set_cue_surface_collision_callback(on_cue_surface_collision)
 
-    init_sound()
+        if use_ode and ODEPoolPhysics is not None:
+            def on_cue_ball_collision(renderer=renderer, game=game, physics=physics, impact_speed=None):
+                if impact_speed > 0.0015:
+                    renderer.vr_system.triggerHapticPulse(renderer._controller_indices[0], 0,
+                                                      int(max(0.8, impact_speed**2 / 4.0 + impact_speed**3 / 16.0) * 2750))
+            physics.set_cue_ball_collision_callback(on_cue_ball_collision)
+            # def on_cue_surface_collision(renderer=renderer, game=game, physics=physics, impact_speed=None):
+            #     if impact_speed > 0.003:
+            #         renderer.vr_system.triggerHapticPulse(renderer._controller_indices[0], 0,
+            #                                               int(max(0.75, 0.2*impact_speed**2 + 0.07*impact_speed**3) * 2500))
+            # physics.set_cue_surface_collision_callback(on_cue_surface_collision)
+
 
     _logger.info('entering render loop...')
     sys.stdout.flush()
@@ -196,31 +205,30 @@ def main(window_size=(800,600),
                     angular_velocity = frame_data['controller_angular_velocities'][i]
                     cue.world_matrix[:3, :3] = pose[:, :3].dot(cue.rotation).T
                     cue.world_matrix[3, :3] = pose[:, 3]
-                    cue.velocity[:] = velocity #cue.rotation.T.dot(velocity)
+                    cue.velocity[:] = velocity
                     cue.angular_velocity = angular_velocity
-                    #set_quaternion_from_matrix(pose[:, :3], cue.quaternion)
+                    set_quaternion_from_matrix(pose[:, :3], cue.quaternion)
             elif isinstance(renderer, OpenGLRenderer):
-                # set_quaternion_from_matrix(cue.rotation.dot(cue.world_matrix[:3, :3].T),
-                #                            cue.quaternion)
-                pass
+                set_quaternion_from_matrix(cue.rotation.dot(cue.world_matrix[:3, :3].T),
+                                           cue.quaternion)
             if use_bb_particles:
                 billboard_particles.update_gl()
             else:
                 for i, pos in enumerate(game.ball_positions):
                     ball_mesh_positions[i][:] = pos
                     ball_shadow_mesh_positions[i][0::2] = pos[0::2]
-                # for i, quat in enumerate(game.ball_quaternions):
-                #     set_matrix_from_quaternion(quat, ball_mesh_rotations[i])
+                for i, quat in enumerate(game.ball_quaternions):
+                    set_matrix_from_quaternion(quat, ball_mesh_rotations[i])
             cue.shadow_mesh.update()
             # sdf_text.set_text("%9.3f" % dt)
             # sdf_text.update_gl()
 
-        # cue_body.setPosition(cue.world_position)
-        # w = cue.quaternion[3]; cue.quaternion[1:] = cue.quaternion[:3]; cue.quaternion[0] = w
-        # cue_body.setQuaternion(cue.quaternion)
-        # cue_geom.setQuaternion(cue.quaternion)
-        # cue_body.setLinearVel(cue.velocity)
-        # cue_body.setAngularVel(cue.angular_velocity)
+        cue_body.setPosition(cue.world_position)
+        w = cue.quaternion[3]; cue.quaternion[1:] = cue.quaternion[:3]; cue.quaternion[0] = w
+        cue_body.setQuaternion(cue.quaternion)
+        cue_geom.setQuaternion(cue.quaternion)
+        cue_body.setLinearVel(cue.velocity)
+        cue_body.setAngularVel(cue.angular_velocity)
 
         for i, position in cue.aabb_check(game.ball_positions, physics.ball_radius):
             if game.t - last_contact_t[i] < 0.5:

@@ -4,49 +4,24 @@ Open Dynamics Engine-based pool physics simulator
 import logging
 _logger = logging.getLogger(__name__)
 import numpy as np
+
+
+from .table import PoolTable
+#from .physics import PoolPhysics
+from .physics.events import BallRestEvent, CueStrikeEvent
+from .sound import play_ball_ball_collision_sound
+
 try:
     import ode
 except ImportError as err:
     _logger.error(err)
+    # import fake_ode as ode
     raise err
-
-
-from .table import PoolTable
-from .physics import PoolPhysics
-from .physics.events import BallRestEvent, CueStrikeEvent
-from .sound import play_ball_ball_collision_sound
 
 
 INCH2METER = 0.0254
 ZERO3 = np.zeros(3, dtype=np.float64)
 _J = np.array([0.0, 1.0, 0.0], dtype=np.float64)
-
-
-def _create_ball(world, ball_mass, ball_radius, space=None):
-    mass = ode.Mass()
-    mass.setSphereTotal(ball_mass, ball_radius)
-    body = ode.Body(world)
-    body.setMass(mass)
-    body.shape = "sphere"
-    body.boxsize = (2*ball_radius, 2*ball_radius, 2*ball_radius)
-    geom = ode.GeomSphere(space=space, radius=ball_radius)
-    geom.setBody(body)
-    return body, geom
-
-
-def _create_cue(world, cue_mass, cue_radius, cue_length, space=None, kinematic=True):
-    body = ode.Body(world)
-    mass = ode.Mass()
-    mass.setCylinderTotal(cue_mass, 3, cue_radius, cue_length)
-    body.setMass(mass)
-    body.shape = "cylinder"
-    if kinematic:
-        body.setKinematic()
-    if space:
-        geom = ode.GeomCylinder(space=space, radius=cue_radius, length=cue_length)
-        geom.setBody(body)
-        return body, geom
-    return body
 
 
 class ODEPoolPhysics(object):
@@ -95,33 +70,11 @@ class ODEPoolPhysics(object):
         self.ball_bodies = []
         self.ball_geoms = []
         for i in range(num_balls):
-            body, geom = _create_ball(self.world, ball_mass, ball_radius, space=self.space)
+            body, geom = self._create_ball(self.world, ball_mass, ball_radius, space=self.space)
             self.ball_bodies.append(body)
             self.ball_geoms.append(geom)
         # self.table_geom = ode.GeomBox(space=self.space, lengths=(self.table.width, self.table.height, self.table.length))
-        self.table_geom = ode.GeomPlane(space=self.space, normal=(0.0, 1.0, 0.0),
-                                        dist=self.table.height)
-        def _setup_cushions():
-            tri_mesh_data = ode.TriMeshData()
-            tri_mesh_data.build(self.table.headCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.headCushionGeom.indices.reshape(-1,3))
-            self.head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
-            tri_mesh_data = ode.TriMeshData()
-            tri_mesh_data.build(self.table.leftHeadCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.leftHeadCushionGeom.indices.reshape(-1,3))
-            self.left_head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
-            tri_mesh_data = ode.TriMeshData()
-            tri_mesh_data.build(self.table.rightHeadCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.rightHeadCushionGeom.indices.reshape(-1,3))
-            self.right_head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
-            tri_mesh_data = ode.TriMeshData()
-            tri_mesh_data.build(self.table.footCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.footCushionGeom.indices.reshape(-1,3)[:,::-1])
-            self.foot_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
-            tri_mesh_data = ode.TriMeshData()
-            tri_mesh_data.build(self.table.leftFootCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.leftFootCushionGeom.indices.reshape(-1,3)[:,::-1])
-            self.left_foot_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
-            tri_mesh_data = ode.TriMeshData()
-            tri_mesh_data.build(self.table.rightFootCushionGeom.attributes['vertices'].reshape(-1,3).tolist(), self.table.rightFootCushionGeom.indices.reshape(-1,3)[:,::-1])
-            self.right_foot_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
-        _setup_cushions()
-
+        self.table_geom = ode.GeomPlane(space=self.space, normal=(0.0, 1.0, 0.0), dist=self.table.height)
         self._contactgroup = ode.JointGroup()
         self.events = []
         self.ball_events = {i: [] for i in self.all_balls}
@@ -138,7 +91,14 @@ class ODEPoolPhysics(object):
     def set_cue_ball_collision_callback(self, cb):
         self._on_cue_ball_collide = cb
 
-    def reset(self, ball_positions):
+    def reset(self, ball_positions=None, balls_on_table=None):
+        self.t = 0
+        if ball_positions is None:
+            ball_positions = PoolTable(num_balls=self.num_balls).calc_racked_positions()
+        # self.ball_positions[:] = ball_positions
+        if balls_on_table is None:
+            balls_on_table = range(self.num_balls)
+        self.balls_on_table = balls_on_table
         self.on_table[:] = True
         for i, body in enumerate(self.ball_bodies):
             body.enable()
@@ -154,16 +114,17 @@ class ODEPoolPhysics(object):
         self._a[:,0] = ball_positions
 
     def add_cue(self, cue):
-        body, geom = _create_cue(self.world, cue.mass, cue.radius, cue.length,
-                                 space=self.space, kinematic=True)
+        body, geom = self._create_cue(self.world, cue.mass, cue.radius, cue.length,
+                                      space=self.space, kinematic=True)
         self.cue_bodies = [body]
         self.cue_geoms = [geom]
         return body, geom
 
-    def strike_ball(self, t, i, Q, V, cue_mass):
+    def strike_ball(self, t, i, r_i, r_c, V, cue_mass):
         if not self.on_table[i]:
             return
         body = self.ball_bodies[i]
+        Q = r_c - r_i
         a, b, c = Q
         V = V.copy()
         V[1] = 0
@@ -236,6 +197,67 @@ class ODEPoolPhysics(object):
     def next_turn_time(self):
         return self._t_last_strike + 0.04
 
+    @property
+    def cushion_meshes(self):
+        if self._cushion_meshes is None:
+            self._cushion_meshes = self._setup_cushion_meshes()
+
+    def _setup_cushion_meshes(self):
+        (headCushionGeom, leftHeadCushionGeom,
+         rightHeadCushionGeom, footCushionGeom,
+         leftFootCushionGeom, rightFootCushionGeom) = self.cushion_geoms
+        tri_mesh_data = ode.TriMeshData()
+        tri_mesh_data.build(self.table.headCushionGeom.attributes['vertices'].reshape(-1,3).tolist(),
+                            self.table.headCushionGeom.indices.reshape(-1,3))
+        self.head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+        tri_mesh_data = ode.TriMeshData()
+        tri_mesh_data.build(self.table.leftHeadCushionGeom.attributes['vertices'].reshape(-1,3).tolist(),
+                            self.table.leftHeadCushionGeom.indices.reshape(-1,3))
+        self.left_head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+        tri_mesh_data = ode.TriMeshData()
+        tri_mesh_data.build(self.table.rightHeadCushionGeom.attributes['vertices'].reshape(-1,3).tolist(),
+                            self.table.rightHeadCushionGeom.indices.reshape(-1,3))
+        self.right_head_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+        tri_mesh_data = ode.TriMeshData()
+        tri_mesh_data.build(self.table.footCushionGeom.attributes['vertices'].reshape(-1,3).tolist(),
+                            self.table.footCushionGeom.indices.reshape(-1,3)[:,::-1])
+        self.foot_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+        tri_mesh_data = ode.TriMeshData()
+        tri_mesh_data.build(self.table.leftFootCushionGeom.attributes['vertices'].reshape(-1,3).tolist(),
+                            self.table.leftFootCushionGeom.indices.reshape(-1,3)[:,::-1])
+        self.left_foot_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+        tri_mesh_data = ode.TriMeshData()
+        tri_mesh_data.build(self.table.rightFootCushionGeom.attributes['vertices'].reshape(-1,3).tolist(),
+                            self.table.rightFootCushionGeom.indices.reshape(-1,3)[:,::-1])
+        self.right_foot_cushion_geom = ode.GeomTriMesh(tri_mesh_data, space=self.space)
+
+    @staticmethod
+    def _create_ball(world, ball_mass, ball_radius, space=None):
+        mass = ode.Mass()
+        mass.setSphereTotal(ball_mass, ball_radius)
+        body = ode.Body(world)
+        body.setMass(mass)
+        body.shape = "sphere"
+        body.boxsize = (2*ball_radius, 2*ball_radius, 2*ball_radius)
+        geom = ode.GeomSphere(space=space, radius=ball_radius)
+        geom.setBody(body)
+        return body, geom
+
+    @staticmethod
+    def _create_cue(world, cue_mass, cue_radius, cue_length, space=None, kinematic=True):
+        body = ode.Body(world)
+        mass = ode.Mass()
+        mass.setCylinderTotal(cue_mass, 3, cue_radius, cue_length)
+        body.setMass(mass)
+        body.shape = "cylinder"
+        if kinematic:
+            body.setKinematic()
+        if space:
+            geom = ode.GeomCylinder(space=space, radius=cue_radius, length=cue_length)
+            geom.setBody(body)
+            return body, geom
+        return body
+
     def _add_event(self, event):
         self.events.append(event)
         self.ball_events[event.i].append(event)
@@ -246,13 +268,13 @@ class ODEPoolPhysics(object):
             i = self.ball_geoms.index(geom1)
             if not self.on_table[i]:
                 return
-        except:
+        except Exception:
             pass
         try:
             j = self.ball_geoms.index(geom2)
             if not self.on_table[j]:
                 return
-        except:
+        except Exception:
             pass
         contacts = ode.collide(geom1, geom2)
         if contacts:

@@ -20,7 +20,8 @@ def pool_table():
 @pytest.fixture(params=['simple', 'marlow'])
 def pool_physics(request, pool_table):
     from poolvr.physics import PoolPhysics
-    return PoolPhysics(initial_positions=np.array(pool_table.calc_racked_positions(), dtype=np.float64),
+    return PoolPhysics(initial_positions=np.array(pool_table.calc_racked_positions(),
+                                                  dtype=np.float64),
                        ball_collision_model=request.param)
 
 
@@ -165,9 +166,11 @@ def gl_rendering(pool_physics, pool_table, request):
             st = glfw.GetTime()
         nframes += 1
         glfw.SwapBuffers(window)
+
     if nframes > 1:
         _logger.info('...exited render loop: average FPS: %f, maximum frame time: %f, average frame time: %f',
                      (nframes - 1) / (t - st), max_frame_time, (t - st) / (nframes - 1))
+
     with renderer.render(meshes=meshes):
         physics.eval_positions(t_end, out=game.ball_positions)
         for i, pos in enumerate(game.ball_positions):

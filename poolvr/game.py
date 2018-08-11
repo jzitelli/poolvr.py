@@ -40,7 +40,7 @@ class PoolGame(object):
             physics = PoolPhysics(ball_radius=ball_radius,
                                   **kwargs)
         self.physics = physics
-        self.ball_positions = self.physics.ball_positions.copy()
+        self.ball_positions = self.table.calc_racked_positions()
         self.ball_velocities = np.zeros((self.num_balls, 3), dtype=np.float64)
         self.ball_angular_velocities = np.zeros((self.num_balls, 3), dtype=np.float64)
         self.ball_quaternions = np.zeros((self.num_balls, 4), dtype=np.float64)
@@ -54,7 +54,7 @@ class PoolGame(object):
         positions; reset physics engine.
         """
         self.physics.reset()
-        self.ball_positions[:] = self.physics.ball_positions
+        self.ball_positions[:] = self.table.calc_racked_positions()
         self.ball_velocities[:] = 0
         self.ball_angular_velocities[:] = 0
         self.ball_quaternions[:] = 0

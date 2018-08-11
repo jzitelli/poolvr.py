@@ -182,10 +182,10 @@ class PoolTable(object):
             self._ball_meshes = ball_meshes
 
 
-    def calc_racked_positions(self, num_balls=16, d=None,
+    def calc_racked_positions(self, d=None,
                               out=None):
         if out is None:
-            out = np.empty((num_balls, 3), dtype=np.float64)
+            out = np.empty((self.num_balls, 3), dtype=np.float64)
         ball_radius = self.ball_radius
         if d is None:
             d = 0.04 * ball_radius
