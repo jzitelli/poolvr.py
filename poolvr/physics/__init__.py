@@ -49,7 +49,11 @@ class PoolPhysics(object):
                  balls_on_table=None,
                  initial_positions=None,
                  ball_collision_model="simple",
+                 table=None,
                  **kwargs):
+        if table is None:
+            table = PoolTable(num_balls=num_balls, ball_radius=ball_radius)
+        self.table = table
         self.num_balls = num_balls
         if balls_on_table is None:
             balls_on_table = range(self.num_balls)
@@ -68,10 +72,6 @@ class PoolPhysics(object):
         self.E_Y_b = E_Y_b
         self.g = g
         self.t = 0.0
-        self._a = np.zeros((num_balls, 3, 3), dtype=np.float64)
-        self._b = np.zeros((num_balls, 2, 3), dtype=np.float64)
-        self.ball_positions = self._a[:,0]
-        self.ball_velocities = self._a[:,1]
         self._on_table = np.array(self.num_balls * [True])
         self._balls_on_table = set(range(self.num_balls))
         self.reset(ball_positions=initial_positions, balls_on_table=balls_on_table)
@@ -104,16 +104,13 @@ class PoolPhysics(object):
         Reset the state of the balls to at rest, at the specified positions.
         """
         self.t = 0
-        self._a[:] = 0
-        self._b[:] = 0
         self._ball_motion_events = {}
         if ball_positions is None:
-            ball_positions = PoolTable(num_balls=self.num_balls).calc_racked_positions()
-        self.ball_positions[:] = ball_positions
+            ball_positions = self.table.calc_racked_positions()
         if balls_on_table is None:
             balls_on_table = range(self.num_balls)
         self.balls_on_table = balls_on_table
-        self.ball_events = {i: [BallRestEvent(self.t, i, r=self.ball_positions[i])]
+        self.ball_events = {i: [BallRestEvent(self.t, i, r=ball_positions[i])]
                             for i in balls_on_table}
         self.events = list(chain.from_iterable(self.ball_events.values()))
         self._ball_motion_events.clear()
@@ -156,7 +153,6 @@ class PoolPhysics(object):
             balls = range(self.num_balls)
         if out is None:
             out = np.zeros((len(balls), 3), dtype=np.float64)
-        out[:] = self._a[balls,0] # TODO: use PositionBallEvent instead
         for ii, i in enumerate(balls):
             events = self.ball_events.get(i, ())
             if events:
