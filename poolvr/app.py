@@ -63,12 +63,12 @@ def setup_glfw(window_size=(800,600), double_buffered=False,
         renderer.update_projection_matrix()
     glfw.SetWindowSizeCallback(window, on_resize)
     renderer.init_gl()
+    on_resize(window, window_size[0], window_size[1])
     return window, renderer
 
 
 def capture_window(window,
                    filename='screenshot.png'):
-    import OpenGL.GL as gl
     import PIL
     if not filename.endswith('.png'):
         filename += '.png'
@@ -93,7 +93,6 @@ def main(window_size=(800,600),
 
     Performs initializations, setups, kicks off the render loop.
     """
-    _logger.info('HELLO')
     window, fallback_renderer = setup_glfw(window_size=window_size,
                                            double_buffered=novr, multisample=multisample)
     if not novr and OpenVRRenderer is not None:
@@ -108,24 +107,22 @@ def main(window_size=(800,600),
     init_sound()
 
     table = PoolTable()
-
     if use_ode:
         try:
             from .ode_physics import ODEPoolPhysics
-            physics = ODEPoolPhysics(num_balls=16,
-                                     table=table)
+            physics = ODEPoolPhysics(num_balls=16, table=table)
         except ImportError as err:
-            physics = PoolPhysics(num_balls=16,
+            physics = PoolPhysics(num_balls=16, table=table,
                                   ball_collision_model=ball_collision_model)
             _logger.warning('could not import ode_physics:\n%s', err)
             ODEPoolPhysics = None
     else:
-        physics = PoolPhysics(num_balls=16,
+        physics = PoolPhysics(num_balls=16, table=table,
                               ball_collision_model=ball_collision_model)
-
     game = PoolGame(table=table,
                     physics=physics)
     game.reset()
+
     ball_meshes = game.table.ball_meshes
     if use_bb_particles:
         ball_shadow_meshes = []
