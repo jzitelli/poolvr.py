@@ -1,6 +1,5 @@
 import logging
 _logger = logging.getLogger(__name__)
-import os.path
 from sys import stdout
 import numpy as np
 import pytest
@@ -43,12 +42,8 @@ def ode_gl_rendering(ode_pool_physics, pool_table, request):
     game = PoolGame(physics=physics, table=table)
     ball_meshes = table.ball_meshes
     ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
-    on_table = np.array(physics.num_balls * [False])
-    _logger.debug('physics.balls_on_table = %s', physics.balls_on_table)
-    for i in physics.balls_on_table:
-        on_table[i] = True
-    for ball_mesh, shadow_mesh, is_on_table in zip(ball_meshes, ball_shadow_meshes, on_table):
-        if not is_on_table:
+    for i, (ball_mesh, shadow_mesh) in enumerate(zip(ball_meshes, ball_shadow_meshes)):
+        if i not in physics.balls_on_table:
             ball_mesh.visible = False
             shadow_mesh.visible = False
     meshes = [table.mesh] + ball_meshes + ball_shadow_meshes
@@ -64,12 +59,8 @@ def ode_gl_rendering(ode_pool_physics, pool_table, request):
     def process_input(dt):
         glfw.PollEvents()
         process_keyboard_input(dt, camera_world_matrix)
-
-    game.step(0)
-
     _logger.info('entering render loop...')
     stdout.flush()
-
     nframes = 0
     max_frame_time = 0.0
     lt = glfw.GetTime()
@@ -89,11 +80,9 @@ def ode_gl_rendering(ode_pool_physics, pool_table, request):
             st = glfw.GetTime()
         nframes += 1
         glfw.SwapBuffers(window)
-
     if nframes > 1:
         _logger.info('...exited render loop: average FPS: %f, maximum frame time: %f, average frame time: %f',
                      (nframes - 1) / (t - st), max_frame_time, (t - st) / (nframes - 1))
-
     renderer.shutdown()
     glfw.DestroyWindow(window)
     glfw.Terminate()

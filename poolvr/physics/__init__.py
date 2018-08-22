@@ -72,8 +72,9 @@ class PoolPhysics(object):
         self.E_Y_b = E_Y_b
         self.g = g
         self.t = 0.0
-        self._on_table = np.array(self.num_balls * [True])
-        self._balls_on_table = set(range(self.num_balls))
+        self._on_table = np.array(self.num_balls * [False])
+        self._balls_on_table = balls_on_table
+        self._on_table[np.array(balls_on_table)] = True
         self.reset(ball_positions=initial_positions, balls_on_table=balls_on_table)
 
     @property
@@ -113,7 +114,6 @@ class PoolPhysics(object):
         self.ball_events = {i: [BallRestEvent(self.t, i, r=ball_positions[i])]
                             for i in balls_on_table}
         self.events = list(chain.from_iterable(self.ball_events.values()))
-        self._ball_motion_events.clear()
 
     def add_cue(self, cue):
         body = _create_cue(cue.mass, cue.radius, cue.length)

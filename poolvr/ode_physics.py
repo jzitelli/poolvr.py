@@ -37,15 +37,19 @@ class ODEPoolPhysics(object):
                  g=9.81,
                  linear_damping=0.008,
                  angular_damping=0.0125,
+                 balls_on_table=None,
                  initial_positions=None,
                  table=None,
                  **kwargs):
         if table is None:
-            table = PoolTable(**kwargs)
+            table = PoolTable(num_balls=num_balls, ball_radius=ball_radius)
         self.table = table
         self.num_balls = num_balls
+        if balls_on_table is None:
+            balls_on_table = range(self.num_balls)
         self.ball_mass = ball_mass
         self.ball_radius = ball_radius
+        self.ball_I = 2/5 * ball_mass * ball_radius**2 # moment of inertia
         self.mu_r = mu_r
         self.mu_sp = mu_sp
         self.mu_s = mu_s
@@ -53,42 +57,53 @@ class ODEPoolPhysics(object):
         self.c_b = c_b
         self.E_Y_b = E_Y_b
         self.g = g
-        self.all_balls = list(range(num_balls))
-        self.on_table = np.array(num_balls * [True])
-        self.events = []
-        self.ball_events = {i: [] for i in self.all_balls}
-        self._I = 2.0/5 * ball_mass * ball_radius**2
+        self.t = 0.0
+        self._on_table = np.array(num_balls * [False])
+        self._balls_on_table = balls_on_table
+        self._on_table[np.array(balls_on_table)] = True
         self.world = ode.World()
         self.world.setGravity((0.0, -g, 0.0))
         self.world.setLinearDamping(linear_damping)
         self.world.setAngularDamping(angular_damping)
         self.space = ode.SimpleSpace()
-        self.t = 0.0
-        self._t_last_strike = 0.0
-        self.nsteps = 0
         self.ball_bodies = []
         self.ball_geoms = []
         for i in range(num_balls):
             body, geom = self._create_ball(self.world, ball_mass, ball_radius, space=self.space)
             self.ball_bodies.append(body)
             self.ball_geoms.append(geom)
-        # self.table_geom = ode.GeomBox(space=self.space, lengths=(self.table.width, self.table.height, self.table.length))
         self.table_geom = ode.GeomPlane(space=self.space, normal=(0.0, 1.0, 0.0), dist=self.table.height)
+        # self.table_geom = ode.GeomBox(space=self.space, lengths=(self.table.width, self.table.height, self.table.length))
         self._contactgroup = ode.JointGroup()
-        self.events = []
-        self.ball_events = {i: [] for i in self.all_balls}
-        self._a = np.zeros((num_balls, 3, 3), dtype=np.float64)
-        self._b = np.zeros((num_balls, 2, 3), dtype=np.float64)
-        if initial_positions is not None:
-            for body, position in zip(self.ball_bodies, initial_positions):
-                body.setPosition(position)
-            for geom, position in zip(self.ball_geoms, initial_positions):
-                geom.setPosition(position)
-            self._a[:,0] = initial_positions
         self._on_cue_ball_collide = None
-        self._balls_on_table = set(range(self.num_balls))
-        self._on_table = np.array(self.num_balls * [True])
-        self.ball_positions = self._a[:,0]
+        if initial_positions is None:
+            initial_positions = self.table.calc_racked_positions()
+        self.reset(ball_positions=initial_positions, balls_on_table=balls_on_table)
+
+    def reset(self, ball_positions=None, balls_on_table=None):
+        """
+        Reset the state of the balls to at rest, at the specified positions.
+        """
+        from itertools import chain
+        self.t = 0
+        self._ball_motion_events = {}
+        if ball_positions is None:
+            ball_positions = self.table.calc_racked_positions()
+        if balls_on_table is None:
+            balls_on_table = range(self.num_balls)
+        self.balls_on_table = balls_on_table
+        self.ball_events = {i: [BallRestEvent(self.t, i, r=ball_positions[i])]
+                            for i in balls_on_table}
+        self.events = list(chain.from_iterable(self.ball_events.values()))
+        self._t_last_strike = 0.0
+        self.nsteps = 0
+        for body, geom, position in zip(self.ball_bodies, self.ball_geoms, ball_positions):
+            body.enable()
+            geom.setPosition(position)
+            body.setPosition(position)
+            body.setLinearVel(ZERO3)
+            body.setAngularVel(ZERO3)
+        self._contactgroup.empty()
 
     @property
     def balls_on_table(self):
@@ -102,27 +117,6 @@ class ODEPoolPhysics(object):
     def set_cue_ball_collision_callback(self, cb):
         self._on_cue_ball_collide = cb
 
-    def reset(self, ball_positions=None, balls_on_table=None):
-        self.t = 0
-        if ball_positions is None:
-            ball_positions = self.table.calc_racked_positions()
-        self.ball_positions[:] = ball_positions
-        if balls_on_table is None:
-            balls_on_table = range(self.num_balls)
-        self.balls_on_table = balls_on_table
-        for i, body in enumerate(self.ball_bodies):
-            body.enable()
-            body.setPosition(ball_positions[i])
-            body.setLinearVel(ZERO3)
-            body.setAngularVel(ZERO3)
-        for i, geom in enumerate(self.ball_geoms):
-            geom.setPosition(ball_positions[i])
-        self._contactgroup.empty()
-        self.events = []
-        self.ball_events = {i: [] for i in self.all_balls}
-        self._a[:] = 0
-        self._a[:,0] = ball_positions
-
     def add_cue(self, cue):
         body, geom = self._create_cue(self.world, cue.mass, cue.radius, cue.length,
                                       space=self.space, kinematic=True)
@@ -131,7 +125,7 @@ class ODEPoolPhysics(object):
         return body, geom
 
     def strike_ball(self, t, i, r_i, r_c, V, cue_mass):
-        if not self.on_table[i]:
+        if not self._on_table[i]:
             return
         body = self.ball_bodies[i]
         Q = r_c - r_i
@@ -146,7 +140,7 @@ class ODEPoolPhysics(object):
         v = np.zeros(3, dtype=np.float64) # <-- post-impact ball velocity
         v[::2] = F / m * V[::2] / np.linalg.norm(V[::2])
         omega = np.zeros(3, dtype=np.float64) # <-- post-impact ball angular velocity
-        I = self._I
+        I = self.ball_I
         omega_i = F * (-c * sin + b * cos) / I
         omega_j = F * a * sin / I
         omega_k = -F * a * cos / I
@@ -157,8 +151,8 @@ class ODEPoolPhysics(object):
         body.setLinearVel(v)
         body.setAngularVel(omega)
         self._t_last_strike = t
-        self._add_event(CueStrikeEvent(t, i, self._a[i,0], Q + self._a[i,0], V, cue_mass))
-        self._add_event(BallRestEvent(t + 12, i, self._a[i,0]))
+        self._add_event(CueStrikeEvent(t, i, r_i, Q + r_i, V, cue_mass))
+        self._add_event(BallRestEvent(t + 12, i, r_i))
         return 1
 
     def step(self, dt):
@@ -170,7 +164,7 @@ class ODEPoolPhysics(object):
 
     def eval_positions(self, t, balls=None, out=None):
         if balls is None:
-            balls = self.all_balls
+            balls = range(self.num_balls)
         if out is None:
             out = np.empty((len(balls), 3), dtype=np.float64)
         for ii, i in enumerate(balls):
@@ -179,7 +173,7 @@ class ODEPoolPhysics(object):
 
     def eval_quaternions(self, t, balls=None, out=None):
         if balls is None:
-            balls = self.all_balls
+            balls = range(self.num_balls)
         if out is None:
             out = np.empty((len(balls), 3), dtype=np.float64)
         for ii, i in enumerate(balls):
@@ -188,7 +182,7 @@ class ODEPoolPhysics(object):
 
     def eval_velocities(self, t, balls=None, out=None):
         if balls is None:
-            balls = self.all_balls
+            balls = range(self.num_balls)
         if out is None:
             out = np.empty((len(balls), 3), dtype=np.float64)
         for ii, i in enumerate(balls):
@@ -197,7 +191,7 @@ class ODEPoolPhysics(object):
 
     def eval_angular_velocities(self, t, balls=None, out=None):
         if balls is None:
-            balls = self.all_balls
+            balls = range(self.num_balls)
         if out is None:
             out = np.empty((len(balls), 3), dtype=np.float64)
         for ii, i in enumerate(balls):
@@ -276,13 +270,13 @@ class ODEPoolPhysics(object):
         world, contactgroup = args
         try:
             i = self.ball_geoms.index(geom1)
-            if not self.on_table[i]:
+            if not self._on_table[i]:
                 return
         except Exception:
             pass
         try:
             j = self.ball_geoms.index(geom2)
-            if not self.on_table[j]:
+            if not self._on_table[j]:
                 return
         except Exception:
             pass

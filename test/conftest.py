@@ -91,7 +91,7 @@ def gl_rendering(pool_physics, pool_table, request):
     OpenGL.ERROR_ON_COPY = True
     import cyglfw3 as glfw
     yield
-    from poolvr.glfw_app import setup_glfw
+    from poolvr.glfw_app import setup_glfw, capture_window
     from poolvr.keyboard_controls import init_keyboard, set_on_keydown_callback
     from poolvr.game import PoolGame
     logging.getLogger('poolvr.gl_rendering').setLevel(logging.WARNING)
@@ -102,20 +102,6 @@ def gl_rendering(pool_physics, pool_table, request):
     window, renderer = setup_glfw(width=window_size[0], height=window_size[1],
                                   double_buffered=True, multisample=4,
                                   title=title)
-
-    def screenshot(filename='%s-screenshot.png' % title):
-        import OpenGL.GL as gl
-        import PIL
-        if not filename.endswith('.png'):
-            filename += '.png'
-        _logger.info('saving screen capture...')
-        mWidth, mHeight = glfw.GetWindowSize(window)
-        gl.glPixelStorei(gl.GL_PACK_ALIGNMENT, 1)
-        pixels = gl.glReadPixels(0, 0, mWidth, mHeight, gl.GL_RGB, gl.GL_UNSIGNED_BYTE)
-        pil_image = PIL.Image.frombytes('RGB', (mWidth, mHeight), pixels)
-        pil_image = pil_image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
-        pil_image.save(filename)
-        _logger.info('...saved screen capture to "%s"', filename)
 
     camera_world_matrix = renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
@@ -177,8 +163,11 @@ def gl_rendering(pool_physics, pool_table, request):
             ball_mesh_positions[i][:] = pos
             ball_shadow_mesh_positions[i][0::2] = pos[0::2]
         glfw.SwapBuffers(window)
-    screenshot(filename=os.path.join(os.path.dirname(__file__), 'screenshots',
-                                     title.replace(' ', '_') + '.png'))
+
+    capture_window(window,
+                   filename=os.path.join(os.path.dirname(__file__), 'screenshots',
+                                         title.replace(' ', '_') + '.png'))
+
     renderer.shutdown()
     glfw.DestroyWindow(window)
     glfw.Terminate()

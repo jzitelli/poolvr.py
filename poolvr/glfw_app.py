@@ -71,6 +71,21 @@ def setup_glfw(width=800, height=600, double_buffered=False, title="poolvr.py 0.
     return window, renderer
 
 
+def capture_window(window,
+                   filename='screenshot.png'):
+    import PIL
+    if not filename.endswith('.png'):
+        filename += '.png'
+    _logger.info('saving screen capture...')
+    mWidth, mHeight = glfw.GetWindowSize(window)
+    gl.glPixelStorei(gl.GL_PACK_ALIGNMENT, 1)
+    pixels = gl.glReadPixels(0, 0, mWidth, mHeight, gl.GL_RGB, gl.GL_UNSIGNED_BYTE)
+    pil_image = PIL.Image.frombytes('RGB', (mWidth, mHeight), pixels)
+    pil_image = pil_image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
+    pil_image.save(filename)
+    _logger.info('...saved screen capture to "%s"', filename)
+
+
 def main(window_size=(800,600),
          novr=False,
          use_simple_ball_collisions=False,
