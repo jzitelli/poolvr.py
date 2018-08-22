@@ -7,7 +7,18 @@ from poolvr.cue import PoolCue
 
 def test_strike_ball(ode_pool_physics, ode_gl_rendering):
     physics = ode_pool_physics
-    physics.reset(balls_on_table=[0,1])
+    physics.reset(balls_on_table=[0])
+    ball_positions = physics.table.calc_racked_positions()
+    r_c = ball_positions[0].copy()
+    r_c[2] += physics.ball_radius
+    cue = PoolCue()
+    cue.velocity[2] = -0.6
+    physics.strike_ball(0.0, 0, ball_positions[0], r_c, cue.velocity, cue.mass)
+
+
+def test_ball_collision(ode_pool_physics, ode_gl_rendering):
+    physics = ode_pool_physics
+    physics.reset(balls_on_table=[0, 1])
     ball_positions = physics.table.calc_racked_positions()
     r_c = ball_positions[0].copy()
     r_c[2] += physics.ball_radius

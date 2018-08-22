@@ -1,5 +1,6 @@
 import logging
 _logger = logging.getLogger(__name__)
+import os.path
 from sys import stdout
 import numpy as np
 import pytest
@@ -23,7 +24,7 @@ def ode_gl_rendering(ode_pool_physics, pool_table, request):
     OpenGL.ERROR_ON_COPY = True
     import cyglfw3 as glfw
     yield
-    from poolvr.glfw_app import setup_glfw
+    from poolvr.glfw_app import setup_glfw, capture_window
     from poolvr.keyboard_controls import init_keyboard, set_on_keydown_callback
     from poolvr.game import PoolGame
     logging.getLogger('poolvr.gl_rendering').setLevel(logging.WARNING)
@@ -83,6 +84,16 @@ def ode_gl_rendering(ode_pool_physics, pool_table, request):
     if nframes > 1:
         _logger.info('...exited render loop: average FPS: %f, maximum frame time: %f, average frame time: %f',
                      (nframes - 1) / (t - st), max_frame_time, (t - st) / (nframes - 1))
+    with renderer.render(meshes=meshes):
+        physics.eval_positions(t_end, out=game.ball_positions)
+        for i, pos in enumerate(game.ball_positions):
+            ball_mesh_positions[i][:] = pos
+            ball_shadow_mesh_positions[i][0::2] = pos[0::2]
+        glfw.SwapBuffers(window)
+    capture_window(window,
+                   filename=os.path.join(os.path.dirname(__file__), 'screenshots',
+                                         title.replace(' ', '_') + '.png'))
+
     renderer.shutdown()
     glfw.DestroyWindow(window)
     glfw.Terminate()
