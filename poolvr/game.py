@@ -31,14 +31,13 @@ class PoolGame(object):
                  table=None,
                  physics=None,
                  **kwargs):
+        self.ball_colors = ball_colors
+        self.ball_radius = ball_radius
         if table is None:
             table = PoolTable(**kwargs)
         self.table = table
-        self.ball_colors = ball_colors
-        self.ball_radius = ball_radius
         if physics is None:
-            physics = PoolPhysics(ball_radius=ball_radius,
-                                  **kwargs)
+            physics = PoolPhysics(ball_radius=ball_radius, **kwargs)
         self.physics = physics
         self.ball_positions = self.table.calc_racked_positions()
         self.ball_velocities = np.zeros((self.num_balls, 3), dtype=np.float64)

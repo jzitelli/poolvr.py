@@ -138,9 +138,10 @@ def main(window_size=(800,600),
     meshes = [skybox_mesh, floor_mesh, game.table.mesh] + ball_meshes + ball_shadow_meshes + [cue.shadow_mesh, cue]
     for mesh in meshes:
         mesh.init_gl()
-        if use_bb_particles:
-            billboard_particles = ball_meshes[0]
-            ball_mesh_positions = billboard_particles.primitive.attributes['translate']
+
+    if use_bb_particles:
+        billboard_particles = ball_meshes[0]
+        ball_mesh_positions = billboard_particles.primitive.attributes['translate']
         ball_mesh_rotations = np.array(game.num_balls * [np.eye(3)])
     else:
         ball_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_meshes]
@@ -152,13 +153,16 @@ def main(window_size=(800,600),
     camera_position[1] = game.table.height + 0.6
     camera_position[2] = game.table.length - 0.1
 
+    last_contact_t = float('-inf')
+    def reset():
+        nonlocal last_contact_t
+        game.reset()
+        last_contact_t = float('-inf')
     process_mouse_input = init_mouse(window)
     process_keyboard_input = init_keyboard(window)
     def on_keydown(window, key, scancode, action, mods):
         if key == glfw.KEY_R and action == glfw.PRESS:
-            game.reset()
-            for k in last_contact_t.keys():
-                last_contact_t[k] = float('-inf')
+            reset()
     set_on_keydown_callback(window, on_keydown)
 
     def process_input(dt):
@@ -167,7 +171,7 @@ def main(window_size=(800,600),
         process_mouse_input(dt, cue)
 
     if isinstance(renderer, OpenVRRenderer):
-        button_press_callbacks = {openvr.k_EButton_Grip: game.reset,
+        button_press_callbacks = {openvr.k_EButton_Grip: reset,
                                   }#openvr.k_EButton_ApplicationMenu: game.advance_time}
 
         if use_ode and ODEPoolPhysics is not None:
@@ -182,11 +186,11 @@ def main(window_size=(800,600),
             #                                               int(max(0.75, 0.2*impact_speed**2 + 0.07*impact_speed**3) * 2500))
             # physics.set_cue_surface_collision_callback(on_cue_surface_collision)
 
-
     _logger.info('entering render loop...')
     sys.stdout.flush()
 
-    last_contact_t = {i: float('-inf') for i in range(physics.num_balls)}
+    last_contact_t = float('-inf')
+    contact_last_frame = False
     nframes = 0
     max_frame_time = 0.0
     lt = glfw.GetTime()
@@ -231,21 +235,21 @@ def main(window_size=(800,600),
         cue_body.setLinearVel(cue.velocity)
         cue_body.setAngularVel(cue.angular_velocity)
 
-        for i, position in cue.aabb_check(game.ball_positions, physics.ball_radius):
-            if game.t - last_contact_t[i] < 0.5:
-                continue
-            r_c = cue.contact(position, physics.ball_radius)
-            if r_c is not None:
-                last_contact_t[i] = game.t
-                if isinstance(renderer, OpenVRRenderer):
-                    renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1],
-                                                          0, int(np.linalg.norm(cue.velocity)**2 / 1.7 * 2700))
-                physics.strike_ball(game.t, i, game.ball_positions[i], r_c, cue.velocity, cue.mass)
-                # game.ntt = physics.next_turn_time
-                break
-
+        if not contact_last_frame:
+            if game.t - last_contact_t >= 0.5:
+                for i, position in cue.aabb_check(game.ball_positions, physics.ball_radius):
+                    r_c = cue.contact(position, physics.ball_radius)
+                    if r_c is not None:
+                        physics.strike_ball(game.t, i, game.ball_positions[i], r_c, cue.velocity, cue.mass)
+                        last_contact_t = game.t
+                        contact_last_frame = True
+                        if isinstance(renderer, OpenVRRenderer):
+                            renderer.vr_system.triggerHapticPulse(renderer._controller_indices[-1],
+                                                                  0, int(np.linalg.norm(cue.velocity)**2 / 1.7 * 2700))
+                        break
+        else:
+            contact_last_frame = False
         game.step(dt)
-
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:
             st = glfw.GetTime()

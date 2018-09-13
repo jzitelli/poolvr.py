@@ -120,7 +120,9 @@ class Technique(GLRendering):
     GL rendering technique (based off of Technique defined by glTF schema)
     """
     _current = None
-    def __init__(self, program, attributes=None, uniforms=None, states=None, attribute_divisors=None,
+    def __init__(self, program,
+                 attributes=None, uniforms=None,
+                 states=None, attribute_divisors=None,
                  front_face=gl.GL_CCW, on_use=None, on_release=None, name=None):
         super().__init__(name=name)
         self.program = program
@@ -634,24 +636,24 @@ def set_matrix_from_quaternion(quat, out=None):
     if out is None:
         out = np.empty((3,3), dtype=quat.dtype)
     w, x, y, z = quat
-    y2 = y**2
-    x2 = x**2
-    z2 = z**2
+    yy = y**2
+    xx = x**2
+    zz = z**2
     xy = x * y
     xz = x * z
     yz = y * z
     wx = w * x
     wy = w * y
     wz = w * z
-    out[0] = [1.0 - 2.0 * (y2 + z2),
+    out[0] = [1.0 - 2.0 * (yy + zz),
               2.0 * (xy - wz),
               2.0 * (xz + wy)]
     out[1] = [2.0 * (xy + wz),
-              1.0 - 2.0 * (x2 + z2),
+              1.0 - 2.0 * (xx + zz),
               2.0 * (yz - wx)]
     out[2] = [2.0 * (xz - wy),
               2.0 * (yz + wx),
-              1.0 - 2.0 * (x2 + y2)]
+              1.0 - 2.0 * (xx + yy)]
     return out
 
 

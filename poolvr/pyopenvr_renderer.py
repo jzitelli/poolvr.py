@@ -102,8 +102,9 @@ class OpenVRRenderer(object):
         gl.glBindFramebuffer(gl.GL_DRAW_FRAMEBUFFER, 0)
         gl.glBlitFramebuffer(0, 0, self.vr_framebuffers[0].width, self.vr_framebuffers[0].height,
                              0, 0, self.window_size[0], self.window_size[1],
-                             gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT | gl.GL_STENCIL_BUFFER_BIT,
+                             gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT,
                              gl.GL_NEAREST)
+
     def process_input(self, button_press_callbacks=None):
         for i in self._controller_indices:
             got_state, state = self.vr_system.getControllerState(i, 1)

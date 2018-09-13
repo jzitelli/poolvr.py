@@ -1,5 +1,8 @@
 numpy
 pyopengl
+openvr
 pillow
 sounddevice
 soundfile
+numpy-quaternion
+scipy

@@ -6,7 +6,7 @@ import OpenGL.GL as gl
 import OpenGL.error
 
 
-from .gl_rendering import Node, Technique, Material, Program, DTYPE_COMPONENT_TYPE, Texture
+from .gl_rendering import Node, Technique, Material, Program, DTYPE_COMPONENT_TYPE
 from .primitives import PlanePrimitive
 
 
