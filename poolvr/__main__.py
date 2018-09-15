@@ -3,7 +3,7 @@ import argparse
 import logging
 _logger = logging.getLogger(__name__)
 _LOGGING_FORMAT = '%(name)s.%(funcName)s[%(levelname)s]: %(message)s'
-_DEBUG_LOGGING_FORMAT = '%(asctime).19s [%(levelname)s]%(name)s.%(funcName)s:%(lineno)d: %(message)s'
+_DEBUG_LOGGING_FORMAT = '%(asctime).19s [%(levelname)s]%(name)s.%(funcName)s (%(filename)s:%(lineno)d): %(message)s'
 
 
 def parse_args():
