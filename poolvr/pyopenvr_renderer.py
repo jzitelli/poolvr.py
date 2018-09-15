@@ -25,25 +25,22 @@ class OpenVRRenderer(object):
         self.vr_framebuffers[1].init_gl()
         poses_t = openvr.TrackedDevicePose_t * openvr.k_unMaxTrackedDeviceCount
         self.poses = poses_t()
-        self.projection_matrices = (np.asarray(matrixForOpenVRMatrix(self.vr_system.getProjectionMatrix(openvr.Eye_Left,
-                                                                                                        znear, zfar))),
-                                    np.asarray(matrixForOpenVRMatrix(self.vr_system.getProjectionMatrix(openvr.Eye_Right,
-                                                                                                        znear, zfar))))
+        self.projection_matrices = (np.asarray(matrixForOpenVRMatrix(self.vr_system.getProjectionMatrix(openvr.Eye_Left, znear, zfar))),
+                                    np.asarray(matrixForOpenVRMatrix(self.vr_system.getProjectionMatrix(openvr.Eye_Right, znear, zfar))))
         self.eye_transforms = (np.asarray(matrixForOpenVRMatrix(self.vr_system.getEyeToHeadTransform(openvr.Eye_Left)).I),
                                np.asarray(matrixForOpenVRMatrix(self.vr_system.getEyeToHeadTransform(openvr.Eye_Right)).I))
-        self.view_matrices = (np.empty((4,4), dtype=np.float32),
-                              np.empty((4,4), dtype=np.float32))
+        self.view_matrices = (np.empty((4,4), dtype=np.float32), np.empty((4,4), dtype=np.float32))
         self.hmd_matrix = np.eye(4, dtype=np.float32)
         self.vr_event = openvr.VREvent_t()
-        self._controller_indices = []
-        for i in range(openvr.k_unMaxTrackedDeviceCount):
-            if self.vr_system.getTrackedDeviceClass(i) == openvr.TrackedDeviceClass_Controller:
-                self._controller_indices.append(i)
-    def update_projection_matrix(self):
-        pass
+        self._poll_for_controllers()
+
     def init_gl(self, clear_color=(0.0, 0.0, 0.0, 0.0)):
         gl.glClearColor(*clear_color)
         gl.glEnable(gl.GL_DEPTH_TEST)
+
+    def update_projection_matrix(self):
+        pass
+
     @contextmanager
     def render(self, meshes=None):
         self.vr_compositor.waitGetPoses(self.poses, openvr.k_unMaxTrackedDeviceCount, None, 0)
@@ -106,6 +103,8 @@ class OpenVRRenderer(object):
                              gl.GL_NEAREST)
 
     def process_input(self, button_press_callbacks=None):
+        if len(self._controller_indices) == 0:
+            self._poll_for_controllers()
         for i in self._controller_indices:
             got_state, state = self.vr_system.getControllerState(i, 1)
             if got_state and state.rAxis[1].x > 0.05:
@@ -117,5 +116,12 @@ class OpenVRRenderer(object):
                     button_press_callbacks[button]()
             elif self.vr_event.eventType == openvr.VREvent_ButtonUnpress:
                 pass
+
     def shutdown(self):
         openvr.shutdown()
+
+    def _poll_for_controllers(self):
+        self._controller_indices = []
+        for i in range(openvr.k_unMaxTrackedDeviceCount):
+            if self.vr_system.getTrackedDeviceClass(i) == openvr.TrackedDeviceClass_Controller:
+                self._controller_indices.append(i)
