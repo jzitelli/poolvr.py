@@ -52,7 +52,12 @@ class PoolPhysics(object):
                  ball_positions=None,
                  ball_collision_model="simple",
                  table=None,
+                 gettime=None,
                  **kwargs):
+        if gettime is None:
+            from time import time
+            gettime = time
+        self._gettime = gettime
         if table is None:
             table = PoolTable(num_balls=num_balls, ball_radius=ball_radius)
         self.table = table
@@ -155,11 +160,26 @@ class PoolPhysics(object):
     def add_event_sequence(self, event):
         num_events = len(self.events)
         self._add_event(event)
-        while self.balls_in_motion:
+        T = 0.5 / 90; lt = self._gettime()
+        while T > 0 and self.balls_in_motion:
             event = self._determine_next_event()
             self._add_event(event)
+            t = self._gettime(); T -= t - lt; lt = t
         num_added_events = len(self.events) - num_events
         return self.events[-num_added_events:]
+
+    @property
+    def next_turn_time(self):
+        """The time at which all balls have come to rest."""
+        return self.events[-1].t if self.events and isinstance(self.events[-1], BallRestEvent) else 0.0
+
+    def step(self, dt):
+        self.t += dt
+        T = 0.25 / 90; lt = self._gettime()
+        while T > 0 and self.balls_in_motion:
+            event = self._determine_next_event()
+            self._add_event(event)
+            t = self._gettime(); T -= t - lt; lt = t
 
     def eval_positions(self, t, balls=None, out=None):
         """
@@ -243,14 +263,6 @@ class PoolPhysics(object):
                         out[ii] = e.eval_angular_velocity(t - e.t)
                         break
         return out
-
-    @property
-    def next_turn_time(self):
-        """The time at which all balls have come to rest."""
-        return self.events[-1].t if self.events and isinstance(self.events[-1], BallRestEvent) else 0.0
-
-    def step(self, dt):
-        self.t += dt
 
     def set_cue_ball_collision_callback(self, cb):
         self._on_cue_ball_collide = cb
@@ -350,11 +362,15 @@ self.t: %s
         p[0] = a_x**2 + a_y**2
         p[1] = 2 * (a_x*b_x + a_y*b_y)
         p[2] = b_x**2 + 2*a_x*c_x + 2*a_y*c_y + b_y**2
-        p[3] = 2 * b_x * c_x + 2 * b_y * c_y
+        p[3] = 2 * b_x*c_x + 2 * b_y*c_y
         p[4] = c_x**2 + c_y**2 - 4 * self.ball_radius**2
-        roots = np.roots(p)
+        try:
+            roots = np.roots(p)
+        except np.linalg.linalg.LinAlgError as err:
+            _logger.warning('LinAlgError occurred during solve for collision time:\np = %s\nerror:\n%s', p, err)
+            return None
         _logger.debug('roots: %s', roots)
-        roots = [t.real for t in roots if t0 < t.real < t1 and abs(t.imag) / np.sqrt(t.real**2+t.imag**2) < 0.01]
+        roots = [t.real for t in roots if t0 <= t.real <= t1 and abs(t.imag) / np.sqrt(t.real**2+t.imag**2) < 0.00001]
         if not roots:
             return None
         else:

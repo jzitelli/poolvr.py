@@ -113,7 +113,8 @@ def main(window_size=(800,600),
             physics = ODEPoolPhysics(num_balls=16, table=table)
         except ImportError as err:
             physics = PoolPhysics(num_balls=16, table=table,
-                                  ball_collision_model=ball_collision_model)
+                                  ball_collision_model=ball_collision_model,
+                                  gettime=glfw.GetTime)
             _logger.warning('could not import ode_physics:\n%s', err)
             ODEPoolPhysics = None
     else:
@@ -236,7 +237,7 @@ def main(window_size=(800,600),
         cue_body.setAngularVel(cue.angular_velocity)
 
         if not contact_last_frame:
-            if game.t - last_contact_t >= 0.5:
+            if game.t - last_contact_t >= 2:
                 for i, position in cue.aabb_check(game.ball_positions, physics.ball_radius):
                     r_c = cue.contact(position, physics.ball_radius)
                     if r_c is not None:
