@@ -22,7 +22,7 @@ class PhysicsEvent(object):
     E_Y_b = 2.4e9 # ball material's Young's modulus of elasticity
     g = 9.81 # magnitude of acceleration due to gravity
     _ZERO_TOLERANCE = 1e-7
-    _k = np.array((0,1,0), dtype=np.float64) # basis vector :math`\hat{k}` of any ball-centered frame, following the conventions of Marlow
+    _k = np.array((0,1,0), dtype=np.float64) # basis vector :math:`\hat{k}` of any ball-centered frame, following the conventions of Marlow
     def __init__(self, t, T=0.0, parent_event=None, **kwargs):
         """
         Base class of pool physics events.
