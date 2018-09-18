@@ -18,11 +18,9 @@ class PhysicsEvent(object):
     mu_sp = 0.044 # coefficient of spinning friction between ball and table
     mu_s = 0.2 # coefficient of sliding friction between ball and table
     mu_b = 0.06 # coefficient of friction between ball and cushions
-    c_b = 4000.0 # ball material's speed of sound
-    E_Y_b = 2.4e9 # ball material's Young's modulus of elasticity
     g = 9.81 # magnitude of acceleration due to gravity
     _ZERO_TOLERANCE = 1e-7
-    _k = np.array((0,1,0), dtype=np.float64) # basis vector :math:`\hat{k}` of any ball-centered frame, following the conventions of Marlow
+    _k = np.array((0,1,0), dtype=np.float64) # upward-pointing basis vector :math:`\hat{k}` of any ball-centered frame, following the convention of Marlow
     def __init__(self, t, T=0.0, parent_event=None, **kwargs):
         """
         Base class of pool physics events.
@@ -172,14 +170,17 @@ class BallMotionEvent(BallEvent):
             self._ab_global = self.calc_global_motion_coeffs(self.t, self._a, self._b)
         return self._ab_global[:3], self._ab_global[3:]
     @staticmethod
-    def calc_global_motion_coeffs(t, a, b):
+    def calc_global_motion_coeffs(t, a, b, out=None):
         "Calculates the coefficients of the global-time equations of motion."
-        ab_global = np.vstack((a, b))
-        a_global, b_global = ab_global[:3], ab_global[3:]
+        if out is None:
+            out = np.zeros((5,3), dtype=np.float64)
+        out[:3] = a
+        out[3:] = b
+        a_global, b_global = out[:3], out[3:]
         a_global[0] += -t * a[1] + t**2 * a[2]
         a_global[1] += -2 * t * a[2]
         b_global[0] += -t * b[1]
-        return ab_global
+        return out
     @allocs_out
     def eval_position(self, tau, out=None):
         a = self._a
@@ -332,6 +333,8 @@ class SimpleBallCollisionEvent(BallCollisionEvent):
 
 
 class MarlowBallCollisionEvent(BallCollisionEvent):
+    c_b = 4000.0 # ball material's speed of sound
+    E_Y_b = 2.4e9 # ball material's Young's modulus of elasticity
     def __init__(self, t, e_i, e_j):
         """Marlow collision model"""
         super().__init__(t, e_i, e_j)
