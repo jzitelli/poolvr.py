@@ -354,6 +354,7 @@ self.t: %s
         return self._find_collision_time(a_i, a_j, t0, t1)
 
     def _find_collision_time(self, a_i, a_j, t0, t1):
+        from itertools import chain
         d = a_i - a_j
         a_x, a_y = d[2, ::2]
         b_x, b_y = d[1, ::2]
@@ -369,6 +370,13 @@ self.t: %s
         except np.linalg.linalg.LinAlgError as err:
             _logger.warning('LinAlgError occurred during solve for collision time:\np = %s\nerror:\n%s', p, err)
             return None
+        # filter out possible complex-conjugate pair of roots:
+        i, r = next(((i, r) for i, r in enumerate(roots) if r.imag != 0),
+                    (None, None))
+        if r is not None:
+            j = next((j for j, q in enumerate(roots[i+1:]) if q.imag == -r.imag), None)
+            if j is not None:
+                roots = list(chain(roots[:i], roots[i+1:j], roots[j+1:]))
         _logger.debug('roots: %s', roots)
         roots = [t.real for t in roots if t0 <= t.real <= t1 and abs(t.imag) / np.sqrt(t.real**2+t.imag**2) < 0.00001]
         if not roots:
