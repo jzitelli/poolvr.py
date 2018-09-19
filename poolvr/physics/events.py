@@ -56,7 +56,7 @@ class PhysicsEvent(object):
         return out
     @staticmethod
     def events_str(events, sep='\n\n' + 48*'-' + '\n\n'):
-        return sep.join('%3d (%5.5f, %5.5f): %s' % (i_e, e.t, e.t+e.T, e) for i_e, e in enumerate(events))
+        return sep.join('%3d:\n%s' % (i_e, e) for i_e, e in enumerate(events))
     def __lt__(self, other):
         if isinstance(other, PhysicsEvent):
             return self.t < other.t
@@ -86,7 +86,6 @@ class BallEvent(PhysicsEvent):
 class BallRestEvent(BallEvent):
     def __init__(self, t, i, r=None, q=None,
                  psi=0.0, theta=0.0, phi=0.0, **kwargs):
-        # kwargs['T'] = float('inf')
         super().__init__(t, i, T=float('inf'), **kwargs)
         if r is None:
             self._r = self._r_0 = np.zeros(3, dtype=np.float64)
@@ -121,7 +120,7 @@ class BallRestEvent(BallEvent):
         out[:] = 0
         return out
     def __str__(self):
-        return super().__str__()[:-1] + ' r=%s>' % self._r
+        return super().__str__()[:-1] + '\n r=%s>' % self._r
 
 
 class BallMotionEvent(BallEvent):
@@ -210,7 +209,7 @@ class BallMotionEvent(BallEvent):
         out[:] = qrn.as_float_array(quat)
         return out
     def __str__(self):
-        return super().__str__()[:-1] + ' r_0=%s v_0=%s omega_0=%s>' % (self._r_0, self._v_0, self._omega_0)
+        return super().__str__()[:-1] + '\n r_0=%s\n v_0=%s\n a=%s\n omega_0=%s>' % (self._r_0, self._v_0, self.acceleration, self._omega_0)
 
 
 class BallRollingEvent(BallMotionEvent):
@@ -245,6 +244,7 @@ class CueStrikeEvent(BallEvent):
         :param r_c: global coordinates of the point of contact
         :param V: cue velocity at moment of impact; the cue's velocity is assumed to be aligned with its axis
         :param M: cue mass
+        :param q_i: rotation quaternion of ball at moment of impact
         """
         super().__init__(t, i)
         V = V.copy()
@@ -273,7 +273,7 @@ class CueStrikeEvent(BallEvent):
     def next_motion_event(self):
         return self._child_events[0]
     def __str__(self):
-        return super().__str__()[:-1] + ' Q=%s V=%s M=%s>' % (self.Q, self.V, self.M)
+        return super().__str__()[:-1] + '\n Q=%s\n V=%s\n M=%s>' % (self.Q, self.V, self.M)
 
 
 class BallCollisionEvent(PhysicsEvent):
@@ -289,7 +289,7 @@ class BallCollisionEvent(PhysicsEvent):
     def child_events(self):
         return self._child_events
     def __str__(self):
-        return super().__str__()[:-1] + ' i=%s j=%s v_i_0=%s v_j_0=%s v_i_1=%s v_j_1=%s, v_ij_0=%s v_ij_1=%s>' % (
+        return super().__str__()[:-1] + ' i=%s j=%s\n v_i_0=%s\n v_j_0=%s\n v_i_1=%s\n v_j_1=%s\n v_ij_0=%s\n v_ij_1=%s>' % (
             self.i, self.j, self._v_i, self._v_j, self._v_i_1, self._v_j_1, self._v_i - self._v_j, self._v_i_1 - self._v_j_1)
 
 
