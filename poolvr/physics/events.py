@@ -75,8 +75,6 @@ class BallEvent(PhysicsEvent):
         self.i = i
     def __eq__(self, other):
         return self.__class__ == other.__class__ and self.t == other.t and self.T == other.T and self.i == other.i
-    def __hash__(self):
-        return hash((self.__class__.__name__, self.i, self.t, self.T))
     def __str__(self):
         return super().__str__()[:-1] + " i=%d>" % self.i
 

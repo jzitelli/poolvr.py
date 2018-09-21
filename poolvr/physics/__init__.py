@@ -90,6 +90,7 @@ class PoolPhysics(object):
         self._balls_on_table = balls_on_table
         self._on_table[np.array(balls_on_table)] = True
         self.reset(ball_positions=ball_positions, balls_on_table=balls_on_table)
+        self._p = np.empty(5, dtype=np.float64)
 
     def reset(self, ball_positions=None, balls_on_table=None):
         """
@@ -359,7 +360,7 @@ self.t: %s
         a_x, a_y = d[2, ::2]
         b_x, b_y = d[1, ::2]
         c_x, c_y = d[0, ::2]
-        p = np.empty(5, dtype=np.float64)
+        p = self._p
         p[0] = a_x**2 + a_y**2
         p[1] = 2 * (a_x*b_x + a_y*b_y)
         p[2] = b_x**2 + 2*a_x*c_x + 2*a_y*c_y + b_y**2
@@ -370,13 +371,21 @@ self.t: %s
         except np.linalg.linalg.LinAlgError as err:
             _logger.warning('LinAlgError occurred during solve for collision time:\np = %s\nerror:\n%s', p, err)
             return None
-        # filter out possible complex-conjugate pair of roots:
+        # filter out possible complex-conjugate pairs of roots:
         i, r = next(((i, r) for i, r in enumerate(roots) if r.imag != 0),
                     (None, None))
         if r is not None:
-            j = next((j for j, q in enumerate(roots[i+1:]) if q.imag == -r.imag), None)
+            j = next((j for j, q in enumerate(roots[i+1:]) if abs(q.real - r.real) < 1e-7 and abs(q.imag + r.imag) < 1e-7), None)
             if j is not None:
-                roots = list(chain(roots[:i], roots[i+1:j], roots[j+1:]))
+                roots = tuple(chain(roots[:i], roots[i+1:i+j+1], roots[i+j+2:]))
+                # _logger.debug('filtered out complex conjugate pair %s\nroots: %s', r, roots)
+                i, r = next(((i, r) for i, r in enumerate(roots) if r.imag != 0),
+                            (None, None))
+                if r is not None:
+                    j = next((j for j, q in enumerate(roots[i+1:]) if abs(q.real - r.real) < 1e-7 and abs(q.imag + r.imag) < 1e-7), None)
+                    if j is not None:
+                        # _logger.debug('filtered out second complex conjugate pair %s', r)
+                        return
         _logger.debug('roots: %s', roots)
         roots = [t.real for t in roots if t0 <= t.real <= t1 and abs(t.imag) / np.sqrt(t.real**2+t.imag**2) < 0.00001]
         if not roots:
