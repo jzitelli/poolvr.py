@@ -306,22 +306,19 @@ class SimpleBallCollisionEvent(BallCollisionEvent):
         v_j_1 = v_i.dot(_i) * _i
         v_i_1 = v_i - v_j_1
         self._v_i_1, self._v_j_1 = v_i_1, v_j_1
-        v_i_1_mag, v_j_1_mag = np.linalg.norm(v_i_1), np.linalg.norm(v_j_1)
         e_i_1, e_j_1 = None, None
-        if v_i_1_mag < self._ZERO_TOLERANCE:
+        if v_i_1.dot(v_i_1) < self._ZERO_TOLERANCE_SQRD:
             e_i_1 = BallRestEvent(t, i, r_i, q=e_i.eval_quaternion(t - e_i.t), parent_event=self)
-        if v_j_1_mag < self._ZERO_TOLERANCE:
+        if v_j_1.dot(v_j_1) < self._ZERO_TOLERANCE_SQRD:
             e_j_1 = BallRestEvent(t, j, r_j, q=e_j.eval_quaternion(t - e_j.t), parent_event=self)
         if isinstance(e_i, BallSlidingEvent) or isinstance(e_j, BallSlidingEvent):
             if e_i_1 is None:
                 u_i_1 = v_i_1 + self.ball_radius * np.cross(self._k, self._omega_i)
-                u_i_1_mag = np.linalg.norm(u_i_1)
-                if u_i_1_mag >= self._ZERO_TOLERANCE:
+                if u_i_1.dot(u_i_1) >= self._ZERO_TOLERANCE_SQRD:
                     e_i_1 = BallSlidingEvent(t, i, r_i, v_i_1, self._omega_i, q_0=e_i.eval_quaternion(t - e_i.t), parent_event=self)
             if e_j_1 is None:
                 u_j_1 = v_j_1 + self.ball_radius * np.cross(self._k, self._omega_j)
-                u_j_1_mag = np.linalg.norm(u_j_1)
-                if u_j_1_mag >= self._ZERO_TOLERANCE:
+                if u_j_1.dot(u_j_1) >= self._ZERO_TOLERANCE_SQRD:
                     e_j_1 = BallSlidingEvent(t, j, r_j, v_j_1, self._omega_j, q_0=e_j.eval_quaternion(t - e_j.t), parent_event=self)
         if e_i_1 is None:
             e_i_1 = BallRollingEvent(t, i, r_i, v_i_1, q_0=e_i.eval_quaternion(t - e_i.t), parent_event=self)

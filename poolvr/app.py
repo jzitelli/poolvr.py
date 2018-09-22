@@ -159,6 +159,9 @@ def main(window_size=(800,600),
         nonlocal last_contact_t
         game.reset()
         last_contact_t = float('-inf')
+        cue.position[0] = 0
+        cue.position[1] = game.table.height + 0.1
+        cue.position[2] = game.table.length * 0.3
     process_mouse_input = init_mouse(window)
     process_keyboard_input = init_keyboard(window)
     def on_keydown(window, key, scancode, action, mods):
