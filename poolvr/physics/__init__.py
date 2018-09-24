@@ -13,6 +13,8 @@ import logging
 _logger = logging.getLogger(__name__)
 from bisect import bisect
 from itertools import chain
+from time import perf_counter
+
 import numpy as np
 
 
@@ -26,17 +28,8 @@ INCH2METER = 0.0254
 
 
 class PoolPhysics(object):
-    r"""
-    Pool physics simulator
-
-    :param mu_r:  :math:`\mu_r`,    rolling friction coefficient
-    :param mu_sp: :math:`\mu_{sp}`, spinning friction coefficient
-    :param mu_s:  :math:`\mu_s`,    sliding friction coefficient
-    :param mu_b:  :math:`\mu_b`,    ball-to-ball collision friction coefficient
-    :param c_b:   :math:`c_b`,      ball material's speed of sound
-    :param E_Y_b: :math:`{E_Y}_b`,  ball material's Young's modulus
-    :param g:     :math:`g`,        downward acceleration due to gravity
-    """
+    _IMAG_TOLERANCE = 1e-5
+    _IMAG_TOLERANCE_SQRD = _IMAG_TOLERANCE**2
     def __init__(self,
                  num_balls=16,
                  ball_mass=0.17,
@@ -52,12 +45,21 @@ class PoolPhysics(object):
                  ball_positions=None,
                  ball_collision_model="simple",
                  table=None,
-                 gettime=None,
+                 enable_sanity_check=True,
+                 collision_search_time_limit=0.2/90,
+                 collision_search_time_forward=0.25,
                  **kwargs):
-        if gettime is None:
-            from time import time
-            gettime = time
-        self._gettime = gettime
+        r"""
+        Pool physics simulator
+
+        :param mu_r:  :math:`\mu_r`,    rolling friction coefficient
+        :param mu_sp: :math:`\mu_{sp}`, spinning friction coefficient
+        :param mu_s:  :math:`\mu_s`,    sliding friction coefficient
+        :param mu_b:  :math:`\mu_b`,    ball-to-ball collision friction coefficient
+        :param c_b:   :math:`c_b`,      ball material's speed of sound
+        :param E_Y_b: :math:`{E_Y}_b`,  ball material's Young's modulus
+        :param g:     :math:`g`,        downward acceleration due to gravity
+        """
         if table is None:
             table = PoolTable(num_balls=num_balls, ball_radius=ball_radius)
         self.table = table
@@ -89,8 +91,11 @@ class PoolPhysics(object):
         self._on_table = np.array(self.num_balls * [False])
         self._balls_on_table = balls_on_table
         self._on_table[np.array(balls_on_table)] = True
-        self.reset(ball_positions=ball_positions, balls_on_table=balls_on_table)
+        self._collision_search_time_limit = collision_search_time_limit
+        self._collision_search_time_forward = collision_search_time_forward
+        self._enable_sanity_check = enable_sanity_check
         self._p = np.empty(5, dtype=np.float64)
+        self.reset(ball_positions=ball_positions, balls_on_table=balls_on_table)
 
     def reset(self, ball_positions=None, balls_on_table=None):
         """
@@ -140,10 +145,7 @@ class PoolPhysics(object):
         return self._ball_motion_events.keys()
 
     def add_cue(self, cue):
-        body = _create_cue(cue.mass, cue.radius, cue.length)
-        self.cue_bodies = [body]
-        self.cue_geoms = [body]
-        return body, body
+        self.cues = [cue]
 
     def strike_ball(self, t, i, r_i, r_c, V, cue_mass):
         r"""
@@ -161,13 +163,24 @@ class PoolPhysics(object):
     def add_event_sequence(self, event):
         num_events = len(self.events)
         self._add_event(event)
-        T = 0.5 / 90; lt = self._gettime()
+        while self.balls_in_motion:
+            event = self._determine_next_event()
+            self._add_event(event)
+        num_added_events = len(self.events) - num_events
+        return self.events[-num_added_events:]
+
+    def add_event_sequence_realtime(self, event):
+        self._add_event(event)
+        T = self._collision_search_time_limit
+        lt = perf_counter()
         while T > 0 and self.balls_in_motion:
             event = self._determine_next_event()
             self._add_event(event)
-            t = self._gettime(); T -= t - lt; lt = t
-        num_added_events = len(self.events) - num_events
-        return self.events[-num_added_events:]
+            if event.t - self.t > self._collision_search_time_forward:
+                break
+            t = perf_counter()
+            T -= t - lt; lt = t
+        return event.t - self.t
 
     @property
     def next_turn_time(self):
@@ -176,11 +189,19 @@ class PoolPhysics(object):
 
     def step(self, dt):
         self.t += dt
-        T = 0.25 / 90; lt = self._gettime()
+
+    def step_realtime(self, dt,
+                      find_collisions=True):
+        self.t += dt
+        if not find_collisions:
+            return
+        T = self._collision_search_time_forward
+        lt = perf_counter()
         while T > 0 and self.balls_in_motion:
             event = self._determine_next_event()
             self._add_event(event)
-            t = self._gettime(); T -= t - lt; lt = t
+            t = perf_counter()
+            T -= t - lt; lt = t
 
     def eval_positions(self, t, balls=None, out=None):
         """
@@ -215,14 +236,16 @@ class PoolPhysics(object):
         if balls is None:
             balls = range(self.num_balls)
         if out is None:
-            out = np.zeros((len(balls), 4), dtype=np.float64)
-        for ii, i in enumerate(balls):
-            events = self.ball_events.get(i, ())
-            if events:
-                for e in events[:bisect(events, t)][::-1]:
-                    if t <= e.t + e.T:
-                        out[ii] = e.eval_quaternion(t - e.t)
-                        break
+            out = np.empty((len(balls), 4), dtype=np.float64)
+        out[:] = 0
+        out[:,3] = 1
+        # for ii, i in enumerate(balls):
+        #     events = self.ball_events.get(i, ())
+        #     if events:
+        #         for e in events[:bisect(events, t)][::-1]:
+        #             if t <= e.t + e.T:
+        #                 out[ii] = e.eval_quaternion(t - e.t)
+        #                 break
         return out
 
     def eval_velocities(self, t, balls=None, out=None):
@@ -269,6 +292,9 @@ class PoolPhysics(object):
         self._on_cue_ball_collide = cb
 
     def sanity_check(self, event):
+        import pickle
+        class InsanityException(Exception):
+            pass
         if isinstance(event, BallCollisionEvent):
             e_i, e_j = event.child_events
             for t in np.linspace(event.t, event.t + min(e_i.T, e_j.T), 20):
@@ -276,21 +302,21 @@ class PoolPhysics(object):
                     r_i, r_j = self.eval_positions(t, balls=[event.i, event.j])
                     d_ij = np.linalg.norm(r_i - r_j)
                     if d_ij - 2*self.ball_radius < -1e-5:
-                        class BallsPenetratedInsanity(Exception):
-                            pass
-                        raise BallsPenetratedInsanity('''
-
-d_ij = %s
+                        class BallsPenetratedInsanity(InsanityException):
+                            def __init__(self, physics, *args, **kwargs):
+                                with open('%s.pickle.dump' % self.__class__.__name__, 'wb') as f:
+                                    pickle.dump(physics, f)
+                                super().__init__(*args, **kwargs)
+                        raise BallsPenetratedInsanity(self, '''
 ball_diameter = %s
+         d_ij = %s
+          r_i = %s
+          r_j = %s
+            t = %s
 event: %s
-e_i: %s
-e_j: %s
-r_i: %s
-r_j: %s
-self.t: %s
-
-''' % (d_ij, 2*self.ball_radius, event, e_i, e_j, r_i, r_j, self.t))
-
+  e_i: %s
+  e_j: %s
+''' % (2*self.ball_radius, d_ij, r_i, r_j, self.t, event, e_i, e_j))
     def _add_event(self, event):
         self.events.append(event)
         if isinstance(event, BallEvent):
@@ -306,7 +332,7 @@ self.t: %s
                 self._ball_motion_events[event.i] = event
         for child_event in event.child_events:
             self._add_event(child_event)
-        if isinstance(event, BallCollisionEvent):
+        if self._enable_sanity_check and isinstance(event, BallCollisionEvent):
             self.sanity_check(event)
 
     def _determine_next_event(self):
@@ -386,8 +412,8 @@ self.t: %s
                     if j is not None:
                         # _logger.debug('filtered out second complex conjugate pair %s', r)
                         return
-        _logger.debug('roots: %s', roots)
-        roots = [t.real for t in roots if t0 <= t.real <= t1 and abs(t.imag) / np.sqrt(t.real**2+t.imag**2) < 0.00001]
+        #_logger.debug('roots: %s', roots)
+        roots = [t.real for t in roots if t0 <= t.real <= t1 and t.imag**2 / (t.real**2+t.imag**2) < self._IMAG_TOLERANCE_SQRD]
         if not roots:
             return None
         else:
@@ -399,20 +425,3 @@ self.t: %s
         velocities = self.eval_velocities(t, balls=balls)
         omegas = self.eval_angular_velocities(t, balls=balls)
         return self.ball_mass * (velocities**2).sum() / 2 + self.ball_I * (omegas**2).sum() / 2
-
-    def _find_active_events(self, t):
-        n = bisect(self.events, t)
-        return [e for e in self.events[:n] if e.t <= t <= e.t + e.T]
-
-
-def _create_cue(cue_mass, cue_radius, cue_length):
-    try:
-        import ode
-    except ImportError as err:
-        _logger.error('could not import ode: %s', err)
-        from .. import fake_ode as ode
-    body = ode.Body(ode.World())
-    mass = ode.Mass()
-    mass.setCylinderTotal(cue_mass, 3, cue_radius, cue_length)
-    body.setMass(mass)
-    return body

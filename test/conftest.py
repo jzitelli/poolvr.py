@@ -92,8 +92,9 @@ def gl_rendering(pool_physics, pool_table, request):
     import cyglfw3 as glfw
     yield
     from poolvr.glfw_app import setup_glfw, capture_window
-    from poolvr.keyboard_controls import init_keyboard, set_on_keydown_callback
+    from poolvr.keyboard_controls import init_keyboard
     from poolvr.game import PoolGame
+    from poolvr.gl_rendering import set_matrix_from_quaternion
     logging.getLogger('poolvr.gl_rendering').setLevel(logging.WARNING)
     physics = pool_physics
     table = pool_table
@@ -102,7 +103,6 @@ def gl_rendering(pool_physics, pool_table, request):
     window, renderer = setup_glfw(width=window_size[0], height=window_size[1],
                                   double_buffered=True, multisample=4,
                                   title=title)
-
     camera_world_matrix = renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
     camera_position[1] = table.height + 0.6
@@ -118,25 +118,18 @@ def gl_rendering(pool_physics, pool_table, request):
     for mesh in meshes:
         mesh.init_gl(force=True)
     ball_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_meshes]
+    ball_mesh_rotations = [mesh.world_matrix[:3,:3].T for mesh in ball_meshes]
     ball_shadow_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_shadow_meshes]
     process_keyboard_input = init_keyboard(window)
-    def on_keydown(window, key, scancode, action, mods):
-        if key == glfw.KEY_R and action == glfw.PRESS:
-            game.reset()
-    set_on_keydown_callback(window, on_keydown)
     def process_input(dt):
         glfw.PollEvents()
         process_keyboard_input(dt, camera_world_matrix)
-
-    game.step(0)
-
     _logger.info('entering render loop...')
     stdout.flush()
-
     nframes = 0
     max_frame_time = 0.0
     lt = glfw.GetTime()
-    t_end = 5.0 #physics.events[-1].t if physics.events else 0.0
+    t_end = physics.events[-1].t if physics.events else 5.0
     while not glfw.WindowShouldClose(window) and game.t < t_end:
         t = glfw.GetTime()
         dt = t - lt
@@ -145,6 +138,7 @@ def gl_rendering(pool_physics, pool_table, request):
         with renderer.render(meshes=meshes):# as frame_data:
             for i, pos in enumerate(game.ball_positions):
                 ball_mesh_positions[i][:] = pos
+                set_matrix_from_quaternion(game.ball_quaternions[i], out=ball_mesh_rotations[i])
                 ball_shadow_mesh_positions[i][0::2] = pos[0::2]
         game.step(dt)
         max_frame_time = max(max_frame_time, dt)
@@ -161,6 +155,7 @@ def gl_rendering(pool_physics, pool_table, request):
         physics.eval_positions(t_end, out=game.ball_positions)
         for i, pos in enumerate(game.ball_positions):
             ball_mesh_positions[i][:] = pos
+            set_matrix_from_quaternion(game.ball_quaternions[i], out=ball_mesh_rotations[i])
             ball_shadow_mesh_positions[i][0::2] = pos[0::2]
         glfw.SwapBuffers(window)
 

@@ -113,17 +113,15 @@ def main(window_size=(800,600),
             physics = ODEPoolPhysics(num_balls=16, table=table)
         except ImportError as err:
             physics = PoolPhysics(num_balls=16, table=table,
-                                  ball_collision_model=ball_collision_model,
-                                  gettime=glfw.GetTime)
+                                  ball_collision_model=ball_collision_model)
             _logger.warning('could not import ode_physics:\n%s', err)
             ODEPoolPhysics = None
     else:
         physics = PoolPhysics(num_balls=16, table=table,
-                              ball_collision_model=ball_collision_model)
+                              ball_collision_model=ball_collision_model,
+                              enable_sanity_check=novr)
     game = PoolGame(table=table,
                     physics=physics)
-    game.reset()
-
     ball_meshes = game.table.ball_meshes
     if use_bb_particles:
         ball_shadow_meshes = []
@@ -132,14 +130,9 @@ def main(window_size=(800,600),
     cue = PoolCue()
     cue.position[1] = game.table.height + 0.1
     cue.position[2] += game.table.length * 0.3
-
-    cue_body, cue_geom = game.physics.add_cue(cue)
-
+    game.physics.add_cue(cue)
+    game.reset()
     # textured_text = TexturedText()
-    meshes = [skybox_mesh, floor_mesh, game.table.mesh] + ball_meshes + ball_shadow_meshes + [cue.shadow_mesh, cue]
-    for mesh in meshes:
-        mesh.init_gl()
-
     if use_bb_particles:
         billboard_particles = ball_meshes[0]
         ball_mesh_positions = billboard_particles.primitive.attributes['translate']
@@ -148,12 +141,13 @@ def main(window_size=(800,600),
         ball_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_meshes]
         ball_mesh_rotations = [mesh.world_matrix[:3,:3].T for mesh in ball_meshes]
         ball_shadow_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_shadow_meshes]
-
+    meshes = [skybox_mesh, floor_mesh, game.table.mesh] + ball_meshes + ball_shadow_meshes + [cue.shadow_mesh, cue]
+    for mesh in meshes:
+        mesh.init_gl()
     camera_world_matrix = fallback_renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
     camera_position[1] = game.table.height + 0.6
     camera_position[2] = game.table.length - 0.1
-
     last_contact_t = float('-inf')
     def reset():
         nonlocal last_contact_t
@@ -232,16 +226,9 @@ def main(window_size=(800,600),
             # sdf_text.set_text("%9.3f" % dt)
             # sdf_text.update_gl()
 
-        cue_body.setPosition(cue.world_position)
-        w = cue.quaternion[3]; cue.quaternion[1:] = cue.quaternion[:3]; cue.quaternion[0] = w
-        cue_body.setQuaternion(cue.quaternion)
-        cue_geom.setQuaternion(cue.quaternion)
-        cue_body.setLinearVel(cue.velocity)
-        cue_body.setAngularVel(cue.angular_velocity)
-
         if not contact_last_frame:
             if game.t - last_contact_t >= 2:
-                for i, position in cue.aabb_check(game.ball_positions, physics.ball_radius):
+                for i, position in cue.aabb_check(game.ball_positions[:1], physics.ball_radius):
                     r_c = cue.contact(position, physics.ball_radius)
                     if r_c is not None:
                         physics.strike_ball(game.t, i, game.ball_positions[i], r_c, cue.velocity, cue.mass)

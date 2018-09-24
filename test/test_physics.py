@@ -104,8 +104,7 @@ def test_sliding_ball_collision(pool_physics, ball_collision_model,
     # assert isinstance(events[5], BallRestEvent)
 
 
-@pytest.mark.parametrize("ball_collision_model", ['simple'])
-def test_break(pool_physics, ball_collision_model,
+def test_break(pool_physics,
                plot_motion_z_position, plot_motion_timelapse,
                gl_rendering):
     physics = pool_physics

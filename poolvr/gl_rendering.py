@@ -635,7 +635,7 @@ def set_matrix_from_quaternion(quat, out=None):
     """
     if out is None:
         out = np.empty((3,3), dtype=quat.dtype)
-    w, x, y, z = quat
+    x, y, z, w = quat
     yy = y**2
     xx = x**2
     zz = z**2

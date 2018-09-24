@@ -78,6 +78,9 @@ class ODEPoolPhysics(object):
         self._on_cue_ball_collide = None
         if initial_positions is None:
             initial_positions = self.table.calc_racked_positions()
+        self.cues = []
+        self.cue_bodies = []
+        self.cue_geoms = []
         self.reset(ball_positions=initial_positions, balls_on_table=balls_on_table)
 
     def reset(self, ball_positions=None, balls_on_table=None):
@@ -120,6 +123,7 @@ class ODEPoolPhysics(object):
     def add_cue(self, cue):
         body, geom = self._create_cue(self.world, cue.mass, cue.radius, cue.length,
                                       space=self.space, kinematic=True)
+        self.cues = [cue]
         self.cue_bodies = [body]
         self.cue_geoms = [geom]
         return body, geom
@@ -160,6 +164,13 @@ class ODEPoolPhysics(object):
         self.world.step(dt)
         self._contactgroup.empty()
         self.t += dt
+        for cue, body, geom in zip(self.cues, self.cue_bodies, self.cue_geoms):
+            body.setPosition(cue.world_position)
+            w = cue.quaternion[3]; cue.quaternion[1:] = cue.quaternion[:3]; cue.quaternion[0] = w
+            body.setQuaternion(cue.quaternion)
+            geom.setQuaternion(cue.quaternion)
+            body.setLinearVel(cue.velocity)
+            body.setAngularVel(cue.angular_velocity)
         self.nsteps += 1
 
     def eval_positions(self, t, balls=None, out=None):
