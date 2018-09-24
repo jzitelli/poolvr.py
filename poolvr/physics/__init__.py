@@ -28,6 +28,7 @@ INCH2METER = 0.0254
 
 
 class PoolPhysics(object):
+    _ZERO_TOLERANCE = 1e-7
     _IMAG_TOLERANCE = 1e-5
     _IMAG_TOLERANCE_SQRD = _IMAG_TOLERANCE**2
     def __init__(self,
@@ -95,6 +96,7 @@ class PoolPhysics(object):
         self._collision_search_time_forward = collision_search_time_forward
         self._enable_sanity_check = enable_sanity_check
         self._p = np.empty(5, dtype=np.float64)
+        self._mask = np.array(4*[True])
         self.reset(ball_positions=ball_positions, balls_on_table=balls_on_table)
 
     def reset(self, ball_positions=None, balls_on_table=None):
@@ -293,8 +295,12 @@ class PoolPhysics(object):
 
     def sanity_check(self, event):
         import pickle
-        class InsanityException(Exception):
-            pass
+        class Insanity(Exception):
+            def __init__(self, physics, *args, **kwargs):
+                with open('%s.pickle.dump' % self.__class__.__name__, 'wb') as f:
+                    pickle.dump(physics, f)
+                super().__init__(*args, **kwargs)
+
         if isinstance(event, BallCollisionEvent):
             e_i, e_j = event.child_events
             for t in np.linspace(event.t, event.t + min(e_i.T, e_j.T), 20):
@@ -302,11 +308,8 @@ class PoolPhysics(object):
                     r_i, r_j = self.eval_positions(t, balls=[event.i, event.j])
                     d_ij = np.linalg.norm(r_i - r_j)
                     if d_ij - 2*self.ball_radius < -1e-5:
-                        class BallsPenetratedInsanity(InsanityException):
-                            def __init__(self, physics, *args, **kwargs):
-                                with open('%s.pickle.dump' % self.__class__.__name__, 'wb') as f:
-                                    pickle.dump(physics, f)
-                                super().__init__(*args, **kwargs)
+                        class BallsPenetratedInsanity(Insanity):
+                            pass
                         raise BallsPenetratedInsanity(self, '''
 ball_diameter = %s
          d_ij = %s
@@ -317,6 +320,7 @@ event: %s
   e_i: %s
   e_j: %s
 ''' % (2*self.ball_radius, d_ij, r_i, r_j, self.t, event, e_i, e_j))
+
     def _add_event(self, event):
         self.events.append(event)
         if isinstance(event, BallEvent):
@@ -381,7 +385,6 @@ event: %s
         return self._find_collision_time(a_i, a_j, t0, t1)
 
     def _find_collision_time(self, a_i, a_j, t0, t1):
-        from itertools import chain
         d = a_i - a_j
         a_x, a_y = d[2, ::2]
         b_x, b_y = d[1, ::2]
@@ -398,26 +401,28 @@ event: %s
             _logger.warning('LinAlgError occurred during solve for collision time:\np = %s\nerror:\n%s', p, err)
             return None
         # filter out possible complex-conjugate pairs of roots:
-        i, r = next(((i, r) for i, r in enumerate(roots) if r.imag != 0),
-                    (None, None))
-        if r is not None:
-            j = next((j for j, q in enumerate(roots[i+1:]) if abs(q.real - r.real) < 1e-7 and abs(q.imag + r.imag) < 1e-7), None)
-            if j is not None:
-                roots = tuple(chain(roots[:i], roots[i+1:i+j+1], roots[i+j+2:]))
-                # _logger.debug('filtered out complex conjugate pair %s\nroots: %s', r, roots)
-                i, r = next(((i, r) for i, r in enumerate(roots) if r.imag != 0),
-                            (None, None))
-                if r is not None:
-                    j = next((j for j, q in enumerate(roots[i+1:]) if abs(q.real - r.real) < 1e-7 and abs(q.imag + r.imag) < 1e-7), None)
-                    if j is not None:
-                        # _logger.debug('filtered out second complex conjugate pair %s', r)
-                        return
-        #_logger.debug('roots: %s', roots)
-        roots = [t.real for t in roots if t0 <= t.real <= t1 and t.imag**2 / (t.real**2+t.imag**2) < self._IMAG_TOLERANCE_SQRD]
-        if not roots:
-            return None
-        else:
-            return min(roots)
+        def find_i(roots):
+            return next(((i, r) for i, r in enumerate(roots) if r.imag != 0), (None, None))
+        def find_j(roots, i, r):
+            return next((j for j, q in enumerate(roots[i+1:])
+                         if  abs(q.real - r.real) < self._ZERO_TOLERANCE
+                         and abs(q.imag + r.imag) < self._ZERO_TOLERANCE), None)
+        mask = self._mask; mask[:] = True
+        for n in range(2):
+            i, r = find_i(roots)
+            if r is not None:
+                j = find_j(roots, i, r)
+                if j is not None:
+                    mask[i] = False; mask[i+j+1] = False
+                    roots = roots[mask[:len(roots)]]
+                else:
+                    break
+            else:
+                break
+        return min((t.real for t in roots
+                    if t0 <= t.real <= t1
+                    and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
+                   default=None)
 
     def _calc_energy(self, t, balls=None):
         if balls is None:

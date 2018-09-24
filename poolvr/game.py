@@ -73,6 +73,6 @@ class PoolGame(object):
         self.physics.eval_angular_velocities(self.t, out=self.ball_angular_velocities)
         for q, omega in zip(self.ball_quaternions, self.ball_angular_velocities):
             q_w = q[3]
-            q[3] += 0.5 * dt * omega.dot(q[:3])
-            q[:3] -= 0.5 * dt * (q_w * omega + np.cross(omega, q[:3]))
+            q[3] -= 0.5 * dt * omega.dot(q[:3])
+            q[:3] += 0.5 * dt * (q_w * omega + np.cross(omega, q[:3]))
             q /= np.linalg.norm(q)

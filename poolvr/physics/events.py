@@ -83,17 +83,17 @@ class BallEvent(PhysicsEvent):
 
 
 class BallRestEvent(BallEvent):
-    def __init__(self, t, i, r=None, q=None,
+    def __init__(self, t, i, r_0=None, q_0=None,
                  psi=0.0, theta=0.0, phi=0.0, **kwargs):
         super().__init__(t, i, T=float('inf'), **kwargs)
-        if r is None:
+        if r_0 is None:
             self._r = self._r_0 = np.zeros(3, dtype=np.float64)
         else:
-            self._r = self._r_0 = r.copy()
-        if q is None:
+            self._r = self._r_0 = r_0.copy()
+        if q_0 is None:
             self._q = self._q_0 = self.set_quaternion_from_euler_angles(psi=psi, theta=theta, phi=phi)
         else:
-            self._q = self._q_0 = q.copy()
+            self._q = self._q_0 = q_0.copy()
         self._a_global = None
     @property
     def acceleration(self):
@@ -225,17 +225,17 @@ class BallRollingEvent(BallMotionEvent):
         super().__init__(t, i, T=T, r_0=r_0, v_0=v_0, omega_0=omega_0, **kwargs)
         self._a[2] = -0.5 * self.mu_r * self.g * v_0 / v_0_mag
         self._b[1] = -omega_0 / T
-        self._next_motion_event = BallRestEvent(t + T, i, r=self.eval_position(T))
+        self._next_motion_event = BallRestEvent(t + T, i, r_0=self.eval_position(T))
 
 
 class BallSpinningEvent(BallMotionEvent):
-    def __init__(self, t, i, r, omega_0_y, **kwargs):
+    def __init__(self, t, i, r_0, omega_0_y, **kwargs):
         R = self.ball_radius
-        super().__init__(t, i, r_0=r, v_0=0, **kwargs)
+        super().__init__(t, i, r_0=r_0, v_0=0, **kwargs)
         self._omega_0[1] = omega_0_y
         self._b[1,1] = -5 * self.mu_sp * self.g / (2 * R)
         self.T = T = abs(omega_0_y / self._b[1,1])
-        self._next_motion_event = BallRestEvent(t + T, i, r=r)
+        self._next_motion_event = BallRestEvent(t + T, i, r_0=r_0)
     @property
     def acceleration(self):
         return np.zeros(3, dtype=np.float64)
@@ -322,42 +322,76 @@ class BallCollisionEvent(PhysicsEvent):
     @property
     def child_events(self):
         if self._child_events is None:
-            R = self.ball_radius
             e_i, e_j = self.e_i, self.e_j
             v_i_1, v_j_1 = self._v_i_1, self._v_j_1
             omega_i_1, omega_j_1 = self._omega_i_1, self._omega_j_1
             if v_i_1.dot(v_i_1) < self._ZERO_TOLERANCE_SQRD:
                 if omega_i_1[1] < self._ZERO_TOLERANCE:
                     e_i_1 = BallRestEvent(self.t, e_i.i,
-                                          r=e_i.eval_position(self.t - e_i.t),
+                                          r_0=e_i.eval_position(self.t - e_i.t),
                                           parent_event=self)
                 else:
                     e_i_1 = BallSpinningEvent(self.t, e_i.i,
-                                              r=e_i.eval_position(self.t - e_i.t),
+                                              r_0=e_i.eval_position(self.t - e_i.t),
                                               omega_0_y=omega_i_1[1],
                                               parent_event=self)
-            else:
-                e_i_1 = BallSlidingEvent(self.t, e_i.i,
-                                         r_0=e_i.eval_position(self.t - e_i.t),
-                                         v_0=v_i_1,
-                                         omega_0=omega_i_1,
-                                         parent_event=self)
-            if v_j_1.dot(v_j_1) < self._ZERO_TOLERANCE_SQRD:
-                if omega_j_1[1] < self._ZERO_TOLERANCE:
+                if isinstance(e_j, BallRestEvent):
+                    if isinstance(e_i, BallRollingEvent):
+                        e_j_1 = BallRollingEvent(self.t, e_j.i,
+                                                 r_0=e_j.eval_position(self.t - e_j.t),
+                                                 v_0=v_j_1,
+                                                 parent_event=self)
+                    else:
+                        e_j_1 = BallSlidingEvent(self.t, e_j.i,
+                                                 r_0=e_j.eval_position(self.t - e_j.t),
+                                                 v_0=v_j_1,
+                                                 omega_0=omega_j_1,
+                                                 parent_event=self)
+                elif omega_j_1[1] < self._ZERO_TOLERANCE:
                     e_j_1 = BallRestEvent(self.t, e_j.i,
-                                          r=e_j.eval_position(self.t - e_j.t),
+                                          r_0=e_j.eval_position(self.t - e_j.t),
                                           parent_event=self)
                 else:
                     e_j_1 = BallSpinningEvent(self.t, e_j.i,
-                                              r=e_j.eval_position(self.t - e_j.t),
+                                              r_0=e_j.eval_position(self.t - e_j.t),
                                               omega_0_y=omega_j_1[1],
                                               parent_event=self)
             else:
-                e_j_1 = BallSlidingEvent(self.t, e_j.i,
-                                         r_0=e_j.eval_position(self.t - e_j.t),
-                                         v_0=v_j_1,
-                                         omega_0=omega_j_1,
-                                         parent_event=self)
+                u_i_1 = v_i_1 + np.cross(omega_i_1, np.array((0, -self.ball_radius, 0), dtype=np.float64))
+                if u_i_1.dot(u_i_1) < self._ZERO_TOLERANCE_SQRD:
+                    e_i_1 = BallRollingEvent(self.t, e_i.i,
+                                             r_0=e_i.eval_position(self.t - e_i.t),
+                                             v_0=v_i_1,
+                                             parent_event=self)
+                else:
+                    e_i_1 = BallSlidingEvent(self.t, e_i.i,
+                                             r_0=e_i.eval_position(self.t - e_i.t),
+                                             v_0=v_i_1,
+                                             omega_0=omega_i_1,
+                                             parent_event=self)
+                if v_j_1.dot(v_j_1) < self._ZERO_TOLERANCE_SQRD:
+                    if omega_j_1[1] < self._ZERO_TOLERANCE:
+                        e_j_1 = BallRestEvent(self.t, e_j.i,
+                                              r_0=e_j.eval_position(self.t - e_j.t),
+                                              parent_event=self)
+                    else:
+                        e_j_1 = BallSpinningEvent(self.t, e_j.i,
+                                                  r_0=e_j.eval_position(self.t - e_j.t),
+                                                  omega_0_y=omega_j_1[1],
+                                                  parent_event=self)
+                else:
+                    u_j_1 = v_j_1 + np.cross(omega_j_1, np.array((0, -self.ball_radius, 0), dtype=np.float64))
+                    if u_j_1.dot(u_j_1) < self._ZERO_TOLERANCE_SQRD:
+                        e_j_1 = BallRollingEvent(self.t, e_j.i,
+                                                 r_0=e_j.eval_position(self.t - e_j.t),
+                                                 v_0=v_j_1,
+                                                 parent_event=self)
+                    else:
+                        e_j_1 = BallSlidingEvent(self.t, e_j.i,
+                                                 r_0=e_j.eval_position(self.t - e_j.t),
+                                                 v_0=v_j_1,
+                                                 omega_0=omega_j_1,
+                                                 parent_event=self)
             self._child_events = (e_i_1, e_j_1)
         return self._child_events
     def __str__(self):
@@ -376,6 +410,10 @@ class SimpleBallCollisionEvent(BallCollisionEvent):
         v_i_1 = v_i + (v_j - v_i).dot(_i) * _i
         v_j_1 = v_j + (v_i - v_j).dot(_i) * _i
         self._v_i_1, self._v_j_1 = v_i_1, v_j_1
+        if v_i_1.dot(v_i_1) < self._ZERO_TOLERANCE_SQRD:
+            self._omega_i_1 = np.zeros(3, dtype=np.float64)
+            self._omega_i_1[1] = self._omega_i[1]
+
         self._omega_i_1, self._omega_j_1 = (e_i.eval_angular_velocity(t - e_i.t),
                                             e_j.eval_angular_velocity(t - e_j.t))
 
