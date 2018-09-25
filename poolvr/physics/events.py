@@ -1,7 +1,6 @@
 import logging
 _logger = logging.getLogger(__name__)
 import numpy as np
-import quaternion as qrn
 
 
 INCH2METER = 0.0254
@@ -82,18 +81,16 @@ class BallEvent(PhysicsEvent):
         return super().__str__()[:-1] + " i=%d>" % self.i
 
 
-class BallRestEvent(BallEvent):
+class BallStationaryEvent(BallEvent):
     def __init__(self, t, i, r_0=None, q_0=None,
                  psi=0.0, theta=0.0, phi=0.0, **kwargs):
-        super().__init__(t, i, T=float('inf'), **kwargs)
-        if r_0 is None:
-            self._r = self._r_0 = np.zeros(3, dtype=np.float64)
-        else:
-            self._r = self._r_0 = r_0.copy()
+        super().__init__(t, i, **kwargs)
         if q_0 is None:
-            self._q = self._q_0 = self.set_quaternion_from_euler_angles(psi=psi, theta=theta, phi=phi)
-        else:
-            self._q = self._q_0 = q_0.copy()
+            q_0 = self.set_quaternion_from_euler_angles(psi=psi, theta=theta, phi=phi)
+        self._q_0 = self._q = q_0
+        if r_0 is None:
+            r_0 = np.zeros(3, dtype=np.float64)
+        self._r_0 = self._r = r_0
         self._a_global = None
     @property
     def acceleration(self):
@@ -102,16 +99,38 @@ class BallRestEvent(BallEvent):
     def global_motion_coeffs(self):
         if self._a_global is None:
             self._a_global = a = np.zeros((3,3), dtype=np.float64)
-            a[0] = self._r
+            a[0] = self._r_0
         return self._a_global, None
     @allocs_out
     def eval_position(self, tau, out=None):
-        out[:] = self._r
+        out[:] = self._r_0
         return out
     @allocs_out
     def eval_velocity(self, tau, out=None):
         out[:] = 0
         return out
+
+
+class BallSpinningEvent(BallStationaryEvent):
+    def __init__(self, t, i, r_0, omega_0_y, **kwargs):
+        R = self.ball_radius
+        super().__init__(t, i, r_0=r_0, **kwargs)
+        self._omega_0_y = omega_0_y
+        self._b[1,1] = -5 * np.sign(omega_0_y) * self.mu_sp * self.g / (2 * R)
+        self.T = T = abs(omega_0_y / self._b[1,1])
+        self._next_motion_event = BallRestEvent(t + T, i, r_0=r_0)
+    @allocs_out_vec4
+    def eval_quaternion(self, tau, out=None):
+        out[:] = self._q
+        return out
+    @allocs_out
+    def eval_angular_velocity(self, tau, out=None):
+        out[:] = 0
+        out[1] = self._omega_0_y + self._b[1,1] * tau
+        return out
+
+
+class BallRestEvent(BallStationaryEvent):
     @allocs_out_vec4
     def eval_quaternion(self, tau, out=None):
         out[:] = self._q
@@ -201,16 +220,6 @@ class BallMotionEvent(BallEvent):
     @allocs_out_vec4
     def eval_quaternion(self, tau, out=None):
         out[:] = self._q_0
-        try:
-            taus, quats = qrn.integrate_angular_velocity(self.eval_angular_velocity, 0.0, tau,
-                                                         R0=qrn.from_float_array(self._q_0),
-                                                         tolerance=1e-4)
-        except ValueError as err:
-            # ?
-            return out
-        quat = next((q for t, q in zip(taus, quats) if np.all(np.isfinite(q))),
-                    qrn.from_float_array(self._q_0))
-        out[:] = qrn.as_float_array(quat)
         return out
     def __str__(self):
         return super().__str__()[:-1] + '\n r_0=%s\n v_0=%s\n a=%s\n omega_0=%s>' % (self._r_0, self._v_0, self.acceleration, self._omega_0)
@@ -226,33 +235,6 @@ class BallRollingEvent(BallMotionEvent):
         self._a[2] = -0.5 * self.mu_r * self.g * v_0 / v_0_mag
         self._b[1] = -omega_0 / T
         self._next_motion_event = BallRestEvent(t + T, i, r_0=self.eval_position(T))
-
-
-class BallSpinningEvent(BallMotionEvent):
-    def __init__(self, t, i, r_0, omega_0_y, **kwargs):
-        R = self.ball_radius
-        super().__init__(t, i, r_0=r_0, v_0=0, **kwargs)
-        self._omega_0[1] = omega_0_y
-        self._b[1,1] = -5 * self.mu_sp * self.g / (2 * R)
-        self.T = T = abs(omega_0_y / self._b[1,1])
-        self._next_motion_event = BallRestEvent(t + T, i, r_0=r_0)
-    @property
-    def acceleration(self):
-        return np.zeros(3, dtype=np.float64)
-    @property
-    def global_motion_coeffs(self):
-        if self._a_global is None:
-            self._a_global = a = np.zeros((3,3), dtype=np.float64)
-            a[0] = self._r
-        return self._a_global, None
-    @allocs_out
-    def eval_position(self, tau, out=None):
-        out[:] = self._r
-        return out
-    @allocs_out
-    def eval_velocity(self, tau, out=None):
-        out[:] = 0
-        return out
 
 
 class BallSlidingEvent(BallMotionEvent):

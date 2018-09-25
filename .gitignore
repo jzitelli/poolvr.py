@@ -1,11 +1,14 @@
+env36/
 venv36/
 .pytest_cache
+_*/
 
 .idea/
 
 # Sphinx documentation
 docs/_build/
 
+\#*
 *~
 *.sublime-workspace
 *.sublime-project

@@ -4,5 +4,3 @@ openvr
 pillow
 sounddevice
 soundfile
-numpy-quaternion
-scipy
