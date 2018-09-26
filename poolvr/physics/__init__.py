@@ -18,8 +18,8 @@ from time import perf_counter
 import numpy as np
 
 
-from .events import (CueStrikeEvent, BallEvent, BallRestEvent,
-                     BallMotionEvent, BallCollisionEvent,
+from .events import (CueStrikeEvent, BallEvent, BallStationaryEvent,
+                     BallRestEvent, BallMotionEvent, BallCollisionEvent,
                      MarlowBallCollisionEvent, SimpleBallCollisionEvent)
 from ..table import PoolTable
 
@@ -97,6 +97,8 @@ class PoolPhysics(object):
         self._enable_sanity_check = enable_sanity_check
         self._p = np.empty(5, dtype=np.float64)
         self._mask = np.array(4*[True])
+        self._a_ij_mag = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
+        self._accelerations = np.zeros((self.num_balls, 3), dtype=np.float64)
         self.reset(ball_positions=ball_positions, balls_on_table=balls_on_table)
 
     def reset(self, ball_positions=None, balls_on_table=None):
@@ -324,16 +326,23 @@ event: %s
     def _add_event(self, event):
         self.events.append(event)
         if isinstance(event, BallEvent):
-            if self.ball_events[event.i]:
-                last_ball_event = self.ball_events[event.i][-1]
+            i = event.i
+            if self.ball_events[i]:
+                last_ball_event = self.ball_events[i][-1]
                 if event.t < last_ball_event.t + last_ball_event.T:
                     last_ball_event.T = event.t - last_ball_event.t
-            self.ball_events[event.i].append(event)
-            if isinstance(event, BallRestEvent):
-                if event.i in self._ball_motion_events:
-                    self._ball_motion_events.pop(event.i)
+            self.ball_events[i].append(event)
+            if isinstance(event, BallStationaryEvent):
+                if i in self._ball_motion_events:
+                    self._ball_motion_events.pop(i)
+                self._accelerations[i] = 0
+                self._a_ij_mag[i,i] = 0
+                self._a_ij_mag[i,:] = self._a_ij_mag[:,i] = self._a_ij_mag.diagonal()
             elif isinstance(event, BallMotionEvent):
-                self._ball_motion_events[event.i] = event
+                self._ball_motion_events[i] = event
+                self._accelerations[i] = event.acceleration
+                self._a_ij_mag[i,:] = self._a_ij_mag[:,i] = np.linalg.norm(self._accelerations - event.acceleration, axis=1)
+                self._a_ij_mag[i,i] = np.linalg.norm(event.acceleration)
         for child_event in event.child_events:
             self._add_event(child_event)
         if self._enable_sanity_check and isinstance(event, BallCollisionEvent):
@@ -347,17 +356,14 @@ event: %s
             t_min = next_motion_event.t
         else:
             t_min = float('inf')
-        collision_times = {}
         next_collision = None
         for i in self.balls_in_motion:
             e_i = self.ball_events[i][-1]
-            for j in (j for j in self.balls_on_table if j != i):
-                key = min(i,j), max(i,j)
-                if key in collision_times:
+            for j in self.balls_on_table:
+                if j <= i and j in self.balls_in_motion:
                     continue
                 e_j = self.ball_events[j][-1]
                 t_c = self._find_collision(e_i, e_j, t_min)
-                collision_times[key] = t_c
                 if t_c is not None and t_c < t_min:
                     t_min = t_c
                     next_collision = (t_c, e_i, e_j)
@@ -375,7 +381,7 @@ event: %s
         if t0 >= t1:
             return None
         tau_i_0, tau_j_0 = t0 - e_i.t, t0 - e_j.t
-        a_ij_mag = np.linalg.norm(e_i.acceleration - e_j.acceleration)
+        a_ij_mag = self._a_ij_mag[e_i.i, e_j.i] #np.linalg.norm(e_i.acceleration - e_j.acceleration)
         v_ij_0_mag = np.linalg.norm(e_i.eval_velocity(tau_i_0) - e_j.eval_velocity(tau_j_0))
         r_ij_0_mag = np.linalg.norm(e_i.eval_position(tau_i_0) - e_j.eval_position(tau_j_0))
         if v_ij_0_mag * (t1-t0) + 0.5 * a_ij_mag * (t1-t0)**2 < r_ij_0_mag - 2*self.ball_radius:

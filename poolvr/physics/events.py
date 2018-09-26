@@ -101,13 +101,19 @@ class BallStationaryEvent(BallEvent):
             self._a_global = a = np.zeros((3,3), dtype=np.float64)
             a[0] = self._r_0
         return self._a_global, None
-    @allocs_out
+    #@allocs_out
     def eval_position(self, tau, out=None):
-        out[:] = self._r_0
+        if out is None:
+            out = self._r_0.copy()
+        else:
+            out[:] = self._r_0
         return out
-    @allocs_out
+    #@allocs_out
     def eval_velocity(self, tau, out=None):
-        out[:] = 0
+        if out is None:
+            out = np.zeros(3, dtype=np.float64)
+        else:
+            out[:] = 0
         return out
 
 
@@ -202,15 +208,24 @@ class BallMotionEvent(BallEvent):
         a_global[1] += -2 * t * a[2]
         b_global[0] += -t * b[1]
         return out
-    @allocs_out
+    #@allocs_out
     def eval_position(self, tau, out=None):
-        a = self._a
-        out[:] = a[0] + tau * a[1] + tau**2 * a[2]
+        if out is None:
+            out = self._r_0.copy()
+        else:
+            out[:] = self._r_0
+        if tau != 0:
+            a = self._a
+            out += tau * a[1] + tau**2 * a[2]
         return out
-    @allocs_out
+    #@allocs_out
     def eval_velocity(self, tau, out=None):
-        _a = self._a
-        out[:] = 2 * tau * _a[2] + _a[1]
+        if out is None:
+            out = self._v_0.copy()
+        else:
+            out[:] = self._v_0
+        if tau != 0:
+            out += 2 * tau * self._a[2]
         return out
     @allocs_out
     def eval_angular_velocity(self, tau, out=None):
