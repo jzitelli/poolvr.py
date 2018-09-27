@@ -84,7 +84,7 @@ class BallEvent(PhysicsEvent):
 class BallStationaryEvent(BallEvent):
     def __init__(self, t, i, r_0=None, q_0=None,
                  psi=0.0, theta=0.0, phi=0.0, **kwargs):
-        super().__init__(t, i, **kwargs)
+        super().__init__(t, i, T=float('inf'), **kwargs)
         if q_0 is None:
             q_0 = self.set_quaternion_from_euler_angles(psi=psi, theta=theta, phi=phi)
         self._q_0 = self._q = q_0
@@ -115,6 +115,8 @@ class BallStationaryEvent(BallEvent):
         else:
             out[:] = 0
         return out
+    def __str__(self):
+        return super().__str__()[:-1] + '\n r=%s>' % self._r
 
 
 class BallSpinningEvent(BallStationaryEvent):
@@ -145,8 +147,6 @@ class BallRestEvent(BallStationaryEvent):
     def eval_angular_velocity(self, tau, out=None):
         out[:] = 0
         return out
-    def __str__(self):
-        return super().__str__()[:-1] + '\n r=%s>' % self._r
 
 
 class BallMotionEvent(BallEvent):

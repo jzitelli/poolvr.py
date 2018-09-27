@@ -17,12 +17,12 @@ def pool_table():
     return PoolTable()
 
 
-@pytest.fixture(params=['simple', 'marlow'])
+@pytest.fixture(params=['simple'])
 def pool_physics(request, pool_table):
     from poolvr.physics import PoolPhysics
-    return PoolPhysics(initial_positions=np.array(pool_table.calc_racked_positions(),
-                                                  dtype=np.float64),
-                       ball_collision_model=request.param)
+    return PoolPhysics(initial_positions=np.array(pool_table.calc_racked_positions(), dtype=np.float64),
+                       ball_collision_model=request.param,
+                       enable_sanity_check=False)
 
 
 @pytest.fixture

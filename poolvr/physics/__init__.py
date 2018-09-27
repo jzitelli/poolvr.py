@@ -215,19 +215,14 @@ class PoolPhysics(object):
         """
         if balls is None:
             balls = range(self.num_balls)
-        ts = t
         if out is None:
-            try: # if passed vector t
-                out = np.zeros((len(balls), len(ts), 3), dtype=np.float64)
-                t = ts[0]
-            except: # passed a scalar t
-                out = np.zeros((len(balls), 3), dtype=np.float64)
+            out = np.zeros((len(balls), 3), dtype=np.float64)
         for ii, i in enumerate(balls):
             events = self.ball_events.get(i, ())
             if events:
                 for e in events[:bisect(events, t)][::-1]:
                     if t <= e.t + e.T:
-                        out[ii] = e.eval_position(ts - e.t)
+                        out[ii] = e.eval_position(t - e.t)
                         break
         return out
 
