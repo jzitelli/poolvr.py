@@ -255,7 +255,7 @@ class BallRollingEvent(BallMotionEvent):
 class BallSlidingEvent(BallMotionEvent):
     def __init__(self, t, i, r_0, v_0, omega_0, **kwargs):
         R = self.ball_radius
-        u_0 = v_0 + np.array((-R*omega_0[2], 0, R*omega_0[0]), dtype=np.float64)
+        u_0 = v_0 + np.array((R*omega_0[2], 0, -R*omega_0[0]), dtype=np.float64)
         u_0_mag = np.linalg.norm(u_0)
         T = 2 * u_0_mag / (7 * self.mu_s * self.g)
         super().__init__(t, i, T=T, r_0=r_0, v_0=v_0, omega_0=omega_0, **kwargs)
