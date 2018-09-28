@@ -377,9 +377,13 @@ event: %s
             return None
         tau_i_0, tau_j_0 = t0 - e_i.t, t0 - e_j.t
         a_ij_mag = self._a_ij_mag[e_i.i, e_j.i] #np.linalg.norm(e_i.acceleration - e_j.acceleration)
-        v_ij_0_mag = np.linalg.norm(e_i.eval_velocity(tau_i_0) - e_j.eval_velocity(tau_j_0))
-        r_ij_0_mag = np.linalg.norm(e_i.eval_position(tau_i_0) - e_j.eval_position(tau_j_0))
-        if v_ij_0_mag * (t1-t0) + 0.5 * a_ij_mag * (t1-t0)**2 < r_ij_0_mag - 2*self.ball_radius:
+        # v_ij_0_mag = np.linalg.norm(e_i.eval_velocity(tau_i_0) - e_j.eval_velocity(tau_j_0))
+        # r_ij_0_mag = np.linalg.norm(e_i.eval_position(tau_i_0) - e_j.eval_position(tau_j_0))
+        # if v_ij_0_mag * (t1-t0) + 0.5 * a_ij_mag * (t1-t0)**2 < r_ij_0_mag - 2*self.ball_radius:
+        #     return None
+        v_ij_0 = e_i.eval_velocity(tau_i_0) - e_j.eval_velocity(tau_j_0)
+        r_ij_0 = e_i.eval_position(tau_i_0) - e_j.eval_position(tau_j_0)
+        if np.sqrt(np.dot(v_ij_0, v_ij_0)) * (t1-t0) + 0.5 * a_ij_mag * (t1-t0)**2 < np.sqrt(np.dot(r_ij_0, r_ij_0)) - 2*self.ball_radius:
             return None
         a_i, b_i = e_i.global_motion_coeffs
         a_j, b_j = e_j.global_motion_coeffs
