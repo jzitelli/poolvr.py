@@ -61,9 +61,12 @@ class PoolPhysics(object):
         :param E_Y_b: :math:`{E_Y}_b`,  ball material's Young's modulus
         :param g:     :math:`g`,        downward acceleration due to gravity
         """
-        if table is None:
-            table = PoolTable(num_balls=num_balls, ball_radius=ball_radius)
-        self.table = table
+        if ball_collision_model == 'simple':
+            self._ball_collision_event_class = SimpleBallCollisionEvent
+        elif ball_collision_model == 'marlow':
+            self._ball_collision_event_class = MarlowBallCollisionEvent
+        else:
+            raise Exception('dont know that collision model!')
         self.num_balls = num_balls
         # allocate for lower-level memory management:
         self._BALL_MOTION_EVENTS = [BallMotionEvent(0.0, i, float('inf'),
@@ -72,12 +75,11 @@ class PoolPhysics(object):
                                     for i in range(self.num_balls)]
         self._BALL_REST_EVENTS = [BallRestEvent(0.0, i, r=np.zeros(3, dtype=np.float64))
                                   for i in range(self.num_balls)]
+        if table is None:
+            table = PoolTable(num_balls=num_balls, ball_radius=ball_radius)
+        self.table = table
         if balls_on_table is None:
             balls_on_table = range(self.num_balls)
-        if ball_collision_model == 'simple':
-            self._ball_collision_event_class = SimpleBallCollisionEvent
-        elif ball_collision_model == 'marlow':
-            self._ball_collision_event_class = MarlowBallCollisionEvent
         self.ball_mass = ball_mass
         self.ball_radius = ball_radius
         self.ball_I = 2/5 * ball_mass * ball_radius**2 # moment of inertia
@@ -151,17 +153,18 @@ class PoolPhysics(object):
     def add_cue(self, cue):
         self.cues = [cue]
 
-    def strike_ball(self, t, i, r_i, r_c, V, cue_mass):
+    def strike_ball(self, t, i, r_i, r_c, V, M):
         r"""
         Strike ball *i* at game time *t*.
 
         :param r_i: position of ball *i*
         :param r_c: point of contact
         :param V: impact velocity
+        :param M: impact mass
         """
         if not self._on_table[i]:
             return
-        event = CueStrikeEvent(t, i, r_i, r_c, V, cue_mass)
+        event = CueStrikeEvent(t, i, r_i, r_c, V, M)
         return self.add_event_sequence(event)
 
     def add_event_sequence(self, event):
@@ -376,11 +379,7 @@ event: %s
         if t0 >= t1:
             return None
         tau_i_0, tau_j_0 = t0 - e_i.t, t0 - e_j.t
-        a_ij_mag = self._a_ij_mag[e_i.i, e_j.i] #np.linalg.norm(e_i.acceleration - e_j.acceleration)
-        # v_ij_0_mag = np.linalg.norm(e_i.eval_velocity(tau_i_0) - e_j.eval_velocity(tau_j_0))
-        # r_ij_0_mag = np.linalg.norm(e_i.eval_position(tau_i_0) - e_j.eval_position(tau_j_0))
-        # if v_ij_0_mag * (t1-t0) + 0.5 * a_ij_mag * (t1-t0)**2 < r_ij_0_mag - 2*self.ball_radius:
-        #     return None
+        a_ij_mag = self._a_ij_mag[e_i.i, e_j.i]
         v_ij_0 = e_i.eval_velocity(tau_i_0) - e_j.eval_velocity(tau_j_0)
         r_ij_0 = e_i.eval_position(tau_i_0) - e_j.eval_position(tau_j_0)
         if np.sqrt(np.dot(v_ij_0, v_ij_0)) * (t1-t0) + 0.5 * a_ij_mag * (t1-t0)**2 < np.sqrt(np.dot(r_ij_0, r_ij_0)) - 2*self.ball_radius:
