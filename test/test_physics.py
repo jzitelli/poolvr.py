@@ -8,6 +8,12 @@ from poolvr.cue import PoolCue
 from poolvr.physics.events import PhysicsEvent, CueStrikeEvent, BallSlidingEvent, BallRollingEvent, BallRestEvent, BallCollisionEvent
 
 
+def test_occlusion(pool_physics):
+    import matplotlib.pyplot as plt
+    plt.matshow(pool_physics._occ_ij)
+    plt.show()
+
+
 @pytest.mark.parametrize("ball_collision_model", ['simple', 'marlow'])
 def test_strike_ball(pool_physics, ball_collision_model,
                      plot_motion_z_position, plot_motion_timelapse):

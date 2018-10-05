@@ -25,6 +25,7 @@ from ..table import PoolTable
 
 
 INCH2METER = 0.0254
+PIx2 = np.pi*2
 
 
 class PoolPhysics(object):
@@ -100,13 +101,19 @@ class PoolPhysics(object):
         self._p = np.empty(5, dtype=np.float64)
         self._mask = np.array(4*[True])
         self._a_ij_mag = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
-        self._accelerations = np.zeros((self.num_balls, 3), dtype=np.float64)
+        self._a_ij = np.zeros((self.num_balls, 3), dtype=np.float64)
+        self._r_ij = np.zeros((self.num_balls, self.num_balls, 3), dtype=np.float64)
+        self._r_ij_mag = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
+        self._theta_ij = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
+        self._psi_ij = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
+        self._occ_ij = np.array(self.num_balls*[self.num_balls*[False]])
         self.reset(ball_positions=ball_positions, balls_on_table=balls_on_table)
 
     def reset(self, ball_positions=None, balls_on_table=None):
         """
         Reset the state of the balls to at rest, at the specified positions.
         """
+        R = self.ball_radius
         self._ball_motion_events = {}
         if ball_positions is None:
             ball_positions = self.table.calc_racked_positions()
@@ -126,6 +133,24 @@ class PoolPhysics(object):
         self.ball_events = {i: [self._BALL_REST_EVENTS[i]]
                             for i in balls_on_table}
         self.events = list(chain.from_iterable(self.ball_events.values()))
+        self._a_ij[:] = 0
+        self._a_ij_mag[:] = 0
+        # update occlusion buffers:
+        self._occ_ij[:] = False
+        self._occ_ij[range(self.num_balls), range(self.num_balls)] = True
+        self._r_ij[:] = 0
+        self._r_ij_mag[:] = 0
+        self._psi_ij[:] = 0
+        self._theta_ij[:] = 0
+        for i, r in enumerate(ball_positions):
+            if i not in self.balls_on_table:
+                continue
+            self._r_ij[i,i+1:] = ball_positions[i+1:] - r
+            self._r_ij_mag[i,i+1:] = np.linalg.norm(self._r_ij[i,i+1:], axis=1)
+            self._psi_ij[i,i+1:] = np.arcsin(2*R / self._r_ij_mag[i,i+1:])
+            self._r_ij[i,i] = r
+            self._theta_ij[i,i+1:] = np.arctan2(self._r_ij[i,i+1:,2], self._r_ij[i,i+1:,0])
+        self._update_occlusion(self.balls_on_table)
 
     @property
     def ball_collision_model(self):
@@ -260,7 +285,6 @@ class PoolPhysics(object):
             balls = range(self.num_balls)
         if out is None:
             out = np.zeros((len(balls), 3), dtype=np.float64)
-        out[:] = 0
         for ii, i in enumerate(balls):
             events = self.ball_events.get(i, ())
             if events:
@@ -280,7 +304,6 @@ class PoolPhysics(object):
             balls = range(self.num_balls)
         if out is None:
             out = np.zeros((len(balls), 3), dtype=np.float64)
-        out[:] = 0
         for ii, i in enumerate(balls):
             events = self.ball_events.get(i, ())
             if events:
@@ -307,7 +330,7 @@ class PoolPhysics(object):
                 if e_i.t + e_i.T >= t or e_j.t + e_j.T >= t:
                     r_i, r_j = self.eval_positions(t, balls=[event.i, event.j])
                     d_ij = np.linalg.norm(r_i - r_j)
-                    if d_ij - 2*self.ball_radius < -1e-5:
+                    if d_ij - 2*self.ball_radius < -1e-6:
                         class BallsPenetratedInsanity(Insanity):
                             pass
                         raise BallsPenetratedInsanity(self, '''
@@ -333,14 +356,14 @@ event: %s
             if isinstance(event, BallStationaryEvent):
                 if i in self._ball_motion_events:
                     self._ball_motion_events.pop(i)
-                self._accelerations[i] = 0
+                self._a_ij[i] = 0
                 self._a_ij_mag[i,i] = 0
                 self._a_ij_mag[i,:] = self._a_ij_mag[:,i] = self._a_ij_mag.diagonal()
             elif isinstance(event, BallMotionEvent):
                 self._ball_motion_events[i] = event
-                self._accelerations[i] = event.acceleration
-                self._a_ij_mag[i,:] = self._a_ij_mag[:,i] = np.linalg.norm(self._accelerations - event.acceleration, axis=1)
-                self._a_ij_mag[i,i] = np.linalg.norm(event.acceleration)
+                self._a_ij[i] = event.acceleration
+                self._a_ij_mag[i,:] = self._a_ij_mag[:,i] = np.linalg.norm(self._a_ij - event.acceleration, axis=1)
+                self._a_ij_mag[i,i] = np.sqrt(np.dot(event.acceleration, event.acceleration))
         for child_event in event.child_events:
             self._add_event(child_event)
         if self._enable_sanity_check and isinstance(event, BallCollisionEvent):
@@ -427,6 +450,59 @@ event: %s
                     if t0 <= t.real <= t1
                     and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
                    default=None)
+
+    def _update_occlusion(self, balls):
+        balls = np.array(sorted(balls))
+        occ_ij = self._occ_ij
+        r_ij_mag = self._r_ij_mag[balls][:,balls]
+        thetas_ij = self._theta_ij[balls][:,balls]
+        psi_ij = self._psi_ij[balls][:,balls]
+        for i, ball_no in enumerate(balls):
+            if i == len(balls) - 1:
+                break
+            j_sorted = r_ij_mag[i].argsort()[i+1:]
+            theta_i = thetas_ij[i,j_sorted]
+            psi_i = psi_ij[i,j_sorted]
+            theta_i_a = theta_i - psi_i
+            theta_i_b = theta_i + psi_i
+            theta_i_occ_bnds = []
+            for j, theta_ij_a, theta_ij, theta_ij_b in zip(j_sorted, theta_i_a, theta_i, theta_i_b):
+                if theta_ij_a < -np.pi:
+                    thetas  = [(theta_ij_a, theta_ij, theta_ij_b),
+                               (theta_ij_a+PIx2, theta_ij+PIx2, theta_ij_b+PIx2)]
+                elif theta_ij_b > np.pi:
+                    thetas = [(theta_ij_a, theta_ij, theta_ij_b),
+                              (theta_ij_a-PIx2, theta_ij-PIx2, theta_ij_b-PIx2)]
+                else:
+                    thetas = [(theta_ij_a, theta_ij, theta_ij_b)]
+                for theta_a, theta, theta_b in thetas:
+                    jj_a, jj, jj_b = bisect(theta_i_occ_bnds, theta_a), bisect(theta_i_occ_bnds, theta), bisect(theta_i_occ_bnds, theta_b)
+                    center_occluded = jj % 2 == 1
+                    if center_occluded:
+                        if   jj_a == jj == jj_b:
+                            occ_ij[ball_no, balls[j]] = True
+                            occ_ij[balls[j], ball_no] = True
+                        elif jj_a == jj == jj_b-1:
+                            theta_i_occ_bnds[jj]   = theta_b
+                        elif jj_a+1 == jj == jj_b:
+                            theta_i_occ_bnds[jj-1] = theta_a
+                        elif jj_a+1 == jj == jj_b-1:
+                            theta_i_occ_bnds[jj-1] = theta_a
+                            theta_i_occ_bnds[jj]   = theta_b
+                        else:
+                            raise Exception('what am i doing here?')
+                    else:
+                        if jj_a == jj == jj_b:
+                            theta_i_occ_bnds.insert(jj, theta_b)
+                            theta_i_occ_bnds.insert(jj, theta_a)
+                        elif jj_a == jj == jj_b-1:
+                            theta_i_occ_bnds[jj_a] = theta_a
+                        elif jj_a+1 == jj == jj_b:
+                            theta_i_occ_bnds[jj-1] = theta_b
+                        elif jj_a+1 == jj == jj_b-1:
+                            theta_i_occ_bnds.pop(jj)
+                        else:
+                            raise Exception('what am i doing here?')
 
     def _calc_energy(self, t, balls=None):
         if balls is None:

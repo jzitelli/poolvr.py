@@ -405,8 +405,6 @@ class SimpleBallCollisionEvent(BallCollisionEvent):
         v_j_1 = v_j + (v_i - v_j).dot(_i) * _i
         self._v_i_1, self._v_j_1 = v_i_1, v_j_1
         self._omega_i_1, self._omega_j_1 = self._omega_i, self._omega_j
-        # self._omega_i_1, self._omega_j_1 = (e_i.eval_angular_velocity(t - e_i.t),
-        #                                     e_j.eval_angular_velocity(t - e_j.t))
 
 
 class MarlowBallCollisionEvent(BallCollisionEvent):
@@ -429,5 +427,4 @@ class MarlowBallCollisionEvent(BallCollisionEvent):
         v_i_1 = v_i - (J / self.ball_mass) * _i
         v_j_1 = v_j + (J / self.ball_mass) * _i
         self._v_i_1, self._v_j_1 = v_i_1, v_j_1
-        self._omega_i_1, self._omega_j_1 = (e_i.eval_angular_velocity(t - e_i.t),
-                                            e_j.eval_angular_velocity(t - e_j.t))
+        self._omega_i_1, self._omega_j_1 = self._omega_i, self._omega_j
