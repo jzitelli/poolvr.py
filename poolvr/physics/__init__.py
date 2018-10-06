@@ -150,7 +150,7 @@ class PoolPhysics(object):
             self._psi_ij[i,i+1:] = np.arcsin(2*R / self._r_ij_mag[i,i+1:])
             self._r_ij[i,i] = r
             self._theta_ij[i,i+1:] = np.arctan2(self._r_ij[i,i+1:,2], self._r_ij[i,i+1:,0])
-        self._update_occlusion(self.balls_on_table)
+        self._update_occlusion(list(self.balls_on_table), balls_at_rest=[])
 
     @property
     def ball_collision_model(self):
@@ -174,6 +174,10 @@ class PoolPhysics(object):
     @property
     def balls_in_motion(self):
         return self._ball_motion_events.keys()
+
+    @property
+    def balls_at_rest(self):
+        return (i for i in self.balls_on_table if isinstance(self.ball_events.get(i, None), BallStationaryEvent))
 
     def add_cue(self, cue):
         self.cues = [cue]
@@ -352,6 +356,16 @@ event: %s
                 last_ball_event = self.ball_events[i][-1]
                 if event.t < last_ball_event.t + last_ball_event.T:
                     last_ball_event.T = event.t - last_ball_event.t
+            if isinstance(event, BallStationaryEvent):
+                balls = np.array([i] + list(self.balls_at_rest), dtype=np.int64)
+                self._r_ij[i,balls][1:] = self._r_ij[balls,balls][1:] - event._r_0
+                self._r_ij_mag[i,balls][1:] = np.linalg.norm(self._r_ij[i,balls][1:], axis=1)
+                self._psi_ij[i,balls][1:] = np.arcsin(2*self.ball_radius / self._r_ij_mag[i,balls][1:])
+                self._r_ij[i,i] = event._r_0
+                self._theta_ij[i,balls][1:] = np.arctan2(self._r_ij[i,balls,2][1:], self._r_ij[i,balls,0][1:])
+                self._occ_ij[i,balls] = False
+                self._occ_ij[i,i] = True
+                self._update_occlusion([i])
             self.ball_events[i].append(event)
             if isinstance(event, BallStationaryEvent):
                 if i in self._ball_motion_events:
@@ -451,8 +465,10 @@ event: %s
                     and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
                    default=None)
 
-    def _update_occlusion(self, balls):
-        balls = np.array(sorted(balls))
+    def _update_occlusion(self, balls, balls_at_rest=None):
+        if balls_at_rest is None:
+            balls_at_rest = sorted(self.balls_at_rest)
+        balls = np.array(balls + balls_at_rest, dtype=np.int64)
         occ_ij = self._occ_ij
         r_ij_mag = self._r_ij_mag[balls][:,balls]
         thetas_ij = self._theta_ij[balls][:,balls]
