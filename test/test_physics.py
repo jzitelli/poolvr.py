@@ -4,13 +4,13 @@ import numpy as np
 import pytest
 
 
-from poolvr.cue import PoolCue
 from poolvr.physics.events import PhysicsEvent, CueStrikeEvent, BallSlidingEvent, BallRollingEvent, BallRestEvent, BallCollisionEvent
 
 
 def test_occlusion(pool_physics):
     import matplotlib.pyplot as plt
     plt.matshow(pool_physics._occ_ij)
+    plt.savefig('occ.png')
     plt.show()
 
 
