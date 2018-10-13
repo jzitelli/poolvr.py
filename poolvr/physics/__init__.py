@@ -128,9 +128,7 @@ class PoolPhysics(object):
         self._ball_motion_events = {}
         if ball_positions is None:
             ball_positions = self.table.calc_racked_positions()
-        if balls_on_table is None:
-            balls_on_table = range(self.num_balls)
-        self.balls_on_table = balls_on_table
+        self.balls_on_table = range(self.num_balls)
         self.t = 0.0
         for e in self._BALL_MOTION_EVENTS:
             e._a[:] = 0
@@ -142,7 +140,7 @@ class PoolPhysics(object):
             e.t = self.t
             e.T = float('inf')
         self.ball_events = {i: [self._BALL_REST_EVENTS[i]]
-                            for i in balls_on_table}
+                            for i in self.balls_on_table}
         self.events = list(chain.from_iterable(self.ball_events.values()))
         self._a_ij[:] = 0
         self._a_ij_mag[:] = 0
@@ -153,8 +151,8 @@ class PoolPhysics(object):
         self._r_ij_mag[:] = 0
         self._psi_ij[:] = 0
         self._theta_ij[:] = 0
-        self._balls_at_rest = set(balls_on_table)
-        update_set = sorted(self.balls_on_table)
+        self._balls_at_rest = set(self.balls_on_table)
+        update_set = list(self.balls_on_table)
         rest_set = []
         self._update_positions(update_set=update_set, rest_set=rest_set, ball_positions=ball_positions)
         self._update_occlusion(update_set=update_set, rest_set=rest_set)
@@ -403,7 +401,7 @@ event: %s
                 if j <= i and j in self.balls_in_motion:
                     continue
                 e_j = self.ball_events[j][-1]
-                if self._enable_occlusion and isinstance(e_j, BallEvent) and self._occ_ij[i,j] and j in self.balls_at_rest:
+                if self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j]:
                     continue
                 t_c = self._find_collision(e_i, e_j, t_min)
                 if t_c is not None and t_c < t_min:
@@ -479,80 +477,40 @@ event: %s
         psi_ij = self._psi_ij
         U = np.array(update_set, dtype=np.int64)
         R = np.array(rest_set, dtype=np.int64)
+        r_ij[U,U] = ball_positions
         U.sort(); R.sort()
         F = np.hstack((U, R))
         for ii, i in enumerate(U):
-            r_ij[i,F] = r_ij[F,F] - ball_positions[ii]
-            r_ij[i,i] = ball_positions[ii]
-            theta_ij[i,F] = np.arctan2(r_ij[i,F,2], r_ij[i,F,0])
-            theta_ij[F,i] = PIx2 - theta_ij[i,F]
-            r_ij_mag[i,F] = np.linalg.norm(r_ij[i,F], axis=1)
-            r_ij_mag[F,i] = r_ij_mag[i,F]
-            psi_ij[i,F] = np.arcsin(self.ball_diameter / r_ij_mag[i,F])
-            psi_ij[F,i] = psi_ij[i,F]
-            r_ij_mag[i,i] = 0
+            F_i = F[ii+1:]
+            r_ij[i,F_i] = r_ij[F_i,F_i] - ball_positions[ii]
+            r_ij[F_i,i] = -r_ij[i,F_i]
+            theta_ij[i,F_i] = np.arctan2(r_ij[i,F_i,2], r_ij[i,F_i,0])
+            theta_ij[F_i,i] = PIx2 - theta_ij[i,F_i]
+            r_ij_mag[i,F_i] = np.linalg.norm(r_ij[i,F_i], axis=1)
+            r_ij_mag[F_i,i] = r_ij_mag[i,F_i]
+            psi_ij[i,F_i] = np.arcsin(self.ball_diameter / r_ij_mag[i,F_i])
+            psi_ij[F_i,i] = psi_ij[i,F_i]
 
     def _update_occlusion(self, update_set, rest_set, ball_positions=None):
         U = np.array(update_set, dtype=np.int64)
         R = np.array(rest_set, dtype=np.int64)
         U.sort(); R.sort()
         F = np.hstack((U, R))
-
-        _logger.debug('''
-U = %s
-R = %s
-F = %s
-''',
-                      U, R, F)
-
         occ_ij = self._occ_ij
         r_ij_mag = self._r_ij_mag
         thetas_ij = self._theta_ij
         psi_ij = self._psi_ij
         for ii, i in enumerate(U):
-            # r_ij_mag[i,i] = 0
             F_i = F[ii+1:]
             jj_sorted = r_ij_mag[i,F_i].argsort()
             j_sorted = F_i[jj_sorted]
             theta_i = thetas_ij[i,j_sorted]
-
-            _logger.debug('''
-          ii, i = %s, %s
-              F = %s
-            F_i = %s
-  r_ij_mag[i,F] = %s
-r_ij_mag[i,F_i] = %s
-r_ij_mag[i,F_i[jj_sorted]] = %s
-r_ij_mag[i,j_sorted] = %s
-      jj_sorted = %s
-       j_sorted = %s
-        theta_i = %s
-''',
-                          ii, i,
-                          printit(F),
-                          printit(F_i),
-                          printit(r_ij_mag[i,F]),
-                          printit(r_ij_mag[i,F_i]),
-                          printit(r_ij_mag[i,F_i[jj_sorted]]),
-                          printit(r_ij_mag[i,j_sorted]),
-                          printit(jj_sorted),
-                          printit(j_sorted),
-                          printit(RAD2DEG*theta_i))
-
             psi_i = psi_ij[i,j_sorted]
             theta_i_a = theta_i - psi_i
             theta_i_b = theta_i + psi_i
             theta_i_occ_bnds = []
             for j, theta_ij_a, theta_ij, theta_ij_b in zip(j_sorted,
                                                            theta_i_a, theta_i, theta_i_b):
-                _logger.debug('''
-j = %s
-theta_i_occ_bnds = %s
-theta_ij_a, theta_ij, theta_ij_b = %s, %s, %s
-''',
-                              j,
-                              printit(RAD2DEG*np.array(theta_i_occ_bnds)),
-                              RAD2DEG*theta_ij_a, RAD2DEG*theta_ij, RAD2DEG*theta_ij_b)
                 if j == i:
                     continue
                 if theta_ij_a < -np.pi:
@@ -566,29 +524,17 @@ theta_ij_a, theta_ij, theta_ij_b = %s, %s, %s
                 for theta_a, theta, theta_b in thetas:
                     jj_a, jj, jj_b = bisect(theta_i_occ_bnds, theta_a), bisect(theta_i_occ_bnds, theta), bisect(theta_i_occ_bnds, theta_b)
                     center_occluded, a_occluded, b_occluded = jj % 2 == 1, jj_a % 2 == 1, jj_b % 2 == 1
-                    if center_occluded:
-                        if   jj_a == jj == jj_b:
-                            occ_ij[i,j] = occ_ij[j,i] = True
-                            break
-                        if a_occluded and b_occluded:
-                            theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + theta_i_occ_bnds[jj_b:]
-                        elif not a_occluded and not b_occluded:
-                            theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + [theta_a, theta_b] + theta_i_occ_bnds[jj_b:]
-                        elif not a_occluded:
-                            theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + [theta_a] + theta_i_occ_bnds[jj_b:]
-                        elif not b_occluded:
-                            theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + [theta_b] + theta_i_occ_bnds[jj_b:]
+                    if center_occluded and jj_a == jj == jj_b:
+                        occ_ij[i,j] = occ_ij[j,i] = True
+                        break
+                    if a_occluded and b_occluded:
+                        theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + theta_i_occ_bnds[jj_b:]
+                    elif a_occluded:
+                        theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + [theta_b] + theta_i_occ_bnds[jj_b:]
+                    elif b_occluded:
+                        theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + [theta_a] + theta_i_occ_bnds[jj_b:]
                     else:
-                        if a_occluded and b_occluded:
-                            theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + theta_i_occ_bnds[jj_b:]
-                        elif a_occluded:
-                            theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + [theta_b] + theta_i_occ_bnds[jj_b:]
-                        elif b_occluded:
-                            theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + [theta_a] + theta_i_occ_bnds[jj_b:]
-                        #elif not a_occluded and not b_occluded:
-                        else:
-                            theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + [theta_a, theta_b] + theta_i_occ_bnds[jj_b:]
-
+                        theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + [theta_a, theta_b] + theta_i_occ_bnds[jj_b:]
 
     def _calc_energy(self, t, balls=None):
         if balls is None:
