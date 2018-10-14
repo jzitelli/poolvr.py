@@ -131,6 +131,8 @@ class PoolPhysics(object):
         self.balls_on_table = balls_on_table
         if ball_positions is None:
             ball_positions = self.table.calc_racked_positions()[self.balls_on_table]
+        else:
+            ball_positions = ball_positions[self.balls_on_table]
         self.t = 0.0
         for e in self._BALL_MOTION_EVENTS:
             e._a[:] = 0
