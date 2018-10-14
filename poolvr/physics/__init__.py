@@ -126,9 +126,11 @@ class PoolPhysics(object):
         Reset the state of the balls to at rest, at the specified positions.
         """
         self._ball_motion_events = {}
+        if balls_on_table is None:
+            balls_on_table = range(self.num_balls)
+        self.balls_on_table = balls_on_table
         if ball_positions is None:
-            ball_positions = self.table.calc_racked_positions()
-        self.balls_on_table = range(self.num_balls)
+            ball_positions = self.table.calc_racked_positions()[self.balls_on_table]
         self.t = 0.0
         for e in self._BALL_MOTION_EVENTS:
             e._a[:] = 0
@@ -152,10 +154,8 @@ class PoolPhysics(object):
         self._psi_ij[:] = 0
         self._theta_ij[:] = 0
         self._balls_at_rest = set(self.balls_on_table)
-        update_set = list(self.balls_on_table)
-        rest_set = []
-        self._update_positions(update_set=update_set, rest_set=rest_set, ball_positions=ball_positions)
-        self._update_occlusion(update_set=update_set, rest_set=rest_set)
+        self._update_positions(update_set=self.balls_on_table, rest_set=np.empty((0,3), dtype=np.float64), ball_positions=ball_positions)
+        self._update_occlusion(update_set=self.balls_on_table, rest_set=np.empty((0,3), dtype=np.float64))
 
     @property
     def ball_collision_model(self):
@@ -169,12 +169,13 @@ class PoolPhysics(object):
 
     @property
     def balls_on_table(self):
-        return set(self._balls_on_table)
+        return self._balls_on_table
     @balls_on_table.setter
     def balls_on_table(self, balls):
-        self._balls_on_table = set(balls)
+        self._balls_on_table = np.array(balls, dtype=np.int64)
+        self._balls_on_table.sort()
         self._on_table[:] = False
-        self._on_table[np.array(balls)] = True
+        self._on_table[self._balls_on_table] = True
 
     @property
     def balls_in_motion(self):
@@ -479,7 +480,10 @@ event: %s
         R = np.array(rest_set, dtype=np.int64)
         r_ij[U,U] = ball_positions
         U.sort(); R.sort()
-        F = np.hstack((U, R))
+        if len(R) > 0:
+            F = np.hstack((U, R))
+        else:
+            F = U
         for ii, i in enumerate(U):
             F_i = F[ii+1:]
             r_ij[i,F_i] = r_ij[F_i,F_i] - ball_positions[ii]
@@ -495,7 +499,10 @@ event: %s
         U = np.array(update_set, dtype=np.int64)
         R = np.array(rest_set, dtype=np.int64)
         U.sort(); R.sort()
-        F = np.hstack((U, R))
+        if len(R) > 0:
+            F = np.hstack((U, R))
+        else:
+            F = U
         occ_ij = self._occ_ij
         r_ij_mag = self._r_ij_mag
         thetas_ij = self._theta_ij

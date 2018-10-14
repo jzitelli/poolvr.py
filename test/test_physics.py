@@ -118,13 +118,12 @@ def test_break(pool_physics,
     ball_positions = physics.eval_positions(0.0)
     r_c = ball_positions[0].copy()
     r_c[2] += physics.ball_radius
-    cue = PoolCue()
-    cue.velocity[2] = -1.6
-    cue.velocity[0] = -0.01
+    V = np.array((-0.01, 0.0, -1.6), dtype=np.float64)
+    M = 0.54
     import cProfile
     pr = cProfile.Profile()
     pr.enable()
-    events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, cue.velocity, cue.mass)
+    events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
     pr.dump_stats('test_break.pstats')
     pr.print_stats()
     _logger.info('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
