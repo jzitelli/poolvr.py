@@ -20,7 +20,6 @@ except ImportError as err:
     _logger.warning('could not import pyopenvr_renderer:\n%s', err)
     _logger.warning('\n\n\n**** VR FEATURES ARE NOT AVAILABLE! ****\n\n\n')
     OpenVRRenderer = None
-# from .gl_text import TexturedText
 from .physics import PoolPhysics
 from .table import PoolTable
 from .cue import PoolCue
@@ -29,6 +28,7 @@ from .keyboard_controls import init_keyboard, set_on_keydown_callback
 from .mouse_controls import init_mouse
 from .sound import init_sound
 from .room import floor_mesh, skybox_mesh
+# from .gl_text import TexturedText
 
 
 BG_COLOR = (0.0, 0.0, 0.0, 0.0)
