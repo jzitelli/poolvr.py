@@ -16,7 +16,9 @@ def test_occlusion(pool_physics):
 
 @pytest.mark.parametrize("ball_collision_model", ['simple', 'marlow'])
 def test_strike_ball(pool_physics, ball_collision_model,
-                     plot_motion_z_position, plot_motion_timelapse):
+                     plot_motion_z_position,
+                     plot_motion_timelapse,
+                     plot_energy):
     physics = pool_physics
     physics.reset(balls_on_table=[0])
     ball_positions = physics.eval_positions(0.0)
@@ -38,7 +40,9 @@ def test_strike_ball(pool_physics, ball_collision_model,
 
 @pytest.mark.parametrize("ball_collision_model", ['simple'])
 def test_ball_collision(pool_physics, ball_collision_model,
-                        plot_motion_z_position, plot_motion_timelapse,
+                        plot_motion_z_position,
+                        plot_motion_timelapse,
+                        plot_energy,
                         gl_rendering):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
@@ -61,7 +65,10 @@ def test_ball_collision(pool_physics, ball_collision_model,
 
 @pytest.mark.parametrize("ball_collision_model", ['simple'])
 def test_angled_ball_collision(pool_physics, ball_collision_model,
-                               plot_motion_z_position, plot_motion_timelapse,
+                               plot_motion_z_position,
+                               plot_motion_x_position,
+                               plot_motion_timelapse,
+                               plot_energy,
                                gl_rendering):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
@@ -90,7 +97,9 @@ def test_angled_ball_collision(pool_physics, ball_collision_model,
 
 @pytest.mark.parametrize("ball_collision_model", ['simple'])
 def test_sliding_ball_collision(pool_physics, ball_collision_model,
-                                plot_motion_z_position, plot_motion_timelapse,
+                                plot_motion_z_position,
+                                plot_motion_timelapse,
+                                plot_energy,
                                 gl_rendering):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
@@ -112,7 +121,8 @@ def test_sliding_ball_collision(pool_physics, ball_collision_model,
 
 
 def test_break(pool_physics,
-               plot_motion_z_position, plot_motion_timelapse,
+               plot_motion_timelapse,
+               plot_energy,
                gl_rendering):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)

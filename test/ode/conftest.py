@@ -18,6 +18,9 @@ def ode_pool_physics(pool_table):
 
 @pytest.fixture
 def ode_gl_rendering(ode_pool_physics, pool_table, request):
+    if not request.config.getoption('--render'):
+        yield
+        return
     import OpenGL
     OpenGL.ERROR_CHECKING = False
     OpenGL.ERROR_LOGGING = False

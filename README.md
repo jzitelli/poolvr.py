@@ -4,30 +4,34 @@ VR pool simulator written in Python (using [pyopenvr](https://github.com/cmbruns
 
 ![screenshot](https://jzitelli.github.io/poolvr.py/images/screenshots/vrscreenshot.png)
 
+
 ## REQUIREMENTS:
 
 - Python 3.5 or higher
-- cyglfw3
-- pyopengl
-- pyopenvr
-- numpy
-- pillow
-- matplotlib
-- python-sounddevice
-- soundfile
+- [cyglfw3](https://github.com/adamlwgriffiths/cyglfw3)
+- [pyopengl](http://pyopengl.sourceforge.net)
+- [pyopenvr](https://github.com/cmbruns/pyopenvr)
+- [numpy](http://www.numpy.org)
+- [sounddevice](https://pypi.org/project/sounddevice)
+- [soundfile](https://github.com/bastibe/SoundFile)
+- [pillow](https://python-pillow.org)
+- [matplotlib](https://matplotlib.org)
 
-Time-stepped physics using the [Open Dynamics Engine](https://github.com/jzitelli/ode) is also supported if the ODE library with Python bindings is installed.
+Time-stepped physics using the [Open Dynamics Engine](https://ode)
+is also supported if the ODE library with Python bindings is installed.
 
 You can probably install most of the required packages listed above using `pip`, e.g.
 ```
 pip install pillow
 ```
-I was not able to install `cyglfw3`, 'pyopenvr', or `ode` using `pip`, so I built them from source following the steps below:
+I was not able to install `cyglfw3`, 'pyopenvr', or `ode` using `pip`,
+so I built them from source following the steps below:
 
 
 ### 1. INSTALLING `cyglfw3`:
 
-First, you need to build or download the `glfw` library binary for your platform - the easiest way is to [download pre-compiled binaries
+First, you need to build or download the `glfw` library binary for your platform
+- the easiest way is to [download pre-compiled binaries
 from the official `glfw` site: http://www.glfw.org/download.html ](http://www.glfw.org/download.html)
 
 Then build the cyglfw3 package:
@@ -88,7 +92,7 @@ python setup.py develop
 
 ## HOW TO START:
 
-Installation will place a Python script `play_poolvr.py` into your Python environment's path.
+Installation will place an executable `poolvr` into your Python environment's path.
 From a command-line, just enter:
 ```
 poolvr
@@ -108,5 +112,6 @@ poolvr -h
 
 From your cloned `poolvr.py` repository root directory:
 ```
-python scripts/run_poolvr_tests.py
+cd test
+pytest
 ```

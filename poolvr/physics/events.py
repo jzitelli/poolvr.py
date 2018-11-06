@@ -113,6 +113,12 @@ class BallStationaryEvent(BallEvent):
         else:
             out[:] = 0
         return out
+    def eval_slip_velocity(self, tau, out=None):
+        if out is None:
+            out = np.zeros(3, dtype=np.float64)
+        else:
+            out[:] = 0
+        return out
     def __str__(self):
         return super().__str__()[:-1] + '\n r=%s>' % self._r
 
@@ -230,6 +236,13 @@ class BallMotionEvent(BallEvent):
         b = self._b
         out[:] = b[0] + tau * b[1]
         return out
+    def eval_slip_velocity(self, tau, out=None):
+        if out is None:
+            out = np.empty(3, dtype=np.float64)
+        v = self.eval_velocity(tau)
+        omega = self.eval_angular_velocity(tau)
+        out[:] = v + self.ball_radius * np.cross(self._k, omega)
+        return out
     @allocs_out_vec4
     def eval_quaternion(self, tau, out=None):
         out[:] = self._q_0
@@ -243,25 +256,39 @@ class BallRollingEvent(BallMotionEvent):
         R = self.ball_radius
         v_0_mag = np.linalg.norm(v_0)
         T = v_0_mag / (self.mu_r * self.g)
-        omega_0 = np.array((-v_0[2]/R, 0.0, v_0[0]/R), dtype=np.float64)
+        omega_0 = np.array((v_0[2]/R, 0.0, -v_0[0]/R), dtype=np.float64)
+        v = -R * np.cross(self._k, omega_0)
+        v_diff = v_0 - v
+        assert np.dot(v_diff, v_diff) < self._ZERO_TOLERANCE_SQRD
         super().__init__(t, i, T=T, r_0=r_0, v_0=v_0, omega_0=omega_0, **kwargs)
         self._a[2] = -0.5 * self.mu_r * self.g * v_0 / v_0_mag
         self._b[1] = -omega_0 / T
         self._next_motion_event = BallRestEvent(t + T, i, r_0=self.eval_position(T))
+        v_1 = self.eval_velocity(T)
+        assert np.dot(v_1, v_1) < self._ZERO_TOLERANCE_SQRD
+    def eval_slip_velocity(self, tau, out=None):
+        if out is None:
+            out = np.zeros(3, dtype=np.float64)
+        else:
+            out[:] = 0
+        return out
 
 
 class BallSlidingEvent(BallMotionEvent):
     def __init__(self, t, i, r_0, v_0, omega_0, **kwargs):
         R = self.ball_radius
-        u_0 = v_0 + np.array((-R*omega_0[2], 0, R*omega_0[0]), dtype=np.float64)
-        u_0_mag = np.linalg.norm(u_0)
+        # u_0 = v_0 + np.array((-R*omega_0[2], 0, R*omega_0[0]), dtype=np.float64)
+        u_0 = v_0 + R * np.cross(self._k, omega_0)
+        u_0_mag = np.sqrt(np.dot(u_0, u_0))
         T = 2 * u_0_mag / (7 * self.mu_s * self.g)
         super().__init__(t, i, T=T, r_0=r_0, v_0=v_0, omega_0=omega_0, **kwargs)
         self._a[2] = -0.5 * self.mu_s * self.g * u_0 / u_0_mag
-        self._b[1,::2] = -omega_0[::2] / T
+        self._b[1] = 5/2 * self.mu_s * self.g * np.cross(self._k, u_0 / u_0_mag) / R
         self._next_motion_event = BallRollingEvent(t + T, i,
                                                    r_0=self.eval_position(T),
                                                    v_0=self.eval_velocity(T))
+        u_1 = self.eval_slip_velocity(T)
+        assert np.dot(u_1, u_1) < self._ZERO_TOLERANCE_SQRD
 
 
 class CueStrikeEvent(BallEvent):
@@ -279,8 +306,9 @@ class CueStrikeEvent(BallEvent):
         self.V = V
         self.M = M
         self.Q = Q = r_c - r_i
-        _j = V.copy(); _j[1] = 0; _j /= np.linalg.norm(_j)
-        _i = np.array((-_j[2], 0, _j[0]), dtype=np.float64)
+        _j = V.copy(); _j[1] = 0; _j /= np.sqrt(np.dot(_j, _j))
+        _i = np.cross(_j, self._k)
+        # _i = np.array((-_j[2], 0, _j[0]), dtype=np.float64)
         a, c, b = (Q.dot(_i),
                    Q.dot(_j),
                    Q[1])
@@ -288,11 +316,9 @@ class CueStrikeEvent(BallEvent):
         sin, cos = b/R, np.sqrt(a**2 + c**2)/R
         V_mag = np.linalg.norm(V)
         v_0_mag = 2 * V_mag / (1 + m / M + 5 / (2 * R**2) * (a**2 + b**2*cos**2 + c**2 * sin**2 - 2 * b * c * cos * sin))
-        F = v_0_mag * m
-        omega_0 = (-c * F * sin + b * F * cos) * _i + (a * F * sin) * _j
-        omega_0[1] -= a * F * cos
-        omega_0 /= I
-        self._child_events = (BallSlidingEvent(t, i, r_0=r_i, v_0=v_0_mag*_j, omega_0=omega_0, q_0=q_i, parent_event=self),)
+        F_mag = v_0_mag * m
+        omega_0 = ((-c * F_mag * sin + b * F_mag * cos) * _i + (a * F_mag * sin) * _j + (-a * F_mag * cos) * self._k) / I
+        self._child_events = (BallSlidingEvent(t, i, r_0=r_i, v_0=-v_0_mag*_j, omega_0=omega_0, q_0=q_i, parent_event=self),)
     @property
     def child_events(self):
         return self._child_events

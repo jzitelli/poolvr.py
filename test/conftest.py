@@ -11,6 +11,11 @@ SCREENSHOTS_DIR = os.path.join(os.path.dirname(__file__), 'screenshots')
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
 
+def pytest_addoption(parser):
+    parser.addoption("--render", action="store_true", default=False,
+                     help="enable OpenGL rendering of test results")
+
+
 @pytest.fixture
 def pool_table():
     from poolvr.table import PoolTable
@@ -85,6 +90,9 @@ def plot_motion_timelapse(pool_physics, pool_table, request):
 
 @pytest.fixture
 def gl_rendering(pool_physics, pool_table, request):
+    if not request.config.getoption('--render'):
+        yield
+        return
     import OpenGL
     OpenGL.ERROR_CHECKING = False
     OpenGL.ERROR_LOGGING = False

@@ -38,6 +38,7 @@ def printit(a, fmt='%s'):
 
 class PoolPhysics(object):
     _ZERO_TOLERANCE = 1e-7
+    _ZERO_TOLERANCE_SQRD = _ZERO_TOLERANCE**2
     _IMAG_TOLERANCE = 1e-5
     _IMAG_TOLERANCE_SQRD = _IMAG_TOLERANCE**2
     def __init__(self,
@@ -201,6 +202,7 @@ class PoolPhysics(object):
         """
         if not self._on_table[i]:
             return
+        assert abs(self.ball_radius**2 - np.dot(r_c - r_i, r_c - r_i)) < self._ZERO_TOLERANCE_SQRD
         event = CueStrikeEvent(t, i, r_i, r_c, V, M)
         return self.add_event_sequence(event)
 
