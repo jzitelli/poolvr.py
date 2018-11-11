@@ -1,3 +1,4 @@
+import os.path
 import logging
 _logger = logging.getLogger(__name__)
 import numpy as np
@@ -9,9 +10,24 @@ from poolvr.physics.events import PhysicsEvent, CueStrikeEvent, BallSlidingEvent
 
 def test_occlusion(pool_physics):
     import matplotlib.pyplot as plt
+    assert (pool_physics._occ_ij == ~np.array([[0,1,1,1,1,1,1,0,0,0,1,0,0,1,0,1],
+                                               [1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0],
+                                               [1,1,0,1,0,0,1,1,0,0,0,0,0,0,0,0],
+                                               [1,0,1,0,1,0,0,1,1,0,0,0,0,0,0,0],
+                                               [1,0,0,1,0,1,0,0,1,1,0,0,0,0,0,0],
+                                               [1,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0],
+                                               [1,1,1,0,0,0,0,1,0,0,1,0,0,0,0,0],
+                                               [0,0,1,1,0,0,1,0,1,0,1,1,0,0,0,0],
+                                               [0,0,0,1,1,0,0,1,0,1,0,1,1,0,0,0],
+                                               [0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,0],
+                                               [1,0,0,0,0,0,1,1,0,0,0,1,0,1,0,0],
+                                               [0,0,0,0,0,0,0,1,1,0,1,0,1,1,1,0],
+                                               [0,0,0,0,0,0,0,0,1,1,0,1,0,0,1,0],
+                                               [1,0,0,0,0,0,0,0,0,0,1,1,0,0,1,1],
+                                               [0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,1],
+                                               [1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0]], dtype=np.bool)).all()
     plt.matshow(pool_physics._occ_ij)
-    plt.savefig('occ.png')
-    plt.show()
+    plt.savefig(os.path.join(os.path.dirname(__file__), 'plots', 'occ.png'))
 
 
 @pytest.mark.parametrize("ball_collision_model", ['simple', 'marlow'])
@@ -178,7 +194,6 @@ def test_strike_ball_english(pool_physics, gl_rendering):
     r_c[1] += physics.ball_radius * sy
     r_c[0] += physics.ball_radius * cy * sxz
     r_c[2] += physics.ball_radius * cy * cxz
-    _logger.info('r_c = %s', r_c)
     V = np.zeros(3, dtype=np.float64)
     V[2] = -1.5
     M = 0.54
@@ -198,7 +213,6 @@ def test_strike_ball_less_english(pool_physics, gl_rendering):
     r_c[1] += physics.ball_radius * sy
     r_c[0] += physics.ball_radius * cy * sxz
     r_c[2] += physics.ball_radius * cy * cxz
-    _logger.info('r_c = %s', r_c)
     V = np.zeros(3, dtype=np.float64)
     V[2] = -1.5
     M = 0.54

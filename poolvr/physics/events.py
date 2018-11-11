@@ -231,11 +231,25 @@ class BallMotionEvent(BallEvent):
         if tau != 0:
             out += 2 * tau * self._a[2]
         return out
-    @allocs_out
+    #@allocs_out
     def eval_angular_velocity(self, tau, out=None):
-        b = self._b
-        out[:] = b[0] + tau * b[1]
+        if out is None:
+            out = self._omega_0.copy()
+        else:
+            out[:] = self._omega_0
+        out += tau * self._b[1]
         return out
+    # def eval_slip_velocity(self, tau, out=None, v=None, omega=None):
+    #     if v is None:
+    #         v = self.eval_velocity(tau)
+    #     if v[1] > 0:
+    #         return None
+    #     if omega is None:
+    #         omega = self.eval_angular_velocity(tau)
+    #     if out is None:
+    #         out = np.empty(3, dtype=np.float64)
+    #     out[:] = v + self.ball_radius * np.cross(self._k, omega)
+    #     return out
     def eval_slip_velocity(self, tau, out=None):
         if out is None:
             out = np.empty(3, dtype=np.float64)
@@ -264,9 +278,9 @@ class BallRollingEvent(BallMotionEvent):
         self._a[2] = -0.5 * self.mu_r * self.g * v_0 / v_0_mag
         self._b[1] = -omega_0 / T
         self._next_motion_event = BallRestEvent(t + T, i, r_0=self.eval_position(T))
-        v_1 = self.eval_velocity(T)
-        assert np.dot(v_1, v_1) < self._ZERO_TOLERANCE_SQRD
-    def eval_slip_velocity(self, tau, out=None):
+        #_logger.debug('u_0 = %s', BallMotionEvent.eval_slip_velocity(self, 0))
+        assert np.linalg.norm(BallMotionEvent.eval_slip_velocity(self, 0)) < self._ZERO_TOLERANCE
+    def eval_slip_velocity(self, tau, out=None, **kwargs):
         if out is None:
             out = np.zeros(3, dtype=np.float64)
         else:
@@ -277,18 +291,28 @@ class BallRollingEvent(BallMotionEvent):
 class BallSlidingEvent(BallMotionEvent):
     def __init__(self, t, i, r_0, v_0, omega_0, **kwargs):
         R = self.ball_radius
-        # u_0 = v_0 + np.array((-R*omega_0[2], 0, R*omega_0[0]), dtype=np.float64)
         u_0 = v_0 + R * np.cross(self._k, omega_0)
-        u_0_mag = np.sqrt(np.dot(u_0, u_0))
+        u_0_mag = np.linalg.norm(u_0)
         T = 2 * u_0_mag / (7 * self.mu_s * self.g)
         super().__init__(t, i, T=T, r_0=r_0, v_0=v_0, omega_0=omega_0, **kwargs)
+        self._u_0 = u_0
+        self._u_0_mag = u_0_mag
         self._a[2] = -0.5 * self.mu_s * self.g * u_0 / u_0_mag
         self._b[1] = 5/2 * self.mu_s * self.g * np.cross(self._k, u_0 / u_0_mag) / R
+        u_1 = self.eval_slip_velocity(T)
+        assert np.dot(u_1, u_1) < self._ZERO_TOLERANCE_SQRD
         self._next_motion_event = BallRollingEvent(t + T, i,
                                                    r_0=self.eval_position(T),
                                                    v_0=self.eval_velocity(T))
-        u_1 = self.eval_slip_velocity(T)
-        assert np.dot(u_1, u_1) < self._ZERO_TOLERANCE_SQRD
+        # Ts = np.linspace(0, T, 50)
+        # u_rels = np.array([self.eval_slip_velocity(t) for t in Ts])
+        # import matplotlib.pyplot as plt
+        # plt.figure()
+        # plt.plot(Ts, u_rels[:,0], label='u_x')
+        # plt.plot(Ts, u_rels[:,2], label='u_z')
+        # plt.legend()
+        # plt.show()
+        # _logger.debug('u_1 = %s', self.eval_slip_velocity(T))
 
 
 class CueStrikeEvent(BallEvent):
@@ -306,11 +330,13 @@ class CueStrikeEvent(BallEvent):
         self.V = V
         self.M = M
         self.Q = Q = r_c - r_i
-        _j = V.copy(); _j[1] = 0; _j /= np.sqrt(np.dot(_j, _j))
+
+        _j = -V.copy(); _j[1] = 0; _j /= np.linalg.norm(_j)
         _i = np.cross(_j, self._k)
-        # _i = np.array((-_j[2], 0, _j[0]), dtype=np.float64)
+        #_i = np.array((_j[2], 0, -_j[0]), dtype=np.float64)
+        #_i = np.array((-_j[2], 0, _j[0]), dtype=np.float64)
         a, c, b = (Q.dot(_i),
-                   Q.dot(_j),
+                   abs(Q.dot(_j)),
                    Q[1])
         m, R, I = self.ball_mass, self.ball_radius, self.ball_I
         sin, cos = b/R, np.sqrt(a**2 + c**2)/R
@@ -345,6 +371,16 @@ class BallCollisionEvent(PhysicsEvent):
             e_i, e_j = self.e_i, self.e_j
             v_i_1, v_j_1 = self._v_i_1, self._v_j_1
             omega_i_1, omega_j_1 = self._omega_i_1, self._omega_j_1
+            # e_i_1 = BallSlidingEvent(self.t, e_i.i,
+            #                          r_0=self._r_i,
+            #                          v_0=v_i_1,
+            #                          omega_0=omega_i_1,
+            #                          parent_event=self)
+            # e_j_1 = BallSlidingEvent(self.t, e_j.i,
+            #                          r_0=self._r_j,
+            #                          v_0=v_j_1,
+            #                          omega_0=omega_j_1,
+            #                          parent_event=self)
             if v_i_1.dot(v_i_1) < self._ZERO_TOLERANCE_SQRD:
                 if omega_i_1[1] < self._ZERO_TOLERANCE:
                     e_i_1 = BallRestEvent(self.t, e_i.i,
@@ -377,7 +413,8 @@ class BallCollisionEvent(PhysicsEvent):
                                               omega_0_y=omega_j_1[1],
                                               parent_event=self)
             else:
-                u_i_1 = v_i_1 + np.cross(omega_i_1, np.array((0, -self.ball_radius, 0), dtype=np.float64))
+                u_i_1 = e_i.eval_slip_velocity(e_i.T)
+                #u_i_1 = v_i_1 + np.cross(omega_i_1, np.array((0, -self.ball_radius, 0), dtype=np.float64))
                 if u_i_1.dot(u_i_1) < self._ZERO_TOLERANCE_SQRD:
                     e_i_1 = BallRollingEvent(self.t, e_i.i,
                                              r_0=self._r_i,
@@ -400,7 +437,8 @@ class BallCollisionEvent(PhysicsEvent):
                                                   omega_0_y=omega_j_1[1],
                                                   parent_event=self)
                 else:
-                    u_j_1 = v_j_1 + np.cross(omega_j_1, np.array((0, -self.ball_radius, 0), dtype=np.float64))
+                    u_j_1 = e_j.eval_slip_velocity(e_j.T)
+                    #u_j_1 = v_j_1 + np.cross(omega_j_1, np.array((0, -self.ball_radius, 0), dtype=np.float64))
                     if u_j_1.dot(u_j_1) < self._ZERO_TOLERANCE_SQRD:
                         e_j_1 = BallRollingEvent(self.t, e_j.i,
                                                  r_0=self._r_j,

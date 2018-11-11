@@ -14,6 +14,8 @@ logging.getLogger('matplotlib').setLevel(logging.WARNING)
 def pytest_addoption(parser):
     parser.addoption("--render", action="store_true", default=False,
                      help="enable OpenGL rendering of test results")
+    parser.addoption("--screenshot", action="store_true", default=False,
+                     help="save screenshot of OpenGL-rendered test results")
 
 
 @pytest.fixture
@@ -50,7 +52,7 @@ def plot_motion_x_position(pool_physics, request):
     plot(0, pool_physics,
          title=test_name + " ($x$ position)",
          coords=(0,),
-         filename=os.path.join(PLOTS_DIR, test_name + '_x.png'),
+         filename=os.path.join(PLOTS_DIR, test_name + '-x.png'),
          show=False)
 
 
@@ -63,7 +65,7 @@ def plot_motion_z_position(pool_physics, request):
          title=test_name + " ($z$ position)",
          coords=(2,),
          collision_depth=1,
-         filename=os.path.join(PLOTS_DIR, test_name + '_z.png'),
+         filename=os.path.join(PLOTS_DIR, test_name + '-z.png'),
          show=False)
 
 
@@ -72,8 +74,10 @@ def plot_energy(pool_physics, request):
     from .utils import plot_energy as plot
     yield
     test_name = '_'.join([request.function.__name__, pool_physics.ball_collision_model])
+    _logger.debug('plotting energy for %s...', request.function.__name__)
+    filename = os.path.join(PLOTS_DIR, test_name + '-energy.png')
     plot(pool_physics, title=test_name + ' (energy)',
-         filename=os.path.join(PLOTS_DIR, test_name + '_energy.png'),
+         filename=filename,
          show=False)
 
 
@@ -84,13 +88,15 @@ def plot_motion_timelapse(pool_physics, pool_table, request):
     test_name = '_'.join([request.function.__name__, pool_physics.ball_collision_model])
     plot(pool_physics, table=pool_table,
          title=test_name + ' (timelapse)',
-         filename=os.path.join(PLOTS_DIR, test_name + '_timelapse.png'),
+         filename=os.path.join(PLOTS_DIR, test_name + '-timelapse.png'),
          show=False)
 
 
 @pytest.fixture
 def gl_rendering(pool_physics, pool_table, request):
-    if not request.config.getoption('--render'):
+    should_render = request.config.getoption('--render')
+    should_screenshot = request.config.getoption('--screenshot')
+    if not (should_render or should_screenshot):
         yield
         return
     import OpenGL
@@ -137,7 +143,10 @@ def gl_rendering(pool_physics, pool_table, request):
     nframes = 0
     max_frame_time = 0.0
     lt = glfw.GetTime()
-    t_end = physics.events[-1].t if physics.events else 5.0
+    if should_render:
+        t_end = physics.events[-1].t if physics.events else 5.0
+    else:
+        t_end = game.t
     while not glfw.WindowShouldClose(window) and game.t < t_end:
         t = glfw.GetTime()
         dt = t - lt
@@ -159,17 +168,17 @@ def gl_rendering(pool_physics, pool_table, request):
         _logger.info('...exited render loop: average FPS: %f, maximum frame time: %f, average frame time: %f',
                      (nframes - 1) / (t - st), max_frame_time, (t - st) / (nframes - 1))
 
-    with renderer.render(meshes=meshes):
-        physics.eval_positions(t_end, out=game.ball_positions)
-        for i, pos in enumerate(game.ball_positions):
-            ball_mesh_positions[i][:] = pos
-            set_matrix_from_quaternion(game.ball_quaternions[i], out=ball_mesh_rotations[i])
-            ball_shadow_mesh_positions[i][0::2] = pos[0::2]
-        glfw.SwapBuffers(window)
-
-    capture_window(window,
-                   filename=os.path.join(os.path.dirname(__file__), 'screenshots',
-                                         title.replace(' ', '_') + '.png'))
+    if should_screenshot:
+        with renderer.render(meshes=meshes):
+            physics.eval_positions(t_end, out=game.ball_positions)
+            for i, pos in enumerate(game.ball_positions):
+                ball_mesh_positions[i][:] = pos
+                set_matrix_from_quaternion(game.ball_quaternions[i], out=ball_mesh_rotations[i])
+                ball_shadow_mesh_positions[i][0::2] = pos[0::2]
+            glfw.SwapBuffers(window)
+        capture_window(window,
+                       filename=os.path.join(os.path.dirname(__file__), 'screenshots',
+                                             title.replace(' ', '_') + '.png'))
 
     renderer.shutdown()
     glfw.DestroyWindow(window)
