@@ -8,7 +8,7 @@ import pytest
 from poolvr.physics.events import PhysicsEvent, CueStrikeEvent, BallSlidingEvent, BallRollingEvent, BallRestEvent, BallCollisionEvent
 
 
-def test_occlusion(pool_physics):
+def test_occlusion(pool_physics, request):
     import matplotlib.pyplot as plt
     assert (pool_physics._occ_ij == ~np.array([[0,1,1,1,1,1,1,0,0,0,1,0,0,1,0,1],
                                                [1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0],
@@ -26,8 +26,12 @@ def test_occlusion(pool_physics):
                                                [1,0,0,0,0,0,0,0,0,0,1,1,0,0,1,1],
                                                [0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,1],
                                                [1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0]], dtype=np.bool)).all()
-    plt.matshow(pool_physics._occ_ij)
-    plt.savefig(os.path.join(os.path.dirname(__file__), 'plots', 'occ.png'))
+    plt.imshow(pool_physics._occ_ij)
+    if request.config.getoption('--show_plots'):
+        plt.show()
+    filename = os.path.join(os.path.dirname(__file__), 'plots', 'occ.png')
+    plt.savefig(filename)
+    _logger.info('saved plot to "%s"', filename)
 
 
 @pytest.mark.parametrize("ball_collision_model", ['simple', 'marlow'])
@@ -40,7 +44,6 @@ def test_strike_ball(pool_physics, ball_collision_model,
     ball_positions = physics.eval_positions(0.0)
     r_c = ball_positions[0].copy()
     r_c[2] += physics.ball_radius
-    _logger.info('r_c = %s', r_c)
     V = np.zeros(3, dtype=np.float64)
     V[2] = -0.6
     M = 0.54

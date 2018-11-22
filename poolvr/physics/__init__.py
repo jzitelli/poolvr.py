@@ -18,22 +18,21 @@ from time import perf_counter
 import numpy as np
 
 
-from .events import (CueStrikeEvent, BallEvent, BallStationaryEvent,
-                     BallRestEvent, BallMotionEvent, BallCollisionEvent,
-                     MarlowBallCollisionEvent, SimpleBallCollisionEvent)
 from ..table import PoolTable
+from .events import (CueStrikeEvent,
+                     BallEvent,
+                     BallStationaryEvent,
+                     BallRestEvent,
+                     BallMotionEvent,
+                     BallCollisionEvent,
+                     MarlowBallCollisionEvent,
+                     SimpleBallCollisionEvent)
+from ..utils import printit
 
 
 PIx2 = np.pi*2
 RAD2DEG = 180/np.pi
 INCH2METER = 0.0254
-
-
-def printit(a, fmt='%s'):
-    try:
-        return ', '.join(fmt % x for x in a)
-    except:
-        return fmt
 
 
 class PoolPhysics(object):
@@ -483,6 +482,14 @@ event: %s
         U = np.array(update_set, dtype=np.int64)
         R = np.array(rest_set, dtype=np.int64)
         r_ij[U,U] = ball_positions
+        # self._r_ij = r_ij = np.empty((ball_positions.shape[0],
+        #                               ball_positions.shape[0],
+        #                               3), dtype=np.float64)
+        # r_ij[:] = [[ball_positions[i] - ball_positions[j]
+        #             for j in range(ball_positions.shape[0])]
+        #            for i in range(ball_positions.shape[0])]
+        # iss = np.array(range(ball_positions.shape[0]), dtype=np.int64)
+        # r_ij[iss,iss] = ball_positions
         U.sort(); R.sort()
         if len(R) > 0:
             F = np.hstack((U, R))
@@ -496,6 +503,19 @@ event: %s
             theta_ij[F_i,i] = PIx2 - theta_ij[i,F_i]
             r_ij_mag[i,F_i] = np.linalg.norm(r_ij[i,F_i], axis=1)
             r_ij_mag[F_i,i] = r_ij_mag[i,F_i]
+#             if (psi_ij[i,F_i] == 0).any():
+#                 _logger.debug('''
+#         ball_positions = %s
+#
+#         i = %s,
+#
+#         F_i = %s
+#
+#         psi_ij[i,F_i] * RAD2DEG = %s
+# ''',
+#                               printit(ball_positions), i, printit(F_i), printit(psi_ij[i,F_i] * RAD2DEG))
+#                 from sys import stdout
+#                 stdout.flush()
             psi_ij[i,F_i] = np.arcsin(self.ball_diameter / r_ij_mag[i,F_i])
             psi_ij[F_i,i] = psi_ij[i,F_i]
 
@@ -534,6 +554,15 @@ event: %s
                     thetas = [(theta_ij_a, theta_ij, theta_ij_b)]
                 for theta_a, theta, theta_b in thetas:
                     jj_a, jj, jj_b = bisect(theta_i_occ_bnds, theta_a), bisect(theta_i_occ_bnds, theta), bisect(theta_i_occ_bnds, theta_b)
+                    # jj = bisect(theta_i_occ_bnds, theta)
+                    # jja = jj
+                    # while theta_a < theta_i_occ_bnds[max(0, min(len(theta_i_occ_bnds)-1,jja))]:
+                    #     jja -= 1
+                    # jj_a = jja
+                    # jjb = jj
+                    # while theta_b >= theta_i_occ_bnds[max(0, min(len(theta_i_occ_bnds)-1,jjb))]:
+                    #     jjb += 1
+                    # jj_b = jjb
                     center_occluded, a_occluded, b_occluded = jj % 2 == 1, jj_a % 2 == 1, jj_b % 2 == 1
                     if center_occluded and jj_a == jj == jj_b:
                         occ_ij[i,j] = occ_ij[j,i] = True

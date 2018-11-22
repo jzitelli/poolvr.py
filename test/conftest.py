@@ -16,6 +16,8 @@ def pytest_addoption(parser):
                      help="enable OpenGL rendering of test results")
     parser.addoption("--screenshot", action="store_true", default=False,
                      help="save screenshot of OpenGL-rendered test results")
+    parser.addoption("--show_plots", action="store_true", default=False,
+                     help="show plots during tests")
 
 
 @pytest.fixture
@@ -24,7 +26,7 @@ def pool_table():
     return PoolTable()
 
 
-@pytest.fixture(params=['simple'])
+@pytest.fixture(params=['simple', 'marlow'])
 def pool_physics(request, pool_table):
     from poolvr.physics import PoolPhysics
     return PoolPhysics(initial_positions=np.array(pool_table.calc_racked_positions(), dtype=np.float64),
@@ -41,7 +43,7 @@ def plot_motion(pool_physics, request):
          title=test_name + ' (position)',
          coords=(0,2),
          filename=os.path.join(PLOTS_DIR, test_name + '.png'),
-         show=False)
+         show=request.config.getoption('--show_plots'))
 
 
 @pytest.fixture
@@ -53,7 +55,7 @@ def plot_motion_x_position(pool_physics, request):
          title=test_name + " ($x$ position)",
          coords=(0,),
          filename=os.path.join(PLOTS_DIR, test_name + '-x.png'),
-         show=False)
+         show=request.config.getoption('--show_plots'))
 
 
 @pytest.fixture
@@ -66,7 +68,7 @@ def plot_motion_z_position(pool_physics, request):
          coords=(2,),
          collision_depth=1,
          filename=os.path.join(PLOTS_DIR, test_name + '-z.png'),
-         show=False)
+         show=request.config.getoption('--show_plots'))
 
 
 @pytest.fixture
@@ -78,7 +80,7 @@ def plot_energy(pool_physics, request):
     filename = os.path.join(PLOTS_DIR, test_name + '-energy.png')
     plot(pool_physics, title=test_name + ' (energy)',
          filename=filename,
-         show=False)
+         show=request.config.getoption('--show_plots'))
 
 
 @pytest.fixture
@@ -89,7 +91,7 @@ def plot_motion_timelapse(pool_physics, pool_table, request):
     plot(pool_physics, table=pool_table,
          title=test_name + ' (timelapse)',
          filename=os.path.join(PLOTS_DIR, test_name + '-timelapse.png'),
-         show=False)
+         show=request.config.getoption('--show_plots'))
 
 
 @pytest.fixture

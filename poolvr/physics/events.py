@@ -477,18 +477,32 @@ class MarlowBallCollisionEvent(BallCollisionEvent):
     def __init__(self, t, e_i, e_j):
         """Marlow collision model"""
         super().__init__(t, e_i, e_j)
-        v_i, v_j = self._v_i, self._v_j
-        v_ij = v_j - v_i
-        v_ij_mag = np.linalg.norm(v_ij)
-        delta_t = 284e-6 / v_ij_mag**0.294
-        s_max = 1.65765 * (v_ij_mag / self.c_b)**0.8
-        F_max = 1.48001 * self.ball_radius**2 * self.E_Y_b * s_max**1.5
+        m, R, c, E_Y, mu_b = self.ball_mass, self.ball_radius, self.c_b, self.E_Y_b, self.mu_b
         r_i, r_j = self._r_i, self._r_j
+        v_i, v_j = self._v_i, self._v_j
+        omega_i, omega_j = self._omega_i, self._omega_j
         r_ij = r_j - r_i
+        v_ij = v_j - v_i
         _i = r_ij / np.linalg.norm(r_ij)
-        J = max(0.5 * F_max * delta_t,
-                abs(self.ball_mass * v_ij.dot(_i))) # missing 2 factor?
-        v_i_1 = v_i - (J / self.ball_mass) * _i
-        v_j_1 = v_j + (J / self.ball_mass) * _i
+        v_ij_i = abs(v_ij.dot(_i))
+        # approach 1 (Timoshenko):
+        ## s_max = (5 * np.pi * 0.77**1.5 * v_ij_sqrd / (3*c**2))**(0.4)
+        ## delta_t = 2 * R / v_ij_mag * s_max * 1.47164
+        # approach 2:
+        ## s_max = 1.12599 * (v_ij_mag / c)**(2/3)
+        ## F_max = np.pi * R**2 * E_Y * s_max**2 * (1 - 2/3*s_max)
+        # experimental fit:
+        delta_t = 284e-6 * v_ij_i**(-0.294)
+        s_max = 1.65765 * (v_ij_i / c)**0.8
+        F_max = 1.48001 * R**2 * E_Y * s_max**1.5
+        J = 0.5 * max(F_max * delta_t,
+                      m * v_ij_i)
+        v_i_1 = v_i - (J / m) * _i
+        v_j_1 = v_j + (J / m) * _i
         self._v_i_1, self._v_j_1 = v_i_1, v_j_1
-        self._omega_i_1, self._omega_j_1 = self._omega_i, self._omega_j
+        v_BB = v_i - v_j - R * np.cross(_i, omega_i + omega_j)
+        v_BB_mag = np.linalg.norm(v_BB)
+        K = (0.5 * F_max * delta_t) * np.cross(_i, v_BB) / v_BB_mag * mu_b * R
+        omega_i_1 = omega_i - K / self.ball_I
+        omega_j_1 = omega_j + K / self.ball_I
+        self._omega_i_1, self._omega_j_1 = omega_i_1, omega_j_1
