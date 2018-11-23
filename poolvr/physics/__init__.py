@@ -27,7 +27,6 @@ from .events import (CueStrikeEvent,
                      BallCollisionEvent,
                      MarlowBallCollisionEvent,
                      SimpleBallCollisionEvent)
-from ..utils import printit
 
 
 PIx2 = np.pi*2
@@ -36,21 +35,26 @@ INCH2METER = 0.0254
 
 
 class PoolPhysics(object):
-    _ZERO_TOLERANCE = 1e-7
+    _ZERO_TOLERANCE = 1e-6
     _ZERO_TOLERANCE_SQRD = _ZERO_TOLERANCE**2
     _IMAG_TOLERANCE = 1e-7
     _IMAG_TOLERANCE_SQRD = _IMAG_TOLERANCE**2
+    _BALL_MASS = 0.17
+    _BALL_RADIUS = 1.125*INCH2METER
+    _FR_COEFF_ROLLING = 0.016
+    _FR_COEFF_SLIDING = 0.2
+    _FR_COEFF_SPINING = 0.044
+    _FR_COEFF_BALL2BALL = 0.06
+    _GRAV_ACCEL = 9.81
     def __init__(self,
                  num_balls=16,
-                 ball_mass=0.17,
-                 ball_radius=1.125*INCH2METER,
-                 mu_r=0.016,
-                 mu_sp=0.044,
-                 mu_s=0.2,
-                 mu_b=0.06,
-                 c_b=4000.0,
-                 E_Y_b=2.4e9,
-                 g=9.81,
+                 ball_mass=_BALL_MASS,
+                 ball_radius=_BALL_RADIUS,
+                 mu_r=_FR_COEFF_ROLLING,
+                 mu_sp=_FR_COEFF_SPINING,
+                 mu_s=_FR_COEFF_SLIDING,
+                 mu_b=_FR_COEFF_BALL2BALL,
+                 g=_GRAV_ACCEL,
                  balls_on_table=None,
                  ball_positions=None,
                  ball_collision_model="simple",
@@ -98,8 +102,6 @@ class PoolPhysics(object):
         self.mu_sp = mu_sp
         self.mu_s = mu_s
         self.mu_b = mu_b
-        self.c_b = c_b
-        self.E_Y_b = E_Y_b
         self.g = g
         self.t = 0.0
         self._on_table = np.array(self.num_balls * [False])
@@ -329,7 +331,7 @@ class PoolPhysics(object):
     def set_cue_ball_collision_callback(self, cb):
         self._on_cue_ball_collide = cb
 
-    def sanity_check(self, event):
+    def _sanity_check(self, event):
         import pickle
         class Insanity(Exception):
             def __init__(self, physics, *args, **kwargs):
@@ -388,7 +390,7 @@ event: %s
         for child_event in event.child_events:
             self._add_event(child_event)
         if self._enable_sanity_check and isinstance(event, BallCollisionEvent):
-            self.sanity_check(event)
+            self._sanity_check(event)
 
     def _determine_next_event(self):
         next_motion_event = min(e.next_motion_event
@@ -581,4 +583,4 @@ event: %s
             balls = self.balls_on_table
         velocities = self.eval_velocities(t, balls=balls)
         omegas = self.eval_angular_velocities(t, balls=balls)
-        return self.ball_mass * (velocities**2).sum() / 2 + self.ball_I * (omegas**2).sum() / 2
+        return 0.5 * self.ball_mass * (velocities**2).sum() + 0.5 * self.ball_I * (omegas**2).sum()
