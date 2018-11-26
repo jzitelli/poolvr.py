@@ -30,6 +30,7 @@ def parse_args():
                         type=int)
     parser.add_argument('-l', '--list-sound-devices', help="list the available sound devices",
                         action="store_true")
+    parser.add_argument('--cube-map', help='set cube map texture', default=None)
     args = parser.parse_args()
     args.msaa = int(args.msaa)
     return args
@@ -53,7 +54,8 @@ def main():
                     ball_collision_model=args.collision_model,
                     use_ode=args.ode,
                     multisample=args.msaa,
-                    use_bb_particles=args.bb_particles)
+                    use_bb_particles=args.bb_particles,
+                    cube_map=None)
 
 
 if __name__ == "__main__":

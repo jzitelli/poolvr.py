@@ -35,9 +35,9 @@ INCH2METER = 0.0254
 
 
 class PoolPhysics(object):
-    _ZERO_TOLERANCE = 1e-6
+    _ZERO_TOLERANCE = 1e-8
     _ZERO_TOLERANCE_SQRD = _ZERO_TOLERANCE**2
-    _IMAG_TOLERANCE = 1e-7
+    _IMAG_TOLERANCE = 1e-8
     _IMAG_TOLERANCE_SQRD = _IMAG_TOLERANCE**2
     _BALL_MASS = 0.17
     _BALL_RADIUS = 1.125*INCH2METER
@@ -203,7 +203,7 @@ class PoolPhysics(object):
         """
         if not self._on_table[i]:
             return
-        assert abs(np.linalg.norm(r_c - r_i) - self.ball_radius) < self._ZERO_TOLERANCE
+        #assert abs(np.linalg.norm(r_c - r_i) - self.ball_radius) < self._ZERO_TOLERANCE, 'abs(np.linalg.norm(r_c - r_i) - self.ball_radius) = %s' % abs(np.linalg.norm(r_c - r_i) - self.ball_radius)
         event = CueStrikeEvent(t, i, r_i, r_c, V, M)
         return self.add_event_sequence(event)
 
@@ -331,33 +331,6 @@ class PoolPhysics(object):
     def set_cue_ball_collision_callback(self, cb):
         self._on_cue_ball_collide = cb
 
-    def _sanity_check(self, event):
-        import pickle
-        class Insanity(Exception):
-            def __init__(self, physics, *args, **kwargs):
-                with open('%s.pickle.dump' % self.__class__.__name__, 'wb') as f:
-                    pickle.dump(physics, f)
-                super().__init__(*args, **kwargs)
-
-        if isinstance(event, BallCollisionEvent):
-            e_i, e_j = event.child_events
-            for t in np.linspace(event.t, event.t + min(e_i.T, e_j.T), 20):
-                if e_i.t + e_i.T >= t or e_j.t + e_j.T >= t:
-                    r_i, r_j = self.eval_positions(t, balls=[event.i, event.j])
-                    d_ij = np.linalg.norm(r_i - r_j)
-                    if d_ij - 2*self.ball_radius < -1e-6:
-                        class BallsPenetratedInsanity(Insanity):
-                            pass
-                        raise BallsPenetratedInsanity(self, '''
-ball_diameter = %s
-         d_ij = %s
-          r_i = %s
-          r_j = %s
-            t = %s
-event: %s
-  e_i: %s
-  e_j: %s
-''' % (2*self.ball_radius, d_ij, r_i, r_j, self.t, event, e_i, e_j))
 
     def _add_event(self, event):
         self.events.append(event)
@@ -584,3 +557,31 @@ event: %s
         velocities = self.eval_velocities(t, balls=balls)
         omegas = self.eval_angular_velocities(t, balls=balls)
         return 0.5 * self.ball_mass * (velocities**2).sum() + 0.5 * self.ball_I * (omegas**2).sum()
+
+    def _sanity_check(self, event):
+        import pickle
+        class Insanity(Exception):
+            def __init__(self, physics, *args, **kwargs):
+                with open('%s.pickle.dump' % self.__class__.__name__, 'wb') as f:
+                    pickle.dump(physics, f)
+                super().__init__(*args, **kwargs)
+
+        if isinstance(event, BallCollisionEvent):
+            e_i, e_j = event.child_events
+            for t in np.linspace(event.t, event.t + min(e_i.T, e_j.T), 20):
+                if e_i.t + e_i.T >= t or e_j.t + e_j.T >= t:
+                    r_i, r_j = self.eval_positions(t, balls=[event.i, event.j])
+                    d_ij = np.linalg.norm(r_i - r_j)
+                    if d_ij - 2*self.ball_radius < -1e-6:
+                        class BallsPenetratedInsanity(Insanity):
+                            pass
+                        raise BallsPenetratedInsanity(self, '''
+ball_diameter = %s
+         d_ij = %s
+          r_i = %s
+          r_j = %s
+            t = %s
+event: %s
+  e_i: %s
+  e_j: %s
+''' % (2*self.ball_radius, d_ij, r_i, r_j, self.t, event, e_i, e_j))

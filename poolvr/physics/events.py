@@ -271,15 +271,15 @@ class BallRollingEvent(BallMotionEvent):
         v_0_mag = np.linalg.norm(v_0)
         T = v_0_mag / (self.mu_r * self.g)
         omega_0 = np.array((v_0[2]/R, 0.0, -v_0[0]/R), dtype=np.float64)
-        v = -R * np.cross(self._k, omega_0)
-        v_diff = v_0 - v
-        assert np.dot(v_diff, v_diff) < self._ZERO_TOLERANCE_SQRD
+        #v = -R * np.cross(self._k, omega_0)
+        #v_diff = v_0 - v
+        #assert np.dot(v_diff, v_diff) < self._ZERO_TOLERANCE_SQRD
         super().__init__(t, i, T=T, r_0=r_0, v_0=v_0, omega_0=omega_0, **kwargs)
         self._a[2] = -0.5 * self.mu_r * self.g * v_0 / v_0_mag
         self._b[1] = -omega_0 / T
         self._next_motion_event = BallRestEvent(t + T, i, r_0=self.eval_position(T))
         #_logger.debug('u_0 = %s', BallMotionEvent.eval_slip_velocity(self, 0))
-        assert np.linalg.norm(BallMotionEvent.eval_slip_velocity(self, 0)) < self._ZERO_TOLERANCE
+        #assert np.linalg.norm(BallMotionEvent.eval_slip_velocity(self, 0)) < self._ZERO_TOLERANCE
     def eval_slip_velocity(self, tau, out=None, **kwargs):
         if out is None:
             out = np.zeros(3, dtype=np.float64)
@@ -299,8 +299,8 @@ class BallSlidingEvent(BallMotionEvent):
         self._u_0_mag = u_0_mag
         self._a[2] = -0.5 * self.mu_s * self.g * u_0 / u_0_mag
         self._b[1] = 5/2 * self.mu_s * self.g * np.cross(self._k, u_0 / u_0_mag) / R
-        u_1 = self.eval_slip_velocity(T)
-        assert np.dot(u_1, u_1) < self._ZERO_TOLERANCE_SQRD
+        #u_1 = self.eval_slip_velocity(T)
+        #assert np.dot(u_1, u_1) < self._ZERO_TOLERANCE_SQRD
         self._next_motion_event = BallRollingEvent(t + T, i,
                                                    r_0=self.eval_position(T),
                                                    v_0=self.eval_velocity(T))

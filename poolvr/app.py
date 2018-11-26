@@ -87,7 +87,8 @@ def main(window_size=(800,600),
          ball_collision_model='simple',
          use_ode=False,
          multisample=0,
-         use_bb_particles=False):
+         use_bb_particles=False,
+         cube_map=None):
     """
     The main routine.
 
@@ -141,13 +142,16 @@ def main(window_size=(800,600),
         ball_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_meshes]
         ball_mesh_rotations = [mesh.world_matrix[:3,:3].T for mesh in ball_meshes]
         ball_shadow_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_shadow_meshes]
-    meshes = [skybox_mesh, floor_mesh, game.table.mesh] + ball_meshes + ball_shadow_meshes + [cue.shadow_mesh, cue]
+    meshes = [floor_mesh, game.table.mesh] + ball_meshes + ball_shadow_meshes + [cue.shadow_mesh, cue]
+    if cube_map:
+        meshes.insert(0, skybox_mesh)
     for mesh in meshes:
         mesh.init_gl()
     camera_world_matrix = fallback_renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
     camera_position[1] = game.table.height + 0.6
     camera_position[2] = game.table.length - 0.1
+    cue_offset = np.zeros(3, dtype=np.float64)
     last_contact_t = float('-inf')
     def reset():
         nonlocal last_contact_t
@@ -162,16 +166,23 @@ def main(window_size=(800,600),
         if key == glfw.KEY_R and action == glfw.PRESS:
             reset()
     set_on_keydown_callback(window, on_keydown)
-
     def process_input(dt):
         glfw.PollEvents()
         process_keyboard_input(dt, camera_world_matrix)
         process_mouse_input(dt, cue)
 
     if isinstance(renderer, OpenVRRenderer):
-        button_press_callbacks = {openvr.k_EButton_Grip: reset,
-                                  }#openvr.k_EButton_ApplicationMenu: game.advance_time}
-
+        def cue_position_fb(rAxis):
+            cue_offset[2] -= 0.008 * rAxis.y
+        axis_callbacks = {
+            openvr.k_EButton_Axis0: cue_position_fb
+        }
+        button_press_callbacks = {
+            openvr.k_EButton_Grip: reset,
+            #openvr.k_EButton_Grip: toggle_touchpad_ud_fb,
+            #openvr.k_EButton_ApplicationMenu: toggle_vr_menu,
+            #openvr.k_EButton_ApplicationMenu: game.advance_time,
+        }
         if use_ode and ODEPoolPhysics is not None:
             def on_cue_ball_collision(renderer=renderer, game=game, physics=physics, impact_speed=None):
                 if impact_speed > 0.0015:
@@ -200,17 +211,19 @@ def main(window_size=(800,600),
         process_input(dt)
         with renderer.render(meshes=meshes) as frame_data:
             if isinstance(renderer, OpenVRRenderer) and frame_data:
-                renderer.process_input(button_press_callbacks=button_press_callbacks)
+                renderer.process_input(button_press_callbacks=button_press_callbacks,
+                                       axis_callbacks=axis_callbacks)
                 hmd_pose = frame_data['hmd_pose']
                 camera_position[:] = hmd_pose[:, 3]
                 for i, pose in enumerate(frame_data['controller_poses'][:1]):
                     velocity = frame_data['controller_velocities'][i]
                     angular_velocity = frame_data['controller_angular_velocities'][i]
                     cue.world_matrix[:3, :3] = pose[:, :3].dot(cue.rotation).T
-                    cue.world_matrix[3, :3] = pose[:, 3]
+                    cue.world_matrix[3, :3] = pose[:, 3] + cue_offset[2] * pose[:,2]
                     cue.velocity[:] = velocity
                     cue.angular_velocity = angular_velocity
                     set_quaternion_from_matrix(pose[:, :3], cue.quaternion)
+                    cue.world_matrix[3, :3]
             elif isinstance(renderer, OpenGLRenderer):
                 set_quaternion_from_matrix(cue.rotation.dot(cue.world_matrix[:3, :3].T),
                                            cue.quaternion)

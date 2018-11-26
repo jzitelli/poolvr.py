@@ -1,5 +1,7 @@
 from ctypes import c_float, cast, POINTER
 from contextlib import contextmanager
+import logging
+_logger = logging.getLogger(__name__)
 import numpy as np
 import OpenGL.GL as gl
 import openvr
@@ -102,13 +104,14 @@ class OpenVRRenderer(object):
                              gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT,
                              gl.GL_NEAREST)
 
-    def process_input(self, button_press_callbacks=None):
+    def process_input(self, button_press_callbacks=None, axis_callbacks=None):
         if len(self._controller_indices) == 0:
             self._poll_for_controllers()
-        for i in self._controller_indices:
-            got_state, state = self.vr_system.getControllerState(i, 1)
-            if got_state and state.rAxis[1].x > 0.05:
-                self.vr_system.triggerHapticPulse(i, 0, int(3200 * state.rAxis[1].x))
+        for ii, i in enumerate(self._controller_indices):
+            got_state, state = self.vr_system.getControllerState(i)
+            if got_state and axis_callbacks and state.ulButtonTouched:
+                if state.ulButtonTouched == 4294967296 and openvr.k_EButton_Axis0 in axis_callbacks:
+                    axis_callbacks[openvr.k_EButton_Axis0](state.rAxis[0])
         if self.vr_system.pollNextEvent(self.vr_event):
             if button_press_callbacks and self.vr_event.eventType == openvr.VREvent_ButtonPress:
                 button = self.vr_event.data.controller.button
