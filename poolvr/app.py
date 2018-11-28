@@ -27,7 +27,7 @@ from .game import PoolGame
 from .keyboard_controls import init_keyboard, set_on_keydown_callback
 from .mouse_controls import init_mouse
 from .sound import init_sound
-from .room import floor_mesh, skybox_mesh
+from .room import floor_mesh
 # from .gl_text import TexturedText
 
 
@@ -123,16 +123,17 @@ def main(window_size=(800,600),
                               enable_sanity_check=novr)
     game = PoolGame(table=table,
                     physics=physics)
-    ball_meshes = game.table.ball_meshes
-    if use_bb_particles:
-        ball_shadow_meshes = []
-    else:
-        ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
     cue = PoolCue()
     cue.position[1] = game.table.height + 0.1
     cue.position[2] += game.table.length * 0.3
     game.physics.add_cue(cue)
     game.reset()
+
+    ball_meshes = game.table.ball_meshes
+    if use_bb_particles:
+        ball_shadow_meshes = []
+    else:
+        ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
     # textured_text = TexturedText()
     if use_bb_particles:
         billboard_particles = ball_meshes[0]
@@ -144,6 +145,7 @@ def main(window_size=(800,600),
         ball_shadow_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_shadow_meshes]
     meshes = [floor_mesh, game.table.mesh] + ball_meshes + ball_shadow_meshes + [cue.shadow_mesh, cue]
     if cube_map:
+        from .room import skybox_mesh
         meshes.insert(0, skybox_mesh)
     for mesh in meshes:
         mesh.init_gl()
@@ -151,7 +153,6 @@ def main(window_size=(800,600),
     camera_position = camera_world_matrix[3,:3]
     camera_position[1] = game.table.height + 0.6
     camera_position[2] = game.table.length - 0.1
-    cue_offset = np.zeros(3, dtype=np.float64)
     last_contact_t = float('-inf')
     def reset():
         nonlocal last_contact_t
@@ -172,15 +173,25 @@ def main(window_size=(800,600),
         process_mouse_input(dt, cue)
 
     if isinstance(renderer, OpenVRRenderer):
-        def cue_position_fb(rAxis):
-            cue_offset[2] -= 0.008 * rAxis.y
+        cue_offset = np.zeros(3, dtype=np.float64)
+        offset_adjustment_mode = 0
+        def toggle_touchpad_fb_ud():
+            nonlocal offset_adjustment_mode
+            offset_adjustment_mode = 1 - offset_adjustment_mode
+        def cue_position_fb_ud(rAxis):
+            if offset_adjustment_mode == 0:
+                cue_offset[2] -= 0.008 * rAxis.y
+            elif offset_adjustment_mode == 1:
+                cue_offset[1] += 0.008 * rAxis.y
         axis_callbacks = {
-            openvr.k_EButton_Axis0: cue_position_fb
+            openvr.k_EButton_Axis0: cue_position_fb_ud,
+            #openvr.k_EButton_Axis1: lock_to_cue
         }
         button_press_callbacks = {
-            openvr.k_EButton_Grip: reset,
-            #openvr.k_EButton_Grip: toggle_touchpad_ud_fb,
+            openvr.k_EButton_Grip           : toggle_touchpad_fb_ud,
+            openvr.k_EButton_ApplicationMenu: reset,
             #openvr.k_EButton_ApplicationMenu: toggle_vr_menu,
+            #openvr.k_EButton_Grip: reset,
             #openvr.k_EButton_ApplicationMenu: game.advance_time,
         }
         if use_ode and ODEPoolPhysics is not None:
@@ -203,7 +214,7 @@ def main(window_size=(800,600),
     nframes = 0
     max_frame_time = 0.0
     lt = glfw.GetTime()
-
+    controller_positions = np.zeros((2, 3), dtype=np.float64)
     while not glfw.WindowShouldClose(window):
         t = glfw.GetTime()
         dt = t - lt
@@ -219,11 +230,17 @@ def main(window_size=(800,600),
                     velocity = frame_data['controller_velocities'][i]
                     angular_velocity = frame_data['controller_angular_velocities'][i]
                     cue.world_matrix[:3, :3] = pose[:, :3].dot(cue.rotation).T
-                    cue.world_matrix[3, :3] = pose[:, 3] + cue_offset[2] * pose[:,2]
+                    position = controller_positions[i]
+                    position[:] = pose[:, 3] + cue_offset[2] * pose[:,2]
+                    position[1] += cue_offset[1]
+                    cue.world_matrix[3, :3] = position
                     cue.velocity[:] = velocity
                     cue.angular_velocity = angular_velocity
                     set_quaternion_from_matrix(pose[:, :3], cue.quaternion)
-                    cue.world_matrix[3, :3]
+                # r_0, r_1 = controller_positions
+                # r_01 = r_1 - r_0
+                # rot = np.eye(3, dtype=np.float64);
+                # cue.world_matrix[1,:3] = cue.world_matrix[:3,:3].T.dot(
             elif isinstance(renderer, OpenGLRenderer):
                 set_quaternion_from_matrix(cue.rotation.dot(cue.world_matrix[:3, :3].T),
                                            cue.quaternion)
