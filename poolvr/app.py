@@ -183,6 +183,27 @@ def main(window_size=(800,600),
                 cue_offset[2] -= 0.008 * rAxis.y
             elif offset_adjustment_mode == 1:
                 cue_offset[1] += 0.008 * rAxis.y
+        def calc_cue_transformation(pose_0, pose_1, out=None):
+            if out is None:
+                out = np.empty(4, dtype=np.float64)
+            r_0, r_1 = pose_0[:,3], pose_1[:,3]
+            rot_0, rot_1 = pose_0[:,:3], pose_1[:,:3]
+            r_01 = r_1 - r_0
+            y_axis = r_01 / np.linalg.norm(r_01)
+            out[3,:3] = r_0 + cue_offset[2] * y_axis
+            out[3,3]  = 1
+            out[1,:3] = y_axis
+            x_axis, z_axis = pose_0[:,0], pose_0[:,2]
+            dotx, dotz = y_axis.dot(x_axis), y_axis.dot(z_axis)
+            if abs(dotx) >= abs(dotz):
+                out[2,:3] = z_axis - dotz * y_axis
+                out[2,:3] /= np.linalg.norm(out[2,:3])
+                out[0,:3] = np.cross(y_axis, out[2,:3])
+            else:
+                out[0,:3] = x_axis - dotx * y_axis
+                out[0,:3] /= np.linalg.norm(out[0,:3])
+                out[2,:3] = np.cross(out[0,:3], y_axis)
+            return out
         axis_callbacks = {
             openvr.k_EButton_Axis0: cue_position_fb_ud,
             #openvr.k_EButton_Axis1: lock_to_cue
@@ -214,7 +235,7 @@ def main(window_size=(800,600),
     nframes = 0
     max_frame_time = 0.0
     lt = glfw.GetTime()
-    controller_positions = np.zeros((2, 3), dtype=np.float64)
+    # controller_positions = np.zeros((2, 3), dtype=np.float64)
     while not glfw.WindowShouldClose(window):
         t = glfw.GetTime()
         dt = t - lt
@@ -226,24 +247,16 @@ def main(window_size=(800,600),
                                        axis_callbacks=axis_callbacks)
                 hmd_pose = frame_data['hmd_pose']
                 camera_position[:] = hmd_pose[:, 3]
-                for i, pose in enumerate(frame_data['controller_poses'][:1]):
-                    velocity = frame_data['controller_velocities'][i]
-                    angular_velocity = frame_data['controller_angular_velocities'][i]
-                    cue.world_matrix[:3, :3] = pose[:, :3].dot(cue.rotation).T
-                    position = controller_positions[i]
-                    position[:] = pose[:, 3] + cue_offset[2] * pose[:,2]
-                    position[1] += cue_offset[1]
-                    cue.world_matrix[3, :3] = position
-                    cue.velocity[:] = velocity
-                    cue.angular_velocity = angular_velocity
-                    set_quaternion_from_matrix(pose[:, :3], cue.quaternion)
-                # r_0, r_1 = controller_positions
-                # r_01 = r_1 - r_0
-                # rot = np.eye(3, dtype=np.float64);
-                # cue.world_matrix[1,:3] = cue.world_matrix[:3,:3].T.dot(
+                pose_0, pose_1 = frame_data['controller_poses']
+                calc_cue_transformation(pose_0, pose_1, out=cue.world_matrix)
+                cue.velocity = frame_data['controller_velocities'][0]
+                cue.angular_velocity = frame_data['controller_angular_velocities'][0]
+                if use_ode and isinstance(physics, ODEPoolPhysics):
+                    set_quaternion_from_matrix(pose_0[:, :3], cue.quaternion)
             elif isinstance(renderer, OpenGLRenderer):
-                set_quaternion_from_matrix(cue.rotation.dot(cue.world_matrix[:3, :3].T),
-                                           cue.quaternion)
+                if isinstance(physics, ODEPoolPhysics):
+                    set_quaternion_from_matrix(cue.rotation.dot(cue.world_matrix[:3, :3].T),
+                                               cue.quaternion)
             if use_bb_particles:
                 billboard_particles.update_gl()
             else:

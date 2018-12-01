@@ -41,6 +41,9 @@ class PoolCue(Mesh):
         intersect = ~separate
         return [(i, self._positions[i]) for i, inter in enumerate(intersect) if inter]
     def contact(self, position, ball_radius):
+        """ Find (if exists) the point of contact in cue local coordinates,
+        given a ball position in the same coordinates.
+        """
         x, y, z = position
         r_sqrd = x**2 + z**2
         poc = None
@@ -73,6 +76,6 @@ class PoolCue(Mesh):
         if poc is not None:
             return self.world_matrix[:3,:3].T.dot(poc) + self.position
         return poc
-    @property
-    def tip_position(self):
-        return self.position + 0.5 * self.length * self.y_local
+    # @property
+    # def tip_position(self):
+    #     return self.position + 0.5 * self.length * self.y_local
