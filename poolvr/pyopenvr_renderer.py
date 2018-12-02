@@ -72,6 +72,7 @@ class OpenVRRenderer(object):
             'hmd_pose': hmd_34,
             'hmd_velocity': velocities[0],
             'hmd_angular_velocity': angular_velocities[0],
+            'controller_indices': self._controller_indices,
             'controller_poses': poses[1:],
             'controller_velocities': velocities[1:],
             'controller_angular_velocities': angular_velocities[1:],

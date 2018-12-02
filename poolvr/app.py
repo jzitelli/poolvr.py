@@ -185,9 +185,8 @@ def main(window_size=(800,600),
                 cue_offset[1] += 0.008 * rAxis.y
         def calc_cue_transformation(pose_0, pose_1, out=None):
             if out is None:
-                out = np.empty(4, dtype=np.float64)
+                out = np.zeros((4,4), dtype=np.float64)
             r_0, r_1 = pose_0[:,3], pose_1[:,3]
-            rot_0, rot_1 = pose_0[:,:3], pose_1[:,:3]
             r_01 = r_1 - r_0
             y_axis = r_01 / np.linalg.norm(r_01)
             out[3,:3] = r_0 + cue_offset[2] * y_axis
@@ -204,6 +203,13 @@ def main(window_size=(800,600),
                 out[0,:3] /= np.linalg.norm(out[0,:3])
                 out[2,:3] = np.cross(out[0,:3], y_axis)
             return out
+        def calc_cue_contact_velocity(r_c, r_0, r_1, v_0, v_1):
+            r_01 = r_1 - r_0
+            v_01 = v_1 - v_0
+            omega = np.array(((r_01[1]*v_01[2] - r_01[2]*v_01[1]) / (r_01[1]**2 + r_01[2]**2),
+                              (r_01[2]*v_01[0] - r_01[0]*v_01[2]) / (r_01[2]**2 + r_01[0]**2),
+                              (r_01[0]*v_01[1] - r_01[1]*v_01[0]) / (r_01[0]**2 + r_01[1]**2)), dtype=np.float64)
+            return v_0 + np.cross(omega, r_c - r_0)
         axis_callbacks = {
             openvr.k_EButton_Axis0: cue_position_fb_ud,
             #openvr.k_EButton_Axis1: lock_to_cue
@@ -235,7 +241,6 @@ def main(window_size=(800,600),
     nframes = 0
     max_frame_time = 0.0
     lt = glfw.GetTime()
-    # controller_positions = np.zeros((2, 3), dtype=np.float64)
     while not glfw.WindowShouldClose(window):
         t = glfw.GetTime()
         dt = t - lt
@@ -247,12 +252,25 @@ def main(window_size=(800,600),
                                        axis_callbacks=axis_callbacks)
                 hmd_pose = frame_data['hmd_pose']
                 camera_position[:] = hmd_pose[:, 3]
-                pose_0, pose_1 = frame_data['controller_poses']
-                calc_cue_transformation(pose_0, pose_1, out=cue.world_matrix)
-                cue.velocity = frame_data['controller_velocities'][0]
-                cue.angular_velocity = frame_data['controller_angular_velocities'][0]
-                if use_ode and isinstance(physics, ODEPoolPhysics):
-                    set_quaternion_from_matrix(pose_0[:, :3], cue.quaternion)
+                controller_poses = frame_data['controller_poses']
+                if len(controller_poses) > 0:
+                    if len(controller_poses) == 2:
+                        pose_0, pose_1 = controller_poses
+                    elif len(controller_poses) == 1:
+                        controller_indices = frame_data['controller_indices']
+                        if controller_indices[0] == 0:
+                            pose_0 = controller_poses[0]
+                            pose_1 = np.zeros((3,4), dtype=np.float64)
+                            pose_1[0,0] = pose_1[1,1] = pose_1[2,2] = pose_1[3,3] = 1
+                        else:
+                            pose_0 = np.zeros((3,4), dtype=np.float64)
+                            pose_0[0,0] = pose_0[1,1] = pose_0[2,2] = pose_0[3,3] = 1
+                            pose_1 = controller_poses[0]
+                    calc_cue_transformation(pose_0, pose_1, out=cue.world_matrix)
+                    cue.velocity = frame_data['controller_velocities'][0]
+                    cue.angular_velocity = frame_data['controller_angular_velocities'][0]
+                    if use_ode and isinstance(physics, ODEPoolPhysics):
+                        set_quaternion_from_matrix(pose_0[:, :3], cue.quaternion)
             elif isinstance(renderer, OpenGLRenderer):
                 if isinstance(physics, ODEPoolPhysics):
                     set_quaternion_from_matrix(cue.rotation.dot(cue.world_matrix[:3, :3].T),
@@ -274,7 +292,14 @@ def main(window_size=(800,600),
                 for i, position in cue.aabb_check(game.ball_positions[:1], physics.ball_radius):
                     r_c = cue.contact(position, physics.ball_radius)
                     if r_c is not None:
-                        physics.strike_ball(game.t, i, game.ball_positions[i], r_c, cue.velocity, cue.mass)
+                        if isinstance(renderer, OpenVRRenderer) and frame_data and len(frame_data['controller_poses']) == 2:
+                            pose_0, pose_1 = frame_data['controller_poses']
+                            r_0, r_1 = pose_0[:,3], pose_1[:,3]
+                            v_0, v_1 = frame_data['controller_velocities']
+                            v_c = calc_cue_contact_velocity(r_c, r_0, r_1, v_0, v_1)
+                        else:
+                            v_c = cue.velocity
+                        physics.strike_ball(game.t, i, game.ball_positions[i], r_c, v_c, cue.mass)
                         last_contact_t = game.t
                         contact_last_frame = True
                         if isinstance(renderer, OpenVRRenderer):
