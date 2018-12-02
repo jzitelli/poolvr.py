@@ -40,6 +40,9 @@ TEXTURES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             'textures')
 
 
+_window_renderer = None
+
+
 def setup_glfw(window_size=(800,600), double_buffered=False,
                title="poolvr.py 0.0.1", multisample=0):
     if not glfw.Init():
@@ -57,10 +60,13 @@ def setup_glfw(window_size=(800,600), double_buffered=False,
     glfw.MakeContextCurrent(window)
     _logger.info('GL_VERSION: %s', gl.glGetString(gl.GL_VERSION))
     renderer = OpenGLRenderer(window_size=(width, height), znear=0.1, zfar=1000)
+    global _window_renderer
+    _window_renderer = renderer
     def on_resize(window, width, height):
+        global _window_renderer
         gl.glViewport(0, 0, width, height)
-        renderer.window_size = (width, height)
-        renderer.update_projection_matrix()
+        _window_renderer.window_size = (width, height)
+        _window_renderer.update_projection_matrix()
     glfw.SetWindowSizeCallback(window, on_resize)
     renderer.init_gl()
     on_resize(window, window_size[0], window_size[1])
@@ -99,6 +105,8 @@ def main(window_size=(800,600),
     if not novr and OpenVRRenderer is not None:
         try:
             renderer = OpenVRRenderer(window_size=window_size, multisample=multisample)
+            global _window_renderer
+            _window_renderer = renderer
         except Exception as err:
             renderer = fallback_renderer
             _logger.error('could not initialize OpenVRRenderer: %s', err)
