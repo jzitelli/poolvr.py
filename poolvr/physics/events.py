@@ -330,13 +330,10 @@ class CueStrikeEvent(BallEvent):
         self.V = V
         self.M = M
         self.Q = Q = r_c - r_i
-
         _j = -V.copy(); _j[1] = 0; _j /= np.linalg.norm(_j)
         _i = np.cross(_j, self._k)
-        #_i = np.array((_j[2], 0, -_j[0]), dtype=np.float64)
-        #_i = np.array((-_j[2], 0, _j[0]), dtype=np.float64)
-        a, c, b = (Q.dot(_i),
-                   abs(Q.dot(_j)),
+        a, c, b = (-Q.dot(_i),
+                   Q.dot(_j),
                    Q[1])
         m, R, I = self.ball_mass, self.ball_radius, self.ball_I
         sin, cos = b/R, np.sqrt(a**2 + c**2)/R
