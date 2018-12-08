@@ -235,7 +235,7 @@ def main(window_size=(800,600),
                     if use_ode and isinstance(physics, ODEPoolPhysics):
                         set_quaternion_from_matrix(pose_0[:, :3], cue.quaternion)
             elif isinstance(renderer, OpenGLRenderer):
-                if isinstance(physics, ODEPoolPhysics):
+                if use_ode and isinstance(physics, ODEPoolPhysics):
                     set_quaternion_from_matrix(cue.rotation.dot(cue.world_matrix[:3, :3].T),
                                                cue.quaternion)
             if use_bb_particles:
