@@ -4,7 +4,7 @@ import numpy as np
 import OpenGL.GL as gl
 
 
-KB_TURN_SPEED = 1.3
+KB_TURN_SPEED = 0.5
 KB_MOVE_SPEED = 0.5
 KB_CUE_MOVE_SPEED = 0.2
 KB_CUE_ROTATE_SPEED = 0.1

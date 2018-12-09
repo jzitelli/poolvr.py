@@ -31,6 +31,7 @@ SCREENSHOTS_DIR = os.path.join(os.path.dirname(__file__), 'screenshots')
 class OpenGLTests(TestCase):
     show = True
 
+
     @skip
     def test_cone_mesh(self):
         material = Material(LAMBERT_TECHNIQUE, values={'u_color': [1.0, 1.0, 0.0, 0.0]})
@@ -41,6 +42,7 @@ class OpenGLTests(TestCase):
         self._view(meshes=[mesh])
 
 
+    @skip
     def test_sphere_mesh(self):
         material = Material(LAMBERT_TECHNIQUE, values={'u_color': [0.0, 1.0, 1.0, 0.0]})
         prim = poolvr.primitives.SpherePrimitive(radius=0.1)
@@ -50,14 +52,32 @@ class OpenGLTests(TestCase):
         self._view(meshes=[mesh])
 
 
+    @skip
+    def test_cylinder_mesh(self):
+        material = Material(LAMBERT_TECHNIQUE, values={'u_color': [1.0, 1.0, 0.0, 0.0]})
+        mesh = poolvr.primitives.CylinderMesh(material=material, radius=0.15, height=0.5)
+        for prim in mesh.primitives[material]:
+            prim.attributes['a_position'] = prim.attributes['vertices']
+        mesh.world_matrix[3,2] = -3
+        self._view(meshes=[mesh])
+
+
+    def test_arrow_mesh(self):
+        material = Material(LAMBERT_TECHNIQUE, values={'u_color': [1.0, 1.0, 0.0, 0.0]})
+        mesh = poolvr.primitives.ArrowMesh(material=material)
+        for prim in mesh.primitives[material]:
+            prim.attributes['a_position'] = prim.attributes['vertices']
+        mesh.world_matrix[3,2] = -3
+        self._view(meshes=[mesh])
+
+
     def _view(self, meshes=None, window_size=(800,600)):
         if meshes is None:
             meshes = []
         title = traceback.extract_stack(None, 2)[0][2]
-        window, renderer = setup_glfw(width=window_size[0], height=window_size[1], double_buffered=True,
+        window, renderer = setup_glfw(window_size=window_size, double_buffered=True,
                                       title=title)
         camera_world_matrix = renderer.camera_matrix
-        camera_position = camera_world_matrix[3,:3]
         gl.glViewport(0, 0, window_size[0], window_size[1])
         gl.glClearColor(*BG_COLOR)
         gl.glEnable(gl.GL_DEPTH_TEST)

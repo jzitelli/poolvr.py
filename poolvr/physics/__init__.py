@@ -107,7 +107,7 @@ class PoolPhysics(object):
         self._on_table = np.array(self.num_balls * [False])
         self._balls_on_table = balls_on_table
         self._balls_at_rest = set(balls_on_table)
-        self._on_table[np.array(balls_on_table)] = True
+        self._on_table[np.array(balls_on_table, dtype=np.int64)] = True
         self._collision_search_time_limit = collision_search_time_limit
         self._collision_search_time_forward = collision_search_time_forward
         self._enable_occlusion = enable_occlusion
@@ -330,7 +330,6 @@ class PoolPhysics(object):
 
     def set_cue_ball_collision_callback(self, cb):
         self._on_cue_ball_collide = cb
-
 
     def _add_event(self, event):
         self.events.append(event)
@@ -585,3 +584,78 @@ event: %s
   e_i: %s
   e_j: %s
 ''' % (2*self.ball_radius, d_ij, r_i, r_j, self.t, event, e_i, e_j))
+
+    _arrow_meshes = None
+    def glyph_meshes(self, t):
+        if PoolPhysics._arrow_meshes is None:
+            from ..gl_rendering import Material, Mesh
+            from ..primitives import ArrowMesh
+            from ..techniques import LAMBERT_TECHNIQUE
+            PoolPhysics._arrow_material = Material(LAMBERT_TECHNIQUE, values={"u_color": [1.0, 0.0, 0.0, 0.0]})
+            PoolPhysics._arrow_meshes = {i: ArrowMesh(material=PoolPhysics._arrow_material,
+                                                      head_radius=0.2*self.ball_radius,
+                                                      head_length=0.5*self.ball_radius,
+                                                      tail_radius=0.075*self.ball_radius,
+                                                      tail_length=2*self.ball_radius)
+                                         for i in range(self.num_balls)}
+            PoolPhysics._omega_material = Material(LAMBERT_TECHNIQUE, values={'u_color': [0.0, 0.0, 1.0, 0.0]})
+            PoolPhysics._omega_meshes = {i: Mesh({PoolPhysics._omega_material: PoolPhysics._arrow_meshes[i].primitives[PoolPhysics._arrow_material]})
+                                         for i in range(self.num_balls)}
+            for mesh in chain(self._arrow_meshes.values(), self._omega_meshes.values()):
+                for prim in chain.from_iterable(mesh.primitives.values()):
+                    prim.attributes['a_position'] = prim.attributes['vertices']
+                mesh.init_gl()
+        glyph_events = []
+        for i, events in self.ball_events.items():
+            for e in events[:bisect(events, t)][::-1]:
+                if t <= e.t + e.T:
+                    glyph_events.append(e)
+                    break
+        meshes = []
+        for event in glyph_events:
+            if isinstance(event, BallMotionEvent):
+                mesh = self._arrow_meshes[event.i]
+                tau = t - event.t
+                r = event.eval_position(tau)
+                v = event.eval_velocity(tau)
+                v_mag = np.sqrt(v.dot(v))
+                y = v / v_mag
+                mesh.world_matrix[:] = 0
+                mesh.world_matrix[0,0] = mesh.world_matrix[1,1] = mesh.world_matrix[2,2] = mesh.world_matrix[3,3] = 1
+                mesh.world_matrix[3,:3] = r + (2*self.ball_radius)*y
+                mesh.world_matrix[1,:3] = y
+                x, z = mesh.world_matrix[0,:3], mesh.world_matrix[2,:3]
+                ydotx, ydotz = y.dot(x), y.dot(z)
+                if ydotx >= ydotz:
+                    mesh.world_matrix[2,:3] -= ydotz * y
+                    mesh.world_matrix[2,:3] /= np.sqrt(mesh.world_matrix[2,:3].dot(mesh.world_matrix[2,:3]))
+                    mesh.world_matrix[0,:3] = np.cross(mesh.world_matrix[1,:3], mesh.world_matrix[2,:3])
+                else:
+                    mesh.world_matrix[0,:3] -= ydotx * y
+                    mesh.world_matrix[0,:3] /= np.sqrt(mesh.world_matrix[0,:3].dot(mesh.world_matrix[0,:3]))
+                    mesh.world_matrix[2,:3] = np.cross(mesh.world_matrix[0,:3], mesh.world_matrix[1,:3])
+                mesh.world_matrix[1,1] *= v_mag
+                meshes.append(mesh)
+
+                mesh = self._omega_meshes[event.i]
+                omega = event.eval_angular_velocity(tau)
+                omega_mag = np.sqrt(omega.dot(omega))
+                y = omega / omega_mag
+                mesh.world_matrix[:] = 0
+                mesh.world_matrix[0,0] = mesh.world_matrix[1,1] = mesh.world_matrix[2,2] = mesh.world_matrix[3,3] = 1
+                mesh.world_matrix[3,:3] = r + (2*self.ball_radius)*y
+                mesh.world_matrix[1,:3] = y
+                x, z = mesh.world_matrix[0,:3], mesh.world_matrix[2,:3]
+                ydotx, ydotz = y.dot(x), y.dot(z)
+                if ydotx >= ydotz:
+                    mesh.world_matrix[2,:3] -= ydotz * y
+                    mesh.world_matrix[2,:3] /= np.sqrt(mesh.world_matrix[2,:3].dot(mesh.world_matrix[2,:3]))
+                    mesh.world_matrix[0,:3] = np.cross(mesh.world_matrix[1,:3], mesh.world_matrix[2,:3])
+                else:
+                    mesh.world_matrix[0,:3] -= ydotx * y
+                    mesh.world_matrix[0,:3] /= np.sqrt(mesh.world_matrix[0,:3].dot(mesh.world_matrix[0,:3]))
+                    mesh.world_matrix[2,:3] = np.cross(mesh.world_matrix[0,:3], mesh.world_matrix[1,:3])
+                #mesh.world_matrix[1,1] *= omega_mag
+                meshes.append(mesh)
+
+        return meshes

@@ -20,16 +20,18 @@ def triangulate_quad(quad_face, flip_normals=False):
 
 
 class HexaPrimitive(Primitive):
-    faces = [[0,1,2,3][::-1], # bottom
-             [4,5,6,7], # top
-             [0,1,5,4], # front
-             [1,2,6,5], # right
-             [2,3,7,6], # rear
-             [7,3,0,4]] # left
+    faces = np.array(
+        [[0,1,2,3][::-1], # bottom
+         [4,5,6,7],       # top
+         [0,1,5,4],       # front
+         [1,2,6,5],       # right
+         [2,3,7,6],       # rear
+         [7,3,0,4]]       # left
+        , dtype=np.int64)
     tri_faces = list(itertools.chain.from_iterable(itertools.chain.from_iterable([triangulate_quad(quad) for quad in faces])))
     indices = np.array([triangulate_quad(quad) for quad in faces], dtype=np.uint16).reshape(-1)
     _INDEX_BUFFER = None
-    def __init__(self, vertices=None, adjust_vertices_if_needed=True):
+    def __init__(self, vertices=None):
         "A :ref:`Primitive` with the geometry of a hexahedron (six-sided three-dimension solid)."
         Primitive.__init__(self, gl.GL_TRIANGLES, HexaPrimitive.indices, index_buffer=HexaPrimitive._INDEX_BUFFER,
                            vertices=vertices)
@@ -124,8 +126,20 @@ class CylinderPrimitive(Primitive):
         return ode.GeomCylinder(space=space, radius=self.radius, length=self.height)
 
 
-class CylinderMesh(Primitive):
-    pass
+class CylinderMesh(Mesh):
+    def __init__(self, material=None, radius=0.5, height=1.0, num_radial=12,
+                 bottom_closed=True, top_closed=True):
+        primitives = [CylinderPrimitive(radius=radius, height=height, num_radial=num_radial)]
+        if bottom_closed:
+            basis = np.eye(3); basis[1,1] *= -1; basis[2,2] *= -1
+            circle = CirclePrimitive(radius=radius, num_radial=num_radial, basis=basis)
+            circle.attributes['vertices'][:,1] -= 0.5*height
+            primitives.append(circle)
+        if top_closed:
+            circle = CirclePrimitive(radius=radius, num_radial=num_radial)
+            circle.attributes['vertices'][:,1] += 0.5*height
+            primitives.append(circle)
+        Mesh.__init__(self, {material: primitives})
 
 
 class CirclePrimitive(Primitive):
@@ -327,3 +341,15 @@ class ProjectedMesh(Mesh):
         shadow_matrix[:,3] = -light_position[3] * self._plane
         shadow_matrix[3,3] += v
         self.mesh.world_matrix.dot(shadow_matrix, out=self.world_matrix)
+
+
+class ArrowMesh(Mesh):
+    def __init__(self, material=None, head_radius=0.05, tail_radius=0.02,
+                 head_length=0.1, tail_length=1, num_radial=12):
+        head = ConeMesh(material=material, radius=head_radius, height=head_length, num_radial=num_radial)
+        tail = CylinderMesh(material=material, radius=tail_radius, height=tail_length, num_radial=num_radial,
+                            top_closed=False)
+        for prim in tail.primitives[material]:
+            prim.attributes['vertices'][:,1] -= 0.5*tail_length
+        Mesh.__init__(self, {material: head.primitives[material] + tail.primitives[material]})
+        self.material = material

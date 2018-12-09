@@ -33,6 +33,10 @@ class PoolCue(Mesh):
         self._positions = None
         self.y_local = self.world_matrix[1,:3]
     def aabb_check(self, positions, ball_radius):
+        """
+        Perform axis-aligned bounding-box (AABB) check for each ball position specified in world coordinates.
+        Returns a list of index / cue-local position pairs of the balls that intersect the AABB.
+        """
         if self._positions is None:
             self._positions = np.empty(positions.shape, dtype=positions.dtype)
         (positions - self.position).dot(self.world_matrix[:3,:3].T, out=self._positions)
@@ -42,7 +46,7 @@ class PoolCue(Mesh):
         return [(i, self._positions[i]) for i, inter in enumerate(intersect) if inter]
     def contact(self, position, ball_radius):
         """
-        Find (if it exists, otherwise return None) the point of contact in cue local coordinates,
+        Find (if it exists, otherwise return None) the point of contact in world coordinates,
         given a ball position in cue local coordinates.
         """
         x, y, z = position
@@ -76,4 +80,3 @@ class PoolCue(Mesh):
                     poc = position + ball_radius * n
         if poc is not None:
             return self.world_matrix[:3,:3].T.dot(poc) + self.position
-        return poc

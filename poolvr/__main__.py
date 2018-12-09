@@ -31,6 +31,10 @@ def parse_args():
     parser.add_argument('-l', '--list-sound-devices', help="list the available sound devices",
                         action="store_true")
     parser.add_argument('--cube-map', help='set cube map texture', default=None)
+    parser.add_argument('--glyphs', help='render velocity and angular velocity glyphs',
+                        action='store_true')
+    parser.add_argument('--speed', help='time speed-up/slow-down factor (default is 1.0, normal speed)',
+                        default=1.0, type=float)
     args = parser.parse_args()
     args.msaa = int(args.msaa)
     return args
@@ -55,7 +59,9 @@ def main():
                     use_ode=args.ode,
                     multisample=args.msaa,
                     use_bb_particles=args.bb_particles,
-                    cube_map=None)
+                    cube_map=None,
+                    speed=args.speed,
+                    glyphs=args.glyphs)
 
 
 if __name__ == "__main__":

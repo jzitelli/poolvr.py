@@ -94,7 +94,9 @@ def main(window_size=(800,600),
          use_ode=False,
          multisample=0,
          use_bb_particles=False,
-         cube_map=None):
+         cube_map=None,
+         speed=1.0,
+         glyphs=False):
     """
     The main routine.
 
@@ -209,7 +211,11 @@ def main(window_size=(800,600),
         dt = t - lt
         lt = t
         process_input(dt)
-        with renderer.render(meshes=meshes) as frame_data:
+        if glyphs:
+            glyph_meshes = physics.glyph_meshes(game.t)
+        else:
+            glyph_meshes = []
+        with renderer.render(meshes=meshes+glyph_meshes) as frame_data:
             if isinstance(renderer, OpenVRRenderer) and frame_data:
                 renderer.process_input(button_press_callbacks=button_press_callbacks,
                                        axis_callbacks=axis_callbacks)
@@ -224,10 +230,10 @@ def main(window_size=(800,600),
                         if controller_indices[0] == 0:
                             pose_0 = controller_poses[0]
                             pose_1 = np.zeros((3,4), dtype=np.float64)
-                            pose_1[0,0] = pose_1[1,1] = pose_1[2,2] = pose_1[3,3] = 1
+                            pose_1[0,0] = pose_1[1,1] = pose_1[2,2] = 1
                         else:
                             pose_0 = np.zeros((3,4), dtype=np.float64)
-                            pose_0[0,0] = pose_0[1,1] = pose_0[2,2] = pose_0[3,3] = 1
+                            pose_0[0,0] = pose_0[1,1] = pose_0[2,2] = 1
                             pose_1 = controller_poses[0]
                     calc_cue_transformation(pose_0, pose_1, out=cue.world_matrix)
                     cue.velocity = frame_data['controller_velocities'][0]
@@ -271,7 +277,7 @@ def main(window_size=(800,600),
                         break
         else:
             contact_last_frame = False
-        game.step(dt)
+        game.step(speed*dt)
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:
             st = glfw.GetTime()
