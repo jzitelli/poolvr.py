@@ -121,6 +121,8 @@ class PoolPhysics(object):
         self._theta_ij = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
         self._psi_ij = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
         self._occ_ij = np.array(self.num_balls*[self.num_balls*[False]])
+        self._velocity_meshes = None
+        self._angular_velocity_meshes = None
         self.reset(ball_positions=ball_positions, balls_on_table=balls_on_table)
 
     def reset(self, ball_positions=None, balls_on_table=None):
@@ -585,23 +587,23 @@ event: %s
   e_j: %s
 ''' % (2*self.ball_radius, d_ij, r_i, r_j, self.t, event, e_i, e_j))
 
-    _arrow_meshes = None
     def glyph_meshes(self, t):
-        if PoolPhysics._arrow_meshes is None:
+        if self._velocity_meshes is None:
+            _logger.debug('initializing arrow meshes')
             from ..gl_rendering import Material, Mesh
             from ..primitives import ArrowMesh
             from ..techniques import LAMBERT_TECHNIQUE
-            PoolPhysics._arrow_material = Material(LAMBERT_TECHNIQUE, values={"u_color": [1.0, 0.0, 0.0, 0.0]})
-            PoolPhysics._arrow_meshes = {i: ArrowMesh(material=PoolPhysics._arrow_material,
-                                                      head_radius=0.2*self.ball_radius,
-                                                      head_length=0.5*self.ball_radius,
-                                                      tail_radius=0.075*self.ball_radius,
-                                                      tail_length=2*self.ball_radius)
-                                         for i in range(self.num_balls)}
-            PoolPhysics._omega_material = Material(LAMBERT_TECHNIQUE, values={'u_color': [0.0, 0.0, 1.0, 0.0]})
-            PoolPhysics._omega_meshes = {i: Mesh({PoolPhysics._omega_material: PoolPhysics._arrow_meshes[i].primitives[PoolPhysics._arrow_material]})
-                                         for i in range(self.num_balls)}
-            for mesh in chain(self._arrow_meshes.values(), self._omega_meshes.values()):
+            self._velocity_material = Material(LAMBERT_TECHNIQUE, values={"u_color": [1.0, 0.0, 0.0, 0.0]})
+            self._velocity_meshes = {i: ArrowMesh(material=self._velocity_material,
+                                                  head_radius=0.2*self.ball_radius,
+                                                  head_length=0.5*self.ball_radius,
+                                                  tail_radius=0.075*self.ball_radius,
+                                                  tail_length=2*self.ball_radius)
+                                     for i in range(self.num_balls)}
+            self._angular_velocity_material = Material(LAMBERT_TECHNIQUE, values={'u_color': [0.0, 0.0, 1.0, 0.0]})
+            self._angular_velocity_meshes = {i: Mesh({self._angular_velocity_material: self._velocity_meshes[i].primitives[self._velocity_material]})
+                                             for i in range(self.num_balls)}
+            for mesh in chain(self._velocity_meshes.values(), self._angular_velocity_meshes.values()):
                 for prim in chain.from_iterable(mesh.primitives.values()):
                     prim.attributes['a_position'] = prim.attributes['vertices']
                 mesh.init_gl()
@@ -614,7 +616,7 @@ event: %s
         meshes = []
         for event in glyph_events:
             if isinstance(event, BallMotionEvent):
-                mesh = self._arrow_meshes[event.i]
+                mesh = self._velocity_meshes[event.i]
                 tau = t - event.t
                 r = event.eval_position(tau)
                 v = event.eval_velocity(tau)
@@ -637,7 +639,7 @@ event: %s
                 mesh.world_matrix[1,1] *= v_mag
                 meshes.append(mesh)
 
-                mesh = self._omega_meshes[event.i]
+                mesh = self._angular_velocity_meshes[event.i]
                 omega = event.eval_angular_velocity(tau)
                 omega_mag = np.sqrt(omega.dot(omega))
                 y = omega / omega_mag

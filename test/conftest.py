@@ -18,6 +18,8 @@ def pytest_addoption(parser):
                      help="save screenshot of OpenGL-rendered test results")
     parser.addoption("--show_plots", action="store_true", default=False,
                      help="show plots during tests")
+    parser.addoption('--glyphs', help='render velocity and angular velocity glyphs',
+                     action='store_true', default=False)
 
 
 @pytest.fixture
@@ -98,6 +100,7 @@ def plot_motion_timelapse(pool_physics, pool_table, request):
 def gl_rendering(pool_physics, pool_table, request):
     should_render = request.config.getoption('--render')
     should_screenshot = request.config.getoption('--screenshot')
+    glyphs = request.config.getoption('--glyphs')
     if not (should_render or should_screenshot):
         yield
         return
@@ -154,7 +157,11 @@ def gl_rendering(pool_physics, pool_table, request):
         dt = t - lt
         lt = t
         process_input(dt)
-        with renderer.render(meshes=meshes):# as frame_data:
+        if glyphs:
+            glyph_meshes = physics.glyph_meshes(game.t)
+        else:
+            glyph_meshes = []
+        with renderer.render(meshes=meshes+glyph_meshes):
             for i, pos in enumerate(game.ball_positions):
                 ball_mesh_positions[i][:] = pos
                 set_matrix_from_quaternion(game.ball_quaternions[i], out=ball_mesh_rotations[i])
