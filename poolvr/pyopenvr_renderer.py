@@ -106,7 +106,7 @@ class OpenVRRenderer(object):
                              gl.GL_NEAREST)
 
     def process_input(self, button_press_callbacks=None, axis_callbacks=None):
-        if len(self._controller_indices) == 0:
+        if len(self._controller_indices) < 2:
             self._poll_for_controllers()
         for ii, i in enumerate(self._controller_indices):
             got_state, state = self.vr_system.getControllerState(i)

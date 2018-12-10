@@ -256,6 +256,8 @@ def main(window_size=(800,600),
             # sdf_text.set_text("%9.3f" % dt)
             # sdf_text.update_gl()
 
+        game.step(speed*dt)
+
         if not contact_last_frame:
             if game.t - last_contact_t >= 2:
                 for i, position in cue.aabb_check(game.ball_positions[:1], physics.ball_radius):
@@ -277,7 +279,7 @@ def main(window_size=(800,600),
                         break
         else:
             contact_last_frame = False
-        game.step(speed*dt)
+
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:
             st = glfw.GetTime()

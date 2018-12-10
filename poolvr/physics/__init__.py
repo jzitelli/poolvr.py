@@ -634,7 +634,7 @@ event: %s
                     mesh.world_matrix[0,:3] -= ydotx * y
                     mesh.world_matrix[0,:3] /= np.sqrt(mesh.world_matrix[0,:3].dot(mesh.world_matrix[0,:3]))
                     mesh.world_matrix[2,:3] = np.cross(mesh.world_matrix[0,:3], mesh.world_matrix[1,:3])
-                mesh.world_matrix[1,1] *= v_mag
+                # mesh.world_matrix[1,1] *= v_mag
                 meshes.append(mesh)
 
                 mesh = self._omega_meshes[event.i]
