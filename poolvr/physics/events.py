@@ -128,8 +128,8 @@ class BallSpinningEvent(BallStationaryEvent):
         R = self.ball_radius
         super().__init__(t, i, r_0=r_0, **kwargs)
         self._omega_0_y = omega_0_y
-        self._b[1,1] = -5 * np.sign(omega_0_y) * self.mu_sp * self.g / (2 * R)
-        self.T = T = abs(omega_0_y / self._b[1,1])
+        self._b = -5 * np.sign(omega_0_y) * self.mu_sp * self.g / (2 * R)
+        self.T = T = abs(omega_0_y / self._b)
         self._next_motion_event = BallRestEvent(t + T, i, r_0=r_0)
     @allocs_out_vec4
     def eval_quaternion(self, tau, out=None):
@@ -266,18 +266,24 @@ class BallMotionEvent(BallEvent):
 
 
 class BallRollingEvent(BallMotionEvent):
-    def __init__(self, t, i, r_0, v_0, **kwargs):
+    def __init__(self, t, i, r_0, v_0, omega_0_y=0.0, **kwargs):
         R = self.ball_radius
         v_0_mag = np.linalg.norm(v_0)
         T = v_0_mag / (self.mu_r * self.g)
-        omega_0 = np.array((v_0[2]/R, 0.0, -v_0[0]/R), dtype=np.float64)
+        omega_0 = np.array((v_0[2]/R, omega_0_y, -v_0[0]/R), dtype=np.float64)
         #v = -R * np.cross(self._k, omega_0)
         #v_diff = v_0 - v
         #assert np.dot(v_diff, v_diff) < self._ZERO_TOLERANCE_SQRD
         super().__init__(t, i, T=T, r_0=r_0, v_0=v_0, omega_0=omega_0, **kwargs)
         self._a[2] = -0.5 * self.mu_r * self.g * v_0 / v_0_mag
-        self._b[1] = -omega_0 / T
-        self._next_motion_event = BallRestEvent(t + T, i, r_0=self.eval_position(T))
+        self._b[1,::2] = -omega_0[::2] / T
+        self._b[1,1] = -5 * np.sign(omega_0[1]) * self.mu_sp * self.g / (2 * R)
+        omega_1_y = omega_0[1] + self._b[1,1] * T
+        if abs(omega_1_y) < self._ZERO_TOLERANCE:
+            self._next_motion_event = BallRestEvent(t + T, i, r_0=self.eval_position(T))
+        else:
+            self._next_motion_event = BallSpinningEvent(t + T, i, r_0=self.eval_position(T),
+                                                        omega_0_y=omega_1_y)
         #_logger.debug('u_0 = %s', BallMotionEvent.eval_slip_velocity(self, 0))
         #assert np.linalg.norm(BallMotionEvent.eval_slip_velocity(self, 0)) < self._ZERO_TOLERANCE
     def eval_slip_velocity(self, tau, out=None, **kwargs):
@@ -300,12 +306,14 @@ class BallSlidingEvent(BallMotionEvent):
         self._a[2] = -0.5 * self.mu_s * self.g * u_0 / u_0_mag
         self._b[0] = omega_0
         self._b[1,::2] = 5 * self.mu_s * self.g / (2 * R) * np.cross(self._k, u_0 / u_0_mag)[::2]
-        self._b[1,1] = -5 * self.mu_sp * self.g / (2 * R)
+        self._b[1,1] = -np.sign(omega_0[2]) * 5 * self.mu_sp * self.g / (2 * R)
         # u_1 = self.eval_slip_velocity(T)
         # assert np.dot(u_1, u_1) < self._ZERO_TOLERANCE_SQRD
+        omega_1_y = omega_0[1] + self._b[1,1] * T
         self._next_motion_event = BallRollingEvent(t + T, i,
                                                    r_0=self.eval_position(T),
-                                                   v_0=self.eval_velocity(T))
+                                                   v_0=self.eval_velocity(T),
+                                                   omega_0_y=omega_1_y)
         # Ts = np.linspace(0, T, 50)
         # u_rels = np.array([self.eval_slip_velocity(t) for t in Ts])
         # import matplotlib.pyplot as plt
