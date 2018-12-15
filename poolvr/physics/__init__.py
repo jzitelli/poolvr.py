@@ -281,6 +281,7 @@ class PoolPhysics(object):
             balls = range(self.num_balls)
         if out is None:
             out = np.empty((len(balls), 4), dtype=np.float64)
+        # doing nothing for now:
         out[:] = 0
         out[:,3] = 1
         # for ii, i in enumerate(balls):
@@ -509,6 +510,7 @@ class PoolPhysics(object):
         psi_ij = self._psi_ij
         for ii, i in enumerate(U):
             F_i = F[ii+1:]
+            # F_i = F
             jj_sorted = r_ij_mag[i,F_i].argsort()
             j_sorted = F_i[jj_sorted]
             theta_i = thetas_ij[i,j_sorted]
@@ -529,7 +531,9 @@ class PoolPhysics(object):
                 else:
                     thetas = [(theta_ij_a, theta_ij, theta_ij_b)]
                 for theta_a, theta, theta_b in thetas:
-                    jj_a, jj, jj_b = bisect(theta_i_occ_bnds, theta_a), bisect(theta_i_occ_bnds, theta), bisect(theta_i_occ_bnds, theta_b)
+                    jj_a, jj, jj_b = (bisect(theta_i_occ_bnds, theta_a),
+                                      bisect(theta_i_occ_bnds, theta),
+                                      bisect(theta_i_occ_bnds, theta_b))
                     # jj = bisect(theta_i_occ_bnds, theta)
                     # jja = jj
                     # while theta_a < theta_i_occ_bnds[max(0, min(len(theta_i_occ_bnds)-1,jja))]:
@@ -541,6 +545,8 @@ class PoolPhysics(object):
                     # jj_b = jjb
                     center_occluded, a_occluded, b_occluded = jj % 2 == 1, jj_a % 2 == 1, jj_b % 2 == 1
                     if center_occluded and jj_a == jj == jj_b:
+                        if not occ_ij[i,j]:
+                            pass
                         occ_ij[i,j] = occ_ij[j,i] = True
                         break
                     if a_occluded and b_occluded:
@@ -616,9 +622,10 @@ event: %s
         meshes = []
         for event in glyph_events:
             if isinstance(event, BallMotionEvent):
-                mesh = self._velocity_meshes[event.i]
                 tau = t - event.t
                 r = event.eval_position(tau)
+
+                mesh = self._velocity_meshes[event.i]
                 v = event.eval_velocity(tau)
                 v_mag = np.sqrt(v.dot(v))
                 y = v / v_mag
@@ -628,6 +635,7 @@ event: %s
                 mesh.world_matrix[1,:3] = y
                 x, z = mesh.world_matrix[0,:3], mesh.world_matrix[2,:3]
                 ydotx, ydotz = y.dot(x), y.dot(z)
+                mesh.world_matrix[1,1] *= v_mag
                 if ydotx >= ydotz:
                     mesh.world_matrix[2,:3] -= ydotz * y
                     mesh.world_matrix[2,:3] /= np.sqrt(mesh.world_matrix[2,:3].dot(mesh.world_matrix[2,:3]))
@@ -636,7 +644,6 @@ event: %s
                     mesh.world_matrix[0,:3] -= ydotx * y
                     mesh.world_matrix[0,:3] /= np.sqrt(mesh.world_matrix[0,:3].dot(mesh.world_matrix[0,:3]))
                     mesh.world_matrix[2,:3] = np.cross(mesh.world_matrix[0,:3], mesh.world_matrix[1,:3])
-                # mesh.world_matrix[1,1] *= v_mag
                 meshes.append(mesh)
 
                 mesh = self._angular_velocity_meshes[event.i]
@@ -649,6 +656,7 @@ event: %s
                 mesh.world_matrix[1,:3] = y
                 x, z = mesh.world_matrix[0,:3], mesh.world_matrix[2,:3]
                 ydotx, ydotz = y.dot(x), y.dot(z)
+                mesh.world_matrix[1,1] *= v_mag
                 if ydotx >= ydotz:
                     mesh.world_matrix[2,:3] -= ydotz * y
                     mesh.world_matrix[2,:3] /= np.sqrt(mesh.world_matrix[2,:3].dot(mesh.world_matrix[2,:3]))
@@ -657,7 +665,6 @@ event: %s
                     mesh.world_matrix[0,:3] -= ydotx * y
                     mesh.world_matrix[0,:3] /= np.sqrt(mesh.world_matrix[0,:3].dot(mesh.world_matrix[0,:3]))
                     mesh.world_matrix[2,:3] = np.cross(mesh.world_matrix[0,:3], mesh.world_matrix[1,:3])
-                #mesh.world_matrix[1,1] *= omega_mag
                 meshes.append(mesh)
 
         return meshes
