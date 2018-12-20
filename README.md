@@ -10,12 +10,14 @@ VR pool simulator written in Python (using [pyopenvr](https://github.com/cmbruns
 - Python 3.5 or higher
 - [cyglfw3](https://github.com/adamlwgriffiths/cyglfw3)
 - [pyopengl](http://pyopengl.sourceforge.net)
-- [pyopenvr](https://github.com/cmbruns/pyopenvr)
 - [numpy](http://www.numpy.org)
-- [sounddevice](https://pypi.org/project/sounddevice)
-- [soundfile](https://github.com/bastibe/SoundFile)
 - [pillow](https://python-pillow.org)
-- [matplotlib](https://matplotlib.org)
+
+### Optional dependencies:
+
+- [pyopenvr](https://github.com/cmbruns/pyopenvr) for VR
+- [sounddevice](https://pypi.org/project/sounddevice) and [soundfile](https://github.com/bastibe/SoundFile) for sound
+- [pytest](https://www.pytest.org) and [matplotlib](https://matplotlib.org) for running the tests
 
 Time-stepped physics using the [Open Dynamics Engine](https://ode)
 is also supported if the ODE library with Python bindings is installed.
@@ -113,5 +115,5 @@ poolvr -h
 From your cloned `poolvr.py` repository root directory:
 ```
 cd test
-pytest
+pytest --render
 ```
