@@ -27,6 +27,7 @@ from .events import (CueStrikeEvent,
                      BallCollisionEvent,
                      MarlowBallCollisionEvent,
                      SimpleBallCollisionEvent)
+#from ..utils import printit
 
 
 PIx2 = np.pi*2
@@ -61,8 +62,9 @@ class PoolPhysics(object):
                  table=None,
                  enable_sanity_check=True,
                  enable_occlusion=True,
+                 realtime=False,
                  collision_search_time_limit=0.2/90,
-                 collision_search_time_forward=0.25,
+                 collision_search_time_forward=0.2,
                  **kwargs):
         r"""
         Pool physics simulator
@@ -104,18 +106,19 @@ class PoolPhysics(object):
         self.mu_b = mu_b
         self.g = g
         self.t = 0.0
-        self._on_table = np.array(self.num_balls * [False])
         self._balls_on_table = balls_on_table
         self._balls_at_rest = set(balls_on_table)
+        self._on_table = np.array(self.num_balls * [False])
         self._on_table[np.array(balls_on_table, dtype=np.int64)] = True
+        self._realtime = realtime
         self._collision_search_time_limit = collision_search_time_limit
         self._collision_search_time_forward = collision_search_time_forward
         self._enable_occlusion = enable_occlusion
         self._enable_sanity_check = enable_sanity_check
         self._p = np.empty(5, dtype=np.float64)
         self._mask = np.array(4*[True])
-        self._a_ij_mag = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
         self._a_ij = np.zeros((self.num_balls, 3), dtype=np.float64)
+        self._a_ij_mag = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
         self._r_ij = np.zeros((self.num_balls, self.num_balls, 3), dtype=np.float64)
         self._r_ij_mag = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
         self._theta_ij = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
@@ -160,8 +163,11 @@ class PoolPhysics(object):
         self._psi_ij[:] = 0
         self._theta_ij[:] = 0
         self._balls_at_rest = set(self.balls_on_table)
-        self._update_positions(update_set=self.balls_on_table, rest_set=np.empty((0,3), dtype=np.float64), ball_positions=ball_positions)
-        self._update_occlusion(update_set=self.balls_on_table, rest_set=np.empty((0,3), dtype=np.float64))
+        self._update_positions(update_set=self.balls_on_table,
+                               rest_set=np.empty((0,3), dtype=np.float64),
+                               ball_positions=ball_positions)
+        self._update_occlusion(update_set=self.balls_on_table,
+                               rest_set=np.empty((0,3), dtype=np.float64))
 
     @property
     def ball_collision_model(self):
@@ -234,23 +240,34 @@ class PoolPhysics(object):
     @property
     def next_turn_time(self):
         """The time at which all balls have come to rest."""
-        return self.events[-1].t if self.events and isinstance(self.events[-1], BallRestEvent) else 0.0
+        return self.events[-1].t \
+            if self.events and isinstance(self.events[-1], BallRestEvent) else 0.0
 
-    def step(self, dt):
-        self.t += dt
+    def step(self, dt, **kwargs):
+        if self._realtime:
+            self.step_realtime(dt, **kwargs)
+        else:
+            self.t += dt
 
     def step_realtime(self, dt,
                       find_collisions=True):
         self.t += dt
         if not find_collisions:
             return
-        T = self._collision_search_time_forward
+        T = self._collision_search_time_limit
+        t_max = self.t + self._collision_search_time_forward
         lt = perf_counter()
         while T > 0 and self.balls_in_motion:
             event = self._determine_next_event()
-            self._add_event(event)
+            if event:
+                self._add_event(event)
+                if event.t >= t_max:
+                    return self.balls_in_motion
             t = perf_counter()
-            T -= t - lt; lt = t
+            dt = t - lt; lt = t
+            T -= dt
+        if T <= 0:
+            return self.balls_in_motion
 
     def eval_positions(self, t, balls=None, out=None):
         """
@@ -331,6 +348,15 @@ class PoolPhysics(object):
                         break
         return out
 
+    def find_active_events(self, t):
+        active_events = []
+        for i, events in self.ball_events.items():
+            for e in events[:bisect(events, t)][::-1]:
+                if t <= e.t + e.T:
+                    active_events.append(e)
+                    break
+        return active_events
+
     def set_cue_ball_collision_callback(self, cb):
         self._on_cue_ball_collide = cb
 
@@ -345,6 +371,9 @@ class PoolPhysics(object):
             if self._enable_occlusion and isinstance(event, BallStationaryEvent):
                 update_set = [i]
                 rest_set = sorted(self.balls_at_rest)
+                # update_set = self.balls_on_table
+                # rest_set = [i for i in range(self.num_balls)
+                #             if i not in self.balls_on_table]
                 self._update_positions(update_set=update_set, rest_set=rest_set, ball_positions=[event._r_0])
                 self._update_occlusion(update_set=update_set, rest_set=rest_set)
             self.ball_events[i].append(event)
@@ -405,7 +434,8 @@ class PoolPhysics(object):
         a_ij_mag = self._a_ij_mag[e_i.i, e_j.i]
         v_ij_0 = e_i.eval_velocity(tau_i_0) - e_j.eval_velocity(tau_j_0)
         r_ij_0 = e_i.eval_position(tau_i_0) - e_j.eval_position(tau_j_0)
-        if np.sqrt(np.dot(v_ij_0, v_ij_0)) * (t1-t0) + 0.5 * a_ij_mag * (t1-t0)**2 < np.sqrt(np.dot(r_ij_0, r_ij_0)) - self.ball_diameter:
+        if   np.sqrt(v_ij_0.dot(v_ij_0))*(t1-t0) + 0.5*a_ij_mag*(t1-t0)**2 \
+           < np.sqrt(r_ij_0.dot(r_ij_0)) - self.ball_diameter:
             return None
         a_i, b_i = e_i.global_motion_coeffs
         a_j, b_j = e_j.global_motion_coeffs
@@ -459,6 +489,15 @@ class PoolPhysics(object):
         U = np.array(update_set, dtype=np.int64)
         R = np.array(rest_set, dtype=np.int64)
         r_ij[U,U] = ball_positions
+        _logger.debug('''
+
+        ball_positions:
+        %s
+
+        r_ij.diagonal().T:
+        %s
+
+        ''', ball_positions, r_ij.diagonal().T)
         # self._r_ij = r_ij = np.empty((ball_positions.shape[0],
         #                               ball_positions.shape[0],
         #                               3), dtype=np.float64)
@@ -472,27 +511,31 @@ class PoolPhysics(object):
             F = np.hstack((U, R))
         else:
             F = U
+        # for ii, i in enumerate(U):
+        #     r_ij[i,:ii] = -ball_positions[U[:ii]] + ball_positions[i]
+        #     r_ij[i,i] = ball_positions[i]
         for ii, i in enumerate(U):
+            #F_i = F[len(U):]
             F_i = F[ii+1:]
+            if len(F_i) == 0:
+                continue
             r_ij[i,F_i] = r_ij[F_i,F_i] - ball_positions[ii]
             r_ij[F_i,i] = -r_ij[i,F_i]
             theta_ij[i,F_i] = np.arctan2(r_ij[i,F_i,2], r_ij[i,F_i,0])
             theta_ij[F_i,i] = PIx2 - theta_ij[i,F_i]
             r_ij_mag[i,F_i] = np.linalg.norm(r_ij[i,F_i], axis=1)
             r_ij_mag[F_i,i] = r_ij_mag[i,F_i]
-#             if (psi_ij[i,F_i] == 0).any():
-#                 _logger.debug('''
-#         ball_positions = %s
-#
-#         i = %s,
-#
-#         F_i = %s
-#
-#         psi_ij[i,F_i] * RAD2DEG = %s
-# ''',
-#                               printit(ball_positions), i, printit(F_i), printit(psi_ij[i,F_i] * RAD2DEG))
-#                 from sys import stdout
-#                 stdout.flush()
+            # if (psi_ij[i,F_i] == 0).any():
+            #     _logger.debug('''
+            #     ball_positions = %s
+            #     i = %s,
+            #     F_i = %s
+            #     psi_ij[i,F_i] * RAD2DEG = %s
+            #     ''',
+            #                   printit(ball_positions), i,
+            #                   printit(F_i), printit(psi_ij[i,F_i] * RAD2DEG))
+            #     from sys import stdout
+            #     stdout.flush()
             psi_ij[i,F_i] = np.arcsin(self.ball_diameter / r_ij_mag[i,F_i])
             psi_ij[F_i,i] = psi_ij[i,F_i]
 
@@ -509,7 +552,11 @@ class PoolPhysics(object):
         thetas_ij = self._theta_ij
         psi_ij = self._psi_ij
         for ii, i in enumerate(U):
+            # occ_ij[i,U] = occ_ij[U,i] = False
             F_i = F[ii+1:]
+            #F_i = F[len(U):]
+            if len(F_i) == 0:
+                continue
             # F_i = F
             jj_sorted = r_ij_mag[i,F_i].argsort()
             j_sorted = F_i[jj_sorted]
@@ -600,71 +647,65 @@ event: %s
             from ..primitives import ArrowMesh
             from ..techniques import LAMBERT_TECHNIQUE
             self._velocity_material = Material(LAMBERT_TECHNIQUE, values={"u_color": [1.0, 0.0, 0.0, 0.0]})
+            self._angular_velocity_material = Material(LAMBERT_TECHNIQUE, values={'u_color': [0.0, 0.0, 1.0, 0.0]})
             self._velocity_meshes = {i: ArrowMesh(material=self._velocity_material,
                                                   head_radius=0.2*self.ball_radius,
                                                   head_length=0.5*self.ball_radius,
                                                   tail_radius=0.075*self.ball_radius,
                                                   tail_length=2*self.ball_radius)
                                      for i in range(self.num_balls)}
-            self._angular_velocity_material = Material(LAMBERT_TECHNIQUE, values={'u_color': [0.0, 0.0, 1.0, 0.0]})
-            self._angular_velocity_meshes = {i: Mesh({self._angular_velocity_material: self._velocity_meshes[i].primitives[self._velocity_material]})
-                                             for i in range(self.num_balls)}
+            self._angular_velocity_meshes = {
+                i: Mesh({self._angular_velocity_material: self._velocity_meshes[i].primitives[self._velocity_material]})
+                for i in range(self.num_balls)
+            }
             for mesh in chain(self._velocity_meshes.values(), self._angular_velocity_meshes.values()):
                 for prim in chain.from_iterable(mesh.primitives.values()):
-                    prim.attributes['a_position'] = prim.attributes['vertices']
+                    prim.alias('vertices', 'a_position')
                 mesh.init_gl()
-        glyph_events = []
-        for i, events in self.ball_events.items():
-            for e in events[:bisect(events, t)][::-1]:
-                if t <= e.t + e.T:
-                    glyph_events.append(e)
-                    break
+        glyph_events = self.find_active_events(t)
         meshes = []
         for event in glyph_events:
             if isinstance(event, BallMotionEvent):
                 tau = t - event.t
                 r = event.eval_position(tau)
-
-                mesh = self._velocity_meshes[event.i]
                 v = event.eval_velocity(tau)
                 v_mag = np.sqrt(v.dot(v))
-                y = v / v_mag
-                mesh.world_matrix[:] = 0
-                mesh.world_matrix[0,0] = mesh.world_matrix[1,1] = mesh.world_matrix[2,2] = mesh.world_matrix[3,3] = 1
-                mesh.world_matrix[3,:3] = r + (2*self.ball_radius)*y
-                mesh.world_matrix[1,:3] = y
-                x, z = mesh.world_matrix[0,:3], mesh.world_matrix[2,:3]
-                ydotx, ydotz = y.dot(x), y.dot(z)
-                mesh.world_matrix[1,1] *= v_mag
-                if ydotx >= ydotz:
-                    mesh.world_matrix[2,:3] -= ydotz * y
-                    mesh.world_matrix[2,:3] /= np.sqrt(mesh.world_matrix[2,:3].dot(mesh.world_matrix[2,:3]))
-                    mesh.world_matrix[0,:3] = np.cross(mesh.world_matrix[1,:3], mesh.world_matrix[2,:3])
-                else:
-                    mesh.world_matrix[0,:3] -= ydotx * y
-                    mesh.world_matrix[0,:3] /= np.sqrt(mesh.world_matrix[0,:3].dot(mesh.world_matrix[0,:3]))
-                    mesh.world_matrix[2,:3] = np.cross(mesh.world_matrix[0,:3], mesh.world_matrix[1,:3])
-                meshes.append(mesh)
-
-                mesh = self._angular_velocity_meshes[event.i]
+                if v_mag > self._ZERO_TOLERANCE:
+                    y = v / v_mag
+                    mesh = self._velocity_meshes[event.i]
+                    mesh.world_matrix[:] = 0
+                    mesh.world_matrix[0,0] = mesh.world_matrix[1,1] = mesh.world_matrix[2,2] = mesh.world_matrix[3,3] = 1
+                    mesh.world_matrix[1,:3] = y
+                    x, z = mesh.world_matrix[0,:3], mesh.world_matrix[2,:3]
+                    ydotx, ydotz = y.dot(x), y.dot(z)
+                    if ydotx >= ydotz:
+                        mesh.world_matrix[2,:3] -= ydotz * y
+                        mesh.world_matrix[2,:3] /= np.sqrt(mesh.world_matrix[2,:3].dot(mesh.world_matrix[2,:3]))
+                        mesh.world_matrix[0,:3] = np.cross(mesh.world_matrix[1,:3], mesh.world_matrix[2,:3])
+                    else:
+                        mesh.world_matrix[0,:3] -= ydotx * y
+                        mesh.world_matrix[0,:3] /= np.sqrt(mesh.world_matrix[0,:3].dot(mesh.world_matrix[0,:3]))
+                        mesh.world_matrix[2,:3] = np.cross(mesh.world_matrix[0,:3], mesh.world_matrix[1,:3])
+                    mesh.world_matrix[3,:3] = r + (2*self.ball_radius)*y
+                    meshes.append(mesh)
                 omega = event.eval_angular_velocity(tau)
                 omega_mag = np.sqrt(omega.dot(omega))
-                y = omega / omega_mag
-                mesh.world_matrix[:] = 0
-                mesh.world_matrix[0,0] = mesh.world_matrix[1,1] = mesh.world_matrix[2,2] = mesh.world_matrix[3,3] = 1
-                mesh.world_matrix[3,:3] = r + (2*self.ball_radius)*y
-                mesh.world_matrix[1,:3] = y
-                x, z = mesh.world_matrix[0,:3], mesh.world_matrix[2,:3]
-                ydotx, ydotz = y.dot(x), y.dot(z)
-                mesh.world_matrix[1,1] *= v_mag
-                if ydotx >= ydotz:
-                    mesh.world_matrix[2,:3] -= ydotz * y
-                    mesh.world_matrix[2,:3] /= np.sqrt(mesh.world_matrix[2,:3].dot(mesh.world_matrix[2,:3]))
-                    mesh.world_matrix[0,:3] = np.cross(mesh.world_matrix[1,:3], mesh.world_matrix[2,:3])
-                else:
-                    mesh.world_matrix[0,:3] -= ydotx * y
-                    mesh.world_matrix[0,:3] /= np.sqrt(mesh.world_matrix[0,:3].dot(mesh.world_matrix[0,:3]))
-                    mesh.world_matrix[2,:3] = np.cross(mesh.world_matrix[0,:3], mesh.world_matrix[1,:3])
-                meshes.append(mesh)
-
+                if omega_mag > self._ZERO_TOLERANCE:
+                    y = omega / omega_mag
+                    mesh = self._angular_velocity_meshes[event.i]
+                    mesh.world_matrix[:] = 0
+                    mesh.world_matrix[0,0] = mesh.world_matrix[1,1] = mesh.world_matrix[2,2] = mesh.world_matrix[3,3] = 1
+                    mesh.world_matrix[1,:3] = y
+                    x, z = mesh.world_matrix[0,:3], mesh.world_matrix[2,:3]
+                    ydotx, ydotz = y.dot(x), y.dot(z)
+                    if ydotx >= ydotz:
+                        mesh.world_matrix[2,:3] -= ydotz * y
+                        mesh.world_matrix[2,:3] /= np.sqrt(mesh.world_matrix[2,:3].dot(mesh.world_matrix[2,:3]))
+                        mesh.world_matrix[0,:3] = np.cross(mesh.world_matrix[1,:3], mesh.world_matrix[2,:3])
+                    else:
+                        mesh.world_matrix[0,:3] -= ydotx * y
+                        mesh.world_matrix[0,:3] /= np.sqrt(mesh.world_matrix[0,:3].dot(mesh.world_matrix[0,:3]))
+                        mesh.world_matrix[2,:3] = np.cross(mesh.world_matrix[0,:3], mesh.world_matrix[1,:3])
+                    mesh.world_matrix[3,:3] = r + (2*self.ball_radius)*y
+                    meshes.append(mesh)
         return meshes

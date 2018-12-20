@@ -32,6 +32,7 @@ def test_occlusion(pool_physics, request):
     filename = os.path.join(os.path.dirname(__file__), 'plots', 'occ.png')
     plt.savefig(filename)
     _logger.info('saved plot to "%s"', filename)
+    plt.close()
 
 
 @pytest.mark.parametrize("ball_collision_model", ['simple', 'marlow'])

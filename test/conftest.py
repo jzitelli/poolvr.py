@@ -174,8 +174,16 @@ def gl_rendering(pool_physics, pool_table, request):
         glfw.SwapBuffers(window)
 
     if nframes > 1:
-        _logger.info('...exited render loop: average FPS: %f, maximum frame time: %f, average frame time: %f',
-                     (nframes - 1) / (t - st), max_frame_time, (t - st) / (nframes - 1))
+        _logger.info('''...exited render loop:
+        average FPS: %f
+        minimum FPS: %f
+        average frame time: %f
+        maximum frame time: %f
+        ''',
+                     (nframes - 1) / (t - st),
+                     max_frame_time,
+                     1 / max_frame_time,
+                     (t - st) / (nframes - 1))
 
     if should_screenshot:
         with renderer.render(meshes=meshes):

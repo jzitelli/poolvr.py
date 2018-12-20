@@ -40,7 +40,8 @@ def plot_ball_motion(i, physics,
                      collision_markers=True,
                      hold=False,
                      filename=None, show=False,
-                     dpi=400):
+                     dpi=400,
+                     figure=None):
     if table is None:
         table = PoolTable()
     if type(coords) == int:
@@ -57,10 +58,12 @@ def plot_ball_motion(i, physics,
             t_1 = events[-1].t
             if events[-1].T < float('inf'):
                 t_1 += events[-1].T
+            # t_1 = min(20.0, events[-1].t + events[-1].T)
     events = [e for e in events if e.t <= t_1]
 
-    if not hold:
+    if figure is None:
         figure = plt.figure()
+    if not hold:
         plt.title(title)
         plt.xlabel('$t$ (seconds)')
         plt.ylabel('$%s$ (meters)' % ' / '.join('xyz'[coord] for coord in coords))
@@ -80,7 +83,8 @@ def plot_ball_motion(i, physics,
                                  t_0=other_ball_event.t,# t_1=t_1,
                                  coords=coords,
                                  collision_depth=collision_depth-1,
-                                 hold=True, event_markers=False, collision_markers=False)
+                                 hold=True, event_markers=False, collision_markers=False,
+                                 figure=figure)
     if events:
         ts = np.linspace(max(t_0, events[0].t),
                          min(t_1, events[-1].t + events[-1].T), nt)
@@ -107,7 +111,7 @@ def plot_ball_motion(i, physics,
                 _logger.warning('error saving figure:\n%s', err)
         if show:
             plt.show()
-        plt.close()
+        plt.close(fig=figure)
 
 
 def plot_motion_timelapse(physics, table=None,
@@ -115,7 +119,8 @@ def plot_motion_timelapse(physics, table=None,
                           nt=50,
                           t_0=None, t_1=None,
                           filename=None,
-                          show=False):
+                          show=False,
+                          figure=None):
     from itertools import chain
     if table is None:
         table = PoolTable()
@@ -133,7 +138,8 @@ def plot_motion_timelapse(physics, table=None,
         if events[-1].T < float('inf'):
             t_1 += events[-1].T
     events = [e for e in events if e.t <= t_1]
-    plt.figure()
+    if figure is None:
+        figure = plt.figure()
     plt.title(title)
     ts = np.linspace(t_0, t_1, nt)
     #ax = plt.subplot(111, facecolor='green')
@@ -144,7 +150,7 @@ def plot_motion_timelapse(physics, table=None,
     plt.gca().set_aspect('equal')
     plt.gca().add_patch(plt.Rectangle((-0.5*table.width, -0.5*table.length),
                                       table.width, table.length,
-                                      color='green'))
+                                      color='#013216'))
     ball_colors = dict(BALL_COLORS)
     ball_colors[0] = 'white'
     for t in ts:
@@ -164,10 +170,12 @@ def plot_motion_timelapse(physics, table=None,
             _logger.warning('error saving figure:\n%s', err)
     if show:
         plt.show()
+    plt.close(fig=figure)
 
 
 def plot_energy(physics, title=None, nt=1000,
-                t_0=None, t_1=None, filename=None, show=False):
+                t_0=None, t_1=None, filename=None,
+                show=False, figure=None):
     events = physics.events
     if t_0 is None:
         t_0 = events[0].t
@@ -175,7 +183,8 @@ def plot_energy(physics, title=None, nt=1000,
         t_1 = events[-1].t
     if title is None:
         title = 'kinetic energy vs time'
-    plt.figure()
+    if figure is None:
+        figure = plt.figure()
     plt.title(title)
     plt.xlabel('$t$ (seconds)')
     plt.ylabel('energy (Joules)')
@@ -193,3 +202,4 @@ def plot_energy(physics, title=None, nt=1000,
             _logger.warning('error saving figure:\n%s', err)
     if show:
         plt.show()
+    plt.close(fig=figure)

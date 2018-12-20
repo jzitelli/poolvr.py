@@ -65,9 +65,9 @@ class PoolGame(object):
     def num_balls(self):
         return self.physics.num_balls
 
-    def step(self, dt):
+    def step(self, dt, **kwargs):
         self.t += dt
-        self.physics.step(dt)
+        self.physics.step(dt, **kwargs)
         self.physics.eval_positions(self.t, out=self.ball_positions)
         self.physics.eval_velocities(self.t, out=self.ball_velocities)
         self.physics.eval_angular_velocities(self.t, out=self.ball_angular_velocities)

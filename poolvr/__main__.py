@@ -16,7 +16,7 @@ def parse_args():
                         help='enable multi-sampled anti-aliasing (disabled by default) at level A (1, 2, or 4)',
                         default=0)
     parser.add_argument('-o', "--ode",
-                        help="use ODE for physics simulation instead of the default event-based engine",
+                        help="use ODE for physics simulation instead of the default event-based physics engine",
                         action="store_true")
     parser.add_argument("-c", "--collision-model",
                         help="name of ball collision model to use (only applies to the event-based physics engine)",
@@ -35,6 +35,9 @@ def parse_args():
                         action='store_true')
     parser.add_argument('--speed', help='time speed-up/slow-down factor (default is 1.0, normal speed)',
                         default=1.0, type=float)
+    parser.add_argument('-r', '--realtime',
+                        action='store_true',
+                        help='use the realtime version (for interactive usage) of the event-based physics engine')
     args = parser.parse_args()
     args.msaa = int(args.msaa)
     return args
@@ -61,7 +64,8 @@ def main():
                     use_bb_particles=args.bb_particles,
                     cube_map=None,
                     speed=args.speed,
-                    glyphs=args.glyphs)
+                    glyphs=args.glyphs,
+                    realtime=args.realtime)
 
 
 if __name__ == "__main__":

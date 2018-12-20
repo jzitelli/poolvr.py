@@ -96,7 +96,8 @@ def main(window_size=(800,600),
          use_bb_particles=False,
          cube_map=None,
          speed=1.0,
-         glyphs=False):
+         glyphs=False,
+         realtime=False):
     """
     The main routine.
 
@@ -124,13 +125,18 @@ def main(window_size=(800,600),
             physics = ODEPoolPhysics(num_balls=16, table=table)
         except ImportError as err:
             physics = PoolPhysics(num_balls=16, table=table,
-                                  ball_collision_model=ball_collision_model)
+                                  ball_collision_model=ball_collision_model,
+                                  enable_sanity_check=novr,
+                                  enable_occlusion=True,
+                                  realtime=realtime)
             _logger.warning('could not import ode_physics:\n%s', err)
             ODEPoolPhysics = None
     else:
         physics = PoolPhysics(num_balls=16, table=table,
                               ball_collision_model=ball_collision_model,
-                              enable_sanity_check=novr)
+                              enable_sanity_check=novr,
+                              enable_occlusion=True,
+                              realtime=realtime)
     game = PoolGame(table=table,
                     physics=physics)
     cue = PoolCue()
