@@ -351,6 +351,35 @@ class CueStrikeEvent(BallEvent):
         return super().__str__()[:-1] + '\n Q=%s\n V=%s\n M=%s>' % (self.Q, self.V, self.M)
 
 
+class RailCollisionEvent(BallEvent):
+    RAIL_COORDS = {0: 2,
+                   1: 0,
+                   2: 2,
+                   3: 0}
+    def __init__(self, t, e_i, j):
+        super().__init__(t, e_i.i)
+        self.e_i = e_i
+        self.j = j
+        self._child_events = None
+    @property
+    def child_events(self):
+        if self._child_events is None:
+            e_i = self.e_i
+            tau_i = self.t - e_i.t
+            r_i_1 = e_i.eval_position(tau_i)
+            v_i_1 = e_i.eval_velocity(tau_i)
+            v_i_1[self.RAIL_COORDS[self.j]] *= -0.9
+            omega_i_1 = e_i.eval_angular_velocity(tau_i)
+            self._child_events = (BallSlidingEvent(self.t, e_i.i,
+                                                   r_0=r_i_1,
+                                                   v_0=v_i_1,
+                                                   omega_0=omega_i_1,
+                                                   parent_event=self),)
+        return self._child_events
+    def __str__(self):
+        return super().__str__()[:-1] + " rail=%d>" % self.j
+
+
 class BallCollisionEvent(PhysicsEvent):
     def __init__(self, t, e_i, e_j):
         super().__init__(t)

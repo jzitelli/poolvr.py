@@ -26,8 +26,9 @@ from .events import (CueStrikeEvent,
                      BallMotionEvent,
                      BallCollisionEvent,
                      MarlowBallCollisionEvent,
-                     SimpleBallCollisionEvent)
-#from ..utils import printit
+                     SimpleBallCollisionEvent,
+                     RailCollisionEvent)
+from ..utils import printit
 
 
 PIx2 = np.pi*2
@@ -407,6 +408,9 @@ class PoolPhysics(object):
         next_collision = None
         for i in sorted(self.balls_in_motion):
             e_i = self.ball_events[i][-1]
+            rail_collision = self._find_rail_collision(e_i)
+            if rail_collision and rail_collision[0] < t_min:
+                t_min = rail_collision[0]
             for j in self.balls_on_table:
                 if j <= i and j in self.balls_in_motion:
                     continue
@@ -417,11 +421,48 @@ class PoolPhysics(object):
                 if t_c is not None and t_c < t_min:
                     t_min = t_c
                     next_collision = (t_c, e_i, e_j)
+        if rail_collision is not None and t_min == rail_collision[0]:
+            return RailCollisionEvent(t=rail_collision[0], e_i=rail_collision[2], j=rail_collision[1])
         if next_collision is not None:
             t_c, e_i, e_j = next_collision
             return self._ball_collision_event_class(t_c, e_i, e_j)
         else:
             return next_motion_event
+
+    def _find_rail_collision(self, e_i):
+        R = self.ball_radius
+        sx = 0.5*self.table.W_playable
+        sz = 0.5*self.table.L_playable
+        a = e_i._a
+        times = {}
+        for side, (j, rhs) in enumerate([(2,  sz - R),
+                                         (0,  sx - R),
+                                         (2, -sz + R),
+                                         (0, -sx + R)]):
+            if abs(a[2,j]) < 1e-15:
+                if abs(a[1,j]) > 1e-15:
+                    tau = (rhs - a[0,j]) / a[1,j]
+                    r =
+                    if 0 < tau < e_i.T \
+                       and self.table.is_position_in_bounds(e_i.eval_position(tau), R):
+                        times[side] = e_i.t + tau
+            else:
+                d = a[1,j]**2 - 4*a[2,j]*(a[0,j] - rhs)
+                if d > 1e-15:
+                    pn = np.sqrt(d)
+                    tau_p = (-a[1,j] + pn) / (2*a[2,j])
+                    r_p = e_i.eval_position(tau_p)
+                    tau_n = (-a[1,j] - pn) / (2*a[2,j])
+                    r_n = e_i.eval_position(tau_n)
+                    if 0 < tau_p < e_i.T and self.table.is_position_in_bounds(r_p, R):
+                        if 0 < tau_n < e_i.T and self.table.is_position_in_bounds(r_n, R):
+                            times[side] = e_i.t + min(tau_p, tau_n)
+                        else:
+                            times[side] = e_i.t + tau_p
+                    elif 0 < tau_n < e_i.T and self.table.is_position_in_bounds(r_n, R):
+                        times[side] = e_i.t + tau_n
+        if times:
+            return min((t, side, e_i) for side, t in times.items())
 
     def _find_collision(self, e_i, e_j, t_min):
         if e_j.parent_event and e_i.parent_event and e_j.parent_event == e_i.parent_event:
@@ -489,15 +530,15 @@ class PoolPhysics(object):
         U = np.array(update_set, dtype=np.int64)
         R = np.array(rest_set, dtype=np.int64)
         r_ij[U,U] = ball_positions
-        _logger.debug('''
+        # _logger.debug('''
 
-        ball_positions:
-        %s
+        # ball_positions:
+        # %s
 
-        r_ij.diagonal().T:
-        %s
+        # r_ij.diagonal().T:
+        # %s
 
-        ''', ball_positions, r_ij.diagonal().T)
+        # ''', ball_positions, r_ij.diagonal().T)
         # self._r_ij = r_ij = np.empty((ball_positions.shape[0],
         #                               ball_positions.shape[0],
         #                               3), dtype=np.float64)
@@ -525,19 +566,20 @@ class PoolPhysics(object):
             theta_ij[F_i,i] = PIx2 - theta_ij[i,F_i]
             r_ij_mag[i,F_i] = np.linalg.norm(r_ij[i,F_i], axis=1)
             r_ij_mag[F_i,i] = r_ij_mag[i,F_i]
-            # if (psi_ij[i,F_i] == 0).any():
+            # if (r_ij_mag[i,F_i] == 0).any():
             #     _logger.debug('''
             #     ball_positions = %s
             #     i = %s,
             #     F_i = %s
-            #     psi_ij[i,F_i] * RAD2DEG = %s
+            #     r_ij_mag[i,F_i] = %s
             #     ''',
             #                   printit(ball_positions), i,
-            #                   printit(F_i), printit(psi_ij[i,F_i] * RAD2DEG))
+            #                   printit(F_i), printit(r_ij_mag[i,F_i]))
             #     from sys import stdout
             #     stdout.flush()
             psi_ij[i,F_i] = np.arcsin(self.ball_diameter / r_ij_mag[i,F_i])
             psi_ij[F_i,i] = psi_ij[i,F_i]
+            #psi_ij[F_i,i] = -psi_ij[i,F_i]
 
     def _update_occlusion(self, update_set, rest_set, ball_positions=None):
         U = np.array(update_set, dtype=np.int64)

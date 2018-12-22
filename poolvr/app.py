@@ -127,7 +127,7 @@ def main(window_size=(800,600),
             physics = PoolPhysics(num_balls=16, table=table,
                                   ball_collision_model=ball_collision_model,
                                   enable_sanity_check=novr,
-                                  enable_occlusion=True,
+                                  enable_occlusion=False,
                                   realtime=realtime)
             _logger.warning('could not import ode_physics:\n%s', err)
             ODEPoolPhysics = None
@@ -135,7 +135,7 @@ def main(window_size=(800,600),
         physics = PoolPhysics(num_balls=16, table=table,
                               ball_collision_model=ball_collision_model,
                               enable_sanity_check=novr,
-                              enable_occlusion=True,
+                              enable_occlusion=False,
                               realtime=realtime)
     game = PoolGame(table=table,
                     physics=physics)

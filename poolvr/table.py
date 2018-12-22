@@ -42,14 +42,22 @@ class PoolTable(object):
                  **kwargs):
         self.length = length
         self.height = height
-        self.width = width if width is not None else 0.5*length
-        self.width_rail = width_rail if width_rail is not None else 1.5*W_cushion
-        self.H_rail = H_rail if H_rail is not None else 1.25*H_cushion
+        if width is None:
+            width = 0.5 * length
+        self.width = width
+        if width_rail is None:
+            width_rail = 1.5 * W_cushion
+        self.width_rail = width_rail
+        if H_rail is None:
+            H_rail = 1.25 * H_cushion
+        self.H_rail = H_rail
         self.ball_radius = ball_radius
         self.ball_diameter = 2*ball_radius
         self.W_cushion = W_cushion
         self.W_nose = 0.05 * W_cushion
         self.H_nose = 0.5 * H_cushion
+        self.W_playable = width - 2*W_cushion
+        self.L_playable = length - 2*W_cushion
         self.num_balls = num_balls
         self.ball_colors = ball_colors
         self._mesh = None
@@ -74,8 +82,9 @@ class PoolTable(object):
         surface = PlanePrimitive(width=width, depth=length)
         surface.attributes['vertices'][:,1] = self.height
         surface.attributes['a_position'] = surface.attributes['vertices']
-        W_playable = width - 2*W_cushion
         H_cushion = 0.82*2*self.ball_radius
+        W_playable = self.W_playable
+        L_playable = self.L_playable
         self.headCushionGeom = HexaPrimitive(vertices=np.array([
             # bottom quad:
             [[-0.5*W_playable + 0.4*W_cushion,       0.0,           0.5*W_cushion],
@@ -92,7 +101,7 @@ class PoolTable(object):
         self.headCushionGeom.attributes['vertices'].reshape(-1,3)[:,2] += 0.5 * self.length - 0.5*W_cushion
         vertices = _vertices.copy()
         vertices.reshape(-1,3)[:,2] *= -1
-        vertices.reshape(-1,3)[:,2] -= 0.5 * self.length - 0.5*W_cushion
+        vertices.reshape(-1,3)[:,2] -= 0.5 * L_playable
         self.footCushionGeom = HexaPrimitive(vertices=vertices)
         rotation = np.array([[0.0, 0.0, -1.0],
                              [0.0, 1.0,  0.0],
@@ -102,7 +111,7 @@ class PoolTable(object):
         vertices[1, 2, 0] = vertices[0, 2, 0]
         vertices.reshape(-1,3)[:] = rotation.dot(vertices.reshape(-1,3).T).T
         vertices.reshape(-1,3)[:,2] += 0.25 * self.length
-        vertices.reshape(-1,3)[:,0] += 0.5 * self.width - 0.5*W_cushion
+        vertices.reshape(-1,3)[:,0] += 0.5 * W_playable
         self.rightHeadCushionGeom = HexaPrimitive(vertices=vertices)
         rotation = np.array([[ 0.0, 0.0,  1.0],
                              [ 0.0, 1.0,  0.0],
@@ -112,7 +121,7 @@ class PoolTable(object):
         vertices[1, 3, 0] = vertices[0, 3, 0]
         vertices.reshape(-1,3)[:] = rotation.dot(vertices.reshape(-1,3).T).T
         vertices.reshape(-1,3)[:,2] += 0.25 * self.length
-        vertices.reshape(-1,3)[:,0] -= 0.5 * self.width - 0.5*W_cushion
+        vertices.reshape(-1,3)[:,0] -= 0.5 * W_playable
         self.leftHeadCushionGeom = HexaPrimitive(vertices=vertices)
         vertices = self.rightHeadCushionGeom.attributes['vertices'].copy()
         vertices.reshape(-1,3)[:,2] *= -1
@@ -127,7 +136,8 @@ class PoolTable(object):
                                          self.H_rail,
                                          self.width_rail)
         self.railGeoms = [self.headRailGeom]
-        rail_material = Material(EGA_TECHNIQUE, values={'u_color': [0xdd/0xff, 0xa4/0xff, 0.0, 0.0]})
+        rail_material = Material(EGA_TECHNIQUE,
+                                 values={'u_color': [0xdd/0xff, 0xa4/0xff, 0.0, 0.0]})
         self.headRailMesh = Mesh({rail_material: [self.headRailGeom]})
         for geom in self.cushionGeoms + self.railGeoms:
             geom.alias('vertices', 'a_position')
@@ -181,7 +191,6 @@ class PoolTable(object):
                 mesh.shadow_mesh.world_position[:] = self.height + 0.001
             self._ball_meshes = ball_meshes
 
-
     def calc_racked_positions(self, d=None,
                               out=None):
         if out is None:
@@ -212,3 +221,9 @@ class PoolTable(object):
         out[0,0] = 0.0
         out[0,2] = 0.25 * length
         return out
+
+    def is_position_in_bounds(self, r, R):
+        return  -0.5*self.W_playable <= r[0] - R            \
+            and             r[0] + R <= 0.5*self.W_playable \
+            and -0.5*self.L_playable <= r[2] - R            \
+            and             r[2] + R <= 0.5*self.L_playable
