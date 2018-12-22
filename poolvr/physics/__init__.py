@@ -28,7 +28,6 @@ from .events import (CueStrikeEvent,
                      MarlowBallCollisionEvent,
                      SimpleBallCollisionEvent,
                      RailCollisionEvent)
-from ..utils import printit
 
 
 PIx2 = np.pi*2
@@ -457,16 +456,24 @@ class PoolPhysics(object):
                 if d > 1e-15:
                     pn = np.sqrt(d)
                     tau_p = (-a[1,j] + pn) / (2*a[2,j])
-                    r_p = e_i.eval_position(tau_p)
                     tau_n = (-a[1,j] - pn) / (2*a[2,j])
-                    r_n = e_i.eval_position(tau_n)
-                    if 0 < tau_p < e_i.T and self.table.is_position_in_bounds(r_p, 0.99*R):
-                        if 0 < tau_n < e_i.T and self.table.is_position_in_bounds(r_n, 0.99*R):
-                            times[side] = e_i.t + min(tau_p, tau_n)
-                        else:
-                            times[side] = e_i.t + tau_p
-                    elif 0 < tau_n < e_i.T and self.table.is_position_in_bounds(r_n, 0.99*R):
-                        times[side] = e_i.t + tau_n
+                    if 0 < tau_p < e_i.T:
+                        r_p = e_i.eval_position(tau_p)
+                        if self.table.is_position_in_bounds(r_p, 0.99*R):
+                            if 0 < tau_n < e_i.T:
+                                r_n = e_i.eval_position(tau_n)
+                                if self.table.is_position_in_bounds(r_n, 0.99*R):
+                                    times[side] = e_i.t + min(tau_p, tau_n)
+                            else:
+                                times[side] = e_i.t + tau_p
+                        elif 0 < tau_n < e_i.T:
+                            r_n = e_i.eval_position(tau_n)
+                            if self.table.is_position_in_bounds(r_n, 0.99*R):
+                                times[side] = e_i.t + tau_n
+                    elif 0 < tau_n < e_i.T:
+                        r_n = e_i.eval_position(tau_n)
+                        if self.table.is_position_in_bounds(r_n, 0.99*R):
+                            times[side] = e_i.t + tau_n
         if times:
             _logger.debug('times:\n%s', '\n'.join('%s: %s' % item for item in times.items()))
             return min((t, side, e_i) for side, t in times.items())

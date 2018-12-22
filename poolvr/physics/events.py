@@ -352,10 +352,6 @@ class CueStrikeEvent(BallEvent):
 
 
 class RailCollisionEvent(BallEvent):
-    RAIL_COORDS = {0: 2,
-                   1: 0,
-                   2: 2,
-                   3: 0}
     def __init__(self, t, e_i, side):
         super().__init__(t, e_i.i)
         self.e_i = e_i

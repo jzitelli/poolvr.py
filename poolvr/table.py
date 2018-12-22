@@ -57,7 +57,7 @@ class PoolTable(object):
         self.W_nose = 0.05 * W_cushion
         self.H_nose = 0.5 * H_cushion
         self.W_playable = width - 2*W_cushion
-        self.L_playable = length - 2*W_cushion
+        self.L_playable = length - 1*W_cushion
         self.num_balls = num_balls
         self.ball_colors = ball_colors
         self._mesh = None
