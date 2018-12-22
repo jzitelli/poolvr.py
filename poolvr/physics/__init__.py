@@ -422,7 +422,7 @@ class PoolPhysics(object):
                     t_min = t_c
                     next_collision = (t_c, e_i, e_j)
         if rail_collision is not None and t_min == rail_collision[0]:
-            return RailCollisionEvent(t=rail_collision[0], e_i=rail_collision[2], j=rail_collision[1])
+            return RailCollisionEvent(t=rail_collision[0], e_i=rail_collision[2], side=rail_collision[1])
         if next_collision is not None:
             t_c, e_i, e_j = next_collision
             return self._ball_collision_event_class(t_c, e_i, e_j)
@@ -435,17 +435,23 @@ class PoolPhysics(object):
         sz = 0.5*self.table.L_playable
         a = e_i._a
         times = {}
+        if e_i.parent_event and isinstance(e_i.parent_event, RailCollisionEvent):
+            prev_side = e_i.parent_event.side
+        else:
+            prev_side = None
         for side, (j, rhs) in enumerate([(2,  sz - R),
                                          (0,  sx - R),
                                          (2, -sz + R),
                                          (0, -sx + R)]):
+            if side == prev_side:
+                continue
             if abs(a[2,j]) < 1e-15:
                 if abs(a[1,j]) > 1e-15:
                     tau = (rhs - a[0,j]) / a[1,j]
-                    r =
-                    if 0 < tau < e_i.T \
-                       and self.table.is_position_in_bounds(e_i.eval_position(tau), R):
-                        times[side] = e_i.t + tau
+                    if 0 < tau < e_i.T:
+                        r = e_i.eval_position(tau)
+                        if self.table.is_position_in_bounds(r, 0.99*R):
+                            times[side] = e_i.t + tau
             else:
                 d = a[1,j]**2 - 4*a[2,j]*(a[0,j] - rhs)
                 if d > 1e-15:
@@ -454,14 +460,15 @@ class PoolPhysics(object):
                     r_p = e_i.eval_position(tau_p)
                     tau_n = (-a[1,j] - pn) / (2*a[2,j])
                     r_n = e_i.eval_position(tau_n)
-                    if 0 < tau_p < e_i.T and self.table.is_position_in_bounds(r_p, R):
-                        if 0 < tau_n < e_i.T and self.table.is_position_in_bounds(r_n, R):
+                    if 0 < tau_p < e_i.T and self.table.is_position_in_bounds(r_p, 0.99*R):
+                        if 0 < tau_n < e_i.T and self.table.is_position_in_bounds(r_n, 0.99*R):
                             times[side] = e_i.t + min(tau_p, tau_n)
                         else:
                             times[side] = e_i.t + tau_p
-                    elif 0 < tau_n < e_i.T and self.table.is_position_in_bounds(r_n, R):
+                    elif 0 < tau_n < e_i.T and self.table.is_position_in_bounds(r_n, 0.99*R):
                         times[side] = e_i.t + tau_n
         if times:
+            _logger.debug('times:\n%s', '\n'.join('%s: %s' % item for item in times.items()))
             return min((t, side, e_i) for side, t in times.items())
 
     def _find_collision(self, e_i, e_j, t_min):

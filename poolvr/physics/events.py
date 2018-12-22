@@ -356,28 +356,28 @@ class RailCollisionEvent(BallEvent):
                    1: 0,
                    2: 2,
                    3: 0}
-    def __init__(self, t, e_i, j):
+    def __init__(self, t, e_i, side):
         super().__init__(t, e_i.i)
         self.e_i = e_i
-        self.j = j
+        self.side = side
+        tau = t - e_i.t
+        self._r_1 = e_i.eval_position(tau)
+        self._v_1 = e_i.eval_velocity(tau)
+        self._omega_1 = np.zeros(3, dtype=np.float64) #e_i.eval_angular_velocity(tau)
         self._child_events = None
     @property
     def child_events(self):
         if self._child_events is None:
-            e_i = self.e_i
-            tau_i = self.t - e_i.t
-            r_i_1 = e_i.eval_position(tau_i)
-            v_i_1 = e_i.eval_velocity(tau_i)
-            v_i_1[self.RAIL_COORDS[self.j]] *= -0.9
-            omega_i_1 = e_i.eval_angular_velocity(tau_i)
-            self._child_events = (BallSlidingEvent(self.t, e_i.i,
-                                                   r_0=r_i_1,
-                                                   v_0=v_i_1,
-                                                   omega_0=omega_i_1,
+            v_1 = self._v_1.copy()
+            v_1[2*(1-(self.side % 2))] *= -0.9
+            self._child_events = (BallSlidingEvent(self.t, self.e_i.i,
+                                                   r_0=self._r_1,
+                                                   v_0=v_1,
+                                                   omega_0=self._omega_1,
                                                    parent_event=self),)
         return self._child_events
     def __str__(self):
-        return super().__str__()[:-1] + " rail=%d>" % self.j
+        return super().__str__()[:-1] + " side=%d>" % self.side
 
 
 class BallCollisionEvent(PhysicsEvent):
