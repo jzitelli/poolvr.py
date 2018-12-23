@@ -137,7 +137,7 @@ class PoolPhysics(object):
             balls_on_table = range(self.num_balls)
         self.balls_on_table = balls_on_table
         if ball_positions is None:
-            ball_positions = self.table.calc_racked_positions()
+            ball_positions = self.table.calc_racked_positions()[self.balls_on_table]
         else:
             ball_positions = ball_positions[self.balls_on_table]
         self.t = 0.0
@@ -146,10 +146,13 @@ class PoolPhysics(object):
             e._b[:] = 0
             e.t = self.t
             e.T = 0.0
-        for e, r in zip(self._BALL_REST_EVENTS, ball_positions):
-            e._r[:] = r
+        for ii, i in enumerate(self.balls_on_table):
+            e = self._BALL_REST_EVENTS[i]
+            e._r[:] = ball_positions[ii]
             e.t = self.t
             e.T = float('inf')
+        for e, r in zip(self._BALL_REST_EVENTS, ball_positions):
+            e._r[:] = r
         self.ball_events = {i: [self._BALL_REST_EVENTS[i]]
                             for i in self.balls_on_table}
         self.events = list(chain.from_iterable(self.ball_events.values()))
