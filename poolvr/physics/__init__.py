@@ -460,7 +460,7 @@ class PoolPhysics(object):
                     tau = (rhs - a[0,j]) / a[1,j]
                     if 0 < tau < e_i.T:
                         r = e_i.eval_position(tau)
-                        if self.table.is_position_in_bounds(r, 0.99*R):
+                        if self.table.is_position_in_bounds(r, 0.999*R):
                             times[side] = e_i.t + tau
             else:
                 d = a[1,j]**2 - 4*a[2,j]*(a[0,j] - rhs)
@@ -470,24 +470,22 @@ class PoolPhysics(object):
                     tau_n = (-a[1,j] - pn) / (2*a[2,j])
                     if 0 < tau_p < e_i.T:
                         r_p = e_i.eval_position(tau_p)
-                        if self.table.is_position_in_bounds(r_p, 0.99*R):
+                        if self.table.is_position_in_bounds(r_p, 0.999*R):
                             if 0 < tau_n < e_i.T:
                                 r_n = e_i.eval_position(tau_n)
-                                if self.table.is_position_in_bounds(r_n, 0.99*R):
+                                if self.table.is_position_in_bounds(r_n, 0.999*R):
                                     times[side] = e_i.t + min(tau_p, tau_n)
                             else:
                                 times[side] = e_i.t + tau_p
                         elif 0 < tau_n < e_i.T:
                             r_n = e_i.eval_position(tau_n)
-                            if self.table.is_position_in_bounds(r_n, 0.99*R):
+                            if self.table.is_position_in_bounds(r_n, 0.999*R):
                                 times[side] = e_i.t + tau_n
                     elif 0 < tau_n < e_i.T:
                         r_n = e_i.eval_position(tau_n)
-                        if self.table.is_position_in_bounds(r_n, 0.99*R):
+                        if self.table.is_position_in_bounds(r_n, 0.999*R):
                             times[side] = e_i.t + tau_n
         if times:
-            _logger.debug('\ni = %s, times:\n%s',
-                          e_i.i, '\n'.join('%s: %s' % item for item in times.items()))
             return min((t, side) for side, t in times.items())
 
     def _find_collision(self, e_i, e_j, t_min):
