@@ -97,7 +97,8 @@ def main(window_size=(800,600),
          cube_map=None,
          speed=1.0,
          glyphs=False,
-         realtime=False):
+         realtime=False,
+         balls_on_table=None):
     """
     The main routine.
 
@@ -128,7 +129,8 @@ def main(window_size=(800,600),
                                   ball_collision_model=ball_collision_model,
                                   enable_sanity_check=novr,
                                   enable_occlusion=False,
-                                  realtime=realtime)
+                                  realtime=realtime,
+                                  balls_on_table=balls_on_table)
             _logger.warning('could not import ode_physics:\n%s', err)
             ODEPoolPhysics = None
     else:
@@ -136,14 +138,15 @@ def main(window_size=(800,600),
                               ball_collision_model=ball_collision_model,
                               enable_sanity_check=novr,
                               enable_occlusion=False,
-                              realtime=realtime)
+                              realtime=realtime,
+                              balls_on_table=balls_on_table)
     game = PoolGame(table=table,
                     physics=physics)
     cue = PoolCue()
     cue.position[1] = game.table.height + 0.1
     cue.position[2] += game.table.length * 0.3
     game.physics.add_cue(cue)
-    game.reset()
+    game.reset(balls_on_table=balls_on_table)
 
     ball_meshes = game.table.ball_meshes
     if use_bb_particles:
@@ -165,6 +168,10 @@ def main(window_size=(800,600),
         meshes.insert(0, skybox_mesh)
     for mesh in meshes:
         mesh.init_gl()
+    for i, mesh in enumerate(ball_meshes):
+        if i not in balls_on_table:
+            mesh.visible = False
+            ball_shadow_meshes[i].visible = False
     camera_world_matrix = fallback_renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
     camera_position[1] = game.table.height + 0.6
@@ -172,7 +179,8 @@ def main(window_size=(800,600),
     last_contact_t = float('-inf')
     def reset():
         nonlocal last_contact_t
-        game.reset()
+        nonlocal balls_on_table
+        game.reset(balls_on_table=balls_on_table)
         last_contact_t = float('-inf')
         cue.position[0] = 0
         cue.position[1] = game.table.height + 0.1
@@ -295,6 +303,9 @@ def main(window_size=(800,600),
     if nframes > 1:
         _logger.info('...exited render loop: average FPS: %f, maximum frame time: %f, average frame time: %f',
                      (nframes - 1) / (t - st), max_frame_time, (t - st) / (nframes - 1))
+
+    from .physics.events import PhysicsEvent
+    _logger.debug(PhysicsEvent.events_str(physics.events))
 
     renderer.shutdown()
     _logger.info('...shut down renderer')

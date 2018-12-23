@@ -27,7 +27,8 @@ class PoolGame(object):
                    0xbb2244,
                    0x111111]
     BALL_COLORS = BALL_COLORS + BALL_COLORS[1:-1]
-    def __init__(self, ball_colors=BALL_COLORS, ball_radius=1.125*INCH2METER,
+    def __init__(self, ball_colors=BALL_COLORS,
+                 ball_radius=1.125*INCH2METER,
                  table=None,
                  physics=None,
                  **kwargs):
@@ -47,12 +48,12 @@ class PoolGame(object):
         self.t = 0.0
         self.ntt = 0.0
 
-    def reset(self):
+    def reset(self, **kwargs):
         """
         Resets the game state, which means: set balls in their initial stationary
         positions; reset physics engine.
         """
-        self.physics.reset()
+        self.physics.reset(**kwargs)
         self.ball_positions[:] = self.table.calc_racked_positions()
         self.ball_velocities[:] = 0
         self.ball_angular_velocities[:] = 0

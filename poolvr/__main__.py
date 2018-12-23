@@ -38,8 +38,12 @@ def parse_args():
     parser.add_argument('-r', '--realtime',
                         action='store_true',
                         help='use the realtime version (for interactive usage) of the event-based physics engine')
+    parser.add_argument('--balls-on-table',
+                        help='comma-separated list of balls on table',
+                        default=','.join(str(n) for n in range(16)))
     args = parser.parse_args()
     args.msaa = int(args.msaa)
+    args.balls_on_table = [int(n) for n in args.balls_on_table.split(',')]
     return args
 
 
@@ -65,7 +69,8 @@ def main():
                     cube_map=None,
                     speed=args.speed,
                     glyphs=args.glyphs,
-                    realtime=args.realtime)
+                    realtime=args.realtime,
+                    balls_on_table=args.balls_on_table)
 
 
 if __name__ == "__main__":

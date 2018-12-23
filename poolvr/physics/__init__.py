@@ -137,7 +137,7 @@ class PoolPhysics(object):
             balls_on_table = range(self.num_balls)
         self.balls_on_table = balls_on_table
         if ball_positions is None:
-            ball_positions = self.table.calc_racked_positions()[self.balls_on_table]
+            ball_positions = self.table.calc_racked_positions()
         else:
             ball_positions = ball_positions[self.balls_on_table]
         self.t = 0.0
@@ -163,11 +163,12 @@ class PoolPhysics(object):
         self._psi_ij[:] = 0
         self._theta_ij[:] = 0
         self._balls_at_rest = set(self.balls_on_table)
-        self._update_positions(update_set=self.balls_on_table,
-                               rest_set=np.empty((0,3), dtype=np.float64),
-                               ball_positions=ball_positions)
-        self._update_occlusion(update_set=self.balls_on_table,
-                               rest_set=np.empty((0,3), dtype=np.float64))
+        if self._enable_occlusion:
+            self._update_positions(update_set=self.balls_on_table,
+                                   rest_set=np.empty((0,3), dtype=np.float64),
+                                   ball_positions=ball_positions)
+            self._update_occlusion(update_set=self.balls_on_table,
+                                   rest_set=np.empty((0,3), dtype=np.float64))
 
     @property
     def ball_collision_model(self):
@@ -362,6 +363,12 @@ class PoolPhysics(object):
 
     def _add_event(self, event):
         self.events.append(event)
+        if isinstance(event, RailCollisionEvent):
+            event.e_i.T = event.t - event.e_i.t
+            _logger.debug('added rail collision event:\n%s', event)
+        elif isinstance(event, BallCollisionEvent):
+            event.e_i.T = event.t - event.e_i.t
+            event.e_j.T = event.t - event.e_j.t
         if isinstance(event, BallEvent):
             i = event.i
             if self.ball_events[i]:
@@ -475,7 +482,8 @@ class PoolPhysics(object):
                         if self.table.is_position_in_bounds(r_n, 0.99*R):
                             times[side] = e_i.t + tau_n
         if times:
-            _logger.debug('times:\n%s', '\n'.join('%s: %s' % item for item in times.items()))
+            _logger.debug('\ni = %s, times:\n%s',
+                          e_i.i, '\n'.join('%s: %s' % item for item in times.items()))
             return min((t, side, e_i) for side, t in times.items())
 
     def _find_collision(self, e_i, e_j, t_min):
