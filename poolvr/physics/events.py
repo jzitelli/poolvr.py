@@ -4,6 +4,8 @@ import numpy as np
 
 
 INCH2METER = 0.0254
+_k = np.array([0, 1, 0],        # upward-pointing basis vector :math:`\hat{k}`
+              dtype=np.float64) # of any ball-centered frame, following the convention of Marlow
 
 
 from ..decorators import allocs_out, allocs_out_vec4
@@ -20,7 +22,6 @@ class PhysicsEvent(object):
     g = 9.81 # magnitude of acceleration due to gravity
     _ZERO_TOLERANCE = 1e-8
     _ZERO_TOLERANCE_SQRD = _ZERO_TOLERANCE**2
-    _k = np.array((0,1,0), dtype=np.float64) # upward-pointing basis vector :math:`\hat{k}` of any ball-centered frame, following the convention of Marlow
     def __init__(self, t, T=0.0, parent_event=None, **kwargs):
         """
         Base class of pool physics events.
@@ -251,7 +252,7 @@ class BallMotionEvent(BallEvent):
             omega = self.eval_angular_velocity(tau)
         if out is None:
             out = np.empty(3, dtype=np.float64)
-        out[:] = v + self.ball_radius * np.cross(self._k, omega)
+        out[:] = v + self.ball_radius * np.cross(_k, omega)
         return out
     @allocs_out_vec4
     def eval_quaternion(self, tau, out=None):
@@ -289,7 +290,7 @@ class BallRollingEvent(BallMotionEvent):
 class BallSlidingEvent(BallMotionEvent):
     def __init__(self, t, i, r_0, v_0, omega_0, **kwargs):
         R = self.ball_radius
-        u_0 = v_0 + R * np.cross(self._k, omega_0)
+        u_0 = v_0 + R * np.cross(_k, omega_0)
         u_0_mag = np.sqrt(u_0.dot(u_0))
         T = 2 * u_0_mag / (7 * self.mu_s * self.g)
         super().__init__(t, i, T=T, r_0=r_0, v_0=v_0, omega_0=omega_0, **kwargs)
@@ -297,7 +298,7 @@ class BallSlidingEvent(BallMotionEvent):
         self._u_0_mag = u_0_mag
         self._a[2] = -0.5 * self.mu_s * self.g * u_0 / u_0_mag
         self._b[0] = omega_0
-        self._b[1,::2] = 5 * self.mu_s * self.g / (2 * R) * np.cross(self._k, u_0 / u_0_mag)[::2]
+        self._b[1,::2] = 5 * self.mu_s * self.g / (2 * R) * np.cross(_k, u_0 / u_0_mag)[::2]
         self._b[1,1] = -np.sign(omega_0[1]) * 5 * self.mu_sp * self.g / (2 * R)
         omega_1 = self.eval_angular_velocity(T)
         self._next_motion_event = BallRollingEvent(t + T, i,
@@ -317,7 +318,6 @@ class CueStrikeEvent(BallEvent):
         """
         super().__init__(t, i)
         m, R, I = self.ball_mass, self.ball_radius, self.ball_I
-        _k = self._k
         V = V.copy()
         V[1] = 0 # temporary: set vertical to 0
         self.V = V
@@ -359,7 +359,9 @@ class RailCollisionEvent(BallEvent):
         tau = t - e_i.t
         self._r_1 = e_i.eval_position(tau)
         self._v_1 = e_i.eval_velocity(tau)
+        omega_1 = e_i.eval_angular_velocity(tau)
         self._omega_1 = np.zeros(3, dtype=np.float64) #e_i.eval_angular_velocity(tau)
+        self._omega_1[1] = 0.9*omega_1[1]
         self._child_events = None
     @property
     def child_events(self):
