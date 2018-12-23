@@ -61,6 +61,7 @@ class PoolGame(object):
         self.ball_quaternions[:,3] = 1
         self.t = 0.0
         self.ntt = 0.0
+        _logger.debug('game reset')
 
     @property
     def num_balls(self):

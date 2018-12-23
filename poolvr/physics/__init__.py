@@ -363,9 +363,9 @@ class PoolPhysics(object):
 
     def _add_event(self, event):
         self.events.append(event)
+        _logger.debug('added event:\n%s', event)
         if isinstance(event, RailCollisionEvent):
             event.e_i.T = event.t - event.e_i.t
-            _logger.debug('added rail collision event:\n%s', event)
         elif isinstance(event, BallCollisionEvent):
             event.e_i.T = event.t - event.e_i.t
             event.e_j.T = event.t - event.e_j.t
@@ -404,6 +404,7 @@ class PoolPhysics(object):
             self._sanity_check(event)
 
     def _determine_next_event(self):
+        _logger.debug('determining next event...')
         next_motion_event = min(e.next_motion_event
                                 for e in self._ball_motion_events.values()
                                 if e.next_motion_event is not None)
@@ -412,10 +413,12 @@ class PoolPhysics(object):
         else:
             t_min = float('inf')
         next_collision = None
+        rail_collisions = {}
         for i in sorted(self.balls_in_motion):
             e_i = self.ball_events[i][-1]
             rail_collision = self._find_rail_collision(e_i)
             if rail_collision and rail_collision[0] < t_min:
+                rail_collisions[i] = rail_collision
                 t_min = rail_collision[0]
             for j in self.balls_on_table:
                 if j <= i and j in self.balls_in_motion:
@@ -427,8 +430,9 @@ class PoolPhysics(object):
                 if t_c is not None and t_c < t_min:
                     t_min = t_c
                     next_collision = (t_c, e_i, e_j)
-        if rail_collision is not None and t_min == rail_collision[0]:
-            return RailCollisionEvent(t=rail_collision[0], e_i=rail_collision[2], side=rail_collision[1])
+        for i, rail_collision in rail_collisions.items():
+            if rail_collision[0] == t_min:
+                return RailCollisionEvent(t=rail_collision[0], e_i=self.ball_events[i][-1], side=rail_collision[1])
         if next_collision is not None:
             t_c, e_i, e_j = next_collision
             return self._ball_collision_event_class(t_c, e_i, e_j)
@@ -484,7 +488,7 @@ class PoolPhysics(object):
         if times:
             _logger.debug('\ni = %s, times:\n%s',
                           e_i.i, '\n'.join('%s: %s' % item for item in times.items()))
-            return min((t, side, e_i) for side, t in times.items())
+            return min((t, side) for side, t in times.items())
 
     def _find_collision(self, e_i, e_j, t_min):
         if e_j.parent_event and e_i.parent_event and e_j.parent_event == e_i.parent_event:
