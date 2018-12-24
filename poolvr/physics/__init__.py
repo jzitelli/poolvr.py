@@ -151,8 +151,6 @@ class PoolPhysics(object):
             e._r[:] = ball_positions[ii]
             e.t = self.t
             e.T = float('inf')
-        for e, r in zip(self._BALL_REST_EVENTS, ball_positions):
-            e._r[:] = r
         self.ball_events = {i: [self._BALL_REST_EVENTS[i]]
                             for i in self.balls_on_table}
         self.events = list(chain.from_iterable(self.ball_events.values()))

@@ -111,7 +111,7 @@ class PoolTable(object):
         vertices[1, 2, 0] = vertices[0, 2, 0]
         vertices.reshape(-1,3)[:] = rotation.dot(vertices.reshape(-1,3).T).T
         vertices.reshape(-1,3)[:,2] += 0.25 * self.length
-        vertices.reshape(-1,3)[:,0] += 0.5 * W_playable
+        vertices.reshape(-1,3)[:,0] += 0.5 * self.width - 0.5*W_cushion
         self.rightHeadCushionGeom = HexaPrimitive(vertices=vertices)
         rotation = np.array([[ 0.0, 0.0,  1.0],
                              [ 0.0, 1.0,  0.0],
@@ -121,7 +121,7 @@ class PoolTable(object):
         vertices[1, 3, 0] = vertices[0, 3, 0]
         vertices.reshape(-1,3)[:] = rotation.dot(vertices.reshape(-1,3).T).T
         vertices.reshape(-1,3)[:,2] += 0.25 * self.length
-        vertices.reshape(-1,3)[:,0] -= 0.5 * W_playable
+        vertices.reshape(-1,3)[:,0] -= 0.5 * self.width - 0.5*W_cushion
         self.leftHeadCushionGeom = HexaPrimitive(vertices=vertices)
         vertices = self.rightHeadCushionGeom.attributes['vertices'].copy()
         vertices.reshape(-1,3)[:,2] *= -1
