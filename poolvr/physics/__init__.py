@@ -164,6 +164,7 @@ class PoolPhysics(object):
         self._psi_ij[:] = 0
         self._theta_ij[:] = 0
         self._balls_at_rest = set(self.balls_on_table)
+        self._collisions = {}
         if self._enable_occlusion:
             self._update_positions(update_set=self.balls_on_table,
                                    rest_set=np.empty((0,3), dtype=np.float64),
@@ -364,7 +365,6 @@ class PoolPhysics(object):
 
     def _add_event(self, event):
         self.events.append(event)
-        _logger.debug('added event:\n%s', event)
         if isinstance(event, RailCollisionEvent):
             event.e_i.T = event.t - event.e_i.t
         elif isinstance(event, BallCollisionEvent):
@@ -372,6 +372,9 @@ class PoolPhysics(object):
             event.e_j.T = event.t - event.e_j.t
         if isinstance(event, BallEvent):
             i = event.i
+            self._collisions.pop(i, None)
+            for v in self._collisions.values():
+                v.pop(i, None)
             if self.ball_events[i]:
                 last_ball_event = self.ball_events[i][-1]
                 if event.t < last_ball_event.t + last_ball_event.T:
@@ -405,7 +408,6 @@ class PoolPhysics(object):
             self._sanity_check(event)
 
     def _determine_next_event(self):
-        _logger.debug('determining next event...')
         next_motion_event = min(e.next_motion_event
                                 for e in self._ball_motion_events.values()
                                 if e.next_motion_event is not None)
@@ -416,6 +418,9 @@ class PoolPhysics(object):
         next_collision = None
         rail_collisions = {}
         for i in sorted(self.balls_in_motion):
+            if i not in self._collisions:
+                self._collisions[i] = {}
+            collisions = self._collisions[i]
             e_i = self.ball_events[i][-1]
             rail_collision = self._find_rail_collision(e_i)
             if rail_collision and rail_collision[0] < t_min:
@@ -425,9 +430,17 @@ class PoolPhysics(object):
                 if j <= i and j in self.balls_in_motion:
                     continue
                 e_j = self.ball_events[j][-1]
-                if self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j]:
-                    continue
-                t_c = self._find_collision(e_i, e_j, t_min)
+                # if self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j]:
+                #     t_c = None
+                # else:
+                #     t_c = self._find_collision(e_i, e_j, t_min)
+                if j not in collisions:
+                    if self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j]:
+                        t_c = None
+                    else:
+                        t_c = self._find_collision(e_i, e_j, float('inf'))
+                    collisions[j] = t_c
+                t_c = collisions[j]
                 if t_c is not None and t_c < t_min:
                     t_min = t_c
                     next_collision = (t_c, e_i, e_j)
@@ -709,7 +722,6 @@ event: %s
 
     def glyph_meshes(self, t):
         if self._velocity_meshes is None:
-            _logger.debug('initializing arrow meshes')
             from ..gl_rendering import Material, Mesh
             from ..primitives import ArrowMesh
             from ..techniques import LAMBERT_TECHNIQUE
