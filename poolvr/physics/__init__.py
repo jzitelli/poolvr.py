@@ -109,7 +109,7 @@ class PoolPhysics(object):
         self._balls_on_table = balls_on_table
         self._balls_at_rest = set(balls_on_table)
         self._on_table = np.array(self.num_balls * [False])
-        self._on_table[np.array(balls_on_table, dtype=np.int64)] = True
+        self._on_table[np.array(balls_on_table, dtype=np.int32)] = True
         self._realtime = realtime
         self._collision_search_time_limit = collision_search_time_limit
         self._collision_search_time_forward = collision_search_time_forward
@@ -166,11 +166,7 @@ class PoolPhysics(object):
         self._balls_at_rest = set(self.balls_on_table)
         self._collisions = {}
         if self._enable_occlusion:
-            self._update_positions(update_set=self.balls_on_table,
-                                   rest_set=np.empty((0,3), dtype=np.float64),
-                                   ball_positions=ball_positions)
-            self._update_occlusion(update_set=self.balls_on_table,
-                                   rest_set=np.empty((0,3), dtype=np.float64))
+            self._update_occlusion({e.i: e._r for e in self._BALL_REST_EVENTS})
 
     @property
     def ball_collision_model(self):
@@ -187,7 +183,7 @@ class PoolPhysics(object):
         return self._balls_on_table
     @balls_on_table.setter
     def balls_on_table(self, balls):
-        self._balls_on_table = np.array(balls, dtype=np.int64)
+        self._balls_on_table = np.array(balls, dtype=np.int32)
         self._balls_on_table.sort()
         self._on_table[:] = False
         self._on_table[self._balls_on_table] = True
@@ -379,14 +375,6 @@ class PoolPhysics(object):
                 last_ball_event = self.ball_events[i][-1]
                 if event.t < last_ball_event.t + last_ball_event.T:
                     last_ball_event.T = event.t - last_ball_event.t
-            if self._enable_occlusion and isinstance(event, BallStationaryEvent):
-                update_set = [i]
-                rest_set = sorted(self.balls_at_rest)
-                # update_set = self.balls_on_table
-                # rest_set = [i for i in range(self.num_balls)
-                #             if i not in self.balls_on_table]
-                self._update_positions(update_set=update_set, rest_set=rest_set, ball_positions=[event._r_0])
-                self._update_occlusion(update_set=update_set, rest_set=rest_set)
             self.ball_events[i].append(event)
             if isinstance(event, BallStationaryEvent):
                 if i in self._ball_motion_events:
@@ -395,6 +383,8 @@ class PoolPhysics(object):
                 self._a_ij_mag[i,i] = 0
                 self._a_ij_mag[i,:] = self._a_ij_mag[:,i] = self._a_ij_mag.diagonal()
                 self._balls_at_rest.add(event.i)
+                if self._enable_occlusion and isinstance(event, BallStationaryEvent):
+                    self._update_occlusion({i: event._r})
             elif isinstance(event, BallMotionEvent):
                 self._ball_motion_events[i] = event
                 self._a_ij[i] = event.acceleration
@@ -560,84 +550,37 @@ class PoolPhysics(object):
                     and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
                    default=None)
 
-    def _update_positions(self, update_set, rest_set, ball_positions):
+    def _update_occlusion(self, ball_positions=None):
         r_ij = self._r_ij
-        r_ij_mag = self._r_ij_mag
-        theta_ij = self._theta_ij
-        psi_ij = self._psi_ij
-        U = np.array(update_set, dtype=np.int64)
-        R = np.array(rest_set, dtype=np.int64)
-        r_ij[U,U] = ball_positions
-        # _logger.debug('''
-
-        # ball_positions:
-        # %s
-
-        # r_ij.diagonal().T:
-        # %s
-
-        # ''', ball_positions, r_ij.diagonal().T)
-        # self._r_ij = r_ij = np.empty((ball_positions.shape[0],
-        #                               ball_positions.shape[0],
-        #                               3), dtype=np.float64)
-        # r_ij[:] = [[ball_positions[i] - ball_positions[j]
-        #             for j in range(ball_positions.shape[0])]
-        #            for i in range(ball_positions.shape[0])]
-        # iss = np.array(range(ball_positions.shape[0]), dtype=np.int64)
-        # r_ij[iss,iss] = ball_positions
-        U.sort(); R.sort()
-        if len(R) > 0:
-            F = np.hstack((U, R))
-        else:
-            F = U
-        # for ii, i in enumerate(U):
-        #     r_ij[i,:ii] = -ball_positions[U[:ii]] + ball_positions[i]
-        #     r_ij[i,i] = ball_positions[i]
-        for ii, i in enumerate(U):
-            #F_i = F[len(U):]
-            F_i = F[ii+1:]
-            if len(F_i) == 0:
-                continue
-            r_ij[i,F_i] = r_ij[F_i,F_i] - ball_positions[ii]
-            r_ij[F_i,i] = -r_ij[i,F_i]
-            theta_ij[i,F_i] = np.arctan2(r_ij[i,F_i,2], r_ij[i,F_i,0])
-            theta_ij[F_i,i] = PIx2 - theta_ij[i,F_i]
-            r_ij_mag[i,F_i] = np.linalg.norm(r_ij[i,F_i], axis=1)
-            r_ij_mag[F_i,i] = r_ij_mag[i,F_i]
-            # if (r_ij_mag[i,F_i] == 0).any():
-            #     _logger.debug('''
-            #     ball_positions = %s
-            #     i = %s,
-            #     F_i = %s
-            #     r_ij_mag[i,F_i] = %s
-            #     ''',
-            #                   printit(ball_positions), i,
-            #                   printit(F_i), printit(r_ij_mag[i,F_i]))
-            #     from sys import stdout
-            #     stdout.flush()
-            psi_ij[i,F_i] = np.arcsin(self.ball_diameter / r_ij_mag[i,F_i])
-            psi_ij[F_i,i] = psi_ij[i,F_i]
-            #psi_ij[F_i,i] = -psi_ij[i,F_i]
-
-    def _update_occlusion(self, update_set, rest_set, ball_positions=None):
-        U = np.array(update_set, dtype=np.int64)
-        R = np.array(rest_set, dtype=np.int64)
-        U.sort(); R.sort()
-        if len(R) > 0:
-            F = np.hstack((U, R))
-        else:
-            F = U
-        occ_ij = self._occ_ij
         r_ij_mag = self._r_ij_mag
         thetas_ij = self._theta_ij
         psi_ij = self._psi_ij
+        occ_ij = self._occ_ij
+        if ball_positions is None:
+            ball_positions = {}
+        balls, positions = zip(*sorted(ball_positions.items()))
+        balls = np.array(balls, dtype=np.int32)
+        argsort = balls.argsort()
+        positions = np.array(positions)[argsort]
+        U = balls[argsort]
+        r_ij[U,U] = positions
+        R = np.array([i for i in self.balls_at_rest
+                      if i not in U], dtype=np.int32); R.sort()
+        M = np.array(sorted(self.balls_in_motion), dtype=np.int32)
+        occ_ij[M,:] = occ_ij[:,M] = False
+        occ_ij[M,M] = True
+        if len(R) > 0:
+            F = np.hstack((U, R))
+        else:
+            F = U
         for ii, i in enumerate(U):
-            # occ_ij[i,U] = occ_ij[U,i] = False
             F_i = F[ii+1:]
-            #F_i = F[len(U):]
             if len(F_i) == 0:
                 continue
-            # F_i = F
+            r_ij[i,F_i] = r_ij[F_i,F_i] - r_ij[i,i]
+            r_ij_mag[i,F_i] = np.linalg.norm(r_ij[i,F_i], axis=1)
+            thetas_ij[i,F_i] = np.arctan2(r_ij[i,F_i,2], r_ij[i,F_i,0])
+            psi_ij[i,F_i] = np.arcsin(self.ball_diameter / r_ij_mag[i,F_i])
             jj_sorted = r_ij_mag[i,F_i].argsort()
             j_sorted = F_i[jj_sorted]
             theta_i = thetas_ij[i,j_sorted]

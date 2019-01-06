@@ -72,7 +72,7 @@ class PoolTable(object):
     @property
     def ball_meshes(self):
         if self._ball_meshes is None:
-            self._setup_ball_meshes()
+            self._setup_ball_meshes(striped_balls=list(range(9,16)))
         return self._ball_meshes
 
     def _setup_mesh(self):
@@ -173,8 +173,8 @@ class PoolTable(object):
             if striped_balls is None:
                 striped_balls = set()
             else:
-                stripe_prim = SpherePrimitive(radius=1.012*self.ball_radius, phiStart=0.0, phiLength=2*np.pi,
-                                              thetaStart=np.pi/3, thetaLength=np.pi/3)
+                stripe_prim = SpherePrimitive(radius=1.005*self.ball_radius, phiStart=0.0, phiLength=2*np.pi,
+                                              thetaStart=0.9*np.pi/3, thetaLength=1.1*np.pi/3)
                 stripe_prim.attributes['a_position'] = stripe_prim.attributes['vertices']
             circle_prim = CirclePrimitive(radius=self.ball_radius, num_radial=16)
             circle_prim.attributes['a_position'] = circle_prim.attributes['vertices']
@@ -201,7 +201,7 @@ class PoolTable(object):
         length = self.length
         ball_diameter = 2*ball_radius
         # triangle racked:
-        out[:,1] = self.height + ball_radius + 0.005
+        out[:,1] = self.height + ball_radius
         side_length = 4 * (self.ball_diameter + d)
         x_positions = np.concatenate([np.linspace(0,                        0.5 * side_length,                         5),
                                       np.linspace(-0.5*(ball_diameter + d), 0.5 * side_length - (ball_diameter + d),   4),
