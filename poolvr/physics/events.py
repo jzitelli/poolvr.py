@@ -83,7 +83,7 @@ class BallEvent(PhysicsEvent):
 class BallStationaryEvent(BallEvent):
     def __init__(self, t, i, r_0=None, q_0=None,
                  psi=0.0, theta=0.0, phi=0.0, **kwargs):
-        super().__init__(t, i, T=float('inf'), **kwargs)
+        super().__init__(t, i, **kwargs)
         if q_0 is None:
             q_0 = self.set_quaternion_from_euler_angles(psi=psi, theta=theta, phi=phi)
         self._q_0 = self._q = q_0
@@ -124,14 +124,30 @@ class BallStationaryEvent(BallEvent):
         return super().__str__()[:-1] + '\n r=%s>' % self._r
 
 
+class BallRestEvent(BallStationaryEvent):
+    def __init__(self, t, i, **kwargs):
+        super().__init__(t, i, T=float('inf'), **kwargs)
+    @allocs_out_vec4
+    def eval_quaternion(self, tau, out=None):
+        out[:] = self._q
+        return out
+    @allocs_out
+    def eval_angular_velocity(self, tau, out=None):
+        out[:] = 0
+        return out
+
+
 class BallSpinningEvent(BallStationaryEvent):
     def __init__(self, t, i, r_0, omega_0_y, **kwargs):
         R = self.ball_radius
-        super().__init__(t, i, r_0=r_0, **kwargs)
         self._omega_0_y = omega_0_y
         self._b = -5 * np.sign(omega_0_y) * self.mu_sp * self.g / (2 * R)
-        self.T = T = abs(omega_0_y / self._b)
+        T = abs(omega_0_y / self._b)
+        super().__init__(t, i, r_0=r_0, T=T, **kwargs)
         self._next_motion_event = BallRestEvent(t + T, i, r_0=r_0)
+    @property
+    def next_motion_event(self):
+        return self._next_motion_event
     @allocs_out_vec4
     def eval_quaternion(self, tau, out=None):
         out[:] = self._q
@@ -139,21 +155,8 @@ class BallSpinningEvent(BallStationaryEvent):
     @allocs_out
     def eval_angular_velocity(self, tau, out=None):
         out[:] = 0
-        if self._omega_0_y >= 0:
-            out[1] = max(0, self._omega_0_y + self._b * tau)
-        else:
-            out[1] = min(0, self._omega_0_y + self._b * tau)
-        return out
-
-
-class BallRestEvent(BallStationaryEvent):
-    @allocs_out_vec4
-    def eval_quaternion(self, tau, out=None):
-        out[:] = self._q
-        return out
-    @allocs_out
-    def eval_angular_velocity(self, tau, out=None):
-        out[:] = 0
+        if 0 <= tau <= self.T:
+            out[1] = self._omega_0_y + self._b * tau
         return out
 
 
