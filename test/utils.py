@@ -113,7 +113,7 @@ def plot_ball_motion(i, physics,
                 _logger.warning('error saving figure:\n%s', err)
         if show:
             plt.show()
-        plt.close(fig=figure)
+        plt.close()
 
 
 def plot_motion_timelapse(physics, table=None,
@@ -172,7 +172,7 @@ def plot_motion_timelapse(physics, table=None,
             _logger.warning('error saving figure:\n%s', err)
     if show:
         plt.show()
-    plt.close(fig=figure)
+    plt.close()
 
 
 def plot_energy(physics, title=None, nt=1000,
@@ -204,4 +204,4 @@ def plot_energy(physics, title=None, nt=1000,
             _logger.warning('error saving figure:\n%s', err)
     if show:
         plt.show()
-    plt.close(fig=figure)
+    plt.close()

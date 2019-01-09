@@ -156,7 +156,7 @@ class ODEPoolPhysics(object):
         body.setAngularVel(omega)
         self._t_last_strike = t
         self._add_event(CueStrikeEvent(t, i, r_i, Q + r_i, V, cue_mass))
-        self._add_event(BallRestEvent(t + 12, i, r_i))
+        self._add_event(BallRestEvent(t + 12, i, r_0=r_i))
         return 1
 
     def step(self, dt):

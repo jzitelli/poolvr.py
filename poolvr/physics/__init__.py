@@ -190,7 +190,7 @@ class PoolPhysics(object):
 
     @property
     def balls_in_motion(self):
-        return self._ball_motion_events.keys()
+        return list(self._ball_motion_events.keys())
 
     @property
     def balls_at_rest(self):
@@ -558,7 +558,7 @@ class PoolPhysics(object):
         occ_ij = self._occ_ij
         if ball_positions is None:
             ball_positions = {}
-        balls, positions = zip(*sorted(ball_positions.items()))
+        balls, positions = zip(*ball_positions.items())
         balls = np.array(balls, dtype=np.int32)
         argsort = balls.argsort()
         positions = np.array(positions)[argsort]
@@ -566,7 +566,7 @@ class PoolPhysics(object):
         r_ij[U,U] = positions
         R = np.array([i for i in self.balls_at_rest
                       if i not in U], dtype=np.int32); R.sort()
-        M = np.array(sorted(self.balls_in_motion), dtype=np.int32)
+        M = np.array(self.balls_in_motion, dtype=np.int32)
         occ_ij[M,:] = occ_ij[:,M] = False
         occ_ij[M,M] = True
         if len(R) > 0:
