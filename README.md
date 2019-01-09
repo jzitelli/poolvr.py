@@ -47,7 +47,8 @@ python setup.py install
 
 ### 2. INSTALLING `pyopenvr`:
 
-At the moment I am using my own fork of [https://github.com/cmbruns/pyopenvr](https://github.com/cmbruns/pyopenvr).  To clone and install:
+At the moment I am using my own fork of [https://github.com/cmbruns/pyopenvr](https://github.com/cmbruns/pyopenvr).
+To clone and install:
 ```
 git clone https://github.com/jzitelli/pyopenvr.git
 cd pyopenvr
@@ -57,14 +58,19 @@ python setup.py install
 
 ### 3. INSTALLING `ode`:
 
-`ode` is the Python package of bindings for the Open Dynamics Engine.  The library and bindings are built from the same source repository.  To clone the repo and generate a Visual Studio solution (`.sln`) for building the library:
+`ode` is the Python package of bindings for the Open Dynamics Engine.
+This is my own fork of
+The library and bindings are built from the same source repository.
+To clone the repo and generate a Visual Studio solution (`.sln`)
+for building the library:
 ```
 git clone https://github.com/jzitelli/ode.git
 cd ode
 cd build
 premake4.exe --only-shared --only-double --platform=x64 vs2010
 ```
-Then open the generated solution in Visual Studio (probably ok to upgrade the solution to your version of VS if it asks you - I tested successfully with 2015 and 2017).
+Then open the generated solution in Visual Studio
+(probably ok to upgrade the solution to your version of VS if it asks you - I tested successfully with 2015 and 2017).
 Compile a Release build for your target architecture (I believe this should match your version of Python, e.g. x64 or x86).
 It should output a library `ode\lib\Release\ode.dll`.  You should add this location to your PATH environment variable or copy the file to a directory in your PATH.
 

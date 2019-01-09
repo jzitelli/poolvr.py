@@ -13,9 +13,10 @@ from .physics import PoolPhysics
 
 class PoolGame(object):
     """
-    Game state for a pool "game"
+    Game state for a pool "game".
 
     :param ball_colors: array defining a base color for each ball
+    :
     """
     BALL_COLORS = [0xddddde,
                    0xeeee00,
@@ -35,7 +36,7 @@ class PoolGame(object):
         self.ball_colors = ball_colors
         self.ball_radius = ball_radius
         if table is None:
-            table = PoolTable(**kwargs)
+            table = PoolTable(ball_radius=ball_radius, **kwargs)
         self.table = table
         if physics is None:
             physics = PoolPhysics(ball_radius=ball_radius, **kwargs)

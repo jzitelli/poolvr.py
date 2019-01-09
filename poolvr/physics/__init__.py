@@ -700,7 +700,7 @@ event: %s
                     mesh.world_matrix[1,:3] = y
                     x, z = mesh.world_matrix[0,:3], mesh.world_matrix[2,:3]
                     ydotx, ydotz = y.dot(x), y.dot(z)
-                    if ydotx >= ydotz:
+                    if abs(ydotx) >= abs(ydotz):
                         mesh.world_matrix[2,:3] -= ydotz * y
                         mesh.world_matrix[2,:3] /= np.sqrt(mesh.world_matrix[2,:3].dot(mesh.world_matrix[2,:3]))
                         mesh.world_matrix[0,:3] = np.cross(mesh.world_matrix[1,:3], mesh.world_matrix[2,:3])
@@ -720,7 +720,7 @@ event: %s
                     mesh.world_matrix[1,:3] = y
                     x, z = mesh.world_matrix[0,:3], mesh.world_matrix[2,:3]
                     ydotx, ydotz = y.dot(x), y.dot(z)
-                    if ydotx >= ydotz:
+                    if abs(ydotx) >= abs(ydotz):
                         mesh.world_matrix[2,:3] -= ydotz * y
                         mesh.world_matrix[2,:3] /= np.sqrt(mesh.world_matrix[2,:3].dot(mesh.world_matrix[2,:3]))
                         mesh.world_matrix[0,:3] = np.cross(mesh.world_matrix[1,:3], mesh.world_matrix[2,:3])
