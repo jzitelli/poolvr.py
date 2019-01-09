@@ -49,8 +49,8 @@ def test_strike_ball(pool_physics, ball_collision_model,
     V[2] = -0.6
     M = 0.54
     events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
-    _logger.info('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
-                  PhysicsEvent.events_str(events))
+    # _logger.info('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
+    #               PhysicsEvent.events_str(events))
     assert 4 == len(events)
     assert isinstance(events[0], CueStrikeEvent)
     assert isinstance(events[1], BallSlidingEvent)
@@ -73,7 +73,7 @@ def test_ball_collision(pool_physics, ball_collision_model,
                                    v_0=np.array((0.0, 0.0, -0.6)),
                                    omega_0=np.zeros(3, dtype=np.float64))
     events = physics.add_event_sequence(start_event)
-    _logger.info('%d events added:\n\n%s\n', len(events), PhysicsEvent.events_str(events=events))
+    # _logger.info('%d events added:\n\n%s\n', len(events), PhysicsEvent.events_str(events=events))
     assert 6 == len(events)
     assert isinstance(events[0], BallSlidingEvent)
     assert isinstance(events[1], BallRollingEvent)
@@ -105,7 +105,7 @@ def test_angled_ball_collision(pool_physics, ball_collision_model,
                                    v_0=v_0,
                                    omega_0=np.zeros(3, dtype=np.float64))
     events = physics.add_event_sequence(start_event)
-    _logger.info('%d events added:\n\n%s\n', len(events), PhysicsEvent.events_str(events=events))
+    # _logger.info('%d events added:\n\n%s\n', len(events), PhysicsEvent.events_str(events=events))
     # assert 6 == len(events)
     # assert isinstance(events[0], BallSlidingEvent)
     # assert isinstance(events[1], BallRollingEvent)
@@ -130,7 +130,7 @@ def test_sliding_ball_collision(pool_physics, ball_collision_model,
                                    v_0=np.array((0.0, 0.0, -2.0)),
                                    omega_0=np.zeros(3, dtype=np.float64))
     events = physics.add_event_sequence(start_event)
-    _logger.info('%d events added:\n\n%s\n', len(events), PhysicsEvent.events_str(events=events))
+    # _logger.info('%d events added:\n\n%s\n', len(events), PhysicsEvent.events_str(events=events))
     # assert 6 == len(events)
     # assert isinstance(events[0], BallSlidingEvent)
     # assert isinstance(events[1], BallCollisionEvent)
@@ -156,8 +156,8 @@ def test_break(pool_physics,
     events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
     pr.dump_stats('test_break.pstats')
     pr.print_stats()
-    _logger.info('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
-                  PhysicsEvent.events_str(events))
+    # _logger.info('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
+    #               PhysicsEvent.events_str(events))
 
 
 def test_break_and_following_shot(pool_physics, gl_rendering):
@@ -171,8 +171,8 @@ def test_break_and_following_shot(pool_physics, gl_rendering):
     pr = cProfile.Profile()
     pr.enable()
     events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
-    _logger.info('strike #1 on %d resulted in %d events:\n\n%s\n',
-                  0, len(events), PhysicsEvent.events_str(events))
+    # _logger.info('strike #1 on %d resulted in %d events:\n\n%s\n',
+    #              0, len(events), PhysicsEvent.events_str(events))
     ntt = physics.next_turn_time
     ball_positions = physics.eval_positions(ntt)
     r_02 = ball_positions[2] - ball_positions[0]
@@ -183,8 +183,8 @@ def test_break_and_following_shot(pool_physics, gl_rendering):
     events = physics.strike_ball(ntt, 0, ball_positions[0], r_c, V, M)
     pr.dump_stats('test_break_and_following_shot.pstats')
     pr.print_stats()
-    _logger.info('strike #2 on %d resulted in %d events:\n\n%s\n',
-                  0, len(events), PhysicsEvent.events_str(events))
+    # _logger.info('strike #2 on %d resulted in %d events:\n\n%s\n',
+    #               0, len(events), PhysicsEvent.events_str(events))
 
 
 def test_strike_ball_english(pool_physics, gl_rendering):
@@ -202,8 +202,8 @@ def test_strike_ball_english(pool_physics, gl_rendering):
     V[2] = -1.5
     M = 0.54
     events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
-    _logger.info('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
-                  PhysicsEvent.events_str(events))
+    # _logger.info('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
+    #               PhysicsEvent.events_str(events))
 
 
 def test_strike_ball_less_english(pool_physics, gl_rendering):
@@ -221,5 +221,5 @@ def test_strike_ball_less_english(pool_physics, gl_rendering):
     V[2] = -1.5
     M = 0.54
     events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
-    _logger.info('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
-                  PhysicsEvent.events_str(events))
+    # _logger.info('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
+    #               PhysicsEvent.events_str(events))
