@@ -3,12 +3,12 @@ _logger = logging.getLogger(__name__)
 import itertools
 import numpy as np
 import OpenGL.GL as gl
+
+
 try:
     import ode
 except:
-    import fake_ode as ode
-
-
+    from .fake_ode import ode
 from .gl_rendering import Primitive, Mesh
 
 

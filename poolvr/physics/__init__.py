@@ -279,7 +279,7 @@ class PoolPhysics(object):
         if out is None:
             out = np.zeros((len(balls), 3), dtype=np.float64)
         for ii, i in enumerate(balls):
-            events = self.ball_events.get(i, ())
+            events = [e for e in self.ball_events.get(i, ()) if e.T > 0]
             if events:
                 for e in events[:bisect(events, t)][::-1]:
                     if t <= e.t + e.T:
@@ -320,7 +320,7 @@ class PoolPhysics(object):
         if out is None:
             out = np.zeros((len(balls), 3), dtype=np.float64)
         for ii, i in enumerate(balls):
-            events = self.ball_events.get(i, ())
+            events = [e for e in self.ball_events.get(i, ()) if e.T > 0]
             if events:
                 for e in events[:bisect(events, t)][::-1]:
                     if t <= e.t + e.T:
@@ -339,7 +339,7 @@ class PoolPhysics(object):
         if out is None:
             out = np.zeros((len(balls), 3), dtype=np.float64)
         for ii, i in enumerate(balls):
-            events = self.ball_events.get(i, ())
+            events = [e for e in self.ball_events.get(i, ()) if e.T > 0]
             if events:
                 for e in events[:bisect(events, t)][::-1]:
                     if t <= e.t + e.T:
@@ -350,6 +350,7 @@ class PoolPhysics(object):
     def find_active_events(self, t):
         active_events = []
         for i, events in self.ball_events.items():
+            events = [e for e in events if e.T > 0]
             for e in events[:bisect(events, t)][::-1]:
                 if t <= e.t + e.T:
                     active_events.append(e)
