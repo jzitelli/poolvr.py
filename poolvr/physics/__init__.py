@@ -10,4 +10,4 @@ This package implements an event-based pool physics simulator based on the paper
 
 """
 
-from .pool_physics import PoolPhysics, PIx2, RAD2DEG, INCH2METER
+from .pool_physics import PoolPhysics

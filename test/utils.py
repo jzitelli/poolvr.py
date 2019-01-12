@@ -20,7 +20,7 @@ EVENT_COLORS = {CueStrikeEvent: 'green',
                 MarlowBallCollisionEvent: 'blue',
                 SimpleBallCollisionEvent: 'blue',
                 RailCollisionEvent: 'green'}
-BALL_COLORS = {0: 'white',
+BALL_COLORS = {0: 'grey',
                1: 'yellow',
                2: 'blue',
                3: 'red',

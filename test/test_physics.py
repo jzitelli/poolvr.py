@@ -85,8 +85,6 @@ def test_ball_collision(pool_physics, ball_collision_model,
 
 @pytest.mark.parametrize("ball_collision_model", ['simple'])
 def test_angled_ball_collision(pool_physics, ball_collision_model,
-                               plot_motion_z_position,
-                               plot_motion_x_position,
                                plot_motion_timelapse,
                                plot_energy,
                                gl_rendering):
@@ -117,7 +115,6 @@ def test_angled_ball_collision(pool_physics, ball_collision_model,
 
 @pytest.mark.parametrize("ball_collision_model", ['simple'])
 def test_sliding_ball_collision(pool_physics, ball_collision_model,
-                                plot_motion_z_position,
                                 plot_motion_timelapse,
                                 plot_energy,
                                 gl_rendering):
@@ -160,16 +157,14 @@ def test_break(pool_physics,
     #               PhysicsEvent.events_str(events))
 
 
-def test_break_and_following_shot(pool_physics, gl_rendering):
+def test_break_and_following_shot(pool_physics,
+                                  gl_rendering):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
     r_c = ball_positions[0].copy()
     r_c[2] += physics.ball_radius
     V = np.array((-0.01, 0, -1.6), dtype=np.float64)
     M = 0.54
-    import cProfile
-    pr = cProfile.Profile()
-    pr.enable()
     events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
     # _logger.info('strike #1 on %d resulted in %d events:\n\n%s\n',
     #              0, len(events), PhysicsEvent.events_str(events))
@@ -181,13 +176,12 @@ def test_break_and_following_shot(pool_physics, gl_rendering):
     r_c = ball_positions[0] - physics.ball_radius * n_02
     V = 0.99 * n_02
     events = physics.strike_ball(ntt, 0, ball_positions[0], r_c, V, M)
-    pr.dump_stats('test_break_and_following_shot.pstats')
-    pr.print_stats()
     # _logger.info('strike #2 on %d resulted in %d events:\n\n%s\n',
     #               0, len(events), PhysicsEvent.events_str(events))
 
 
-def test_strike_ball_english(pool_physics, gl_rendering):
+def test_strike_ball_english(pool_physics, gl_rendering,
+                             plot_motion_timelapse):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
     r_c = ball_positions[0].copy()
@@ -206,7 +200,8 @@ def test_strike_ball_english(pool_physics, gl_rendering):
     #               PhysicsEvent.events_str(events))
 
 
-def test_strike_ball_less_english(pool_physics, gl_rendering):
+def test_strike_ball_less_english(pool_physics, gl_rendering,
+                                  plot_motion_timelapse):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
     r_c = ball_positions[0].copy()
