@@ -14,7 +14,7 @@ from ..decorators import allocs_out, allocs_out_vec4
 class PhysicsEvent(object):
     ball_radius = 1.125 * INCH2METER
     ball_mass = 0.17
-    ball_I = 2/5 * ball_mass * ball_radius**2
+    ball_I = 2.0/5 * ball_mass * ball_radius**2
     mu_r = 0.016 # coefficient of rolling friction between ball and table
     mu_sp = 0.044 # coefficient of spinning friction between ball and table
     mu_s = 0.2 # coefficient of sliding friction between ball and table
