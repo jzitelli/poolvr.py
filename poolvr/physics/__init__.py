@@ -212,7 +212,10 @@ class PoolPhysics(object):
             return
         #assert abs(np.linalg.norm(r_c - r_i) - self.ball_radius) < self._ZERO_TOLERANCE, 'abs(np.linalg.norm(r_c - r_i) - self.ball_radius) = %s' % abs(np.linalg.norm(r_c - r_i) - self.ball_radius)
         event = CueStrikeEvent(t, i, r_i, r_c, V, M)
-        return self.add_event_sequence(event)
+        if self._realtime:
+            return self.add_event_sequence_realtime(event)
+        else:
+            return self.add_event_sequence(event)
 
     def add_event_sequence(self, event):
         num_events = len(self.events)
@@ -224,13 +227,14 @@ class PoolPhysics(object):
         return self.events[-num_added_events:]
 
     def add_event_sequence_realtime(self, event):
+        num_events = len(self.events)
         self._add_event(event)
-        T = self._collision_search_time_limit
+        T, T_f = self._collision_search_time_limit, self._collision_search_time_forward
         lt = perf_counter()
         while T > 0 and self.balls_in_motion:
             event = self._determine_next_event()
             self._add_event(event)
-            if event.t - self.t > self._collision_search_time_forward:
+            if event.t - self.t > T_f:
                 break
             t = perf_counter()
             T -= t - lt; lt = t
