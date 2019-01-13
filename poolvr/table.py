@@ -173,8 +173,9 @@ class PoolTable(object):
             if striped_balls is None:
                 striped_balls = set()
             else:
-                stripe_prim = SpherePrimitive(radius=1.002*self.ball_radius, phiStart=0.0, phiLength=2*np.pi,
-                                              thetaStart=0.9*np.pi/3, thetaLength=1.1*np.pi/3)
+                stripe_prim = SpherePrimitive(radius=1.001*self.ball_radius,
+                                              heightSegments=8,
+                                              thetaStart=np.pi/3, thetaLength=np.pi/3)
                 stripe_prim.attributes['a_position'] = stripe_prim.attributes['vertices']
             circle_prim = CirclePrimitive(radius=self.ball_radius, num_radial=16)
             circle_prim.attributes['a_position'] = circle_prim.attributes['vertices']
