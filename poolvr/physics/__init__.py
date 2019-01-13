@@ -165,6 +165,8 @@ class PoolPhysics(object):
         self._theta_ij[:] = 0
         self._balls_at_rest = set(self.balls_on_table)
         self._collisions = {}
+        if self._realtime:
+            self._find_collisions = False
         if self._enable_occlusion:
             self._update_occlusion({e.i: e._r for e in self._BALL_REST_EVENTS})
 
@@ -213,6 +215,7 @@ class PoolPhysics(object):
         #assert abs(np.linalg.norm(r_c - r_i) - self.ball_radius) < self._ZERO_TOLERANCE, 'abs(np.linalg.norm(r_c - r_i) - self.ball_radius) = %s' % abs(np.linalg.norm(r_c - r_i) - self.ball_radius)
         event = CueStrikeEvent(t, i, r_i, r_c, V, M)
         if self._realtime:
+            self._find_collisions = True
             return self.add_event_sequence_realtime(event)
         else:
             return self.add_event_sequence(event)
@@ -246,9 +249,9 @@ class PoolPhysics(object):
         return self.events[-1].t \
             if self.events and isinstance(self.events[-1], BallRestEvent) else 0.0
 
-    def step(self, dt, **kwargs):
+    def step(self, dt):
         if self._realtime:
-            self.step_realtime(dt, **kwargs)
+            self._find_collisions = self.step_realtime(dt, find_collisions=self._find_collisions)
         else:
             self.t += dt
 
@@ -256,7 +259,7 @@ class PoolPhysics(object):
                       find_collisions=True):
         self.t += dt
         if not find_collisions:
-            return
+            return False
         T = self._collision_search_time_limit
         t_max = self.t + self._collision_search_time_forward
         lt = perf_counter()
@@ -265,12 +268,12 @@ class PoolPhysics(object):
             if event:
                 self._add_event(event)
                 if event.t >= t_max:
-                    return self.balls_in_motion
+                    return bool(self.balls_in_motion)
             t = perf_counter()
             dt = t - lt; lt = t
             T -= dt
         if T <= 0:
-            return self.balls_in_motion
+            return bool(self.balls_in_motion)
 
     def eval_positions(self, t, balls=None, out=None):
         """
