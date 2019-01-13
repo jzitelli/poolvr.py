@@ -234,7 +234,8 @@ class PoolPhysics(object):
                 break
             t = perf_counter()
             T -= t - lt; lt = t
-        return event.t - self.t
+        num_added_events = len(self.events) - num_events
+        return self.events[-num_added_events:]
 
     @property
     def next_turn_time(self):
