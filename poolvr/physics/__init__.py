@@ -78,10 +78,6 @@ class PoolPhysics(object):
             raise Exception('dont know that collision model!')
         self.num_balls = num_balls
         # allocate for lower-level memory management:
-        self._BALL_MOTION_EVENTS = [BallMotionEvent(0.0, i, float('inf'),
-                                                    a=np.zeros((3,3), dtype=np.float64),
-                                                    b=np.zeros((2,3), dtype=np.float64))
-                                    for i in range(self.num_balls)]
         self._BALL_REST_EVENTS = [BallRestEvent(0.0, i, r=np.zeros(3, dtype=np.float64))
                                   for i in range(self.num_balls)]
         if table is None:
@@ -134,11 +130,6 @@ class PoolPhysics(object):
         else:
             ball_positions = ball_positions[self.balls_on_table]
         self.t = 0.0
-        for e in self._BALL_MOTION_EVENTS:
-            e._a[:] = 0
-            e._b[:] = 0
-            e.t = self.t
-            e.T = 0.0
         for ii, i in enumerate(self.balls_on_table):
             e = self._BALL_REST_EVENTS[i]
             e._r[:] = ball_positions[ii]
