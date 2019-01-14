@@ -6,7 +6,7 @@ import OpenGL.GL as gl
 try:
     import ode
 except Exception:
-    import fake_ode as ode
+    import poolvr.fake_ode as ode
 
     
 from .gl_rendering import Primitive, Mesh
