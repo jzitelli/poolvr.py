@@ -2,25 +2,22 @@
 Open Dynamics Engine-based pool physics simulator
 """
 import logging
-_logger = logging.getLogger(__name__)
 import numpy as np
+import ode
 
 
 from .table import PoolTable
 from .physics.events import BallRestEvent, CueStrikeEvent
-from .sound import play_ball_ball_collision_sound
-
 try:
-    import ode
-except ImportError as err:
-    _logger.error(err)
-    # import fake_ode as ode
-    raise err
+    from .sound import play_ball_ball_collision_sound
+except Exception:
+    play_ball_ball_collision_sound = None
 
 
 INCH2METER = 0.0254
 ZERO3 = np.zeros(3, dtype=np.float64)
 _J = np.array([0.0, 1.0, 0.0], dtype=np.float64)
+_logger = logging.getLogger(__name__)
 
 
 class ODEPoolPhysics(object):
@@ -325,10 +322,11 @@ class ODEPoolPhysics(object):
                 # ball-ball contact
                 c.setBounce(0.93)
                 c.setMu(0.13)
-                pos, normal, depth, g1, g2 = c.getContactGeomParams()
-                v_n = abs(np.array(normal).dot(np.array(body1.getLinearVel()) - np.array(body2.getLinearVel())))
-                vol = max(0.02, min(0.8, 0.45*v_n + 0.55*v_n**2))
-                if vol > 0.02:
-                    play_ball_ball_collision_sound(vol=vol)
+                if play_ball_ball_collision_sound is not None:
+                    pos, normal, depth, g1, g2 = c.getContactGeomParams()
+                    v_n = abs(np.array(normal).dot(np.array(body1.getLinearVel()) - np.array(body2.getLinearVel())))
+                    vol = max(0.02, min(0.8, 0.45*v_n + 0.55*v_n**2))
+                    if vol > 0.02:
+                        play_ball_ball_collision_sound(vol=vol)
             j = ode.ContactJoint(world, contactgroup, c)
             j.attach(body1, body2)

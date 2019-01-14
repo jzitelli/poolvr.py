@@ -1,15 +1,18 @@
-import logging
-_logger = logging.getLogger(__name__)
 import itertools
+import logging
 import numpy as np
 import OpenGL.GL as gl
+
 try:
     import ode
-except:
+except Exception:
     import fake_ode as ode
 
-
+    
 from .gl_rendering import Primitive, Mesh
+
+
+_logger = logging.getLogger(__name__)
 
 
 def triangulate_quad(quad_face, flip_normals=False):
