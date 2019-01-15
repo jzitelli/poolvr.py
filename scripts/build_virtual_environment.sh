@@ -16,14 +16,21 @@ if [[ ! -d "${venv_path}" ]]; then
     # set +x
 fi
 
-echo "activating virtual environment in ${venv_path}..."
-if [[ "$OS" == "Windows_NT" ]]; then 
-    source "./${venv_path}/Scripts/activate"
+# echo "activating virtual environment in ${venv_path}..."
+#if [[ "$OS" == "Windows_NT" ]]; then
+if [[ -e "./${venv_path}/Scripts/activate" ]]; then
+    #source "./${venv_path}/Scripts/activate"
+    bindir="./${venv_path}/Scripts"
+elif [[ -e "./${venv_path}/bin/activate" ]]; then
+    #source "./${venv_path}/bin/activate"
+    bindir="./${venv_path}/bin"
 else
-    source "./${venv_path}/bin/activate"
+    echo "can't find \"./${venv_path}/Scripts/activate\" or \"./${venv_path}/bin/activate\""
+    exit 1
 fi
 # set -x
 echo "installing requirements from requirements.txt..."
-pip install -r requirements.txt
-echo "deactivating virtual environment..."
-deactivate
+$bindir/pip install -r requirements.txt
+# ./venv/pip install -r requirements.txt
+# echo "deactivating virtual environment..."
+# deactivate
