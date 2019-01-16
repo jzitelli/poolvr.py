@@ -29,8 +29,6 @@ else
     exit 1
 fi
 # set -x
+$bindir/pip install --upgrade pip
 echo "installing requirements from requirements.txt..."
 $bindir/pip install -r requirements.txt
-# ./venv/pip install -r requirements.txt
-# echo "deactivating virtual environment..."
-# deactivate
