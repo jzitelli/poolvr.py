@@ -514,22 +514,22 @@ class PoolPhysics(object):
         p[3] = 2 * b_x*c_x + 2 * b_y*c_y
         p[4] = c_x**2 + c_y**2 - 4 * self.ball_radius**2
         try:
-            roots = np.roots(p)
+            return self._filter_roots(np.roots(p), t0, t1)
         except np.linalg.linalg.LinAlgError as err:
             _logger.warning('LinAlgError occurred during solve for collision time:\np = %s\nerror:\n%s', p, err)
-            return None
+
+    def _filter_roots(self, roots, t0, t1):
         # filter out possible complex-conjugate pairs of roots:
-        def find_z(roots):
-            return next(((i, z) for i, z in enumerate(roots) if z.imag != 0), (None, None))
-        def find_z_conj(roots, i, z):
-            return next((j for j, z_conj in enumerate(roots[i+1:])
-                         if  abs(z.real - z_conj.real) < self._ZERO_TOLERANCE
-                         and abs(z.imag + z_conj.imag) < self._ZERO_TOLERANCE), None)
         mask = self._mask; mask[:] = True
         for n in range(2):
-            i, z = find_z(roots)
+            i, z = next(((i, z) for i, z in enumerate(roots)
+                         if abs(z.imag) >= PoolPhysics._ZERO_TOLERANCE),
+                        (None, None))
             if z is not None:
-                j = find_z_conj(roots, i, z)
+                j = next((j for j, z_conj in enumerate(roots[i+1:])
+                          if  abs(z.real - z_conj.real) < PoolPhysics._ZERO_TOLERANCE
+                          and abs(z.imag + z_conj.imag) < PoolPhysics._ZERO_TOLERANCE),
+                         None)
                 if j is not None:
                     mask[i] = False; mask[i+j+1] = False
                     roots = roots[mask[:len(roots)]]
