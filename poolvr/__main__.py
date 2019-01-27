@@ -41,6 +41,8 @@ def parse_args():
     parser.add_argument('--balls-on-table',
                         help='comma-separated list of balls on table',
                         default=','.join(str(n) for n in range(16)))
+    parser.add_argument('--technique', help='overall gl_rendering technique; possible values: ega, lambert',
+                        default='lambert')
     args = parser.parse_args()
     args.msaa = int(args.msaa)
     args.balls_on_table = [int(n) for n in args.balls_on_table.split(',')]
@@ -61,6 +63,7 @@ def main():
         import poolvr.sound
         poolvr.sound.set_output_sound_device(args.sound_device)
     import poolvr.app
+    from poolvr.techniques import LAMBERT_TECHNIQUE, EGA_TECHNIQUE
     poolvr.app.main(novr=args.novr,
                     ball_collision_model=args.collision_model,
                     use_ode=args.ode,
@@ -70,7 +73,8 @@ def main():
                     speed=args.speed,
                     glyphs=args.glyphs,
                     realtime=args.realtime,
-                    balls_on_table=args.balls_on_table)
+                    balls_on_table=args.balls_on_table,
+                    technique=LAMBERT_TECHNIQUE if args.technique.lower() == 'lambert' else EGA_TECHNIQUE)
 
 
 if __name__ == "__main__":

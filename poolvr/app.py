@@ -14,6 +14,7 @@ _logger = logging.getLogger('poolvr')
 
 
 from .gl_rendering import OpenGLRenderer, set_quaternion_from_matrix, set_matrix_from_quaternion
+from .techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
 try:
     from .pyopenvr_renderer import openvr, OpenVRRenderer
 except ImportError as err:
@@ -98,7 +99,8 @@ def main(window_size=(800,600),
          speed=1.0,
          glyphs=False,
          realtime=False,
-         balls_on_table=None):
+         balls_on_table=None,
+         technique=LAMBERT_TECHNIQUE):
     """
     The main routine.
 
@@ -147,8 +149,9 @@ def main(window_size=(800,600),
     cue.position[2] += game.table.length * 0.3
     game.physics.add_cue(cue)
     game.reset(balls_on_table=balls_on_table)
-
-    ball_meshes = game.table.ball_meshes
+    table_mesh = game.table.export_mesh(surface_technique=technique, cushion_technique=technique)
+    ball_meshes = game.table.export_ball_meshes(technique=technique,
+                                                use_bb_particles=use_bb_particles)
     if use_bb_particles:
         ball_shadow_meshes = []
     else:
@@ -162,7 +165,7 @@ def main(window_size=(800,600),
         ball_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_meshes]
         ball_mesh_rotations = [mesh.world_matrix[:3,:3].T for mesh in ball_meshes]
         ball_shadow_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_shadow_meshes]
-    meshes = [floor_mesh, game.table.mesh] + ball_meshes + ball_shadow_meshes + [cue.shadow_mesh, cue]
+    meshes = [floor_mesh, table_mesh] + ball_meshes + ball_shadow_meshes + [cue.shadow_mesh, cue]
     if cube_map:
         from .room import skybox_mesh
         meshes.insert(0, skybox_mesh)

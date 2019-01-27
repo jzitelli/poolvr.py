@@ -195,7 +195,7 @@ def plot_energy(physics, title=None, nt=1000,
     ts = np.linspace(t_0, t_1, nt)
     ts = np.concatenate([[a.t] + list(ts[(ts >= a.t) & (ts < b.t)]) + [b.t]
                          for a, b in zip(events[:-1], events[1:])])
-    plt.plot(ts, [physics._calc_energy(t) for t in ts], color='green')
+    plt.plot(ts, [physics.eval_energy(t) for t in ts], color='green')
     if filename:
         try:
             plt.savefig(filename, dpi=400)
