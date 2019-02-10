@@ -28,11 +28,11 @@ def pool_table():
     return PoolTable()
 
 
-@pytest.fixture(params=['simple', 'marlow'])
+@pytest.fixture
 def pool_physics(request, pool_table):
     from poolvr.physics import PoolPhysics
-    return PoolPhysics(initial_positions=np.array(pool_table.calc_racked_positions(), dtype=np.float64),
-                       ball_collision_model=request.param,
+    return PoolPhysics(initial_positions=pool_table.calc_racked_positions(),
+                       ball_collision_model='simple',
                        enable_sanity_check=False)
 
 
@@ -127,13 +127,13 @@ def gl_rendering(pool_physics, pool_table, request):
     camera_position[1] = table.height + 0.6
     camera_position[2] = table.length - 0.1
     game = PoolGame(physics=physics, table=table)
-    ball_meshes = table.ball_meshes
+    ball_meshes = table.export_ball_meshes()
     ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
     for ball_mesh, shadow_mesh, on_table in zip(ball_meshes, ball_shadow_meshes, physics._on_table):
         if not on_table:
             ball_mesh.visible = False
             shadow_mesh.visible = False
-    meshes = [table.mesh] + ball_meshes + ball_shadow_meshes
+    meshes = [table.export_mesh()] + ball_meshes + ball_shadow_meshes
     for mesh in meshes:
         mesh.init_gl(force=True)
     ball_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_meshes]

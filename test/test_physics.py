@@ -39,8 +39,7 @@ def test_occlusion(pool_physics, request):
     plt.close()
 
 
-@pytest.mark.parametrize("ball_collision_model", ['simple', 'marlow'])
-def test_strike_ball(pool_physics, ball_collision_model,
+def test_strike_ball(pool_physics,
                      plot_motion_z_position,
                      plot_motion_timelapse,
                      plot_energy):
@@ -62,8 +61,7 @@ def test_strike_ball(pool_physics, ball_collision_model,
     assert isinstance(events[3], BallRestEvent)
 
 
-@pytest.mark.parametrize("ball_collision_model", ['simple'])
-def test_ball_collision(pool_physics, ball_collision_model,
+def test_ball_collision(pool_physics,
                         plot_motion_z_position,
                         plot_motion_timelapse,
                         plot_energy,
@@ -87,8 +85,7 @@ def test_ball_collision(pool_physics, ball_collision_model,
     assert isinstance(events[5], BallRestEvent)
 
 
-@pytest.mark.parametrize("ball_collision_model", ['simple'])
-def test_angled_ball_collision(pool_physics, ball_collision_model,
+def test_angled_ball_collision(pool_physics,
                                plot_motion_z_position,
                                plot_motion_x_position,
                                plot_motion_timelapse,
@@ -119,8 +116,7 @@ def test_angled_ball_collision(pool_physics, ball_collision_model,
     # assert isinstance(events[5], BallRestEvent)
 
 
-@pytest.mark.parametrize("ball_collision_model", ['simple'])
-def test_sliding_ball_collision(pool_physics, ball_collision_model,
+def test_sliding_ball_collision(pool_physics,
                                 plot_motion_z_position,
                                 plot_motion_timelapse,
                                 plot_energy,

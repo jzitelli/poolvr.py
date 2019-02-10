@@ -52,6 +52,7 @@ class PoolPhysics(object):
                  balls_on_table=None,
                  ball_positions=None,
                  ball_collision_model="simple",
+                 ball_collision_model_kwargs=None,
                  table=None,
                  enable_sanity_check=True,
                  enable_occlusion=True,
@@ -113,8 +114,20 @@ class PoolPhysics(object):
         self._theta_ij = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
         self._psi_ij = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
         self._occ_ij = np.array(self.num_balls*[self.num_balls*[False]])
+        R = self.ball_radius
+        sx = 0.5*self.table.W_playable
+        sz = 0.5*self.table.L_playable
+        self._rhs_vars = (2, 0, 2, 0)
+        self._rhs = np.array([ sz - R,
+                               sx - R,
+                              -sz + R,
+                              -sx + R], dtype=np.float64)
         self._velocity_meshes = None
         self._angular_velocity_meshes = None
+        if ball_collision_model_kwargs:
+            self._ball_collision_model_kwargs = ball_collision_model_kwargs
+        else:
+            self._ball_collision_model_kwargs = {}
         self.reset(ball_positions=ball_positions, balls_on_table=balls_on_table)
 
     def reset(self, ball_positions=None, balls_on_table=None):
@@ -421,10 +434,6 @@ class PoolPhysics(object):
                 if j <= i and j in self.balls_in_motion:
                     continue
                 e_j = self.ball_events[j][-1]
-                # if self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j]:
-                #     t_c = None
-                # else:
-                #     t_c = self._find_collision(e_i, e_j, t_min)
                 if j not in collisions:
                     if self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j]:
                         t_c = None
@@ -437,27 +446,25 @@ class PoolPhysics(object):
                     next_collision = (t_c, e_i, e_j)
         for i, rail_collision in rail_collisions.items():
             if rail_collision[0] == t_min:
-                return RailCollisionEvent(t=rail_collision[0], e_i=self.ball_events[i][-1], side=rail_collision[1])
+                return RailCollisionEvent(t=rail_collision[0],
+                                          e_i=self.ball_events[i][-1],
+                                          side=rail_collision[1])
         if next_collision is not None:
             t_c, e_i, e_j = next_collision
-            return self._ball_collision_event_class(t_c, e_i, e_j)
+            return self._ball_collision_event_class(t_c, e_i, e_j,
+                                                    **self._ball_collision_model_kwargs)
         else:
             return next_motion_event
 
     def _find_rail_collision(self, e_i):
         R = self.ball_radius
-        sx = 0.5*self.table.W_playable
-        sz = 0.5*self.table.L_playable
         a = e_i._a
         times = {}
         if e_i.parent_event and isinstance(e_i.parent_event, RailCollisionEvent):
             prev_side = e_i.parent_event.side
         else:
             prev_side = None
-        for side, (j, rhs) in enumerate([(2,  sz - R),
-                                         (0,  sx - R),
-                                         (2, -sz + R),
-                                         (0, -sx + R)]):
+        for side, (j, rhs) in enumerate(zip(self._rhs_vars, self._rhs)):
             if side == prev_side:
                 continue
             if abs(a[2,j]) < 1e-15:
