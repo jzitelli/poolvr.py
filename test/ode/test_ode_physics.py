@@ -1,8 +1,10 @@
 import logging
-_logger = logging.getLogger(__name__)
+import pytest
+pytest.importorskip("ode")
 
 
 from poolvr.cue import PoolCue
+_logger = logging.getLogger(__name__)
 
 
 def test_strike_ball(ode_pool_physics, ode_gl_rendering):

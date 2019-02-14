@@ -57,31 +57,37 @@ class PoolTable(object):
         self.W_nose = 0.05 * W_cushion
         self.H_nose = 0.5 * H_cushion
         self.W_playable = width - 2*W_cushion
-        self.L_playable = length - 1*W_cushion
+        self.L_playable = length - 2*W_cushion
         self.num_balls = num_balls
         self.ball_colors = ball_colors
-        self._mesh = None
-        self._ball_meshes = None
 
-    @property
-    def mesh(self):
-        if self._mesh is None:
-            self._setup_mesh()
-        return self._mesh
+    def is_position_in_bounds(self, r, R):
+        """ r: position vector; R: ball radius """
+        return  -0.5*self.W_playable <= r[0] - R            \
+            and             r[0] + R <= 0.5*self.W_playable \
+            and -0.5*self.L_playable <= r[2] - R            \
+            and             r[2] + R <= 0.5*self.L_playable
 
-    @property
-    def ball_meshes(self):
-        if self._ball_meshes is None:
-            self._setup_ball_meshes(striped_balls=list(range(9,16)))
-        return self._ball_meshes
-
-    def _setup_mesh(self):
+    def export_mesh(self,
+                    surface_material=None,
+                    surface_technique=LAMBERT_TECHNIQUE,
+                    cushion_material=None,
+                    cushion_technique=LAMBERT_TECHNIQUE,
+                    rail_material=None,
+                    rail_technique=EGA_TECHNIQUE):
+        surface_material = surface_material or \
+            Material(surface_technique,
+                     values={'u_color': [0.0, 0xaa/0xff, 0.0, 0.0]})
+        cushion_material = cushion_material or \
+            Material(cushion_technique,
+                     values={'u_color': [0x02/0xff, 0x88/0xff, 0x44/0xff, 0.0]})
+        rail_material = rail_material or \
+            Material(rail_technique,
+                     values={'u_color': [0xdd/0xff, 0xa4/0xff, 0.0, 0.0]})
         length, width, W_cushion = self.length, self.width, self.W_cushion
-        surface_material = Material(LAMBERT_TECHNIQUE, values={'u_color': [0.0, 0xaa/0xff, 0.0, 0.0]})
-        cushion_material = Material(LAMBERT_TECHNIQUE, values={'u_color': [0x02/0xff, 0x88/0xff, 0x44/0xff, 0.0]})
         surface = PlanePrimitive(width=width, depth=length)
         surface.attributes['vertices'][:,1] = self.height
-        surface.attributes['a_position'] = surface.attributes['vertices']
+        surface.alias('vertices', 'a_position')
         H_cushion = 0.82*2*self.ball_radius
         W_playable = self.W_playable
         L_playable = self.L_playable
@@ -136,17 +142,15 @@ class PoolTable(object):
                                          self.H_rail,
                                          self.width_rail)
         self.railGeoms = [self.headRailGeom]
-        rail_material = Material(EGA_TECHNIQUE,
-                                 values={'u_color': [0xdd/0xff, 0xa4/0xff, 0.0, 0.0]})
         self.headRailMesh = Mesh({rail_material: [self.headRailGeom]})
         for geom in self.cushionGeoms + self.railGeoms:
             geom.alias('vertices', 'a_position')
-        self._mesh = Mesh({surface_material: [surface],
-                           cushion_material: self.cushionGeoms,
-                           rail_material   : self.railGeoms})
+        return Mesh({surface_material: [surface],
+                     cushion_material: self.cushionGeoms,
+                     rail_material   : self.railGeoms})
 
-    def _setup_ball_meshes(self,
-                           striped_balls=None,
+    def export_ball_meshes(self,
+                           striped_balls=tuple(range(9,16)),
                            use_bb_particles=False,
                            technique=LAMBERT_TECHNIQUE):
         num_balls = self.num_balls
@@ -162,7 +166,7 @@ class PoolTable(object):
                                                                   (c & 0x0000ff) / 0x0000ff]
                                                                  for c in self.ball_colors],
                                                                 dtype=np.float32))
-            self._ball_meshes = [ball_billboards]
+            return [ball_billboards]
         else:
             ball_materials = [Material(technique, values={'u_color': [(c & 0xff0000) / 0xff0000,
                                                                       (c & 0x00ff00) / 0x00ff00,
@@ -173,8 +177,9 @@ class PoolTable(object):
             if striped_balls is None:
                 striped_balls = set()
             else:
-                stripe_prim = SpherePrimitive(radius=1.002*self.ball_radius, phiStart=0.0, phiLength=2*np.pi,
-                                              thetaStart=0.9*np.pi/3, thetaLength=1.1*np.pi/3)
+                stripe_prim = SpherePrimitive(radius=1.001*self.ball_radius,
+                                              heightSegments=8,
+                                              thetaStart=np.pi/3, thetaLength=np.pi/3)
                 stripe_prim.attributes['a_position'] = stripe_prim.attributes['vertices']
             circle_prim = CirclePrimitive(radius=self.ball_radius, num_radial=16)
             circle_prim.attributes['a_position'] = circle_prim.attributes['vertices']
@@ -189,7 +194,7 @@ class PoolTable(object):
             for i, mesh in enumerate(ball_meshes):
                 mesh.shadow_mesh = ball_shadow_meshes[i]
                 mesh.shadow_mesh.world_position[:] = self.height + 0.001
-            self._ball_meshes = ball_meshes
+            return ball_meshes
 
     def calc_racked_positions(self, d=None,
                               out=None):
@@ -221,9 +226,3 @@ class PoolTable(object):
         out[0,0] = 0.0
         out[0,2] = 0.25 * length
         return out
-
-    def is_position_in_bounds(self, r, R):
-        return  -0.5*self.W_playable <= r[0] - R            \
-            and             r[0] + R <= 0.5*self.W_playable \
-            and -0.5*self.L_playable <= r[2] - R            \
-            and             r[2] + R <= 0.5*self.L_playable

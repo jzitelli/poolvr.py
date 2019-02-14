@@ -482,15 +482,21 @@ class BallCollisionEvent(PhysicsEvent):
 
 
 class SimpleBallCollisionEvent(BallCollisionEvent):
-    def __init__(self, t, e_i, e_j):
-        """Simple one-parameter elastic collision model with no friction between balls."""
+    def __init__(self, t, e_i, e_j, v_factor=0.98):
+        """Simple one-parameter elastic collision model with no friction between balls or any other surface."""
         super().__init__(t, e_i, e_j)
         r_i, r_j = self._r_i, self._r_j
         r_ij = r_i - r_j
         _i = r_ij / np.linalg.norm(r_ij)
         v_i, v_j = self._v_i, self._v_j
-        v_i_1 = v_i + (v_j - v_i).dot(_i) * _i
-        v_j_1 = v_j + (v_i - v_j).dot(_i) * _i
+        vp_i = v_i.dot(_i) * _i
+        vp_j = v_j.dot(_i) * _i
+        vo_i = v_i - vp_i
+        vo_j = v_j - vp_j
+        vp_i_1 = 0.5 * ((1 - v_factor) * vp_i + (1 + v_factor) * vp_j)
+        vp_j_1 = 0.5 * ((1 - v_factor) * vp_j + (1 + v_factor) * vp_i)
+        v_i_1 = vo_i + vp_i_1
+        v_j_1 = vo_j + vp_j_1
         self._v_i_1, self._v_j_1 = v_i_1, v_j_1
         self._omega_i_1, self._omega_j_1 = self._omega_i, self._omega_j
 

@@ -4,3 +4,5 @@ openvr
 pillow
 sounddevice
 soundfile
+pytest
+matplotlib

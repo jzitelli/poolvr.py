@@ -6,11 +6,9 @@ import numpy as np
 import pytest
 
 
-from poolvr.ode_physics import ODEPoolPhysics
-
-
 @pytest.fixture
 def ode_pool_physics(pool_table):
+    from poolvr.ode_physics import ODEPoolPhysics
     return ODEPoolPhysics(table=pool_table,
                           initial_positions=np.array(pool_table.calc_racked_positions(),
                                                      dtype=np.float64))

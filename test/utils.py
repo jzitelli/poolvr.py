@@ -195,7 +195,7 @@ def plot_energy(physics, title=None, nt=1000,
     ts = np.linspace(t_0, t_1, nt)
     ts = np.concatenate([[a.t] + list(ts[(ts >= a.t) & (ts < b.t)]) + [b.t]
                          for a, b in zip(events[:-1], events[1:])])
-    plt.plot(ts, [physics._calc_energy(t) for t in ts], color='green')
+    plt.plot(ts, [physics.eval_energy(t) for t in ts], color='green')
     if filename:
         try:
             plt.savefig(filename, dpi=400)
@@ -205,3 +205,24 @@ def plot_energy(physics, title=None, nt=1000,
     if show:
         plt.show()
     plt.close()
+
+
+def gen_filename(name, ext, directory="."):
+    import os, re
+    matches = (re.match(r"({name}\.{{0,1}})(?P<number>\d*).{ext}".format(name=name, ext=ext), f)
+               for f in os.listdir(directory))
+    number = max((int(m.group('number')) for m in matches
+                  if m and m.group('number')), default=None)
+    if number is None:
+        if matches:
+            return '{name}.0.{ext}'.format(name=name, ext=ext)
+        else:
+            return '{name}.{ext}'.format(name=name, ext=ext)
+    else:
+        return '{name}.{num}.{ext}'.format(name=name, ext=ext, num=number+1)
+
+
+def git_head_hash():
+    from subprocess import run
+    ret = run('git reflog --format=%h -n 1'.split(), capture_output=True)
+    return ret.stdout.decode().strip()

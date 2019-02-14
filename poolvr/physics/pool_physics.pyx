@@ -618,7 +618,7 @@ class PoolPhysics(object):
                     else:
                         theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + [theta_a, theta_b] + theta_i_occ_bnds[jj_b:]
 
-    def _calc_energy(self, t, balls=None):
+    def eval_energy(self, t, balls=None):
         if balls is None:
             balls = self.balls_on_table
         velocities = self.eval_velocities(t, balls=balls)
