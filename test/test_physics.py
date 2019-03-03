@@ -149,13 +149,17 @@ def test_break(pool_physics,
     r_c[2] += physics.ball_radius
     V = np.array((-0.01, 0.0, -1.6), dtype=np.float64)
     M = 0.54
+    import time
     import cProfile
+    outname = gen_filename('test_break.%s' % git_head_hash(), 'pstats', directory=_here)
     pr = cProfile.Profile()
     pr.enable()
+    t0 = time.time()
     events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
-    outname = gen_filename('test_break.%s' % git_head_hash(), 'pstats', directory=_here)
+    t1 = time.time()
     pr.dump_stats(outname)
     _logger.info('...dumped stats to "%s"', outname)
+    _logger.info('elapsed time: %s', t1-t0)
     _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
                   PhysicsEvent.events_str(events))
 

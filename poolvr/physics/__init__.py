@@ -145,7 +145,7 @@ class PoolPhysics(object):
         self.t = 0.0
         for ii, i in enumerate(self.balls_on_table):
             e = self._BALL_REST_EVENTS[i]
-            e._r[:] = ball_positions[ii]
+            e._r_0[:] = ball_positions[ii]
             e.t = self.t
             e.T = float('inf')
         self.ball_events = {i: [self._BALL_REST_EVENTS[i]]
@@ -165,7 +165,7 @@ class PoolPhysics(object):
         if self._realtime:
             self._find_collisions = False
         if self._enable_occlusion:
-            self._update_occlusion({e.i: e._r for e in self._BALL_REST_EVENTS})
+            self._update_occlusion({e.i: e._r_0 for e in self._BALL_REST_EVENTS})
 
     @property
     def ball_collision_model(self):
@@ -398,7 +398,7 @@ class PoolPhysics(object):
                 self._a_ij_mag[i,:] = self._a_ij_mag[:,i] = self._a_ij_mag.diagonal()
                 self._balls_at_rest.add(event.i)
                 if self._enable_occlusion and isinstance(event, BallStationaryEvent):
-                    self._update_occlusion({i: event._r})
+                    self._update_occlusion({i: event._r_0})
             elif isinstance(event, BallMotionEvent):
                 self._ball_motion_events[i] = event
                 self._a_ij[i] = event.acceleration
