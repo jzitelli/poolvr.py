@@ -160,10 +160,10 @@ cdef class BallSpinningEvent(BallStationaryEvent):
     def eval_angular_velocity(self, tau, out=None):
         if out is None:
             out = np.zeros(3, dtype=np.float64)
-        if 0 <= tau <= self.T:
-            out[1] = self._omega_0_y + self._b * tau
         else:
             out[:] = 0
+        if 0 <= tau <= self.T:
+            out[1] = self._omega_0_y + self._b * tau
         return out
 
 
@@ -330,7 +330,8 @@ cdef class BallSlidingEvent(BallMotionEvent):
 
 
 cdef class CueStrikeEvent(BallEvent):
-    cdef public object V, M, Q
+    cdef public object V, Q
+    cdef public double M
     cdef public object _child_events
     def __init__(self, t, i, r_i, r_c, V, M, q_i=None):
         """
@@ -382,8 +383,10 @@ cdef class RailCollisionEvent(BallEvent):
     cdef public object _v_1
     cdef public object _omega_1
     cdef public object _child_events
+    cdef public double kappa # coefficient of restitution
     def __init__(self, t, e_i, side):
         super().__init__(t, e_i.i)
+        self.kappa = 0.6
         self.e_i = e_i
         self.side = side
         tau = t - e_i.t
@@ -397,7 +400,7 @@ cdef class RailCollisionEvent(BallEvent):
     def child_events(self):
         if self._child_events is None:
             v_1 = self._v_1.copy()
-            v_1[2*(1-(self.side % 2))] *= -0.9
+            v_1[2*(1-(self.side % 2))] *= -self.kappa
             self._child_events = (BallSlidingEvent(self.t, self.e_i.i,
                                                    r_0=self._r_1,
                                                    v_0=v_1,

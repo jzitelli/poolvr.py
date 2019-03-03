@@ -78,4 +78,4 @@ class PoolGame(object):
             q_w = q[3]
             q[3] -= 0.5 * dt * omega.dot(q[:3])
             q[:3] += 0.5 * dt * (q_w * omega + np.cross(omega, q[:3]))
-            q /= np.linalg.norm(q)
+            q /= np.sqrt(np.dot(q, q))
