@@ -7,9 +7,6 @@ _k = np.array([0, 1, 0],        # upward-pointing basis vector :math:`\hat{k}`
               dtype=np.float64) # of any ball-centered frame, following the convention of Marlow
 
 
-from ..decorators import allocs_out, allocs_out_vec4
-
-
 cdef double INCH2METER = 0.0254
 cdef double ball_radius = 1.125 * INCH2METER
 cdef double ball_mass = 0.17

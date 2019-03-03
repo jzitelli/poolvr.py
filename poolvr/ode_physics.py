@@ -179,15 +179,6 @@ class ODEPoolPhysics(object):
             out[ii] = self.ball_bodies[i].getPosition()
         return out
 
-    def eval_quaternions(self, t, balls=None, out=None):
-        if balls is None:
-            balls = range(self.num_balls)
-        if out is None:
-            out = np.empty((len(balls), 3), dtype=np.float64)
-        for ii, i in enumerate(balls):
-            out[ii] = self.ball_bodies[i].getQuaternion()
-        return out
-
     def eval_velocities(self, t, balls=None, out=None):
         if balls is None:
             balls = range(self.num_balls)
