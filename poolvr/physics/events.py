@@ -8,9 +8,6 @@ _k = np.array([0, 1, 0],        # upward-pointing basis vector :math:`\hat{k}`
               dtype=np.float64) # of any ball-centered frame, following the convention of Marlow
 
 
-from ..decorators import allocs_out, allocs_out_vec4
-
-
 class PhysicsEvent(object):
     ball_radius = 1.125 * INCH2METER
     ball_mass = 0.17
@@ -125,9 +122,11 @@ class BallStationaryEvent(BallEvent):
 class BallRestEvent(BallStationaryEvent):
     def __init__(self, t, i, **kwargs):
         super().__init__(t, i, T=float('inf'), **kwargs)
-    @allocs_out
     def eval_angular_velocity(self, tau, out=None):
-        out[:] = 0
+        if out is None:
+            out = np.zeros(3, dtype=np.float64)
+        else:
+            out[:] = 0
         return out
 
 
@@ -142,9 +141,11 @@ class BallSpinningEvent(BallStationaryEvent):
     @property
     def next_motion_event(self):
         return self._next_motion_event
-    @allocs_out
     def eval_angular_velocity(self, tau, out=None):
-        out[:] = 0
+        if out is None:
+            out = np.zeros(3, dtype=np.float64)
+        else:
+            out[:] = 0
         if 0 <= tau <= self.T:
             out[1] = self._omega_0_y + self._b * tau
         return out
@@ -209,7 +210,6 @@ class BallMotionEvent(BallEvent):
         a_global[1] += -2 * t * a[2]
         b_global[0] += -t * b[1]
         return out
-    #@allocs_out
     def eval_position(self, tau, out=None):
         if out is None:
             out = self._r_0.copy()
@@ -219,7 +219,6 @@ class BallMotionEvent(BallEvent):
             a = self._a
             out += tau * a[1] + tau**2 * a[2]
         return out
-    #@allocs_out
     def eval_velocity(self, tau, out=None):
         if out is None:
             out = self._v_0.copy()
@@ -228,7 +227,6 @@ class BallMotionEvent(BallEvent):
         if tau != 0:
             out += 2 * tau * self._a[2]
         return out
-    #@allocs_out
     def eval_angular_velocity(self, tau, out=None):
         if out is None:
             out = np.empty(3, dtype=np.float64)

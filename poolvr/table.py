@@ -1,4 +1,6 @@
 import os.path
+import logging
+_logger = logging.getLogger(__name__)
 import numpy as np
 
 from .gl_rendering import Mesh, Material, Texture
@@ -64,13 +66,32 @@ class PoolTable(object):
         self.ball_colors = ball_colors
         self.throat_size = throat_size
         self.mouth_size = mouth_size
+        self._almost_ball_radius = 0.999*ball_radius
 
-    def is_position_in_bounds(self, r, R):
+    def is_position_in_bounds(self, r):
         """ r: position vector; R: ball radius """
+        R = self._almost_ball_radius
         return  -0.5*self.W_playable <= r[0] - R            \
             and             r[0] + R <= 0.5*self.W_playable \
             and -0.5*self.L_playable <= r[2] - R            \
             and             r[2] + R <= 0.5*self.L_playable
+
+    def is_position_near_pocket(self, r):
+        """ r: position vector; R: ball radius """
+        if r[0] < -0.5*self.W_playable + self.mouth_size/np.sqrt(2):
+            if r[2] < -0.5*self.L_playable + self.mouth_size/np.sqrt(2):
+                _logger.info('corner pocket 0')
+                return 0
+            elif r[2] > 0.5*self.L_playable - self.mouth_size/np.sqrt(2):
+                _logger.info('corner pocket 1')
+                return 1
+        elif r[0] > 0.5*self.W_playable - self.mouth_size/np.sqrt(2):
+            if r[2] < -0.5*self.L_playable + self.mouth_size/np.sqrt(2):
+                _logger.info('corner pocket 2')
+                return 2
+            elif r[2] > 0.5*self.L_playable - self.mouth_size/np.sqrt(2):
+                _logger.info('corner pocket 3')
+                return 3
 
     def export_mesh(self,
                     surface_material=None,
