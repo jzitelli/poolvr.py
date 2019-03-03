@@ -1,4 +1,6 @@
 import os.path
+import logging
+_logger = logging.getLogger(__name__)
 import numpy as np
 
 from .gl_rendering import Mesh, Material, Texture
@@ -33,6 +35,8 @@ class PoolTable(object):
                  height=0.77,
                  width=None,
                  W_cushion=2*INCH2METER,
+                 mouth_size=5*INCH2METER,
+                 throat_size=4.125*INCH2METER,
                  H_cushion=0.635*2.25*INCH2METER,
                  width_rail=None,
                  H_rail=None,
@@ -60,13 +64,34 @@ class PoolTable(object):
         self.L_playable = length - 2*W_cushion
         self.num_balls = num_balls
         self.ball_colors = ball_colors
+        self.throat_size = throat_size
+        self.mouth_size = mouth_size
+        self._almost_ball_radius = 0.999*ball_radius
 
-    def is_position_in_bounds(self, r, R):
+    def is_position_in_bounds(self, r):
         """ r: position vector; R: ball radius """
+        R = self._almost_ball_radius
         return  -0.5*self.W_playable <= r[0] - R            \
             and             r[0] + R <= 0.5*self.W_playable \
             and -0.5*self.L_playable <= r[2] - R            \
             and             r[2] + R <= 0.5*self.L_playable
+
+    def is_position_near_pocket(self, r):
+        """ r: position vector; R: ball radius """
+        if r[0] < -0.5*self.W_playable + self.mouth_size/np.sqrt(2):
+            if r[2] < -0.5*self.L_playable + self.mouth_size/np.sqrt(2):
+                _logger.info('corner pocket 0')
+                return 0
+            elif r[2] > 0.5*self.L_playable - self.mouth_size/np.sqrt(2):
+                _logger.info('corner pocket 1')
+                return 1
+        elif r[0] > 0.5*self.W_playable - self.mouth_size/np.sqrt(2):
+            if r[2] < -0.5*self.L_playable + self.mouth_size/np.sqrt(2):
+                _logger.info('corner pocket 2')
+                return 2
+            elif r[2] > 0.5*self.L_playable - self.mouth_size/np.sqrt(2):
+                _logger.info('corner pocket 3')
+                return 3
 
     def export_mesh(self,
                     surface_material=None,
@@ -91,6 +116,8 @@ class PoolTable(object):
         H_cushion = 0.82*2*self.ball_radius
         W_playable = self.W_playable
         L_playable = self.L_playable
+        T = self.throat_size
+        M = self.mouth_size
         self.headCushionGeom = HexaPrimitive(vertices=np.array([
             # bottom quad:
             [[-0.5*W_playable + 0.4*W_cushion,       0.0,           0.5*W_cushion],
@@ -98,10 +125,10 @@ class PoolTable(object):
              [ 0.5*W_playable - 1.2*SQRT2*W_cushion, 0.57*2*self.ball_radius, -0.5*W_cushion + self.W_nose],
              [-0.5*W_playable + 1.2*SQRT2*W_cushion, 0.57*2*self.ball_radius, -0.5*W_cushion + self.W_nose]],
             # top quad:
-            [[-0.5*W_playable + 0.4*W_cushion,       self.H_rail,     0.5*W_cushion],
-             [ 0.5*W_playable - 0.4*W_cushion,       self.H_rail,     0.5*W_cushion],
-             [ 0.5*W_playable - 1.2*SQRT2*W_cushion, H_cushion, -0.5*W_cushion],
-             [-0.5*W_playable + 1.2*SQRT2*W_cushion, H_cushion, -0.5*W_cushion]]], dtype=np.float32))
+            [[-0.5*W_playable + (T/np.sqrt(2) - W_cushion), self.H_rail,  0.5*W_cushion],
+             [ 0.5*W_playable - (T/np.sqrt(2) - W_cushion), self.H_rail,  0.5*W_cushion],
+             [ 0.5*W_playable - M/np.sqrt(2),               H_cushion,   -0.5*W_cushion],
+             [-0.5*W_playable + M/np.sqrt(2),               H_cushion,   -0.5*W_cushion]]], dtype=np.float32))
         self.headCushionGeom.attributes['vertices'].reshape(-1,3)[:,1] += self.height
         _vertices = self.headCushionGeom.attributes['vertices'].copy()
         self.headCushionGeom.attributes['vertices'].reshape(-1,3)[:,2] += 0.5 * self.length - 0.5*W_cushion

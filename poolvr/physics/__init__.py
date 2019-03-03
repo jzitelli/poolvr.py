@@ -292,28 +292,6 @@ class PoolPhysics(object):
                         break
         return out
 
-    def eval_quaternions(self, t, balls=None, out=None):
-        """
-        Evaluate the rotations of a set of balls (represented as quaternions) at game time *t*.
-
-        :returns: shape (*N*, 4) array, where *N* is the number of balls
-        """
-        if balls is None:
-            balls = range(self.num_balls)
-        if out is None:
-            out = np.empty((len(balls), 4), dtype=np.float64)
-        # doing nothing for now:
-        out[:] = 0
-        out[:,3] = 1
-        # for ii, i in enumerate(balls):
-        #     events = self.ball_events.get(i, ())
-        #     if events:
-        #         for e in events[:bisect(events, t)][::-1]:
-        #             if t <= e.t + e.T:
-        #                 out[ii] = e.eval_quaternion(t - e.t)
-        #                 break
-        return out
-
     def eval_velocities(self, t, balls=None, out=None):
         """
         Evaluate the velocities of a set of balls at game time *t*.
@@ -458,6 +436,7 @@ class PoolPhysics(object):
 
     def _find_rail_collision(self, e_i):
         R = self.ball_radius
+        table = self.table
         a = e_i._a
         times = {}
         if e_i.parent_event and isinstance(e_i.parent_event, RailCollisionEvent):
@@ -472,7 +451,10 @@ class PoolPhysics(object):
                     tau = (rhs - a[0,j]) / a[1,j]
                     if 0 < tau < e_i.T:
                         r = e_i.eval_position(tau)
-                        if self.table.is_position_in_bounds(r, 0.999*R):
+                        # pocket = table.is_position_near_pocket(r)
+                        # if pocket is not None:
+                        #     _logger.debug('pocket = %s', pocket)
+                        if table.is_position_in_bounds(r):
                             times[side] = e_i.t + tau
             else:
                 d = a[1,j]**2 - 4*a[2,j]*(a[0,j] - rhs)
@@ -482,20 +464,32 @@ class PoolPhysics(object):
                     tau_n = (-a[1,j] - pn) / (2*a[2,j])
                     if 0 < tau_p < e_i.T:
                         r_p = e_i.eval_position(tau_p)
-                        if self.table.is_position_in_bounds(r_p, 0.999*R):
+                        # pocket = table.is_position_near_pocket(r_p)
+                        # if pocket is not None:
+                        #     _logger.debug('ball %s pocket = %s', e_i.i, pocket)
+                        if table.is_position_in_bounds(r_p):
                             if 0 < tau_n < e_i.T:
                                 r_n = e_i.eval_position(tau_n)
-                                if self.table.is_position_in_bounds(r_n, 0.999*R):
+                                # pocket = table.is_position_near_pocket(r_n)
+                                # if pocket is not None:
+                                #     _logger.debug('ball %s pocket = %s', e_i.i, pocket)
+                                if table.is_position_in_bounds(r_n):
                                     times[side] = e_i.t + min(tau_p, tau_n)
                             else:
                                 times[side] = e_i.t + tau_p
                         elif 0 < tau_n < e_i.T:
                             r_n = e_i.eval_position(tau_n)
-                            if self.table.is_position_in_bounds(r_n, 0.999*R):
+                            # pocket = table.is_position_near_pocket(r_n)
+                            # if pocket is not None:
+                            #     _logger.debug('ball %s pocket = %s', e_i.i, pocket)
+                            if table.is_position_in_bounds(r_n):
                                 times[side] = e_i.t + tau_n
                     elif 0 < tau_n < e_i.T:
                         r_n = e_i.eval_position(tau_n)
-                        if self.table.is_position_in_bounds(r_n, 0.999*R):
+                        # pocket = table.is_position_near_pocket(r_n)
+                        # if pocket is not None:
+                        #     _logger.debug('ball %s pocket = %s', e_i.i, pocket)
+                        if table.is_position_in_bounds(r_n):
                             times[side] = e_i.t + tau_n
         if times:
             return min((t, side) for side, t in times.items())
