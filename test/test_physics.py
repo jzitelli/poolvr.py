@@ -1,4 +1,4 @@
-import os.path
+import os
 import logging
 _logger = logging.getLogger(__name__)
 import numpy as np
@@ -33,6 +33,9 @@ def test_occlusion(pool_physics, request):
     if request.config.getoption('--show_plots'):
         plt.show()
     filename = os.path.join(os.path.dirname(__file__), 'plots', 'test_occlusion.png')
+    dirname = os.path.dirname(filename)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname, exist_ok=True)
     plt.savefig(filename)
     _logger.info('saved plot to "%s"', filename)
     plt.close()

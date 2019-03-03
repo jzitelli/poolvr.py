@@ -1,4 +1,5 @@
 import logging
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -106,6 +107,9 @@ def plot_ball_motion(i, physics,
         #                 plt.gcf().gca().add_patch(plt.Circle((child.t, r[2]), physics.ball_radius, color=BALL_COLORS[child.i]))
         plt.legend()
         if filename:
+            dirname = os.path.dirname(filename)
+            if not os.path.exists(dirname):
+                os.makedirs(dirname, exist_ok=True)
             try:
                 plt.savefig(filename, dpi=400)
                 _logger.info('...saved figure to %s', filename)
@@ -165,6 +169,9 @@ def plot_motion_timelapse(physics, table=None,
     # plt.xticks(np.linspace(-0.5*table.length, 0.5*table.length, 8))
     # plt.yticks(np.linspace(-0.5*table.width, 0.5*table.width, 8))
     if filename:
+        dirname = os.path.dirname(filename)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname, exist_ok=True)
         try:
             plt.savefig(filename, dpi=400)
             _logger.info('...saved figure to %s', filename)
@@ -197,6 +204,9 @@ def plot_energy(physics, title=None, nt=1000,
                          for a, b in zip(events[:-1], events[1:])])
     plt.plot(ts, [physics.eval_energy(t) for t in ts], color='green')
     if filename:
+        dirname = os.path.dirname(filename)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname, exist_ok=True)
         try:
             plt.savefig(filename, dpi=400)
             _logger.info('...saved figure to %s', filename)
@@ -208,7 +218,7 @@ def plot_energy(physics, title=None, nt=1000,
 
 
 def gen_filename(name, ext, directory="."):
-    import os, re
+    import re
     matches = (re.match(r"({name}\.{{0,1}})(?P<number>\d*).{ext}".format(name=name, ext=ext), f)
                for f in os.listdir(directory))
     number = max((int(m.group('number')) for m in matches

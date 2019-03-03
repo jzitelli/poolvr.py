@@ -100,14 +100,12 @@ class BallStationaryEvent(BallEvent):
             self._a_global = a = np.zeros((3,3), dtype=np.float64)
             a[0] = self._r_0
         return self._a_global, None
-    #@allocs_out
     def eval_position(self, tau, out=None):
         if out is None:
             out = self._r_0.copy()
         else:
             out[:] = self._r_0
         return out
-    #@allocs_out
     def eval_velocity(self, tau, out=None):
         if out is None:
             out = np.zeros(3, dtype=np.float64)
@@ -127,10 +125,6 @@ class BallStationaryEvent(BallEvent):
 class BallRestEvent(BallStationaryEvent):
     def __init__(self, t, i, **kwargs):
         super().__init__(t, i, T=float('inf'), **kwargs)
-    @allocs_out_vec4
-    def eval_quaternion(self, tau, out=None):
-        out[:] = self._q
-        return out
     @allocs_out
     def eval_angular_velocity(self, tau, out=None):
         out[:] = 0
@@ -148,10 +142,6 @@ class BallSpinningEvent(BallStationaryEvent):
     @property
     def next_motion_event(self):
         return self._next_motion_event
-    @allocs_out_vec4
-    def eval_quaternion(self, tau, out=None):
-        out[:] = self._q
-        return out
     @allocs_out
     def eval_angular_velocity(self, tau, out=None):
         out[:] = 0
@@ -256,10 +246,6 @@ class BallMotionEvent(BallEvent):
         if out is None:
             out = np.empty(3, dtype=np.float64)
         out[:] = v + self.ball_radius * np.cross(_k, omega)
-        return out
-    @allocs_out_vec4
-    def eval_quaternion(self, tau, out=None):
-        out[:] = self._q_0
         return out
     def __str__(self):
         return super().__str__()[:-1] + '\n r_0=%s\n v_0=%s\n a=%s\n omega_0=%s>' % (self._r_0, self._v_0, self.acceleration, self._omega_0)

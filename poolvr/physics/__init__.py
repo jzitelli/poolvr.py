@@ -292,28 +292,6 @@ class PoolPhysics(object):
                         break
         return out
 
-    def eval_quaternions(self, t, balls=None, out=None):
-        """
-        Evaluate the rotations of a set of balls (represented as quaternions) at game time *t*.
-
-        :returns: shape (*N*, 4) array, where *N* is the number of balls
-        """
-        if balls is None:
-            balls = range(self.num_balls)
-        if out is None:
-            out = np.empty((len(balls), 4), dtype=np.float64)
-        # doing nothing for now:
-        out[:] = 0
-        out[:,3] = 1
-        # for ii, i in enumerate(balls):
-        #     events = self.ball_events.get(i, ())
-        #     if events:
-        #         for e in events[:bisect(events, t)][::-1]:
-        #             if t <= e.t + e.T:
-        #                 out[ii] = e.eval_quaternion(t - e.t)
-        #                 break
-        return out
-
     def eval_velocities(self, t, balls=None, out=None):
         """
         Evaluate the velocities of a set of balls at game time *t*.
