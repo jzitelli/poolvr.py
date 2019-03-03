@@ -341,6 +341,7 @@ class CueStrikeEvent(BallEvent):
 
 
 class RailCollisionEvent(BallEvent):
+    kappa = 0.6 # coefficient of restitution
     def __init__(self, t, e_i, side):
         super().__init__(t, e_i.i)
         self.e_i = e_i
@@ -356,7 +357,7 @@ class RailCollisionEvent(BallEvent):
     def child_events(self):
         if self._child_events is None:
             v_1 = self._v_1.copy()
-            v_1[2*(1-(self.side % 2))] *= -0.9
+            v_1[2*(1-(self.side % 2))] *= -self.kappa
             self._child_events = (BallSlidingEvent(self.t, self.e_i.i,
                                                    r_0=self._r_1,
                                                    v_0=v_1,
