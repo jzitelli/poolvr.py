@@ -168,18 +168,18 @@ cdef class BallSpinningEvent(BallStationaryEvent):
 
 
 cdef class BallMotionEvent(BallEvent):
-    # cdef public double[:,:] _a
-    # cdef public double[:,:] _b
-    # cdef public double[:] _r_0
-    # cdef public double[:] _v_0
-    # cdef public double[:] _q_0
-    # cdef public double[:] _omega_0
     cdef public object _a
     cdef public object _b
+    # cdef public double[:,:] _a
+    # cdef public double[:,:] _b
     cdef public object _r_0
     cdef public object _v_0
     cdef public object _q_0
     cdef public object _omega_0
+    # cdef public double[3] _r_0
+    # cdef public double[3] _v_0
+    # cdef public double[3] _q_0
+    # cdef public double[3] _omega_0
     cdef public object _ab_global
     cdef public object _next_motion_event
     def __init__(self, t, i, T=0.0,
@@ -307,7 +307,9 @@ cdef class BallRollingEvent(BallMotionEvent):
 
 cdef class BallSlidingEvent(BallMotionEvent):
     cdef public object _u_0
-    cdef public object _u_0_mag
+    # cdef public double[3] _u_0
+    # cdef public object _u_0_mag
+    cdef public double _u_0_mag
     def __init__(self, t, i, r_0, v_0, omega_0, **kwargs):
         R = ball_radius
         u_0 = v_0 + R * np.cross(_k, omega_0)
