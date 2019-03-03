@@ -12,6 +12,7 @@ from poolvr.physics.events import (CueStrikeEvent, BallSlidingEvent, BallRolling
 _logger = logging.getLogger(__name__)
 
 
+ball_radius = 1.125 * 0.0254
 EVENT_COLORS = {CueStrikeEvent: 'green',
                 BallSlidingEvent: 'yellow',
                 BallRollingEvent: 'orange',
@@ -102,8 +103,8 @@ def plot_ball_motion(i, physics,
         #             parent = e.parent_event
         #             for child in parent.child_events:
         #                 r = child.eval_position(0)
-        #                 plt.gcf().gca().add_patch(plt.Circle((child.t, r[0]), physics.ball_radius, color=BALL_COLORS[child.i]))
-        #                 plt.gcf().gca().add_patch(plt.Circle((child.t, r[2]), physics.ball_radius, color=BALL_COLORS[child.i]))
+        #                 plt.gcf().gca().add_patch(plt.Circle((child.t, r[0]), ball_radius, color=BALL_COLORS[child.i]))
+        #                 plt.gcf().gca().add_patch(plt.Circle((child.t, r[2]), ball_radius, color=BALL_COLORS[child.i]))
         plt.legend()
         if filename:
             try:
@@ -158,7 +159,7 @@ def plot_motion_timelapse(physics, table=None,
     for t in ts:
         positions = physics.eval_positions(t)
         for i in physics.balls_on_table:
-            plt.gca().add_patch(plt.Circle(positions[i,::2], physics.ball_radius,
+            plt.gca().add_patch(plt.Circle(positions[i,::2], ball_radius,
                                            color=ball_colors[i], alpha=14/nt))
     #plt.xlim(-0.5*table.width, 0.5*table.width)
     #plt.ylim(-0.5*table.length, 0.5*table.length)

@@ -43,6 +43,9 @@ TEXTURES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 _window_renderer = None
 
+INCH2METER = 0.0254
+ball_radius = 1.125 * INCH2METER
+
 
 def setup_glfw(window_size=(800,600), double_buffered=False,
                title="poolvr.py 0.0.1", multisample=0):
@@ -277,8 +280,8 @@ def main(window_size=(800,600),
 
         if not contact_last_frame:
             if game.t - last_contact_t >= 2:
-                for i, position in cue.aabb_check(game.ball_positions[:1], physics.ball_radius):
-                    r_c = cue.contact(position, physics.ball_radius)
+                for i, position in cue.aabb_check(game.ball_positions[:1], ball_radius):
+                    r_c = cue.contact(position, ball_radius)
                     if r_c is not None:
                         if isinstance(renderer, OpenVRRenderer) and frame_data and len(frame_data['controller_poses']) == 2:
                             pose_0, pose_1 = frame_data['controller_poses']
