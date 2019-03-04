@@ -242,13 +242,13 @@ cdef class PoolPhysics:
         return self.events[-1].t \
             if self.events and isinstance(self.events[-1], BallRestEvent) else 0.0
 
-    def step(self, dt, **kwargs):
+    def step(self, double dt, **kwargs):
         if self._realtime:
             self.step_realtime(dt, **kwargs)
         else:
             self.t += dt
 
-    def step_realtime(self, dt,
+    def step_realtime(self, double dt,
                       find_collisions=True):
         self.t += dt
         if not find_collisions:
@@ -268,7 +268,7 @@ cdef class PoolPhysics:
         if T <= 0:
             return self.balls_in_motion
 
-    def eval_positions(self, t, balls=None, out=None):
+    def eval_positions(self, double t, balls=None, out=None):
         """
         Evaluate the positions of a set of balls at game time *t*.
 
@@ -287,29 +287,7 @@ cdef class PoolPhysics:
                         break
         return out
 
-    def eval_quaternions(self, t, balls=None, out=None):
-        """
-        Evaluate the rotations of a set of balls (represented as quaternions) at game time *t*.
-
-        :returns: shape (*N*, 4) array, where *N* is the number of balls
-        """
-        if balls is None:
-            balls = range(self.num_balls)
-        if out is None:
-            out = np.empty((len(balls), 4), dtype=np.float64)
-        # doing nothing for now:
-        out[:] = 0
-        out[:,3] = 1
-        # for ii, i in enumerate(balls):
-        #     events = self.ball_events.get(i, ())
-        #     if events:
-        #         for e in events[:bisect(events, t)][::-1]:
-        #             if t <= e.t + e.T:
-        #                 out[ii] = e.eval_quaternion(t - e.t)
-        #                 break
-        return out
-
-    def eval_velocities(self, t, balls=None, out=None):
+    def eval_velocities(self, double t, balls=None, out=None):
         """
         Evaluate the velocities of a set of balls at game time *t*.
 
@@ -328,7 +306,7 @@ cdef class PoolPhysics:
                         break
         return out
 
-    def eval_angular_velocities(self, t, balls=None, out=None):
+    def eval_angular_velocities(self, double t, balls=None, out=None):
         """
         Evaluate the angular velocities of all balls at game time *t*.
 
@@ -347,7 +325,7 @@ cdef class PoolPhysics:
                         break
         return out
 
-    def find_active_events(self, t):
+    def find_active_events(self, double t):
         active_events = []
         for i, events in self.ball_events.items():
             events = [e for e in events if e.T > 0]
@@ -493,7 +471,7 @@ cdef class PoolPhysics:
         if times:
             return min((t, side) for side, t in times.items())
 
-    def _find_collision(self, e_i, e_j, t_min):
+    def _find_collision(self, e_i, e_j, double t_min):
         if e_j.parent_event and e_i.parent_event and e_j.parent_event == e_i.parent_event:
             return None
         t0 = max(e_i.t, e_j.t)
@@ -511,7 +489,7 @@ cdef class PoolPhysics:
         a_j, b_j = e_j.global_motion_coeffs
         return self._find_collision_time(a_i, a_j, t0, t1)
 
-    def _find_collision_time(self, a_i, a_j, t0, t1):
+    def _find_collision_time(self, a_i, a_j, double t0, double t1):
         d = a_i - a_j
         a_x, a_y = d[2, ::2]
         b_x, b_y = d[1, ::2]
@@ -629,7 +607,7 @@ cdef class PoolPhysics:
                     else:
                         theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + [theta_a, theta_b] + theta_i_occ_bnds[jj_b:]
 
-    def eval_energy(self, t, balls=None):
+    def eval_energy(self, double t, balls=None):
         if balls is None:
             balls = self.balls_on_table
         velocities = self.eval_velocities(t, balls=balls)
@@ -664,7 +642,7 @@ event: %s
   e_j: %s
 ''' % (2*ball_radius, d_ij, r_i, r_j, self.t, event, e_i, e_j))
 
-    def glyph_meshes(self, t):
+    def glyph_meshes(self, double t):
         if self._velocity_meshes is None:
             from ..gl_rendering import Material, Mesh
             from ..primitives import ArrowMesh
