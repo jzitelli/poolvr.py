@@ -2,7 +2,6 @@ import logging
 _logger = logging.getLogger(__name__)
 from sys import stdout
 import os.path
-import numpy as np
 import pytest
 
 
@@ -45,12 +44,11 @@ def pool_physics(pool_table, request):
 @pytest.fixture
 def plot_motion(pool_physics, request):
     show_plots, save_plots = request.config.getoption('--show_plots'), request.config.getoption('--save_plots')
-    _logger.info('show_plots = %s, save_plots = %s', show_plots, save_plots)
     if not (show_plots or save_plots):
         yield
         return
-    yield
     from utils import plot_ball_motion as plot
+    yield
     test_name = '_'.join([request.function.__name__, pool_physics.ball_collision_model])
     plot(0, pool_physics,
          title=test_name + ' (position)',
@@ -65,8 +63,8 @@ def plot_motion_x_position(pool_physics, request):
     if not (show_plots or save_plots):
         yield
         return
-    yield
     from utils import plot_ball_motion as plot
+    yield
     test_name = '_'.join([request.function.__name__, pool_physics.ball_collision_model])
     plot(0, pool_physics,
          title=test_name + " ($x$ position)",
@@ -81,8 +79,8 @@ def plot_motion_z_position(pool_physics, request):
     if not (show_plots or save_plots):
         yield
         return
-    yield
     from utils import plot_ball_motion as plot
+    yield
     test_name = '_'.join([request.function.__name__, pool_physics.ball_collision_model])
     plot(0, pool_physics,
          title=test_name + " ($z$ position)",
@@ -98,8 +96,8 @@ def plot_energy(pool_physics, request):
     if not (show_plots or save_plots):
         yield
         return
-    yield
     from utils import plot_energy as plot
+    yield
     test_name = '_'.join([request.function.__name__, pool_physics.ball_collision_model])
     _logger.debug('plotting energy for %s...', request.function.__name__)
     plot(pool_physics, title=test_name + ' (energy)',
@@ -110,7 +108,6 @@ def plot_energy(pool_physics, request):
 @pytest.fixture
 def plot_motion_timelapse(pool_physics, pool_table, request):
     show_plots, save_plots = request.config.getoption('--show_plots'), request.config.getoption('--save_plots')
-    _logger.info('show_plots = %s, save_plots = %s', show_plots, save_plots)
     if not (show_plots or save_plots):
         yield
         return
