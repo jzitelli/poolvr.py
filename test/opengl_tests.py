@@ -18,11 +18,11 @@ _logger = logging.getLogger(__name__)
 from poolvr.cue import PoolCue
 from poolvr.table import PoolTable
 from poolvr.gl_rendering import OpenGLRenderer, Texture, Material, Mesh
-from poolvr.techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
+from poolvr.gl_techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
 from poolvr.app import setup_glfw, BG_COLOR, TEXTURES_DIR
 from poolvr.billboards import BillboardParticles
 from poolvr.keyboard_controls import init_keyboard
-import poolvr.primitives
+import poolvr.gl_primitives
 
 
 SCREENSHOTS_DIR = os.path.join(os.path.dirname(__file__), 'screenshots')
@@ -35,7 +35,7 @@ class OpenGLTests(TestCase):
     @skip
     def test_cone_mesh(self):
         material = Material(LAMBERT_TECHNIQUE, values={'u_color': [1.0, 1.0, 0.0, 0.0]})
-        mesh = poolvr.primitives.ConeMesh(material, radius=0.15, height=0.3)
+        mesh = poolvr.gl_primitives.ConeMesh(material, radius=0.15, height=0.3)
         for prim in mesh.primitives[material]:
             prim.attributes['a_position'] = prim.attributes['vertices']
         mesh.world_matrix[3,2] = -3
@@ -45,7 +45,7 @@ class OpenGLTests(TestCase):
     @skip
     def test_sphere_mesh(self):
         material = Material(LAMBERT_TECHNIQUE, values={'u_color': [0.0, 1.0, 1.0, 0.0]})
-        prim = poolvr.primitives.SpherePrimitive(radius=0.1)
+        prim = poolvr.gl_primitives.SpherePrimitive(radius=0.1)
         prim.attributes['a_position'] = prim.attributes['vertices']
         mesh = Mesh({material: [prim]})
         mesh.world_matrix[3,2] = -3
@@ -55,7 +55,7 @@ class OpenGLTests(TestCase):
     @skip
     def test_cylinder_mesh(self):
         material = Material(LAMBERT_TECHNIQUE, values={'u_color': [1.0, 1.0, 0.0, 0.0]})
-        mesh = poolvr.primitives.CylinderMesh(material=material, radius=0.15, height=0.5)
+        mesh = poolvr.gl_primitives.CylinderMesh(material=material, radius=0.15, height=0.5)
         for prim in mesh.primitives[material]:
             prim.attributes['a_position'] = prim.attributes['vertices']
         mesh.world_matrix[3,2] = -3
@@ -64,7 +64,7 @@ class OpenGLTests(TestCase):
 
     def test_arrow_mesh(self):
         material = Material(LAMBERT_TECHNIQUE, values={'u_color': [1.0, 1.0, 0.0, 0.0]})
-        mesh = poolvr.primitives.ArrowMesh(material=material)
+        mesh = poolvr.gl_primitives.ArrowMesh(material=material)
         for prim in mesh.primitives[material]:
             prim.attributes['a_position'] = prim.attributes['vertices']
         mesh.world_matrix[3,2] = -3

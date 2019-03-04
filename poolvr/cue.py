@@ -4,8 +4,8 @@ import numpy as np
 
 
 from .gl_rendering import Material, Mesh
-from .primitives import CylinderPrimitive, ProjectedMesh
-from .techniques import LAMBERT_TECHNIQUE, EGA_TECHNIQUE
+from .gl_primitives import CylinderPrimitive, ProjectedMesh
+from .gl_techniques import LAMBERT_TECHNIQUE, EGA_TECHNIQUE
 
 
 class PoolCue(Mesh):

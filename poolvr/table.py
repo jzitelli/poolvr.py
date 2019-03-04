@@ -4,8 +4,8 @@ _logger = logging.getLogger(__name__)
 import numpy as np
 
 from .gl_rendering import Mesh, Material, Texture
-from .primitives import PlanePrimitive, HexaPrimitive, SpherePrimitive, CirclePrimitive, BoxPrimitive
-from .techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
+from .gl_primitives import PlanePrimitive, HexaPrimitive, SpherePrimitive, CirclePrimitive, BoxPrimitive
+from .gl_techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
 from .billboards import BillboardParticles
 
 

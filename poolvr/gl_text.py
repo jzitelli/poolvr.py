@@ -6,7 +6,7 @@ import PIL.Image as Image
 
 
 from .gl_rendering import gl, Program, Technique, Texture, Material, Mesh
-from .primitives import PlanePrimitive
+from .gl_primitives import PlanePrimitive
 
 
 TEXT_TECHNIQUE = Technique(Program(pkgutil.get_data('poolvr', 'shaders/gltext_vs.glsl').decode(),
