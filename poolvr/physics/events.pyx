@@ -86,8 +86,8 @@ cdef class BallEvent(PhysicsEvent):
 
 
 cdef class BallStationaryEvent(BallEvent):
-    # cdef public double[:] _r_0
-    # cdef public double[:] _q_0
+    # cdef public double[3] _r_0
+    # cdef public double[3] _q_0
     cdef public object _r_0
     cdef public object _q_0
     cdef public object _a_global

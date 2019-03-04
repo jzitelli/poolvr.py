@@ -62,6 +62,8 @@ cdef class PoolPhysics:
     cdef public object _occ_ij
     cdef public object _velocity_meshes
     cdef public object _angular_velocity_meshes
+    cdef public object _velocity_material
+    cdef public object _angular_velocity_material
     cdef public object _ball_motion_events
     cdef public object _BALL_MOTION_EVENTS
     cdef public object _BALL_REST_EVENTS

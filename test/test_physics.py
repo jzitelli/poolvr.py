@@ -30,7 +30,6 @@ _here = os.path.dirname(__file__)
 
 
 def test_occlusion(pool_physics, request):
-    import matplotlib.pyplot as plt
     assert (pool_physics._occ_ij == ~np.array([[0,1,1,1,1,1,1,0,0,0,1,0,0,1,0,1],
                                                [1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0],
                                                [1,1,0,1,0,0,1,1,0,0,0,0,0,0,0,0],
@@ -47,15 +46,23 @@ def test_occlusion(pool_physics, request):
                                                [1,0,0,0,0,0,0,0,0,0,1,1,0,0,1,1],
                                                [0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,1],
                                                [1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0]], dtype=np.bool)).all()
+    show_plots, save_plots = request.config.getoption('show_plots'), request.config.getoption('save_plots')
+    if not (show_plots or save_plots):
+        return
+    import matplotlib.pyplot as plt
     plt.imshow(pool_physics._occ_ij)
-    if request.config.getoption('--show_plots'):
+    if show_plots:
         plt.show()
-    filename = os.path.join(os.path.dirname(__file__), 'plots', 'test_occlusion.png')
-    dirname = os.path.dirname(filename)
-    if not os.path.exists(dirname):
-        os.makedirs(dirname, exist_ok=True)
-    plt.savefig(filename)
-    _logger.info('saved plot to "%s"', filename)
+    if save_plots:
+        try:
+            filename = os.path.join(os.path.dirname(__file__), 'plots', 'test_occlusion.png')
+            dirname = os.path.dirname(filename)
+            if not os.path.exists(dirname):
+                    os.makedirs(dirname, exist_ok=True)
+            plt.savefig(filename)
+            _logger.info('saved plot to "%s"', filename)
+        except Exception as err:
+            _logger.error(err)
     plt.close()
 
 
@@ -173,8 +180,6 @@ def test_break(pool_physics,
     outname = gen_filename('test_break.%s' % git_head_hash(), 'pstats', directory=_here)
     import time
     import cProfile
-    import time
-    outname = gen_filename('test_break.%s' % git_head_hash(), 'pstats', directory=_here)
     pr = cProfile.Profile()
     pr.enable()
     t0 = time.time()
@@ -210,7 +215,8 @@ def test_break_and_following_shot(pool_physics,
                   0, len(events), PhysicsEvent.events_str(events))
 
 
-def test_strike_ball_english(pool_physics, gl_rendering,
+def test_strike_ball_english(pool_physics,
+                             gl_rendering,
                              plot_motion_timelapse):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
@@ -230,7 +236,8 @@ def test_strike_ball_english(pool_physics, gl_rendering,
                   PhysicsEvent.events_str(events))
 
 
-def test_strike_ball_less_english(pool_physics, gl_rendering,
+def test_strike_ball_less_english(pool_physics,
+                                  gl_rendering,
                                   plot_motion_timelapse):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)

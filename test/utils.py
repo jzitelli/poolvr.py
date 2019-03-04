@@ -43,7 +43,8 @@ def plot_ball_motion(i, physics,
                      collision_depth=0,
                      collision_markers=True,
                      hold=False,
-                     filename=None, show=False,
+                     filename=None,
+                     show=False,
                      dpi=400,
                      figure=None):
     if table is None:
@@ -108,14 +109,11 @@ def plot_ball_motion(i, physics,
         #                 plt.gcf().gca().add_patch(plt.Circle((child.t, r[2]), ball_radius, color=BALL_COLORS[child.i]))
         plt.legend()
         if filename:
-            dirname = os.path.dirname(filename)
-            if not os.path.exists(dirname):
-                os.makedirs(dirname, exist_ok=True)
-            try:
-                plt.savefig(filename, dpi=400)
-                _logger.info('...saved figure to %s', filename)
-            except Exception as err:
-                _logger.warning('error saving figure:\n%s', err)
+            # dirname = os.path.dirname(filename)
+            # if not os.path.exists(dirname):
+            #     os.makedirs(dirname, exist_ok=True)
+            plt.savefig(filename, dpi=400)
+            _logger.info('...saved figure to %s', filename)
         if show:
             plt.show()
         plt.close()
@@ -170,22 +168,21 @@ def plot_motion_timelapse(physics, table=None,
     # plt.xticks(np.linspace(-0.5*table.length, 0.5*table.length, 8))
     # plt.yticks(np.linspace(-0.5*table.width, 0.5*table.width, 8))
     if filename:
-        dirname = os.path.dirname(filename)
-        if not os.path.exists(dirname):
-            os.makedirs(dirname, exist_ok=True)
-        try:
-            plt.savefig(filename, dpi=400)
-            _logger.info('...saved figure to %s', filename)
-        except Exception as err:
-            _logger.warning('error saving figure:\n%s', err)
+        # dirname = os.path.dirname(filename)
+        # if not os.path.exists(dirname):
+        #     os.makedirs(dirname, exist_ok=True)
+        plt.savefig(filename, dpi=400)
+        _logger.info('...saved figure to %s', filename)
     if show:
         plt.show()
     plt.close()
 
 
 def plot_energy(physics, title=None, nt=1000,
-                t_0=None, t_1=None, filename=None,
-                show=False, figure=None):
+                t_0=None, t_1=None,
+                filename=None,
+                show=False,
+                figure=None):
     events = physics.events
     if t_0 is None:
         t_0 = events[0].t
@@ -205,14 +202,11 @@ def plot_energy(physics, title=None, nt=1000,
                          for a, b in zip(events[:-1], events[1:])])
     plt.plot(ts, [physics.eval_energy(t) for t in ts], color='green')
     if filename:
-        dirname = os.path.dirname(filename)
-        if not os.path.exists(dirname):
-            os.makedirs(dirname, exist_ok=True)
-        try:
-            plt.savefig(filename, dpi=400)
-            _logger.info('...saved figure to %s', filename)
-        except Exception as err:
-            _logger.warning('error saving figure:\n%s', err)
+        # dirname = os.path.dirname(filename)
+        # if not os.path.exists(dirname):
+        #     os.makedirs(dirname, exist_ok=True)
+        plt.savefig(filename, dpi=400)
+        _logger.info('...saved figure to %s', filename)
     if show:
         plt.show()
     plt.close()
