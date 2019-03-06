@@ -330,7 +330,8 @@ cdef class BallSlidingEvent(BallMotionEvent):
 
 
 cdef class CueStrikeEvent(BallEvent):
-    cdef public object V, Q
+    cdef public double[3] V
+    cdef public double[3] Q
     cdef public double M
     cdef public object _child_events
     def __init__(self, double t, int i, r_i, r_c, V, double M, q_i=None):
@@ -345,9 +346,9 @@ cdef class CueStrikeEvent(BallEvent):
         m, R, I = ball_mass, ball_radius, ball_I
         V = V.copy()
         V[1] = 0 # temporary: set vertical to 0
-        self.V = V
+        self.V[:] = V
         self.M = M
-        self.Q = Q = r_c - r_i
+        self.Q[:] = Q = r_c - r_i
         _j = -V; _j[1] = 0; _j /= np.sqrt(_j.dot(_j))
         _i = np.cross(_j, _k)
         a, b = Q.dot(_i), Q[1]

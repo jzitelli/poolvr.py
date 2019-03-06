@@ -201,7 +201,7 @@ cdef class PoolPhysics:
     def add_cue(self, cue):
         self.cues = [cue]
 
-    def strike_ball(self, t, i, r_i, r_c, V, M):
+    def strike_ball(self, double t, int i, r_i, r_c, V, double M):
         r"""
         Strike ball *i* at game time *t*.
 

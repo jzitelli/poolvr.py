@@ -7,7 +7,7 @@ import OpenGL.error
 
 
 from .gl_rendering import Node, Technique, Material, Program, DTYPE_COMPONENT_TYPE
-from .primitives import PlanePrimitive
+from .gl_primitives import PlanePrimitive
 
 
 NULL_PTR = c_void_p(0)
