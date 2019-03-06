@@ -14,7 +14,7 @@ _logger = logging.getLogger('poolvr')
 
 
 from .gl_rendering import OpenGLRenderer, set_quaternion_from_matrix, set_matrix_from_quaternion
-from .techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
+from .gl_techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
 try:
     from .pyopenvr_renderer import openvr, OpenVRRenderer
 except ImportError as err:
@@ -32,19 +32,10 @@ from .room import floor_mesh
 # from .gl_text import TexturedText
 
 
+cdef double INCH2METER = 0.0254
+cdef double ball_radius = 1.125 * INCH2METER
 BG_COLOR = (0.0, 0.0, 0.0, 0.0)
-
-
-# TODO: pkgutils way
-TEXTURES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            os.path.pardir,
-                            'textures')
-
-
 _window_renderer = None
-
-INCH2METER = 0.0254
-ball_radius = 1.125 * INCH2METER
 
 
 def setup_glfw(window_size=(800,600), double_buffered=False,

@@ -647,10 +647,12 @@ event: %s
     def glyph_meshes(self, double t):
         if self._velocity_meshes is None:
             from ..gl_rendering import Material, Mesh
-            from ..primitives import ArrowMesh
-            from ..techniques import LAMBERT_TECHNIQUE
-            self._velocity_material = Material(LAMBERT_TECHNIQUE, values={"u_color": [1.0, 0.0, 0.0, 0.0]})
-            self._angular_velocity_material = Material(LAMBERT_TECHNIQUE, values={'u_color': [0.0, 0.0, 1.0, 0.0]})
+            from ..gl_primitives import ArrowMesh
+            from ..gl_techniques import EGA_TECHNIQUE #LAMBERT_TECHNIQUE
+            self._velocity_material = Material(EGA_TECHNIQUE, #LAMBERT_TECHNIQUE,
+                                               values={"u_color": [1.0, 0.0, 0.0, 0.0]})
+            self._angular_velocity_material = Material(EGA_TECHNIQUE, #LAMBERT_TECHNIQUE,
+                                                       values={'u_color': [0.0, 0.0, 1.0, 0.0]})
             self._velocity_meshes = {i: ArrowMesh(material=self._velocity_material,
                                                   head_radius=0.2*ball_radius,
                                                   head_length=0.5*ball_radius,

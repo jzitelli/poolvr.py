@@ -3,8 +3,8 @@ import argparse
 import logging
 _logger = logging.getLogger(__name__)
 _LOGGING_FORMAT = '%(name)s.%(funcName)s[%(levelname)s]: %(message)s'
-_DEBUG_LOGGING_FORMAT = '%(asctime).19s [%(levelname)s]%(name)s.%(funcName)s (%(filename)s:%(lineno)d): %(message)s\n'
-
+#_DEBUG_LOGGING_FORMAT = '%(asctime).19s [%(levelname)s]%(name)s.%(funcName)s (%(filename)s:%(lineno)d): %(message)s\n'
+_DEBUG_LOGGING_FORMAT = '### %(asctime).19s.%(msecs).3s [%(levelname)s] %(name)s.%(funcName)s (%(filename)s:%(lineno)d) ###\n%(message)s'
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -30,7 +30,7 @@ def parse_args():
                         type=int)
     parser.add_argument('-l', '--list-sound-devices', help="list the available sound devices",
                         action="store_true")
-    parser.add_argument('--cube-map', help='set cube map texture', default=None)
+    parser.add_argument('--cube-map', help='enable cube-mapped environmental texture', action='store_true')
     parser.add_argument('--glyphs', help='render velocity and angular velocity glyphs',
                         action='store_true')
     parser.add_argument('--speed', help='time speed-up/slow-down factor (default is 1.0, normal speed)',
@@ -63,13 +63,13 @@ def main():
         import poolvr.sound
         poolvr.sound.set_output_sound_device(args.sound_device)
     import poolvr.app
-    from poolvr.techniques import LAMBERT_TECHNIQUE, EGA_TECHNIQUE
+    from poolvr.gl_techniques import LAMBERT_TECHNIQUE, EGA_TECHNIQUE
     poolvr.app.main(novr=args.novr,
                     ball_collision_model=args.collision_model,
                     use_ode=args.ode,
                     multisample=args.msaa,
                     use_bb_particles=args.bb_particles,
-                    cube_map=None,
+                    cube_map=args.cube_map,
                     speed=args.speed,
                     glyphs=args.glyphs,
                     realtime=args.realtime,
