@@ -1,9 +1,8 @@
-import logging
-_logger = logging.getLogger(__name__)
+# import logging
+# _logger = logging.getLogger(__name__)
 from bisect import bisect
 from itertools import chain
 from time import perf_counter
-
 import numpy as np
 cimport numpy as np
 
@@ -48,12 +47,12 @@ cdef class PoolPhysics:
     cdef public object _realtime
     cdef public np.ndarray _p
     cdef public object _balls_on_table
-    cdef public object _balls_at_rest
+    cdef public set _balls_at_rest
     cdef public double _collision_search_time_limit
     cdef public double _collision_search_time_forward
     cdef public object _enable_occlusion
     cdef public object _enable_sanity_check
-    cdef public object _mask
+    cdef public np.ndarray _mask
     cdef public np.ndarray _a_ij
     cdef public np.ndarray _a_ij_mag
     cdef public np.ndarray _r_ij
@@ -61,11 +60,11 @@ cdef class PoolPhysics:
     cdef public np.ndarray _theta_ij
     cdef public np.ndarray _psi_ij
     cdef public np.ndarray _occ_ij
-    cdef public object _velocity_meshes
-    cdef public object _angular_velocity_meshes
+    cdef public dict _velocity_meshes
+    cdef public dict _angular_velocity_meshes
     cdef public object _velocity_material
     cdef public object _angular_velocity_material
-    cdef public object _ball_motion_events
+    cdef public dict _ball_motion_events
     cdef public object _BALL_MOTION_EVENTS
     cdef public object _BALL_REST_EVENTS
     cdef public object ball_events
@@ -506,7 +505,7 @@ cdef class PoolPhysics:
         try:
             roots = np.roots(p)
         except np.linalg.linalg.LinAlgError as err:
-            _logger.warning('LinAlgError occurred during solve for collision time:\np = %s\nerror:\n%s', p, err)
+            #_logger.warning('LinAlgError occurred during solve for collision time:\np = %s\nerror:\n%s', p, err)
             return None
         # filter out possible complex-conjugate pairs of roots:
         def find_z(roots):
@@ -646,7 +645,7 @@ event: %s
 ''' % (2*ball_radius, d_ij, r_i, r_j, self.t, event, e_i, e_j))
 
     def glyph_meshes(self, double t):
-        if self._velocity_meshes is None:
+        if not self._velocity_meshes:
             from ..gl_rendering import Material, Mesh
             from ..gl_primitives import ArrowMesh
             from ..gl_techniques import EGA_TECHNIQUE #LAMBERT_TECHNIQUE

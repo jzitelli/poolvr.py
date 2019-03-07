@@ -4,10 +4,7 @@ import numpy as np
 cimport numpy as np
 
 
-_k = np.array([0, 1, 0],        # upward-pointing basis vector :math:`\hat{k}`
-              dtype=np.float64) # of any ball-centered frame, following the convention of Marlow
-
-
+cdef np.ndarray _k = np.array([0, 1, 0], dtype=np.float64)
 cdef double INCH2METER = 0.0254
 cdef double ball_radius = 1.125 * INCH2METER
 cdef double ball_mass = 0.17
@@ -89,11 +86,11 @@ cdef class BallEvent(PhysicsEvent):
 cdef class BallStationaryEvent(BallEvent):
     # cdef public double[3] _r_0
     # cdef public double[3] _q_0
-    cdef public object _r_0
-    cdef public object _q_0
+    cdef public np.ndarray _r_0
+    cdef public np.ndarray _q_0
     cdef public object _a_global
     def __init__(self, double t, int i, r_0=None, q_0=None,
-                 double psi=0.0, double theta=0.0, double phi=0.0, **kwargs):
+                   double psi=0.0, double theta=0.0, double phi=0.0, **kwargs):
         super().__init__(t, i, **kwargs)
         if q_0 is None:
             q_0 = self.set_quaternion_from_euler_angles(psi=psi, theta=theta, phi=phi)
@@ -169,14 +166,14 @@ cdef class BallSpinningEvent(BallStationaryEvent):
 
 
 cdef class BallMotionEvent(BallEvent):
-    cdef public object _a
-    cdef public object _b
+    cdef public np.ndarray _a
+    cdef public np.ndarray _b
     # cdef public double[:,:] _a
     # cdef public double[:,:] _b
-    cdef public object _r_0
-    cdef public object _v_0
-    cdef public object _q_0
-    cdef public object _omega_0
+    cdef public np.ndarray _r_0
+    cdef public np.ndarray _v_0
+    cdef public np.ndarray _q_0
+    cdef public np.ndarray _omega_0
     # cdef public double[3] _r_0
     # cdef public double[3] _v_0
     # cdef public double[3] _q_0
@@ -231,7 +228,7 @@ cdef class BallMotionEvent(BallEvent):
             self._ab_global = self.calc_global_motion_coeffs(self.t, self._a, self._b)
         return self._ab_global[:3], self._ab_global[3:]
     @staticmethod
-    def calc_global_motion_coeffs(double t, a, b, out=None):
+    def calc_global_motion_coeffs(double t, np.ndarray a, np.ndarray b, out=None):
         "Calculates the coefficients of the global-time equations of motion."
         if out is None:
             out = np.zeros((5,3), dtype=np.float64)
