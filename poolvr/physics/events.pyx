@@ -1,6 +1,7 @@
 import logging
 _logger = logging.getLogger(__name__)
 import numpy as np
+cimport numpy as np
 
 
 _k = np.array([0, 1, 0],        # upward-pointing basis vector :math:`\hat{k}`
@@ -378,36 +379,28 @@ cdef class CueStrikeEvent(BallEvent):
 
 
 cdef class RailCollisionEvent(BallEvent):
+    cdef public double kappa # coefficient of restitution
     cdef public int side
     cdef public object e_i
-    cdef public object _r_1
-    cdef public object _v_1
-    cdef public object _omega_1
-    cdef public object _child_events
-    cdef public double kappa # coefficient of restitution
+    cdef public BallSlidingEvent _child_event
     def __init__(self, double t, e_i, int side):
         super().__init__(t, e_i.i)
         self.kappa = 0.6
         self.e_i = e_i
         self.side = side
         tau = t - e_i.t
-        self._r_1 = e_i.eval_position(tau)
-        self._v_1 = e_i.eval_velocity(tau)
+        r_1 = e_i.eval_position(tau)
+        v_1 = e_i.eval_velocity(tau)
         omega_1 = e_i.eval_angular_velocity(tau)
-        self._omega_1 = np.zeros(3, dtype=np.float64) #e_i.eval_angular_velocity(tau)
-        self._omega_1[1] = 0.9*omega_1[1]
-        self._child_events = None
+        omega_1[::2] = 0
+        self._child_event = BallSlidingEvent(self.t, self.e_i.i,
+                                             r_0=r_1,
+                                             v_0=v_1,
+                                             omega_0=omega_1,
+                                             parent_event=self)
     @property
     def child_events(self):
-        if self._child_events is None:
-            v_1 = self._v_1.copy()
-            v_1[2*(1-(self.side % 2))] *= -self.kappa
-            self._child_events = (BallSlidingEvent(self.t, self.e_i.i,
-                                                   r_0=self._r_1,
-                                                   v_0=v_1,
-                                                   omega_0=self._omega_1,
-                                                   parent_event=self),)
-        return self._child_events
+        return (self._child_event,)
     def __str__(self):
         return super().__str__()[:-1] + " side=%d>" % self.side
 
@@ -417,16 +410,16 @@ cdef class BallCollisionEvent(PhysicsEvent):
     cdef public int j
     cdef public object e_i
     cdef public object e_j
-    cdef public object _r_i
-    cdef public object _r_j
-    cdef public object _v_i
-    cdef public object _v_j
-    cdef public object _omega_i
-    cdef public object _omega_j
-    cdef public object _v_i_1
-    cdef public object _v_j_1
-    cdef public object _omega_i_1
-    cdef public object _omega_j_1
+    cdef public np.ndarray _r_i
+    cdef public np.ndarray _r_j
+    cdef public np.ndarray _v_i
+    cdef public np.ndarray _v_j
+    cdef public np.ndarray _omega_i
+    cdef public np.ndarray _omega_j
+    cdef public np.ndarray _v_i_1
+    cdef public np.ndarray _v_j_1
+    cdef public np.ndarray _omega_i_1
+    cdef public np.ndarray _omega_j_1
     cdef public object _child_events
     def __init__(self, double t, e_i, e_j):
         super().__init__(t)

@@ -5,6 +5,7 @@ from itertools import chain
 from time import perf_counter
 
 import numpy as np
+cimport numpy as np
 
 
 from ..table import PoolTable
@@ -45,21 +46,21 @@ cdef class PoolPhysics:
     cdef public object table
     cdef public object _on_table
     cdef public object _realtime
-    cdef public object _p
+    cdef public np.ndarray _p
     cdef public object _balls_on_table
     cdef public object _balls_at_rest
-    cdef public object _collision_search_time_limit
-    cdef public object _collision_search_time_forward
+    cdef public double _collision_search_time_limit
+    cdef public double _collision_search_time_forward
     cdef public object _enable_occlusion
     cdef public object _enable_sanity_check
     cdef public object _mask
-    cdef public object _a_ij
-    cdef public object _a_ij_mag
-    cdef public object _r_ij
-    cdef public object _r_ij_mag
-    cdef public object _theta_ij
-    cdef public object _psi_ij
-    cdef public object _occ_ij
+    cdef public np.ndarray _a_ij
+    cdef public np.ndarray _a_ij_mag
+    cdef public np.ndarray _r_ij
+    cdef public np.ndarray _r_ij_mag
+    cdef public np.ndarray _theta_ij
+    cdef public np.ndarray _psi_ij
+    cdef public np.ndarray _occ_ij
     cdef public object _velocity_meshes
     cdef public object _angular_velocity_meshes
     cdef public object _velocity_material
@@ -80,8 +81,8 @@ cdef class PoolPhysics:
                  enable_sanity_check=True,
                  enable_occlusion=True,
                  realtime=False,
-                 collision_search_time_limit=0.2/90,
-                 collision_search_time_forward=0.2,
+                 double collision_search_time_limit=0.2/90,
+                 double collision_search_time_forward=0.2,
                  **kwargs):
         r"""
         Pool physics simulator

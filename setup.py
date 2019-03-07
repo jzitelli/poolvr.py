@@ -3,7 +3,7 @@ from setuptools import setup
 from codecs import open
 from os import path, listdir
 from Cython.Build import cythonize
-
+import sys
 here = path.dirname(path.abspath(__file__))
 
 with open(path.join(here, 'README.md'), encoding='utf-8') as f:
@@ -15,7 +15,9 @@ setup(
     packages=['poolvr'],
     ext_modules=cythonize([path.join('poolvr', 'physics', 'events.pyx'),
                            path.join('poolvr', 'physics', 'pool_physics.pyx'),
-                           path.join('poolvr', 'app.pyx')]),
+                           path.join('poolvr', 'app.pyx')],
+                          include_path=[path.join(sys.exec_prefix, 'lib', 'site-packages', 'numpy', 'core', 'include'), '.']),
+    include_dirs=[path.join(sys.exec_prefix, 'lib', 'site-packages', 'numpy', 'core', 'include'), '.'],
     description='Python VR pool simulator',
     long_description=long_description,
     url='https://github.com/jzitelli/poolvr.py',
