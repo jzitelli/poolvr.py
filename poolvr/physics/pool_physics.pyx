@@ -39,19 +39,17 @@ cdef double PIx2 = 2*np.pi
 
 
 cdef class PoolPhysics:
-    cdef public object _ball_collision_event_class
     cdef public int num_balls
-    cdef public double t
     cdef public object table
-    cdef public object _on_table
-    cdef public object _realtime
-    cdef public np.ndarray _p
-    cdef public object _balls_on_table
+    cdef public list cues
+    cdef public double t
+    cdef public list events
+    cdef public dict ball_events
+    cdef public object _ball_collision_event_class
     cdef public set _balls_at_rest
-    cdef public double _collision_search_time_limit
-    cdef public double _collision_search_time_forward
-    cdef public object _enable_occlusion
-    cdef public object _enable_sanity_check
+    cdef public object _balls_on_table
+    cdef public np.ndarray _on_table
+    cdef public np.ndarray _p
     cdef public np.ndarray _mask
     cdef public np.ndarray _a_ij
     cdef public np.ndarray _a_ij_mag
@@ -65,12 +63,14 @@ cdef class PoolPhysics:
     cdef public object _velocity_material
     cdef public object _angular_velocity_material
     cdef public dict _ball_motion_events
-    cdef public object _BALL_MOTION_EVENTS
-    cdef public object _BALL_REST_EVENTS
-    cdef public object ball_events
-    cdef public object events
-    cdef public object _collisions
-    cdef public object cues
+    cdef public list _BALL_MOTION_EVENTS
+    cdef public list _BALL_REST_EVENTS
+    cdef public dict _collisions
+    cdef public object _enable_occlusion
+    cdef public object _realtime
+    cdef public double _collision_search_time_limit
+    cdef public double _collision_search_time_forward
+    cdef public object _enable_sanity_check
     def __init__(self,
                  num_balls=16,
                  balls_on_table=None,

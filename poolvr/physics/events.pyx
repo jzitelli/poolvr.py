@@ -13,6 +13,7 @@ cdef double mu_r = 0.016 # coefficient of rolling friction between ball and tabl
 cdef double mu_sp = 0.044 # coefficient of spinning friction between ball and table
 cdef double mu_s = 0.2 # coefficient of sliding friction between ball and table
 cdef double mu_b = 0.06 # coefficient of friction between ball and cushions
+cdef double kappa = 0.6 # coefficient of restitution between ball and cushions
 cdef double g = 9.81 # magnitude of acceleration due to gravity
 cdef double c_b = 4000.0 # ball material's speed of sound
 cdef double E_Y_b = 2.4e9 # ball material's Young's modulus of elasticity
@@ -144,7 +145,7 @@ cdef class BallRestEvent(BallStationaryEvent):
 cdef class BallSpinningEvent(BallStationaryEvent):
     cdef public double _omega_0_y
     cdef public double _b
-    cdef public object _next_motion_event
+    cdef public BallRestEvent _next_motion_event
     def __init__(self, double t, int i, r_0, double omega_0_y, **kwargs):
         R = ball_radius
         self._omega_0_y = omega_0_y
@@ -331,7 +332,7 @@ cdef class CueStrikeEvent(BallEvent):
     cdef public double[3] V
     cdef public double[3] Q
     cdef public double M
-    cdef public object _child_events
+    cdef public BallSlidingEvent _child_event
     def __init__(self, double t, int i, r_i, r_c, V, double M, q_i=None):
         """
         :param r_i: position of ball at moment of impact
@@ -359,35 +360,34 @@ cdef class CueStrikeEvent(BallEvent):
         omega_0 = ( (-c*F_mag*sin + b*F_mag*cos) * _i +
                                    (a*F_mag*sin) * _j +
                                   (-a*F_mag*cos) * _k ) / I
-        self._child_events = (BallSlidingEvent(t, i,
-                                               r_0=r_i,
-                                               v_0=-F_mag/m*_j,
-                                               omega_0=omega_0,
-                                               q_0=q_i,
-                                               parent_event=self),)
+        self._child_event = BallSlidingEvent(t, i,
+                                             r_0=r_i,
+                                             v_0=-F_mag/m*_j,
+                                             omega_0=omega_0,
+                                             q_0=q_i,
+                                             parent_event=self)
     @property
     def child_events(self):
-        return self._child_events
+        return (self._child_event,)
     @property
     def next_motion_event(self):
-        return self._child_events[0]
+        return self._child_event
     def __str__(self):
         return super().__str__()[:-1] + '\n Q=%s\n V=%s\n M=%s>' % (self.Q, self.V, self.M)
 
 
 cdef class RailCollisionEvent(BallEvent):
-    cdef public double kappa # coefficient of restitution
     cdef public int side
     cdef public object e_i
     cdef public BallSlidingEvent _child_event
     def __init__(self, double t, e_i, int side):
         super().__init__(t, e_i.i)
-        self.kappa = 0.6
         self.e_i = e_i
         self.side = side
         tau = t - e_i.t
         r_1 = e_i.eval_position(tau)
         v_1 = e_i.eval_velocity(tau)
+        v_1[2*(1-(self.side % 2))] *= -kappa
         omega_1 = e_i.eval_angular_velocity(tau)
         omega_1[::2] = 0
         self._child_event = BallSlidingEvent(self.t, self.e_i.i,
