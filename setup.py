@@ -3,6 +3,7 @@ from setuptools import setup
 from codecs import open
 from os import path, listdir
 from Cython.Build import cythonize
+from distutils.extension import Extension
 import sys
 here = path.dirname(path.abspath(__file__))
 
@@ -13,10 +14,17 @@ setup(
     name='poolvr.py',
     version='0.0.1',
     packages=['poolvr'],
-    ext_modules=cythonize([path.join('poolvr', 'physics', 'events.pyx'),
-                           path.join('poolvr', 'physics', 'pool_physics.pyx'),
-                           path.join('poolvr', 'app.pyx')]),
-    include_dirs=[path.join(sys.exec_prefix, 'lib', 'site-packages', 'numpy', 'core', 'include'), '.'],
+    ext_modules=cythonize([Extension('poolvr.physics.events', [path.join('poolvr', 'physics', 'events.pyx')],
+                                     include_dirs=[path.join(sys.exec_prefix, 'lib', 'site-packages', 'numpy', 'core', 'include'), '.'],
+                                     extra_compile_args=["-Zi", "/O2"],
+                                     extra_link_args=["-debug"]),
+                           Extension('poolvr.physics.pool_physics', [path.join('poolvr', 'physics', 'pool_physics.pyx')],
+                                     include_dirs=[path.join(sys.exec_prefix, 'lib', 'site-packages', 'numpy', 'core', 'include'), '.'],
+                                     extra_compile_args=["-Zi", "/O2"],
+                                     extra_link_args=["-debug"]),
+                           Extension('poolvr.app', [path.join('poolvr', 'app.pyx')],
+                                     extra_compile_args=["-Zi", "/O2"],
+                                     extra_link_args=["-debug"])]),
     description='Python VR pool simulator',
     long_description=long_description,
     url='https://github.com/jzitelli/poolvr.py',
