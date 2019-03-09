@@ -86,7 +86,7 @@ cdef class BallEvent(PhysicsEvent):
 
 cdef class BallStationaryEvent(BallEvent):
     # cdef public double[3] _r_0
-    # cdef public double[3] _q_0
+    # cdef public double[4] _q_0
     cdef public np.ndarray _r_0
     cdef public np.ndarray _q_0
     cdef public object _a_global
@@ -112,6 +112,9 @@ cdef class BallStationaryEvent(BallEvent):
     def eval_position(self, double tau, out=None):
         if out is None:
             out = self._r_0.copy()
+            # out = np.ndarray((3,),
+            #                  dtype=np.float64,
+            #                  buffer=self._r_0).copy()
         else:
             out[:] = self._r_0
         return out
