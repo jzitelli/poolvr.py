@@ -21,13 +21,10 @@ from .events import (CueStrikeEvent,
 
 cdef double INCH2METER = 0.0254
 cdef double ball_radius = 1.125 * INCH2METER
+cdef double _almost_ball_radius = 0.999 * ball_radius
 cdef double ball_diameter = 2*ball_radius
 cdef double ball_mass = 0.17
 cdef double ball_I = 2.0/5 * ball_mass * ball_radius**2
-cdef double mu_r = 0.016 # coefficient of rolling friction between ball and table
-cdef double mu_sp = 0.044 # coefficient of spinning friction between ball and table
-cdef double mu_s = 0.2 # coefficient of sliding friction between ball and table
-cdef double mu_b = 0.06 # coefficient of friction between ball and cushions
 cdef double g = 9.81 # magnitude of acceleration due to gravity
 cdef double c_b = 4000.0 # ball material's speed of sound
 cdef double E_Y_b = 2.4e9 # ball material's Young's modulus of elasticity
@@ -36,6 +33,7 @@ cdef double _ZERO_TOLERANCE_SQRD = _ZERO_TOLERANCE**2
 cdef double _IMAG_TOLERANCE = 1e-7
 cdef double _IMAG_TOLERANCE_SQRD = _IMAG_TOLERANCE**2
 cdef double PIx2 = 2*np.pi
+cdef double SQRT2 = np.sqrt(2)
 
 
 cdef class PoolPhysics:
@@ -63,9 +61,13 @@ cdef class PoolPhysics:
     cdef public object _velocity_material
     cdef public object _angular_velocity_material
     cdef public dict _ball_motion_events
-    cdef public list _BALL_MOTION_EVENTS
+    # cdef public list _BALL_MOTION_EVENTS
     cdef public list _BALL_REST_EVENTS
     cdef public dict _collisions
+    cdef public double _sx
+    cdef public double _sz
+    cdef public double _sxcp
+    cdef public double _szcp
     cdef public object _enable_occlusion
     cdef public object _realtime
     cdef public double _collision_search_time_limit
@@ -102,10 +104,10 @@ cdef class PoolPhysics:
             raise Exception('dont know that collision model!')
         self.num_balls = num_balls
         # allocate for lower-level memory management:
-        self._BALL_MOTION_EVENTS = [BallMotionEvent(0.0, int(i), T=float('inf'),
-                                                    a=np.zeros((3,3), dtype=np.float64),
-                                                    b=np.zeros((2,3), dtype=np.float64))
-                                    for i in range(self.num_balls)]
+        # self._BALL_MOTION_EVENTS = [BallMotionEvent(0.0, int(i), T=float('inf'),
+        #                                             a=np.zeros((3,3), dtype=np.float64),
+        #                                             b=np.zeros((2,3), dtype=np.float64))
+        #                             for i in range(self.num_balls)]
         self._BALL_REST_EVENTS = [BallRestEvent(0.0, int(i), r_0=np.zeros(3, dtype=np.float64))
                                   for i in range(self.num_balls)]
         if table is None:
@@ -125,6 +127,10 @@ cdef class PoolPhysics:
         self._enable_sanity_check = enable_sanity_check
         self._p = np.empty(5, dtype=np.float64)
         self._mask = np.array(4*[True])
+        self._sx   = 0.5*table.W_playable
+        self._sz   = 0.5*table.L_playable
+        self._sxcp = 0.5*table.W_playable - table.mouth_size/SQRT2
+        self._szcp = 0.5*table.L_playable - table.mouth_size/SQRT2
         self._a_ij = np.zeros((self.num_balls, 3), dtype=np.float64)
         self._a_ij_mag = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
         self._r_ij = np.zeros((self.num_balls, self.num_balls, 3), dtype=np.float64)
@@ -149,11 +155,11 @@ cdef class PoolPhysics:
         else:
             ball_positions = ball_positions[self.balls_on_table]
         self.t = 0.0
-        for e in self._BALL_MOTION_EVENTS:
-            e._a[:] = 0
-            e._b[:] = 0
-            e.t = self.t
-            e.T = 0.0
+        # for e in self._BALL_MOTION_EVENTS:
+        #     e._a[:] = 0
+        #     e._b[:] = 0
+        #     e.t = self.t
+        #     e.T = 0.0
         for ii, i in enumerate(self.balls_on_table):
             e = self._BALL_REST_EVENTS[i]
             e._r_0[:] = ball_positions[ii]
@@ -426,8 +432,7 @@ cdef class PoolPhysics:
 
     def _find_rail_collision(self, e_i):
         R = ball_radius
-        sx = 0.5*self.table.W_playable
-        sz = 0.5*self.table.L_playable
+        sx, sz = self._sx, self._sz
         a = e_i._a
         times = {}
         if e_i.parent_event and isinstance(e_i.parent_event, RailCollisionEvent):
@@ -445,7 +450,7 @@ cdef class PoolPhysics:
                     tau = (rhs - a[0,j]) / a[1,j]
                     if 0 < tau < e_i.T:
                         r = e_i.eval_position(tau)
-                        if self.table.is_position_in_bounds(r):
+                        if self.is_position_in_bounds(r):
                             times[side] = e_i.t + tau
             else:
                 d = a[1,j]**2 - 4*a[2,j]*(a[0,j] - rhs)
@@ -455,20 +460,20 @@ cdef class PoolPhysics:
                     tau_n = (-a[1,j] - pn) / (2*a[2,j])
                     if 0 < tau_p < e_i.T:
                         r_p = e_i.eval_position(tau_p)
-                        if self.table.is_position_in_bounds(r_p):
+                        if self.is_position_in_bounds(r_p):
                             if 0 < tau_n < e_i.T:
                                 r_n = e_i.eval_position(tau_n)
-                                if self.table.is_position_in_bounds(r_n):
+                                if self.is_position_in_bounds(r_n):
                                     times[side] = e_i.t + min(tau_p, tau_n)
                             else:
                                 times[side] = e_i.t + tau_p
                         elif 0 < tau_n < e_i.T:
                             r_n = e_i.eval_position(tau_n)
-                            if self.table.is_position_in_bounds(r_n):
+                            if self.is_position_in_bounds(r_n):
                                 times[side] = e_i.t + tau_n
                     elif 0 < tau_n < e_i.T:
                         r_n = e_i.eval_position(tau_n)
-                        if self.table.is_position_in_bounds(r_n):
+                        if self.is_position_in_bounds(r_n):
                             times[side] = e_i.t + tau_n
         if times:
             return min((t, side) for side, t in times.items())
@@ -530,6 +535,26 @@ cdef class PoolPhysics:
                     if t0 <= t.real <= t1
                     and t.imag**2 / (t.real**2 + t.imag**2) < _IMAG_TOLERANCE_SQRD),
                    default=None)
+
+    def is_position_in_bounds(self, np.ndarray r):
+        sx, sz, R = self._sx, self._sz, _almost_ball_radius
+        return  -sx <= r[0] - R \
+            and  r[0] + R <= sx \
+            and -sz <= r[2] - R \
+            and  r[2] + R <= sz
+
+    def is_position_near_pocket(self, np.ndarray r):
+        sxcp, szcp = self._sxcp, self._szcp
+        if r[0] < -sxcp:
+            if r[2] < -szcp:
+                return 1
+            elif r[2] > szcp:
+                return 2
+        elif r[0] > sxcp:
+            if r[2] < -szcp:
+                return 3
+            elif r[2] > szcp:
+                return 4
 
     def _update_occlusion(self, ball_positions=None):
         r_ij = self._r_ij

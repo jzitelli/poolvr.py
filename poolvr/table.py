@@ -2,7 +2,6 @@ import os.path
 import logging
 _logger = logging.getLogger(__name__)
 import numpy as np
-cimport numpy as np
 
 from .gl_rendering import Mesh, Material, Texture
 from .gl_primitives import PlanePrimitive, HexaPrimitive, SpherePrimitive, CirclePrimitive, BoxPrimitive
@@ -10,73 +9,57 @@ from .gl_techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
 from .billboards import BillboardParticles
 
 
-cdef double INCH2METER = 0.0254
-cdef double SQRT2 = np.sqrt(2)
-cdef list BALL_COLORS = [0xddddde,
-                         0xeeee00,
-                         0x0000ee,
-                         0xee0000,
-                         0xee00ee,
-                         0xee7700,
-                         0x00ee00,
-                         0xbb2244,
-                         0x111111] + \
-                         [0xddddde,
-                          0xeeee00,
-                          0x0000ee,
-                          0xee0000,
-                          0xee00ee,
-                          0xee7700,
-                          0x00ee00,
-                          0xbb2244,
-                          0x111111][1:-1]
+# TODO: pkgutils way
+TEXTURES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            os.path.pardir,
+                            'textures')
 
 
-cdef class PoolTable(object):
-    cdef public double length
-    cdef public double height
-    cdef public double width
-    cdef public double W_playable
-    cdef public double L_playable
-    cdef public double W_cushion
-    cdef public double mouth_size
-    cdef public double throat_size
-    cdef public double H_cushion
-    cdef public double W_nose
-    cdef public double H_nose
-    cdef public double width_rail
-    cdef public double H_rail
-    cdef public double ball_radius
-    cdef public double ball_diameter
-    cdef public int num_balls
-    cdef public list ball_colors
-    cdef public double _almost_ball_radius
+INCH2METER = 0.0254
+SQRT2 = np.sqrt(2)
+
+
+class PoolTable(object):
+    BALL_COLORS = [0xddddde,
+                   0xeeee00,
+                   0x0000ee,
+                   0xee0000,
+                   0xee00ee,
+                   0xee7700,
+                   0x00ee00,
+                   0xbb2244,
+                   0x111111]
+    BALL_COLORS = BALL_COLORS + BALL_COLORS[1:-1]
     def __init__(self,
-                 double length=2.34,
-                 double height=0.77,
-                 double width=0.5*2.34,
-                 double W_cushion=2*INCH2METER,
-                 double mouth_size=5*INCH2METER,
-                 double throat_size=4.125*INCH2METER,
-                 double H_cushion=0.635*2.25*INCH2METER,
-                 double W_nose=0.05*2*INCH2METER,
-                 double H_nose=0.5*0.635*2.25*INCH2METER,
-                 double width_rail=1.52*INCH2METER,
-                 double H_rail=1.25*0.635*2.25*INCH2METER,
-                 double ball_radius=1.125*INCH2METER,
-                 int num_balls=len(BALL_COLORS),
-                 list ball_colors=BALL_COLORS,
+                 length=2.34,
+                 height=0.77,
+                 width=None,
+                 W_cushion=2*INCH2METER,
+                 mouth_size=5*INCH2METER,
+                 throat_size=4.125*INCH2METER,
+                 H_cushion=0.635*2.25*INCH2METER,
+                 width_rail=None,
+                 H_rail=None,
+                 ball_radius=1.125*INCH2METER,
+                 num_balls=len(BALL_COLORS),
+                 ball_colors=BALL_COLORS,
                  **kwargs):
         self.length = length
         self.height = height
+        if width is None:
+            width = 0.5 * length
         self.width = width
+        if width_rail is None:
+            width_rail = 1.5 * W_cushion
         self.width_rail = width_rail
+        if H_rail is None:
+            H_rail = 1.25 * H_cushion
         self.H_rail = H_rail
         self.ball_radius = ball_radius
         self.ball_diameter = 2*ball_radius
         self.W_cushion = W_cushion
-        self.W_nose = W_nose
-        self.H_nose = H_nose
+        self.W_nose = 0.05 * W_cushion
+        self.H_nose = 0.5 * H_cushion
         self.W_playable = width - 2*W_cushion
         self.L_playable = length - 2*W_cushion
         self.num_balls = num_balls
@@ -85,7 +68,7 @@ cdef class PoolTable(object):
         self.mouth_size = mouth_size
         self._almost_ball_radius = 0.999*ball_radius
 
-    def is_position_in_bounds(self, np.ndarray r):
+    def is_position_in_bounds(self, r):
         """ r: position vector; R: ball radius """
         R = self._almost_ball_radius
         return  -0.5*self.W_playable <= r[0] - R            \
@@ -93,19 +76,20 @@ cdef class PoolTable(object):
             and -0.5*self.L_playable <= r[2] - R            \
             and             r[2] + R <= 0.5*self.L_playable
 
-    def is_position_near_pocket(self, np.ndarray r):
-        if r[0] < -0.5*self.W_playable + self.mouth_size/SQRT2:
-            if r[2] < -0.5*self.L_playable + self.mouth_size/SQRT2:
+    def is_position_near_pocket(self, r):
+        """ r: position vector; R: ball radius """
+        if r[0] < -0.5*self.W_playable + self.mouth_size/np.sqrt(2):
+            if r[2] < -0.5*self.L_playable + self.mouth_size/np.sqrt(2):
                 _logger.info('corner pocket 0')
                 return 0
-            elif r[2] > 0.5*self.L_playable - self.mouth_size/SQRT2:
+            elif r[2] > 0.5*self.L_playable - self.mouth_size/np.sqrt(2):
                 _logger.info('corner pocket 1')
                 return 1
-        elif r[0] > 0.5*self.W_playable - self.mouth_size/SQRT2:
-            if r[2] < -0.5*self.L_playable + self.mouth_size/SQRT2:
+        elif r[0] > 0.5*self.W_playable - self.mouth_size/np.sqrt(2):
+            if r[2] < -0.5*self.L_playable + self.mouth_size/np.sqrt(2):
                 _logger.info('corner pocket 2')
                 return 2
-            elif r[2] > 0.5*self.L_playable - self.mouth_size/SQRT2:
+            elif r[2] > 0.5*self.L_playable - self.mouth_size/np.sqrt(2):
                 _logger.info('corner pocket 3')
                 return 3
 
@@ -141,10 +125,10 @@ cdef class PoolTable(object):
              [ 0.5*W_playable - 1.2*SQRT2*W_cushion, 0.57*2*self.ball_radius, -0.5*W_cushion + self.W_nose],
              [-0.5*W_playable + 1.2*SQRT2*W_cushion, 0.57*2*self.ball_radius, -0.5*W_cushion + self.W_nose]],
             # top quad:
-            [[-0.5*W_playable + (T/SQRT2 - W_cushion), self.H_rail,  0.5*W_cushion],
-             [ 0.5*W_playable - (T/SQRT2 - W_cushion), self.H_rail,  0.5*W_cushion],
-             [ 0.5*W_playable - M/SQRT2,               H_cushion,   -0.5*W_cushion],
-             [-0.5*W_playable + M/SQRT2,               H_cushion,   -0.5*W_cushion]]], dtype=np.float32))
+            [[-0.5*W_playable + (T/np.sqrt(2) - W_cushion), self.H_rail,  0.5*W_cushion],
+             [ 0.5*W_playable - (T/np.sqrt(2) - W_cushion), self.H_rail,  0.5*W_cushion],
+             [ 0.5*W_playable - M/np.sqrt(2),               H_cushion,   -0.5*W_cushion],
+             [-0.5*W_playable + M/np.sqrt(2),               H_cushion,   -0.5*W_cushion]]], dtype=np.float32))
         self.headCushionGeom.attributes['vertices'].reshape(-1,3)[:,1] += self.height
         _vertices = self.headCushionGeom.attributes['vertices'].copy()
         self.headCushionGeom.attributes['vertices'].reshape(-1,3)[:,2] += 0.5 * self.length - 0.5*W_cushion
@@ -200,7 +184,9 @@ cdef class PoolTable(object):
         ball_quaternions = np.zeros((num_balls, 4), dtype=np.float32)
         ball_quaternions[:,3] = 1
         if use_bb_particles:
-            ball_billboards = BillboardParticles(num_particles=num_balls,
+            ball_billboards = BillboardParticles(Texture(os.path.join(TEXTURES_DIR, 'sphere_bb_alpha.png')),
+                                                 Texture(os.path.join(TEXTURES_DIR, 'sphere_bb_normal.png')),
+                                                 num_particles=num_balls,
                                                  scale=2*self.ball_radius / 0.975,
                                                  color=np.array([[(c & 0xff0000) / 0xff0000,
                                                                   (c & 0x00ff00) / 0x00ff00,
