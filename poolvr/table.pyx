@@ -10,32 +10,26 @@ from .gl_techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
 from .billboards import BillboardParticles
 
 
-# TODO: pkgutils way
-TEXTURES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            os.path.pardir,
-                            'textures')
-
-
 cdef double INCH2METER = 0.0254
 cdef double SQRT2 = np.sqrt(2)
-BALL_COLORS = [0xddddde,
-               0xeeee00,
-               0x0000ee,
-               0xee0000,
-               0xee00ee,
-               0xee7700,
-               0x00ee00,
-               0xbb2244,
-               0x111111] + \
-               [0xddddde,
-                0xeeee00,
-                0x0000ee,
-                0xee0000,
-                0xee00ee,
-                0xee7700,
-                0x00ee00,
-                0xbb2244,
-                0x111111][1:-1]
+cdef list BALL_COLORS = [0xddddde,
+                         0xeeee00,
+                         0x0000ee,
+                         0xee0000,
+                         0xee00ee,
+                         0xee7700,
+                         0x00ee00,
+                         0xbb2244,
+                         0x111111] + \
+                         [0xddddde,
+                          0xeeee00,
+                          0x0000ee,
+                          0xee0000,
+                          0xee00ee,
+                          0xee7700,
+                          0x00ee00,
+                          0xbb2244,
+                          0x111111][1:-1]
 
 
 cdef class PoolTable(object):
@@ -206,9 +200,7 @@ cdef class PoolTable(object):
         ball_quaternions = np.zeros((num_balls, 4), dtype=np.float32)
         ball_quaternions[:,3] = 1
         if use_bb_particles:
-            ball_billboards = BillboardParticles(Texture(os.path.join(TEXTURES_DIR, 'sphere_bb_alpha.png')),
-                                                 Texture(os.path.join(TEXTURES_DIR, 'sphere_bb_normal.png')),
-                                                 num_particles=num_balls,
+            ball_billboards = BillboardParticles(num_particles=num_balls,
                                                  scale=2*self.ball_radius / 0.975,
                                                  color=np.array([[(c & 0xff0000) / 0xff0000,
                                                                   (c & 0x00ff00) / 0x00ff00,

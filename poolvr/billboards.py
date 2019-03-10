@@ -6,7 +6,7 @@ import OpenGL.GL as gl
 import OpenGL.error
 
 
-from .gl_rendering import Node, Technique, Material, Program, DTYPE_COMPONENT_TYPE
+from .gl_rendering import Node, Technique, Material, Program, DTYPE_COMPONENT_TYPE, Texture
 from .gl_primitives import PlanePrimitive
 
 
@@ -23,7 +23,10 @@ class BillboardParticles(Node):
     technique = Technique(Program(pkgutil.get_data('poolvr', 'shaders/bb_particles_vs.glsl').decode(),
                                   pkgutil.get_data('poolvr', 'shaders/bb_particles_fs.glsl').decode()))
     _modelview = np.eye(4, dtype=np.float32)
-    def __init__(self, texture, normal_map, num_particles=1, scale=1.0, color=None, translate=None):
+    def __init__(self,
+                 texture=Texture(os.path.join(TEXTURES_DIR, 'sphere_bb_alpha.png')),
+                 normal_map=Texture(os.path.join(TEXTURES_DIR, 'sphere_bb_normal.png')),
+                 num_particles=1, scale=1.0, color=None, translate=None):
         Node.__init__(self)
         self.texture = texture
         self.normal_map = normal_map
