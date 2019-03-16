@@ -66,6 +66,8 @@ cdef class PoolPhysics:
     cdef public dict _collisions
     cdef public double _sx
     cdef public double _sz
+    cdef public double _rhsx
+    cdef public double _rhsz
     cdef public double _sxcp
     cdef public double _szcp
     cdef public object _enable_occlusion
@@ -129,8 +131,10 @@ cdef class PoolPhysics:
         self._mask = np.array(4*[True])
         self._sx   = 0.5*table.W_playable
         self._sz   = 0.5*table.L_playable
-        self._sxcp = 0.5*table.W_playable - table.mouth_size/SQRT2
-        self._szcp = 0.5*table.L_playable - table.mouth_size/SQRT2
+        self._sxcp = self._sx - table.mouth_size/SQRT2
+        self._szcp = self._sz - table.mouth_size/SQRT2
+        self._rhsx = 0.5*table.W_playable - ball_radius
+        self._rhsz = 0.5*table.L_playable - ball_radius
         self._a_ij = np.zeros((self.num_balls, 3), dtype=np.float64)
         self._a_ij_mag = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
         self._r_ij = np.zeros((self.num_balls, self.num_balls, 3), dtype=np.float64)
@@ -432,51 +436,82 @@ cdef class PoolPhysics:
 
     def _find_rail_collision(self, e_i):
         R = ball_radius
-        sx, sz = self._sx, self._sz
+        rhsx, rhsz = self._rhsx, self._rhsz
+        sxcp, szcp = self._sxcp, self._szcp
         a = e_i._a
-        times = {}
         if e_i.parent_event and isinstance(e_i.parent_event, RailCollisionEvent):
             prev_side = e_i.parent_event.side
         else:
             prev_side = None
-        for side, (j, rhs) in enumerate([(2,  sz - R),
-                                         (0,  sx - R),
-                                         (2, -sz + R),
-                                         (0, -sx + R)]):
+        tau_min = e_i.T
+        side_min = None
+        for side, (j, rhs, rhsp) in enumerate([(2,  rhsz, sxcp),
+                                               (0,  rhsx, szcp),
+                                               (2, -rhsz, sxcp),
+                                               (0, -rhsx, szcp)]):
             if side == prev_side:
                 continue
+            k = 2 - j
+            pa, pb = side, (side-1) % 4
+            if side > 1:
+                pa, pb = pb, pa
             if abs(a[2,j]) < 1e-15:
                 if abs(a[1,j]) > 1e-15:
                     tau = (rhs - a[0,j]) / a[1,j]
-                    if 0 < tau < e_i.T:
+                    if 0 < tau < tau_min:
                         r = e_i.eval_position(tau)
                         if self.is_position_in_bounds(r):
-                            times[side] = e_i.t + tau
+                            tau_min = tau
+                            side_min = side
+                            if r[k] > rhsp:
+                                _logger.debug('side %d pocket %d\nr = %s', side, pa, r)
+                            elif r[k] < -rhsp:
+                                _logger.debug('side %d pocket %d\nr = %s', side, pb, r)
             else:
                 d = a[1,j]**2 - 4*a[2,j]*(a[0,j] - rhs)
                 if d > 1e-15:
                     pn = np.sqrt(d)
                     tau_p = (-a[1,j] + pn) / (2*a[2,j])
                     tau_n = (-a[1,j] - pn) / (2*a[2,j])
-                    if 0 < tau_p < e_i.T:
-                        r_p = e_i.eval_position(tau_p)
-                        if self.is_position_in_bounds(r_p):
-                            if 0 < tau_n < e_i.T:
-                                r_n = e_i.eval_position(tau_n)
-                                if self.is_position_in_bounds(r_n):
-                                    times[side] = e_i.t + min(tau_p, tau_n)
-                            else:
-                                times[side] = e_i.t + tau_p
-                        elif 0 < tau_n < e_i.T:
-                            r_n = e_i.eval_position(tau_n)
-                            if self.is_position_in_bounds(r_n):
-                                times[side] = e_i.t + tau_n
-                    elif 0 < tau_n < e_i.T:
-                        r_n = e_i.eval_position(tau_n)
-                        if self.is_position_in_bounds(r_n):
-                            times[side] = e_i.t + tau_n
-        if times:
-            return min((t, side) for side, t in times.items())
+                    if 0 < tau_n < tau_min and 0 < tau_p < tau_min:
+                        tau_a, tau_b = min(tau_n, tau_p), max(tau_n, tau_p)
+                        r = e_i.eval_position(tau_a)
+                        if self.is_position_in_bounds(r):
+                            tau_min = tau_a
+                            side_min = side
+                            if r[k] > rhsp:
+                                _logger.debug('side %d pocket %d\nr = %s', side, pa, r)
+                            elif r[k] < -rhsp:
+                                _logger.debug('side %d pocket %d\nr = %s', side, pb, r)
+                        else:
+                            r = e_i.eval_position(tau_b)
+                            if self.is_position_in_bounds(r):
+                                tau_min = tau_b
+                                side_min = side
+                                if r[k] > rhsp:
+                                    _logger.debug('side %d pocket %d\nr = %s', side, pa, r)
+                                elif r[k] < -rhsp:
+                                    _logger.debug('side %d pocket %d\nr = %s', side, pb, r)
+                    elif 0 < tau_n < tau_min:
+                        r = e_i.eval_position(tau_n)
+                        if self.is_position_in_bounds(r):
+                            tau_min = tau_n
+                            side_min = side
+                            if r[k] > rhsp:
+                                _logger.debug('side %d pocket %d\nr = %s', side, pa, r)
+                            elif r[k] < -rhsp:
+                                _logger.debug('side %d pocket %d\nr = %s', side, pb, r)
+                    elif 0 < tau_p < tau_min:
+                        r = e_i.eval_position(tau_p)
+                        if self.is_position_in_bounds(r):
+                            tau_min = tau_p
+                            side_min = side
+                            if r[k] > rhsp:
+                                _logger.debug('side %d pocket %d\nr = %s', side, pa, r)
+                            elif r[k] < -rhsp:
+                                _logger.debug('side %d pocket %d\nr = %s', side, pb, r)
+        if side_min is not None:
+            return (e_i.t + tau_min, side_min)
 
     def _find_collision(self, e_i, e_j, double t_min):
         if e_j.parent_event and e_i.parent_event and e_j.parent_event == e_i.parent_event:

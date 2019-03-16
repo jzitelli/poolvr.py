@@ -176,15 +176,16 @@ def test_break(pool_physics,
     r_c = ball_positions[0].copy()
     r_c[2] += ball_radius
     V = np.array((-0.01, 0.0, -1.6), dtype=np.float64)
+    #V = np.array((-0.01, 0.0, -2.5), dtype=np.float64)
     M = 0.54
     outname = gen_filename('test_break.%s' % git_head_hash(), 'pstats', directory=_here)
-    import time
+    from time import perf_counter
     import cProfile
     pr = cProfile.Profile()
     pr.enable()
-    t0 = time.time()
+    t0 = perf_counter()
     events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
-    t1 = time.time()
+    t1 = perf_counter()
     pr.dump_stats(outname)
     _logger.info('...dumped stats to "%s"', outname)
     _logger.info('elapsed time: %s', t1-t0)
@@ -255,3 +256,21 @@ def test_strike_ball_less_english(pool_physics,
     events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
     _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
                   PhysicsEvent.events_str(events))
+
+
+def test_pocket_scratch(pool_physics,
+                        gl_rendering,
+                        plot_motion_timelapse,
+                        plot_energy):
+    physics = pool_physics
+    ball_positions = physics.eval_positions(0.0)
+    physics.reset(balls_on_table=[0],
+                  ball_positions=ball_positions)
+    r_p = np.array(physics.table.pocket_positions[0])
+    r_0p = r_p - ball_positions[0]
+    v_0 = 1.9 * r_0p / np.sqrt(np.dot(r_0p, r_0p))
+    start_event = BallSlidingEvent(0, 0, r_0=ball_positions[0],
+                                   v_0=v_0,
+                                   omega_0=np.zeros(3, dtype=np.float64))
+    events = physics.add_event_sequence(start_event)
+    _logger.debug('%d events added:\n\n%s\n', len(events), PhysicsEvent.events_str(events=events))
