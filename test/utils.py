@@ -148,13 +148,13 @@ def plot_motion_timelapse(physics, table=None,
     plt.title(title)
     ts = np.linspace(t_0, t_1, nt)
     #ax = plt.subplot(111, facecolor='green')
-    plt.gca().set_xlim(-0.5*table.width, 0.5*table.width)
-    plt.gca().set_ylim(-0.5*table.length, 0.5*table.length)
+    plt.gca().set_xlim(-0.5*table.W, 0.5*table.W)
+    plt.gca().set_ylim(-0.5*table.L, 0.5*table.L)
     #[-0.5*table.width, 0.5*table.width,
     # -0.5*table.length, 0.5*table.length])
     plt.gca().set_aspect('equal')
-    plt.gca().add_patch(plt.Rectangle((-0.5*table.width, -0.5*table.length),
-                                      table.width, table.length,
+    plt.gca().add_patch(plt.Rectangle((-0.5*table.W, -0.5*table.L),
+                                      table.W, table.L,
                                       color='#013216'))
     ball_colors = dict(BALL_COLORS)
     ball_colors[0] = 'white'

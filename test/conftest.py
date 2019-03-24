@@ -39,6 +39,7 @@ def pool_physics(pool_table, request):
     return PoolPhysics(initial_positions=pool_table.calc_racked_positions(),
                        ball_collision_model='simple',
                        enable_sanity_check=False)
+physics = pool_physics
 
 
 @pytest.fixture
@@ -154,8 +155,8 @@ def gl_rendering(pool_physics, pool_table, request):
                                   title=title)
     camera_world_matrix = renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
-    camera_position[1] = table.height + 0.6
-    camera_position[2] = table.length - 0.1
+    camera_position[1] = table.H + 0.6
+    camera_position[2] = table.L - 0.1
     ball_meshes = table.export_ball_meshes()
     ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
     for ball_mesh, shadow_mesh, on_table in zip(ball_meshes, ball_shadow_meshes, physics._on_table):

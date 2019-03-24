@@ -29,28 +29,28 @@ PIx2 = 2*np.pi
 _here = os.path.dirname(__file__)
 
 
-def test_occlusion(pool_physics, request):
-    assert (pool_physics._occ_ij == ~np.array([[0,1,1,1,1,1,1,0,0,0,1,0,0,1,0,1],
-                                               [1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0],
-                                               [1,1,0,1,0,0,1,1,0,0,0,0,0,0,0,0],
-                                               [1,0,1,0,1,0,0,1,1,0,0,0,0,0,0,0],
-                                               [1,0,0,1,0,1,0,0,1,1,0,0,0,0,0,0],
-                                               [1,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0],
-                                               [1,1,1,0,0,0,0,1,0,0,1,0,0,0,0,0],
-                                               [0,0,1,1,0,0,1,0,1,0,1,1,0,0,0,0],
-                                               [0,0,0,1,1,0,0,1,0,1,0,1,1,0,0,0],
-                                               [0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,0],
-                                               [1,0,0,0,0,0,1,1,0,0,0,1,0,1,0,0],
-                                               [0,0,0,0,0,0,0,1,1,0,1,0,1,1,1,0],
-                                               [0,0,0,0,0,0,0,0,1,1,0,1,0,0,1,0],
-                                               [1,0,0,0,0,0,0,0,0,0,1,1,0,0,1,1],
-                                               [0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,1],
-                                               [1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0]], dtype=np.bool)).all()
+def test_occlusion(physics, request):
+    assert (physics._occ_ij == ~np.array([[0,1,1,1,1,1,1,0,0,0,1,0,0,1,0,1],
+                                          [1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0],
+                                          [1,1,0,1,0,0,1,1,0,0,0,0,0,0,0,0],
+                                          [1,0,1,0,1,0,0,1,1,0,0,0,0,0,0,0],
+                                          [1,0,0,1,0,1,0,0,1,1,0,0,0,0,0,0],
+                                          [1,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0],
+                                          [1,1,1,0,0,0,0,1,0,0,1,0,0,0,0,0],
+                                          [0,0,1,1,0,0,1,0,1,0,1,1,0,0,0,0],
+                                          [0,0,0,1,1,0,0,1,0,1,0,1,1,0,0,0],
+                                          [0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,0],
+                                          [1,0,0,0,0,0,1,1,0,0,0,1,0,1,0,0],
+                                          [0,0,0,0,0,0,0,1,1,0,1,0,1,1,1,0],
+                                          [0,0,0,0,0,0,0,0,1,1,0,1,0,0,1,0],
+                                          [1,0,0,0,0,0,0,0,0,0,1,1,0,0,1,1],
+                                          [0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,1],
+                                          [1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0]], dtype=np.bool)).all()
     show_plots, save_plots = request.config.getoption('show_plots'), request.config.getoption('save_plots')
     if not (show_plots or save_plots):
         return
     import matplotlib.pyplot as plt
-    plt.imshow(pool_physics._occ_ij)
+    plt.imshow(physics._occ_ij)
     if show_plots:
         plt.show()
     if save_plots:
@@ -66,11 +66,10 @@ def test_occlusion(pool_physics, request):
     plt.close()
 
 
-def test_strike_ball(pool_physics,
+def test_strike_ball(physics,
                      plot_motion_z_position,
                      plot_motion_timelapse,
                      plot_energy):
-    physics = pool_physics
     physics.reset(balls_on_table=[0])
     ball_positions = physics.eval_positions(0.0)
     r_c = ball_positions[0].copy()
@@ -88,12 +87,11 @@ def test_strike_ball(pool_physics,
     assert isinstance(events[3], BallRestEvent)
 
 
-def test_ball_collision(pool_physics,
+def test_ball_collision(physics,
                         plot_motion_z_position,
                         plot_motion_timelapse,
                         plot_energy,
                         gl_rendering):
-    physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
     ball_positions[1] = ball_positions[0]; ball_positions[1,2] -= 8 * ball_radius
     physics.reset(balls_on_table=[0, 1],
@@ -112,13 +110,12 @@ def test_ball_collision(pool_physics,
     # assert isinstance(events[5], BallRestEvent)
 
 
-def test_angled_ball_collision(pool_physics,
+def test_angled_ball_collision(physics,
                                plot_motion_z_position,
                                plot_motion_x_position,
                                plot_motion_timelapse,
                                plot_energy,
                                gl_rendering):
-    physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
     ball_positions[1] = ball_positions[0]
     ball_positions[1,0] -= 8 / np.sqrt(2) * ball_radius
@@ -143,12 +140,11 @@ def test_angled_ball_collision(pool_physics,
     # assert isinstance(events[5], BallRestEvent)
 
 
-def test_sliding_ball_collision(pool_physics,
+def test_sliding_ball_collision(physics,
                                 plot_motion_z_position,
                                 plot_motion_timelapse,
                                 plot_energy,
                                 gl_rendering):
-    physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
     ball_positions[1] = ball_positions[0]; ball_positions[1,2] -= 8 * ball_radius
     physics.reset(balls_on_table=[0, 1],
@@ -258,19 +254,84 @@ def test_strike_ball_less_english(pool_physics,
                   PhysicsEvent.events_str(events))
 
 
-def test_pocket_scratch(pool_physics,
-                        gl_rendering,
-                        plot_motion_timelapse,
-                        plot_energy):
+# def test_pocket_scratch(pool_physics,
+#                         gl_rendering,
+#                         plot_motion_timelapse,
+#                         plot_energy):
+#     physics = pool_physics
+#     ball_positions = physics.eval_positions(0.0)
+#     physics.reset(balls_on_table=[0],
+#                   ball_positions=ball_positions)
+#     r_p = np.array(physics.table.pocket_positions[0])
+#     r_0p = r_p - ball_positions[0]
+#     v_0 = 1.9 * r_0p / np.sqrt(np.dot(r_0p, r_0p))
+#     start_event = BallSlidingEvent(0, 0, r_0=ball_positions[0],
+#                                    v_0=v_0,
+#                                    omega_0=np.zeros(3, dtype=np.float64))
+#     events = physics.add_event_sequence(start_event)
+#     _logger.debug('%d events added:\n\n%s\n', len(events), PhysicsEvent.events_str(events=events))
+
+
+def test_quartic_solve(pool_physics):
     physics = pool_physics
-    ball_positions = physics.eval_positions(0.0)
-    physics.reset(balls_on_table=[0],
-                  ball_positions=ball_positions)
-    r_p = np.array(physics.table.pocket_positions[0])
-    r_0p = r_p - ball_positions[0]
-    v_0 = 1.9 * r_0p / np.sqrt(np.dot(r_0p, r_0p))
-    start_event = BallSlidingEvent(0, 0, r_0=ball_positions[0],
-                                   v_0=v_0,
-                                   omega_0=np.zeros(3, dtype=np.float64))
-    events = physics.add_event_sequence(start_event)
-    _logger.debug('%d events added:\n\n%s\n', len(events), PhysicsEvent.events_str(events=events))
+    def quadratic_solve(p):
+        a, b, c = p[::-1]
+        d = b**2 - 4*a*c
+        if d < 0:
+            sqrtd = np.sqrt(d + 0j)
+        else:
+            sqrtd = np.sqrt(d)
+        return [(-b + sqrtd) / (2*a), (-b - sqrtd) / (2*a)]
+    p = np.array([9, 0, 0, 0, 1], dtype=np.float64)
+    xs = physics.quartic_solve(p)
+    q0 = np.array([3, np.sqrt(6), 1], dtype=np.float64)
+    q1 = q0.copy(); q1[1] *= -1
+    _logger.debug('''roots of x^4 + 9
+which factors into quadratics
+  (x^2 + 6^0.5*x + 3): %s
+  (x^2 - 6^0.5*x + 3): %s
+
+%s
+''',
+                  ',  '.join(str(x) for x in quadratic_solve(q0)),
+                  ',  '.join(str(x) for x in quadratic_solve(q1)),
+                  ',  '.join(str(x) for x in xs))
+    p = np.array([-3, -2, -1, 2, 1], dtype=np.float64)
+    xs = physics.quartic_solve(p)
+    q0 = np.array([1, 1, 1], dtype=np.float64)
+    q1 = np.array([-3, 1, 1], dtype=np.float64)
+    _logger.debug('''roots of x^4 + 2x^3 - x^2 - 2x - 3
+which factors into quadratics
+  (x^2 + x + 1): %s
+  (x^2 + x - 3): %s
+
+%s
+''',
+                  ',  '.join(str(x) for x in quadratic_solve(q0)),
+                  ',  '.join(str(x) for x in quadratic_solve(q1)),
+                  ',  '.join(str(x) for x in xs))
+    np.random.seed(1)
+    for _ in range(1):
+        a, b, c, d = xs = np.random.rand(4)
+        p = np.array([
+            1,
+            (-a - b - c - d),
+            (a*b + a*c + a*d + b*c + b*d + c*d),
+            (-a*b*c - a*b*d - a*c*d - b*c*d),
+            a*b*c*d
+        ][::-1])
+        zs = physics.quartic_solve(p)
+        _logger.debug('''roots of x^4 + (%s)x^3 + (%s)x^2 + (%s)x + %s
+which factors into
+(x - %s)
+(x - %s)
+(x - %s)
+(x - %s)
+
+%s
+''',
+                      p[3], p[2], p[1], p[0], a, b, c, d,
+                      ',  '.join(str(x) for x in zs))
+        for z in zs:
+            e = abs(xs - z)/abs(xs)
+            assert((e < 1e-8).any())

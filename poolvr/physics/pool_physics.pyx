@@ -129,12 +129,12 @@ cdef class PoolPhysics:
         self._enable_sanity_check = enable_sanity_check
         self._p = np.empty(5, dtype=np.float64)
         self._mask = np.array(4*[True])
-        self._sx   = 0.5*table.W_playable
-        self._sz   = 0.5*table.L_playable
-        self._sxcp = self._sx - table.mouth_size/SQRT2
-        self._szcp = self._sz - table.mouth_size/SQRT2
-        self._rhsx = 0.5*table.W_playable - ball_radius
-        self._rhsz = 0.5*table.L_playable - ball_radius
+        self._sx   = 0.5*table.W
+        self._sz   = 0.5*table.L
+        self._sxcp = self._sx - table.M_cp/SQRT2
+        self._szcp = self._sz - table.M_cp/SQRT2
+        self._rhsx = 0.5*table.W - ball_radius
+        self._rhsz = 0.5*table.L - ball_radius
         self._a_ij = np.zeros((self.num_balls, 3), dtype=np.float64)
         self._a_ij_mag = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
         self._r_ij = np.zeros((self.num_balls, self.num_balls, 3), dtype=np.float64)
@@ -463,10 +463,10 @@ cdef class PoolPhysics:
                         if self.is_position_in_bounds(r):
                             tau_min = tau
                             side_min = side
-                            if r[k] > rhsp:
-                                _logger.debug('side %d pocket %d\nr = %s', side, pa, r)
-                            elif r[k] < -rhsp:
-                                _logger.debug('side %d pocket %d\nr = %s', side, pb, r)
+                            # if r[k] > rhsp:
+                            #     _logger.debug('side %d pocket %d\nr = %s', side, pa, r)
+                            # elif r[k] < -rhsp:
+                            #     _logger.debug('side %d pocket %d\nr = %s', side, pb, r)
             else:
                 d = a[1,j]**2 - 4*a[2,j]*(a[0,j] - rhs)
                 if d > 1e-15:
@@ -479,37 +479,37 @@ cdef class PoolPhysics:
                         if self.is_position_in_bounds(r):
                             tau_min = tau_a
                             side_min = side
-                            if r[k] > rhsp:
-                                _logger.debug('side %d pocket %d\nr = %s', side, pa, r)
-                            elif r[k] < -rhsp:
-                                _logger.debug('side %d pocket %d\nr = %s', side, pb, r)
+                            # if r[k] > rhsp:
+                            #     _logger.debug('side %d pocket %d\nr = %s', side, pa, r)
+                            # elif r[k] < -rhsp:
+                            #     _logger.debug('side %d pocket %d\nr = %s', side, pb, r)
                         else:
                             r = e_i.eval_position(tau_b)
                             if self.is_position_in_bounds(r):
                                 tau_min = tau_b
                                 side_min = side
-                                if r[k] > rhsp:
-                                    _logger.debug('side %d pocket %d\nr = %s', side, pa, r)
-                                elif r[k] < -rhsp:
-                                    _logger.debug('side %d pocket %d\nr = %s', side, pb, r)
+                                # if r[k] > rhsp:
+                                #     _logger.debug('side %d pocket %d\nr = %s', side, pa, r)
+                                # elif r[k] < -rhsp:
+                                #     _logger.debug('side %d pocket %d\nr = %s', side, pb, r)
                     elif 0 < tau_n < tau_min:
                         r = e_i.eval_position(tau_n)
                         if self.is_position_in_bounds(r):
                             tau_min = tau_n
                             side_min = side
-                            if r[k] > rhsp:
-                                _logger.debug('side %d pocket %d\nr = %s', side, pa, r)
-                            elif r[k] < -rhsp:
-                                _logger.debug('side %d pocket %d\nr = %s', side, pb, r)
+                            # if r[k] > rhsp:
+                            #     _logger.debug('side %d pocket %d\nr = %s', side, pa, r)
+                            # elif r[k] < -rhsp:
+                            #     _logger.debug('side %d pocket %d\nr = %s', side, pb, r)
                     elif 0 < tau_p < tau_min:
                         r = e_i.eval_position(tau_p)
                         if self.is_position_in_bounds(r):
                             tau_min = tau_p
                             side_min = side
-                            if r[k] > rhsp:
-                                _logger.debug('side %d pocket %d\nr = %s', side, pa, r)
-                            elif r[k] < -rhsp:
-                                _logger.debug('side %d pocket %d\nr = %s', side, pb, r)
+                            # if r[k] > rhsp:
+                            #     _logger.debug('side %d pocket %d\nr = %s', side, pa, r)
+                            # elif r[k] < -rhsp:
+                            #     _logger.debug('side %d pocket %d\nr = %s', side, pb, r)
         if side_min is not None:
             return (e_i.t + tau_min, side_min)
 
@@ -543,33 +543,152 @@ cdef class PoolPhysics:
         p[3] = 2 * b_x*c_x + 2 * b_y*c_y
         p[4] = c_x**2 + c_y**2 - 4 * ball_radius**2
         try:
-            roots = np.roots(p)
+            #roots = np.roots(p)
+            roots = self.quartic_solve(p[::-1])
         except np.linalg.linalg.LinAlgError as err:
             #_logger.warning('LinAlgError occurred during solve for collision time:\np = %s\nerror:\n%s', p, err)
             return None
-        # filter out possible complex-conjugate pairs of roots:
-        def find_z(roots):
-            return next(((i, z) for i, z in enumerate(roots) if z.imag != 0), (None, None))
-        def find_z_conj(roots, i, z):
-            return next((j for j, z_conj in enumerate(roots[i+1:])
-                         if  abs(z.real - z_conj.real) < _ZERO_TOLERANCE
-                         and abs(z.imag + z_conj.imag) < _ZERO_TOLERANCE), None)
-        mask = self._mask; mask[:] = True
-        for n in range(2):
-            i, z = find_z(roots)
-            if z is not None:
-                j = find_z_conj(roots, i, z)
-                if j is not None:
-                    mask[i] = False; mask[i+j+1] = False
-                    roots = roots[mask[:len(roots)]]
-                else:
-                    break
-            else:
-                break
+        #_logger.debug('roots: %s', roots)
+        # # filter out possible complex-conjugate pairs of roots:
+        # find_z, find_z_conj = self._find_z, self._find_z_conj
+        # mask = self._mask; mask[:] = True
+        # for n in range(2):
+        #     i, z = find_z(roots)
+        #     if z is not None:
+        #         j = find_z_conj(roots, i, z)
+        #         if j is not None:
+        #             mask[i] = False; mask[i+j+1] = False
+        #             roots = roots[mask[:len(roots)]]
+        #         else:
+        #             break
+        #     else:
+        #         break
         return min((t.real for t in roots
                     if t0 <= t.real <= t1
                     and t.imag**2 / (t.real**2 + t.imag**2) < _IMAG_TOLERANCE_SQRD),
                    default=None)
+
+    @staticmethod
+    def cubic_solve(p):
+        a2, a1, a0 = p[2]/p[3], p[1]/p[3], p[0]/p[3]
+        p = (3*a1 - a2**2) / 3.0
+        q = (9*a1*a2 - 27*a0 - 2*a2**3) / 27.0
+        d = q**2 + 4*p**3/27.0
+        if d < 0:
+            wc0 = 0.5 * (q + np.sqrt(d + 0j))
+            wc1 = 0.5 * (q - np.sqrt(d + 0j))
+        else:
+            wc0 = 0.5 * (q + np.sqrt(d))
+            wc1 = 0.5 * (q - np.sqrt(d))
+        w0_mag = abs(wc0)**(1.0/3)
+        w1_mag = abs(wc1)**(1.0/3)
+        angle0 = np.angle(wc0) / 3
+        angle1 = np.angle(wc1) / 3
+        angles = 2*np.pi/3 * np.arange(3)
+        w0 = w0_mag * np.exp(1j*(angles + angle0))
+        w1 = w1_mag * np.exp(1j*(angles + angle1))
+        z0 = w0 - p / (3*w0) - a2/3
+        z1 = w1 - p / (3*w1) - a2/3
+        # zs = remove_a_double_root(zs)
+        # zs = remove_a_double_root(zs)
+        # zs = remove_a_double_root(zs)
+        # _logger.debug('zs:\n%s', '\n'.join(str(z) for z in zs))
+        zs = np.hstack((z0, z1))
+        return zs
+
+    @staticmethod
+    def quartic_solve(p):
+        e, d, c, b, a = p
+        if abs(p[-1]) / max(abs(p[:-1])) < 1e-10:
+            return PoolPhysics.cubic_solve(p[:-1])
+        Delta = 256*a**3*e**3 - 192*a**2*b*d*e**2 - 128*a**2*c**2*e**2 + 144*a**2*c*d**2*e - 27*a**2*d**4 \
+              + 144*a*b**2*c*e**2 - 6*a*b**2*d**2*e - 80*a*b*c**2*d*e + 18*a*b*c*d**3 + 16*a*c**4*e \
+              - 4*a*c**3*d**2 - 27*b**4*e**2 + 18*b**3*c*d*e - 4*b**3*d**3 - 4*b**2*c**3*e + b**2*c**2*d**2
+        # _logger.debug('Delta = %s', Delta)
+        P = 8*a*c - 3*b**2
+        R = (b**3 - 4*a*b*c + 8*a**2*d)
+        D = 64*a**3*e - 16*a**2*c**2 + 16*a*b**2*c - 16*a**2*b*d - 3*b**4
+        Delta_0 = c**2 - 3*b*d + 12*a*e
+        Delta_1 = 2*c**3 - 9*b*c*d + 27*b**2*e + 27*a*d**2 - 72*a*c*e
+        p = P / (8*a**2)
+        q = R / (8*a**3)
+        QQQ = (0.5*(Delta_1 + np.sqrt(-27.0*Delta + 0j)))
+        Q_mag = abs(QQQ)**(1.0/3)
+        Q = Q_mag * np.exp(
+            1j * ( np.angle(QQQ) + 2*np.pi*np.arange(3) ) / 3.0
+        )
+        find_z, find_z_conj = PoolPhysics._find_z, PoolPhysics._find_z_conj
+        # _logger.debug('Q:\n%s', '\n'.join(str(x) for x in Q))
+        if Delta > 0:
+            # if P < 0 and D < 0:
+            #     _logger.debug('all roots are real and distinct')
+            # elif P > 0 or D > 0:
+            #     _logger.debug('all roots are complex and distinct')
+            Q = Q[0]
+        elif Delta < 0:
+            # _logger.debug('two distinct real roots and a complex-conjugate pair of roots')
+            i, z = find_z(Q)
+            if z:
+                j = find_z_conj(Q, i, z)
+                if j:
+                    Q = Q[i]
+                else:
+                    Q = Q[1]
+            else:
+                Q = Q[1]
+        elif Delta == 0:
+            if P < 0 and D < 0 and Delta_0 != 0:
+                # _logger.debug('one real double root and two other real roots')
+                Q = Q[0]
+            elif D > 0 or (P > 0 and (D != 0 or R != 0)):
+                # _logger.debug('one real double root and a complex-conjugate pair of roots')
+                i, z = find_z(Q)
+                if z:
+                    j = find_z_conj(Q, i, z)
+                    if j:
+                        Q = Q[i]
+                    else:
+                        Q = Q[1]
+                else:
+                    Q = Q[1]
+            elif Delta_0 == 0 and D != 0:
+                # _logger.debug('one real triple root and one other real root')
+                Q = Q[0]
+            elif D == 0:
+                if P < 0:
+                    # _logger.debug('two real double roots')
+                    Q = Q[0]
+                elif P > 0 and R == 0:
+                    # _logger.debug('two complex-conjugate double roots')
+                    i, z = find_z(Q)
+                    if z:
+                        j = find_z_conj(Q, i, z)
+                        if j:
+                            Q = Q[i]
+                        else:
+                            Q = Q[1]
+                    else:
+                        Q = Q[1]
+                elif Delta_0 == 0:
+                    # _logger.debug('all roots are equal to -b / 4a')
+                    return np.array(4*[-0.25 * b / a])
+        S = 0.5*np.sqrt(-2.0*p/3 + (Q + Delta_0/Q) / (3.0*a) + 0j)
+        return np.array([
+            -b/(4*a) - S + 0.5*np.sqrt(-4*S**2 - 2*p + q/S + 0j),
+            -b/(4*a) - S - 0.5*np.sqrt(-4*S**2 - 2*p + q/S + 0j),
+            -b/(4*a) + S + 0.5*np.sqrt(-4*S**2 - 2*p - q/S + 0j),
+            -b/(4*a) + S - 0.5*np.sqrt(-4*S**2 - 2*p - q/S + 0j),
+        ])
+
+    @staticmethod
+    def _find_z(roots):
+        return next(((i, z) for i, z in enumerate(roots) if abs(z.imag) > _IMAG_TOLERANCE), (None, None))
+
+    @staticmethod
+    def _find_z_conj(roots, i, z):
+        return next((j for j, z_conj in enumerate(roots[i+1:])
+                     if  abs(z.real - z_conj.real) < _ZERO_TOLERANCE
+                     and abs(z.imag + z_conj.imag) < _ZERO_TOLERANCE), None)
 
     def is_position_in_bounds(self, np.ndarray r):
         sx, sz, R = self._sx, self._sz, _almost_ball_radius
