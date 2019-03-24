@@ -2,7 +2,6 @@ import logging
 _logger = logging.getLogger(__name__)
 from sys import stdout
 import os.path
-import numpy as np
 import pytest
 
 
@@ -12,14 +11,20 @@ logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
 
 def pytest_addoption(parser):
-    parser.addoption("--render", action="store_true", default=False,
-                     help="enable OpenGL rendering of test results")
-    parser.addoption("--screenshot", action="store_true", default=False,
-                     help="save screenshot of OpenGL-rendered test results")
-    parser.addoption("--show_plots", action="store_true", default=False,
-                     help="show plots during tests")
+    parser.addoption("--render", help="display OpenGL-rendered view of test results",
+                     action="store_true", default=False)
+    parser.addoption("--screenshot", help="save screenshot of OpenGL-rendered test results",
+                     action="store_true", default=False)
+    parser.addoption("--save_plots", help="save plots created by tests",
+                     action="store_true", default=False)
+    parser.addoption("--show_plots", help="show plots created by tests",
+                     action="store_true", default=False)
     parser.addoption('--glyphs', help='render velocity and angular velocity glyphs',
                      action='store_true', default=False)
+    parser.addoption('--msaa', help='multisample anti-aliasing level (defaults to 4)',
+                     default='4')
+    parser.addoption('--resolution', help='OpenGL viewport resolution, e.g. 960x680',
+                     default='960x680')
 
 
 @pytest.fixture
@@ -29,39 +34,52 @@ def pool_table():
 
 
 @pytest.fixture
-def pool_physics(request, pool_table):
+def pool_physics(pool_table, request):
     from poolvr.physics import PoolPhysics
     return PoolPhysics(initial_positions=pool_table.calc_racked_positions(),
                        ball_collision_model='simple',
                        enable_sanity_check=False)
+physics = pool_physics
 
 
 @pytest.fixture
 def plot_motion(pool_physics, request):
+    show_plots, save_plots = request.config.getoption('--show_plots'), request.config.getoption('--save_plots')
+    if not (show_plots or save_plots):
+        yield
+        return
     from utils import plot_ball_motion as plot
     yield
     test_name = '_'.join([request.function.__name__, pool_physics.ball_collision_model])
     plot(0, pool_physics,
          title=test_name + ' (position)',
          coords=(0,2),
-         filename=os.path.join(PLOTS_DIR, test_name + '.png'),
-         show=request.config.getoption('--show_plots'))
+         filename=os.path.join(PLOTS_DIR, test_name + '.png') if save_plots else None,
+         show=show_plots)
 
 
 @pytest.fixture
 def plot_motion_x_position(pool_physics, request):
+    show_plots, save_plots = request.config.getoption('--show_plots'), request.config.getoption('--save_plots')
+    if not (show_plots or save_plots):
+        yield
+        return
     from utils import plot_ball_motion as plot
     yield
     test_name = '_'.join([request.function.__name__, pool_physics.ball_collision_model])
     plot(0, pool_physics,
          title=test_name + " ($x$ position)",
          coords=(0,),
-         filename=os.path.join(PLOTS_DIR, test_name + '-x.png'),
-         show=request.config.getoption('--show_plots'))
+         filename=os.path.join(PLOTS_DIR, test_name + '-x.png') if save_plots else None,
+         show=show_plots)
 
 
 @pytest.fixture
 def plot_motion_z_position(pool_physics, request):
+    show_plots, save_plots = request.config.getoption('--show_plots'), request.config.getoption('--save_plots')
+    if not (show_plots or save_plots):
+        yield
+        return
     from utils import plot_ball_motion as plot
     yield
     test_name = '_'.join([request.function.__name__, pool_physics.ball_collision_model])
@@ -69,47 +87,57 @@ def plot_motion_z_position(pool_physics, request):
          title=test_name + " ($z$ position)",
          coords=(2,),
          collision_depth=1,
-         filename=os.path.join(PLOTS_DIR, test_name + '-z.png'),
-         show=request.config.getoption('--show_plots'))
+         filename=os.path.join(PLOTS_DIR, test_name + '-z.png') if save_plots else None,
+         show=show_plots)
 
 
 @pytest.fixture
 def plot_energy(pool_physics, request):
+    show_plots, save_plots = request.config.getoption('--show_plots'), request.config.getoption('--save_plots')
+    if not (show_plots or save_plots):
+        yield
+        return
     from utils import plot_energy as plot
     yield
     test_name = '_'.join([request.function.__name__, pool_physics.ball_collision_model])
     _logger.debug('plotting energy for %s...', request.function.__name__)
-    filename = os.path.join(PLOTS_DIR, test_name + '-energy.png')
     plot(pool_physics, title=test_name + ' (energy)',
-         filename=filename,
-         show=request.config.getoption('--show_plots'))
+         filename=os.path.join(PLOTS_DIR, test_name + '-energy.png') if save_plots else None,
+         show=show_plots)
 
 
 @pytest.fixture
 def plot_motion_timelapse(pool_physics, pool_table, request):
+    show_plots, save_plots = request.config.getoption('--show_plots'), request.config.getoption('--save_plots')
+    if not (show_plots or save_plots):
+        yield
+        return
     from utils import plot_motion_timelapse as plot
     yield
     test_name = '_'.join([request.function.__name__, pool_physics.ball_collision_model])
     plot(pool_physics, table=pool_table,
          title=test_name + ' (timelapse)',
-         filename=os.path.join(PLOTS_DIR, test_name + '-timelapse.png'),
-         show=request.config.getoption('--show_plots'))
+         filename=os.path.join(PLOTS_DIR, test_name + '-timelapse.png') if save_plots else None,
+         show=show_plots)
 
 
 @pytest.fixture
 def gl_rendering(pool_physics, pool_table, request):
     should_render = request.config.getoption('--render')
     should_screenshot = request.config.getoption('--screenshot')
-    glyphs = request.config.getoption('--glyphs')
     if not (should_render or should_screenshot):
         yield
         return
+    xres, yres = [int(n) for n in request.config.getoption('--resolution').split('x')]
+    msaa = request.config.getoption('--msaa')
+    glyphs = request.config.getoption('--glyphs')
+    yield
+
     import OpenGL
     OpenGL.ERROR_CHECKING = False
     OpenGL.ERROR_LOGGING = False
     OpenGL.ERROR_ON_COPY = True
     import cyglfw3 as glfw
-    yield
     from poolvr.glfw_app import setup_glfw, capture_window
     from poolvr.keyboard_controls import init_keyboard
     from poolvr.game import PoolGame
@@ -117,16 +145,18 @@ def gl_rendering(pool_physics, pool_table, request):
     logging.getLogger('poolvr.gl_rendering').setLevel(logging.WARNING)
     physics = pool_physics
     table = pool_table
-    window_size = [960, 680]
+    game = PoolGame(physics=physics, table=table)
+    window_size = [xres, yres]
     title = '_'.join([request.function.__name__, pool_physics.ball_collision_model])
-    window, renderer = setup_glfw(width=window_size[0], height=window_size[1],
-                                  double_buffered=True, multisample=4,
+    window, renderer = setup_glfw(width=window_size[0],
+                                  height=window_size[1],
+                                  double_buffered=True,
+                                  multisample=int(msaa),
                                   title=title)
     camera_world_matrix = renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
-    camera_position[1] = table.height + 0.6
-    camera_position[2] = table.length - 0.1
-    game = PoolGame(physics=physics, table=table)
+    camera_position[1] = table.H + 0.6
+    camera_position[2] = table.L - 0.1
     ball_meshes = table.export_ball_meshes()
     ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
     for ball_mesh, shadow_mesh, on_table in zip(ball_meshes, ball_shadow_meshes, physics._on_table):

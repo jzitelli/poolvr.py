@@ -39,8 +39,8 @@ def ode_gl_rendering(ode_pool_physics, pool_table, request):
 
     camera_world_matrix = renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
-    camera_position[1] = table.height + 0.6
-    camera_position[2] = table.length - 0.1
+    camera_position[1] = table.H + 0.6
+    camera_position[2] = table.L - 0.1
     game = PoolGame(physics=physics, table=table)
     ball_meshes = table.ball_meshes
     ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]

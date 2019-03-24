@@ -4,8 +4,8 @@ _logger = logging.getLogger(__name__)
 import numpy as np
 
 from .gl_rendering import Mesh, Material, Texture
-from .primitives import PlanePrimitive, HexaPrimitive, SpherePrimitive, CirclePrimitive, BoxPrimitive
-from .techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
+from .gl_primitives import PlanePrimitive, HexaPrimitive, SpherePrimitive, CirclePrimitive, BoxPrimitive
+from .gl_techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
 from .billboards import BillboardParticles
 
 
@@ -17,6 +17,7 @@ TEXTURES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 INCH2METER = 0.0254
 SQRT2 = np.sqrt(2)
+DEG2RAD = np.pi/180
 
 
 class PoolTable(object):
@@ -31,65 +32,90 @@ class PoolTable(object):
                    0x111111]
     BALL_COLORS = BALL_COLORS + BALL_COLORS[1:-1]
     def __init__(self,
-                 length=2.34,
-                 height=0.77,
-                 width=None,
-                 W_cushion=2*INCH2METER,
-                 mouth_size=5*INCH2METER,
-                 throat_size=4.125*INCH2METER,
-                 H_cushion=0.635*2.25*INCH2METER,
+                 L=100*INCH2METER,
+                 H=29.25*INCH2METER,
+                 W=None,
+                 ell_1=0.5*INCH2METER,
+                 ell_2=1.5*INCH2METER,
+                 h=1.575*INCH2METER,
+                 h_Q=1.625*INCH2METER,
+                 r_P=0.1*INCH2METER,
+                 delta_QP=0.25*INCH2METER,
+                 delta_PT=0.25*INCH2METER,
+                 a=1.75*INCH2METER,
+                 A=60*DEG2RAD,
+                 C=60*DEG2RAD,
+                 # corner pocket params:
+                 M_cp=5*INCH2METER,
+                 T_cp=4.125*INCH2METER,
+                 S_cp=1.75*INCH2METER,
+                 D_cp=2.5*INCH2METER,
+                 r_cpc=2.625*INCH2METER,
+                 r_cpd=0.1875*INCH2METER,
+                 # side pocket params:
+                 M_sp=5.5*INCH2METER,
+                 T_sp=4.625*INCH2METER,
+                 S_sp=0,
+                 D_sp=2*INCH2METER,
+                 r_spc=2*INCH2METER,
+                 r_spd=0.1875*INCH2METER,
                  width_rail=None,
-                 H_rail=None,
                  ball_radius=1.125*INCH2METER,
                  num_balls=len(BALL_COLORS),
                  ball_colors=BALL_COLORS,
                  **kwargs):
-        self.length = length
-        self.height = height
-        if width is None:
-            width = 0.5 * length
-        self.width = width
+        self.L = L
+        self.H = H
+        if W is None:
+            W = 0.5 * L
+        self.W = W
+        self.ell_1 = ell_1
+        self.ell_2 = ell_2
+        self.w = ell_1 + ell_2
+        self.h = h
+        self.M_cp = M_cp
+        self.T_cp = T_cp
+        self.S_cp = S_cp
+        self.D_cp = D_cp
+        self.r_cpc = r_cpc
+        self.r_cpd = r_cpd
+        self.M_sp = M_sp
+        self.T_sp = T_sp
+        self.S_sp = S_sp
+        self.D_sp = D_sp
+        self.r_spc = r_spc
+        self.r_spd = r_spd
         if width_rail is None:
-            width_rail = 1.5 * W_cushion
+            width_rail = 1.5 * self.w
         self.width_rail = width_rail
-        if H_rail is None:
-            H_rail = 1.25 * H_cushion
-        self.H_rail = H_rail
         self.ball_radius = ball_radius
         self.ball_diameter = 2*ball_radius
-        self.W_cushion = W_cushion
-        self.W_nose = 0.05 * W_cushion
-        self.H_nose = 0.5 * H_cushion
-        self.W_playable = width - 2*W_cushion
-        self.L_playable = length - 2*W_cushion
         self.num_balls = num_balls
         self.ball_colors = ball_colors
-        self.throat_size = throat_size
-        self.mouth_size = mouth_size
+        self.pocket_positions = np.zeros((6, 3), dtype=np.float64)
+        self.pocket_positions[:,1] = H
         self._almost_ball_radius = 0.999*ball_radius
 
     def is_position_in_bounds(self, r):
         """ r: position vector; R: ball radius """
         R = self._almost_ball_radius
-        return  -0.5*self.W_playable <= r[0] - R            \
-            and             r[0] + R <= 0.5*self.W_playable \
-            and -0.5*self.L_playable <= r[2] - R            \
-            and             r[2] + R <= 0.5*self.L_playable
+        return  -0.5*self.W + R <= r[0] <= 0.5*self.W - R \
+            and -0.5*self.L + R <= r[2] <= 0.5*self.L - R
 
     def is_position_near_pocket(self, r):
         """ r: position vector; R: ball radius """
-        if r[0] < -0.5*self.W_playable + self.mouth_size/np.sqrt(2):
-            if r[2] < -0.5*self.L_playable + self.mouth_size/np.sqrt(2):
+        if r[0] < -0.5*self.W + self.M_cp/np.sqrt(2):
+            if r[2] < -0.5*self.L + self.M_cp/np.sqrt(2):
                 _logger.info('corner pocket 0')
                 return 0
-            elif r[2] > 0.5*self.L_playable - self.mouth_size/np.sqrt(2):
+            elif r[2] > 0.5*self.L - self.M_cp/np.sqrt(2):
                 _logger.info('corner pocket 1')
                 return 1
-        elif r[0] > 0.5*self.W_playable - self.mouth_size/np.sqrt(2):
-            if r[2] < -0.5*self.L_playable + self.mouth_size/np.sqrt(2):
+        elif r[0] > 0.5*self.W - self.M_cp/np.sqrt(2):
+            if r[2] < -0.5*self.L + self.M_cp/np.sqrt(2):
                 _logger.info('corner pocket 2')
                 return 2
-            elif r[2] > 0.5*self.L_playable - self.mouth_size/np.sqrt(2):
+            elif r[2] > 0.5*self.L - self.M_cp/np.sqrt(2):
                 _logger.info('corner pocket 3')
                 return 3
 
@@ -109,67 +135,83 @@ class PoolTable(object):
         rail_material = rail_material or \
             Material(rail_technique,
                      values={'u_color': [0xdd/0xff, 0xa4/0xff, 0.0, 0.0]})
-        length, width, W_cushion = self.length, self.width, self.W_cushion
-        surface = PlanePrimitive(width=width, depth=length)
-        surface.attributes['vertices'][:,1] = self.height
+        length, width, w = self.L, self.W, self.w
+        surface = PlanePrimitive(width=width+2*w, depth=length+2*w)
+        surface.attributes['vertices'][:,1] = self.H
         surface.alias('vertices', 'a_position')
-        H_cushion = 0.82*2*self.ball_radius
-        W_playable = self.W_playable
-        L_playable = self.L_playable
-        T = self.throat_size
-        M = self.mouth_size
-        self.headCushionGeom = HexaPrimitive(vertices=np.array([
-            # bottom quad:
-            [[-0.5*W_playable + 0.4*W_cushion,       0.0,           0.5*W_cushion],
-             [ 0.5*W_playable - 0.4*W_cushion,       0.0,           0.5*W_cushion],
-             [ 0.5*W_playable - 1.2*SQRT2*W_cushion, 0.57*2*self.ball_radius, -0.5*W_cushion + self.W_nose],
-             [-0.5*W_playable + 1.2*SQRT2*W_cushion, 0.57*2*self.ball_radius, -0.5*W_cushion + self.W_nose]],
-            # top quad:
-            [[-0.5*W_playable + (T/np.sqrt(2) - W_cushion), self.H_rail,  0.5*W_cushion],
-             [ 0.5*W_playable - (T/np.sqrt(2) - W_cushion), self.H_rail,  0.5*W_cushion],
-             [ 0.5*W_playable - M/np.sqrt(2),               H_cushion,   -0.5*W_cushion],
-             [-0.5*W_playable + M/np.sqrt(2),               H_cushion,   -0.5*W_cushion]]], dtype=np.float32))
-        self.headCushionGeom.attributes['vertices'].reshape(-1,3)[:,1] += self.height
-        _vertices = self.headCushionGeom.attributes['vertices'].copy()
-        self.headCushionGeom.attributes['vertices'].reshape(-1,3)[:,2] += 0.5 * self.length - 0.5*W_cushion
-        vertices = _vertices.copy()
-        vertices.reshape(-1,3)[:,2] *= -1
-        vertices.reshape(-1,3)[:,2] -= 0.5 * L_playable
-        self.footCushionGeom = HexaPrimitive(vertices=vertices)
-        rotation = np.array([[0.0, 0.0, -1.0],
-                             [0.0, 1.0,  0.0],
-                             [1.0, 0.0,  0.0]], dtype=np.float32).T
-        vertices = _vertices.copy()
-        vertices[0, 2, 0] = 0.5*W_playable - 0.6*SQRT2*W_cushion
-        vertices[1, 2, 0] = vertices[0, 2, 0]
-        vertices.reshape(-1,3)[:] = rotation.dot(vertices.reshape(-1,3).T).T
-        vertices.reshape(-1,3)[:,2] += 0.25 * self.length
-        vertices.reshape(-1,3)[:,0] += 0.5 * self.width - 0.5*W_cushion
-        self.rightHeadCushionGeom = HexaPrimitive(vertices=vertices)
-        rotation = np.array([[ 0.0, 0.0,  1.0],
-                             [ 0.0, 1.0,  0.0],
-                             [-1.0, 0.0,  0.0]], dtype=np.float32).T
-        vertices = _vertices.copy()
-        vertices[0, 3, 0] = -(0.5*W_playable - 0.6*SQRT2*W_cushion)
-        vertices[1, 3, 0] = vertices[0, 3, 0]
-        vertices.reshape(-1,3)[:] = rotation.dot(vertices.reshape(-1,3).T).T
-        vertices.reshape(-1,3)[:,2] += 0.25 * self.length
-        vertices.reshape(-1,3)[:,0] -= 0.5 * self.width - 0.5*W_cushion
-        self.leftHeadCushionGeom = HexaPrimitive(vertices=vertices)
-        vertices = self.rightHeadCushionGeom.attributes['vertices'].copy()
-        vertices.reshape(-1,3)[:,2] *= -1
-        self.rightFootCushionGeom = HexaPrimitive(vertices=vertices)
-        vertices = self.leftHeadCushionGeom.attributes['vertices'].copy()
-        vertices.reshape(-1,3)[:,2] *= -1
-        self.leftFootCushionGeom = HexaPrimitive(vertices=vertices)
-        self.cushionGeoms = [self.headCushionGeom, self.footCushionGeom,
-                             self.leftHeadCushionGeom, self.rightHeadCushionGeom,
-                             self.leftFootCushionGeom, self.rightFootCushionGeom]
-        self.headRailGeom = BoxPrimitive(W_playable - 2 * 0.4 * W_cushion,
-                                         self.H_rail,
-                                         self.width_rail)
-        self.railGeoms = [self.headRailGeom]
-        self.headRailMesh = Mesh({rail_material: [self.headRailGeom]})
+        L = self.L
+        W = self.W
+        H = self.H
+        h = self.h
+        w = self.w
+        T_cp = self.T_cp
+        M_cp = self.M_cp
+        T_sp = self.T_sp
+        M_sp = self.M_sp
+        self.headCushionGeom = HexaPrimitive(vertices=np.array(
+            [# bottom quad:
+             [[-(0.5*W + w - T_cp/SQRT2),      0, -0.5*L - w],
+              [    -(0.5*W - M_cp/SQRT2), 0.95*h, -0.5*L    ],
+              [     (0.5*W - M_cp/SQRT2), 0.95*h, -0.5*L    ],
+              [ (0.5*W + w - T_cp/SQRT2),      0, -0.5*L - w]],
+             # top quad:
+             [[-(0.5*W + w - T_cp/SQRT2), 1.3*h, -0.5*L - w],
+              [    -(0.5*W - M_cp/SQRT2),     h, -0.5*L    ],
+              [     (0.5*W - M_cp/SQRT2),     h, -0.5*L    ],
+              [ (0.5*W + w - T_cp/SQRT2), 1.3*h, -0.5*L - w]]
+            ], dtype=np.float32))
+        self.headCushionGeom.attributes['vertices'].reshape(-1,3)[...,1] += H
+        R = np.array([[-1, 0,  0],
+                      [ 0, 1,  0],
+                      [ 0, 0, -1]], dtype=np.float32)
+        self.footCushionGeom = HexaPrimitive(vertices=np.dot(self.headCushionGeom.attributes['vertices'].reshape(-1,3), R.T).reshape(2,4,3))
+        vs = self.headCushionGeom.attributes['vertices'].copy()
+        vs[:,2] += 0.5*L
+        R = np.array([[0, 0, -1],
+                      [0, 1,  0],
+                      [1, 0,  0]], dtype=np.float32)
+        sideCushionGeom = HexaPrimitive(vertices=np.array(
+            [#bottom quad:
+             [[0.5*W + w,      0, -(0.5*L + w - T_cp/SQRT2)],
+              [    0.5*W, 0.95*h,     -(0.5*L - M_cp/SQRT2)],
+              [    0.5*W, 0.95*h,                 -0.5*M_sp],
+              [0.5*W + w,      0,                 -0.5*T_sp]],
+             # top quad:
+             [[0.5*W + w, 1.3*h, -(0.5*L + w - T_cp/SQRT2)],
+              [    0.5*W,     h,     -(0.5*L - M_cp/SQRT2)],
+              [    0.5*W,     h,                 -0.5*M_sp],
+              [0.5*W + w, 1.3*h,                 -0.5*T_sp]]
+            ], dtype=np.float32))
+        sideCushionGeom.attributes['vertices'][...,1] += H
+        sideCushionGeoms = [sideCushionGeom]
+        sideCushionGeoms.append(HexaPrimitive(vertices=sideCushionGeoms[-1].attributes['vertices'].copy()))
+        sideCushionGeoms[-1].attributes['vertices'][...,2] *= -1
+        sideCushionGeoms[-1].attributes['vertices'][0,:] = sideCushionGeoms[-1].attributes['vertices'][0,::-1]
+        sideCushionGeoms[-1].attributes['vertices'][1,:] = sideCushionGeoms[-1].attributes['vertices'][1,::-1]
+        sideCushionGeoms.append(HexaPrimitive(vertices=sideCushionGeoms[-1].attributes['vertices'].copy()))
+        sideCushionGeoms[-1].attributes['vertices'][...,0] *= -1
+        sideCushionGeoms[-1].attributes['vertices'][0,:] = sideCushionGeoms[-1].attributes['vertices'][0,::-1]
+        sideCushionGeoms[-1].attributes['vertices'][1,:] = sideCushionGeoms[-1].attributes['vertices'][1,::-1]
+        sideCushionGeoms.append(HexaPrimitive(vertices=sideCushionGeoms[-1].attributes['vertices'].copy()))
+        sideCushionGeoms[-1].attributes['vertices'][...,2] *= -1
+        sideCushionGeoms[-1].attributes['vertices'][0,:] = sideCushionGeoms[-1].attributes['vertices'][0,::-1]
+        sideCushionGeoms[-1].attributes['vertices'][1,:] = sideCushionGeoms[-1].attributes['vertices'][1,::-1]
+        self.cushionGeoms = [self.headCushionGeom,
+                             self.footCushionGeom] + sideCushionGeoms
+        headRailGeom = BoxPrimitive(W + 2*(w + self.width_rail), 1.3*h, self.width_rail)
+        headRailGeom.attributes['vertices'][...,1] += H + 0.5*1.3*h
+        headRailGeom.attributes['vertices'][...,2] -= 0.5*L + w + 0.5*self.width_rail
+        footRailGeom = HexaPrimitive(vertices=headRailGeom.attributes['vertices'].copy().reshape(2,4,3))
+        footRailGeom.attributes['vertices'][...,2] *= -1
+        footRailGeom.attributes['vertices'][0,:] = footRailGeom.attributes['vertices'][0,::-1]
+        footRailGeom.attributes['vertices'][1,:] = footRailGeom.attributes['vertices'][1,::-1]
+        leftSideRailGeom = BoxPrimitive(self.width_rail, 1.3*h, L + 2*w)
+        leftSideRailGeom.attributes['vertices'][...,0] -= 0.5*W + w + 0.5*self.width_rail
+        leftSideRailGeom.attributes['vertices'][...,1] += H + 0.5*1.3*h
+        rightSideRailGeom = BoxPrimitive(self.width_rail, 1.3*h, L + 2*w)
+        rightSideRailGeom.attributes['vertices'][...,0] += 0.5*W + w + 0.5*self.width_rail
+        rightSideRailGeom.attributes['vertices'][...,1] += H + 0.5*1.3*h
+        self.railGeoms = [headRailGeom, footRailGeom, leftSideRailGeom, rightSideRailGeom]
         for geom in self.cushionGeoms + self.railGeoms:
             geom.alias('vertices', 'a_position')
         return Mesh({surface_material: [surface],
@@ -220,7 +262,7 @@ class PoolTable(object):
                                   for i in range(num_balls)]
             for i, mesh in enumerate(ball_meshes):
                 mesh.shadow_mesh = ball_shadow_meshes[i]
-                mesh.shadow_mesh.world_position[:] = self.height + 0.001
+                mesh.shadow_mesh.world_position[:] = self.H + 0.001
             return ball_meshes
 
     def calc_racked_positions(self, d=None,
@@ -230,10 +272,10 @@ class PoolTable(object):
         ball_radius = self.ball_radius
         if d is None:
             d = 0.04 * ball_radius
-        length = self.length
+        length = self.L
         ball_diameter = 2*ball_radius
         # triangle racked:
-        out[:,1] = self.height + ball_radius
+        out[:,1] = self.H + ball_radius
         side_length = 4 * (self.ball_diameter + d)
         x_positions = np.concatenate([np.linspace(0,                        0.5 * side_length,                         5),
                                       np.linspace(-0.5*(ball_diameter + d), 0.5 * side_length - (ball_diameter + d),   4),

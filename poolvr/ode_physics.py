@@ -69,7 +69,7 @@ class ODEPoolPhysics(object):
             body, geom = self._create_ball(self.world, ball_mass, ball_radius, space=self.space)
             self.ball_bodies.append(body)
             self.ball_geoms.append(geom)
-        self.table_geom = ode.GeomPlane(space=self.space, normal=(0.0, 1.0, 0.0), dist=self.table.height)
+        self.table_geom = ode.GeomPlane(space=self.space, normal=(0.0, 1.0, 0.0), dist=self.table.H)
         # self.table_geom = ode.GeomBox(space=self.space, lengths=(self.table.width, self.table.height, self.table.length))
         self._contactgroup = ode.JointGroup()
         self._on_cue_ball_collide = None

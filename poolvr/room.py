@@ -3,8 +3,8 @@ import numpy as np
 
 
 from .gl_rendering import CubeTexture, Material, Mesh
-from .primitives import BoxPrimitive, PlanePrimitive
-from .techniques import SKYBOX_TECHNIQUE, PHONG_NORMAL_DIFFUSE_ROUGHNESS_TECHNIQUE
+from .gl_primitives import BoxPrimitive, PlanePrimitive
+from .gl_techniques import SKYBOX_TECHNIQUE, PHONG_NORMAL_DIFFUSE_ROUGHNESS_TECHNIQUE
 
 
 # TODO: pkgutils way
