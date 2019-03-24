@@ -1,9 +1,10 @@
-# import logging
-# _logger = logging.getLogger(__name__)
+import logging
+_logger = logging.getLogger(__name__)
 from bisect import bisect
 from itertools import chain
 from time import perf_counter
 import numpy as np
+from numpy import sqrt
 cimport numpy as np
 
 
@@ -30,7 +31,7 @@ cdef double c_b = 4000.0 # ball material's speed of sound
 cdef double E_Y_b = 2.4e9 # ball material's Young's modulus of elasticity
 cdef double _ZERO_TOLERANCE = 1e-8
 cdef double _ZERO_TOLERANCE_SQRD = _ZERO_TOLERANCE**2
-cdef double _IMAG_TOLERANCE = 1e-7
+cdef double _IMAG_TOLERANCE = 1e-8
 cdef double _IMAG_TOLERANCE_SQRD = _IMAG_TOLERANCE**2
 cdef double PIx2 = 2*np.pi
 cdef double SQRT2 = np.sqrt(2)
@@ -589,12 +590,7 @@ cdef class PoolPhysics:
         w1 = w1_mag * np.exp(1j*(angles + angle1))
         z0 = w0 - p / (3*w0) - a2/3
         z1 = w1 - p / (3*w1) - a2/3
-        # zs = remove_a_double_root(zs)
-        # zs = remove_a_double_root(zs)
-        # zs = remove_a_double_root(zs)
-        # _logger.debug('zs:\n%s', '\n'.join(str(z) for z in zs))
-        zs = np.hstack((z0, z1))
-        return zs
+        return np.hstack((z0, z1))
 
     @staticmethod
     def quartic_solve(p):
@@ -673,11 +669,13 @@ cdef class PoolPhysics:
                     # _logger.debug('all roots are equal to -b / 4a')
                     return np.array(4*[-0.25 * b / a])
         S = 0.5*np.sqrt(-2.0*p/3 + (Q + Delta_0/Q) / (3.0*a) + 0j)
+        sqrtp = np.sqrt(-4*S**2 - 2*p + q/S + 0j)
+        sqrtm = np.sqrt(-4*S**2 - 2*p - q/S + 0j)
         return np.array([
-            -b/(4*a) - S + 0.5*np.sqrt(-4*S**2 - 2*p + q/S + 0j),
-            -b/(4*a) - S - 0.5*np.sqrt(-4*S**2 - 2*p + q/S + 0j),
-            -b/(4*a) + S + 0.5*np.sqrt(-4*S**2 - 2*p - q/S + 0j),
-            -b/(4*a) + S - 0.5*np.sqrt(-4*S**2 - 2*p - q/S + 0j),
+            -b/(4*a) - S + 0.5*sqrtp,
+            -b/(4*a) - S - 0.5*sqrtp,
+            -b/(4*a) + S + 0.5*sqrtm,
+            -b/(4*a) + S - 0.5*sqrtm,
         ])
 
     @staticmethod
