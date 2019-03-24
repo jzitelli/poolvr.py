@@ -525,7 +525,7 @@ class PoolPhysics(object):
         # except np.linalg.linalg.LinAlgError as err:
         #     pass
         #     _logger.warning('LinAlgError occurred during solve for collision time:\np = %s\nerror:\n%s', p, err)
-        return self.quartic_solve(p[::-1])
+        return self._filter_roots(self.quartic_solve(p[::-1]), t0, t1)
 
     @classmethod
     def cubic_solve(cls, p):
