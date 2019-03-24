@@ -432,7 +432,6 @@ class PoolPhysics(object):
             return next_motion_event
 
     def _find_rail_collision(self, e_i):
-        R = self.ball_radius
         table = self.table
         a = e_i._a
         times = {}
@@ -548,12 +547,7 @@ class PoolPhysics(object):
         w1 = w1_mag * np.exp(1j*(angles + angle1))
         z0 = w0 - p / (3*w0) - a2/3
         z1 = w1 - p / (3*w1) - a2/3
-        # zs = remove_a_double_root(zs)
-        # zs = remove_a_double_root(zs)
-        # zs = remove_a_double_root(zs)
-        # _logger.debug('zs:\n%s', '\n'.join(str(z) for z in zs))
-        zs = np.hstack((z0, z1))
-        return zs
+        return np.hstack((z0, z1))
 
     @classmethod
     def quartic_solve(cls, p):
@@ -563,7 +557,6 @@ class PoolPhysics(object):
         Delta = 256*a**3*e**3 - 192*a**2*b*d*e**2 - 128*a**2*c**2*e**2 + 144*a**2*c*d**2*e - 27*a**2*d**4 \
               + 144*a*b**2*c*e**2 - 6*a*b**2*d**2*e - 80*a*b*c**2*d*e + 18*a*b*c*d**3 + 16*a*c**4*e \
               - 4*a*c**3*d**2 - 27*b**4*e**2 + 18*b**3*c*d*e - 4*b**3*d**3 - 4*b**2*c**3*e + b**2*c**2*d**2
-        # _logger.debug('Delta = %s', Delta)
         P = 8*a*c - 3*b**2
         R = (b**3 - 4*a*b*c + 8*a**2*d)
         D = 64*a**3*e - 16*a**2*c**2 + 16*a*b**2*c - 16*a**2*b*d - 3*b**4
@@ -573,64 +566,86 @@ class PoolPhysics(object):
         q = R / (8*a**3)
         QQQ = (0.5*(Delta_1 + np.sqrt(-27.0*Delta + 0j)))
         Q_mag = abs(QQQ)**(1.0/3)
-        Q = Q_mag * np.exp(
-            1j * ( np.angle(QQQ) + 2*np.pi*np.arange(3) ) / 3.0
-        )
-        find_z, find_z_conj = cls._find_z, cls._find_z_conj
+        angle = np.angle(QQQ) / 3
+        # find_z, find_z_conj = cls._find_z, cls._find_z_conj
         # _logger.debug('Q:\n%s', '\n'.join(str(x) for x in Q))
         if Delta > 0:
             # if P < 0 and D < 0:
-            #     _logger.debug('all roots are real and distinct')
-            # elif P > 0 or D > 0:
-            #     _logger.debug('all roots are complex and distinct')
-            Q = Q[0]
+            #     # _logger.debug('all roots are real and distinct')
+            #     Q = Q[0]
+            if P > 0 or D > 0:
+                # _logger.debug('all roots are complex and distinct')
+                return []
+            Q = Q_mag * np.exp(1j*angle)
         elif Delta < 0:
             # _logger.debug('two distinct real roots and a complex-conjugate pair of roots')
-            i, z = find_z(Q)
-            if z:
-                j = find_z_conj(Q, i, z)
-                if j:
-                    Q = Q[i]
-                else:
-                    Q = Q[1]
+            # i, z = find_z(Q)
+            # if z:
+            #     j = find_z_conj(Q, i, z)
+            #     if j:
+            #         Q = Q[i]
+            #     else:
+            #         Q = Q[1]
+            # else:
+            #     Q = Q[1]
+            angles = angle + PIx2/3*np.arange(3)
+            if (abs(np.divmod(angles[1:], PIx2)[1] + np.divmod(angle, PIx2)[1]) < 1e-5).any():
+                Q = Q_mag * np.exp(1j*angle)
             else:
-                Q = Q[1]
+                Q = Q_mag * np.exp(1j*angles[1])
         elif Delta == 0:
             if P < 0 and D < 0 and Delta_0 != 0:
                 # _logger.debug('one real double root and two other real roots')
-                Q = Q[0]
+                # Q = Q[0]
+                Q = Q_mag * np.exp(1j*angle)
             elif D > 0 or (P > 0 and (D != 0 or R != 0)):
                 # _logger.debug('one real double root and a complex-conjugate pair of roots')
-                i, z = find_z(Q)
-                if z:
-                    j = find_z_conj(Q, i, z)
-                    if j:
-                        Q = Q[i]
-                    else:
-                        Q = Q[1]
+                # Q = Q_mag * np.exp(
+                #     1j * ( np.angle(QQQ) + 2*np.pi*np.arange(3) ) / 3.0
+                # )
+                # i, z = find_z(Q)
+                # if z:
+                #     j = find_z_conj(Q, i, z)
+                #     if j:
+                #         Q = Q[i]
+                #     else:
+                #         Q = Q[1]
+                # else:
+                #     Q = Q[1]
+                angles = angle + PIx2/3*np.arange(3)
+                if (abs(np.divmod(angles[1:], PIx2)[1] + np.divmod(angle, PIx2)[1]) < 1e-5).any():
+                    Q = Q_mag * np.exp(1j*angle)
                 else:
-                    Q = Q[1]
+                    Q = Q_mag * np.exp(1j*angles[1])
             elif Delta_0 == 0 and D != 0:
                 # _logger.debug('one real triple root and one other real root')
-                Q = Q[0]
+                # Q = Q[0]
+                Q = Q_mag * np.exp(1j*angle)
             elif D == 0:
                 if P < 0:
                     # _logger.debug('two real double roots')
-                    Q = Q[0]
+                    # Q = Q[0]
+                    Q = Q_mag * np.exp(1j*angle)
                 elif P > 0 and R == 0:
                     # _logger.debug('two complex-conjugate double roots')
-                    i, z = find_z(Q)
-                    if z:
-                        j = find_z_conj(Q, i, z)
-                        if j:
-                            Q = Q[i]
-                        else:
-                            Q = Q[1]
-                    else:
-                        Q = Q[1]
+                    # i, z = find_z(Q)
+                    # if z:
+                    #     j = find_z_conj(Q, i, z)
+                    #     if j:
+                    #         Q = Q[i]
+                    #     else:
+                    #         Q = Q[1]
+                    # else:
+                    #     Q = Q[1]
+                    return []
+                    # angles = angle + PIx2/3*np.arange(3)
+                    # if (abs(np.divmod(angles[1:], PIx2)[1] + np.divmod(angle, PIx2)[1]) < 1e-5).any():
+                    #     Q = Q_mag * np.exp(1j*angle)
+                    # else:
+                    #     Q = Q_mag * np.exp(1j*angles[1])
                 elif Delta_0 == 0:
                     # _logger.debug('all roots are equal to -b / 4a')
-                    return np.array(4*[-0.25 * b / a])
+                    return np.array([-0.25 * b / a])
         S = 0.5*np.sqrt(-2.0*p/3 + (Q + Delta_0/Q) / (3.0*a) + 0j)
         return np.array([
             -b/(4*a) - S + 0.5*np.sqrt(-4*S**2 - 2*p + q/S + 0j),
@@ -651,6 +666,8 @@ class PoolPhysics(object):
 
     def _filter_roots(self, roots, t0, t1):
         # filter out possible complex-conjugate pairs of roots:
+        if len(roots) == 0:
+            return None
         mask = self._mask; mask[:] = True
         for n in range(2):
             i, z = next(((i, z) for i, z in enumerate(roots)

@@ -14,7 +14,7 @@ _logger = logging.getLogger('poolvr')
 
 
 from .gl_rendering import OpenGLRenderer, set_quaternion_from_matrix, set_matrix_from_quaternion
-from .techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
+from .gl_techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
 try:
     from .pyopenvr_renderer import openvr, OpenVRRenderer
 except ImportError as err:
@@ -145,8 +145,8 @@ def main(window_size=(800,600),
     game = PoolGame(table=table,
                     physics=physics)
     cue = PoolCue()
-    cue.position[1] = game.table.height + 0.1
-    cue.position[2] += game.table.length * 0.3
+    cue.position[1] = game.table.H + 0.1
+    cue.position[2] += game.table.L * 0.3
     game.physics.add_cue(cue)
     game.reset(balls_on_table=balls_on_table)
     table_mesh = game.table.export_mesh(surface_technique=technique, cushion_technique=technique)
@@ -177,8 +177,8 @@ def main(window_size=(800,600),
             ball_shadow_meshes[i].visible = False
     camera_world_matrix = fallback_renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
-    camera_position[1] = game.table.height + 0.6
-    camera_position[2] = game.table.length - 0.1
+    camera_position[1] = game.table.H + 0.6
+    camera_position[2] = game.table.L - 0.1
     last_contact_t = float('-inf')
     def reset():
         nonlocal last_contact_t
@@ -186,8 +186,8 @@ def main(window_size=(800,600),
         game.reset(balls_on_table=balls_on_table)
         last_contact_t = float('-inf')
         cue.position[0] = 0
-        cue.position[1] = game.table.height + 0.1
-        cue.position[2] = game.table.length * 0.3
+        cue.position[1] = game.table.H + 0.1
+        cue.position[2] = game.table.L * 0.3
     process_mouse_input = init_mouse(window)
     process_keyboard_input = init_keyboard(window)
     def on_keydown(window, key, scancode, action, mods):
