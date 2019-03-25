@@ -680,15 +680,15 @@ def set_quaternion_from_matrix(U, out=None):
         z = (U[0,2] + U[2,0]) / s
     elif U[1,1] > U[2,2]:
         s = 2.0 * np.sqrt(1.0 + U[1,1] - U[0,0] - U[2,2])
-        _w = (U[0,2] - U[2,0]) / s
-        _x = (U[0,1] + U[1,0]) / s
-        _y = 0.25 * s
-        _z = (U[1,2] + U[2,1]) / s
+        w = (U[0,2] - U[2,0]) / s
+        x = (U[0,1] + U[1,0]) / s
+        y = 0.25 * s
+        z = (U[1,2] + U[2,1]) / s
     else:
         s = 2.0 * np.sqrt(1.0 + U[2,2] - U[0,0] - U[1,1])
-        _w = (U[1,0] - U[0,1]) / s
-        _x = (U[0,2] + U[2,0]) / s
-        _y = (U[1,2] + U[2,1]) / s
-        _z = 0.25 * s
-    out[:] = np.array([_x, _y, _z, _w])
+        w = (U[1,0] - U[0,1]) / s
+        x = (U[0,2] + U[2,0]) / s
+        y = (U[1,2] + U[2,1]) / s
+        z = 0.25 * s
+    out[:] = np.array([x, y, z, w])
     return out

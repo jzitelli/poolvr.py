@@ -30,6 +30,8 @@ from .events import (CueStrikeEvent,
 PIx2 = np.pi*2
 RAD2DEG = 180/np.pi
 INCH2METER = 0.0254
+SQRT2 = np.sqrt(2.0)
+CUBE_ROOTS_OF_1_ANGLES = PIx2/3 * np.arange(3)
 
 
 class PoolPhysics(object):
@@ -104,6 +106,18 @@ class PoolPhysics(object):
         self._enable_sanity_check = enable_sanity_check
         self._p = np.empty(5, dtype=np.float64)
         self._mask = np.array(4*[True])
+        self._sx = 0.5*table.W
+        self._sz = 0.5*table.L
+        self._rhsx = self._sx - ball_radius
+        self._rhsz = self._sz - ball_radius
+        self._bndx = self._sx - 0.999*ball_radius
+        self._bndz = self._sz - 0.999*ball_radius
+        self._sxcp = self._sx - table.M_cp/SQRT2
+        self._szcp = self._sz - table.M_cp/SQRT2
+        self._rail_tuples = ((2,  self._rhsz, self._bndx, self._sxcp),
+                             (0,  self._rhsx, self._bndz, self._szcp),
+                             (2, -self._rhsz, self._bndx, self._sxcp),
+                             (0, -self._rhsx, self._bndz, self._szcp))
         self._a_ij = np.zeros((self.num_balls, 3), dtype=np.float64)
         self._a_ij_mag = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
         self._r_ij = np.zeros((self.num_balls, self.num_balls, 3), dtype=np.float64)
@@ -111,14 +125,6 @@ class PoolPhysics(object):
         self._theta_ij = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
         self._psi_ij = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
         self._occ_ij = np.array(self.num_balls*[self.num_balls*[False]])
-        R = self.ball_radius
-        sx = 0.5*self.table.W
-        sz = 0.5*self.table.L
-        self._rhs_vars = (2, 0, 2, 0)
-        self._rhs = np.array([ sz - R,
-                               sx - R,
-                              -sz + R,
-                              -sx + R], dtype=np.float64)
         self._velocity_meshes = None
         self._angular_velocity_meshes = None
         if ball_collision_model_kwargs:
@@ -395,16 +401,16 @@ class PoolPhysics(object):
         else:
             t_min = float('inf')
         next_collision = None
-        rail_collisions = {}
         for i in sorted(self.balls_in_motion):
             if i not in self._collisions:
                 self._collisions[i] = {}
             collisions = self._collisions[i]
             e_i = self.ball_events[i][-1]
-            rail_collision = self._find_rail_collision(e_i)
+            rail_collision = self._find_rail_collision(e_i, t_min)
             if rail_collision and rail_collision[0] < t_min:
-                rail_collisions[i] = rail_collision
                 t_min = rail_collision[0]
+            else:
+                rail_collision = None
             for j in self.balls_on_table:
                 if j <= i and j in self.balls_in_motion:
                     continue
@@ -413,14 +419,13 @@ class PoolPhysics(object):
                     if self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j]:
                         t_c = None
                     else:
-                        t_c = self._find_collision(e_i, e_j, float('inf'))
+                        t_c = self._find_collision(e_i, e_j, t_min)
                     collisions[j] = t_c
                 t_c = collisions[j]
                 if t_c is not None and t_c < t_min:
                     t_min = t_c
                     next_collision = (t_c, e_i, e_j)
-        for i, rail_collision in rail_collisions.items():
-            if rail_collision[0] == t_min:
+        if rail_collision and rail_collision[0] == t_min:
                 return RailCollisionEvent(t=rail_collision[0],
                                           e_i=self.ball_events[i][-1],
                                           side=rail_collision[1])
@@ -431,64 +436,60 @@ class PoolPhysics(object):
         else:
             return next_motion_event
 
-    def _find_rail_collision(self, e_i):
-        table = self.table
+    def _find_rail_collision(self, e_i, t_min=None):
         a = e_i._a
-        times = {}
         if e_i.parent_event and isinstance(e_i.parent_event, RailCollisionEvent):
             prev_side = e_i.parent_event.side
         else:
             prev_side = None
-        for side, (j, rhs) in enumerate(zip(self._rhs_vars, self._rhs)):
+        if t_min is None:
+            tau_min = e_i.T
+        elif e_i.t >= t_min:
+            return None
+        else:
+            tau_min = t_min - e_i.t
+        side_min = None
+        for side, (j, rhs, bnd, bnd_cp) in enumerate(self._rail_tuples):
             if side == prev_side:
                 continue
+            k = 2 - j
             if abs(a[2,j]) < 1e-15:
                 if abs(a[1,j]) > 1e-15:
                     tau = (rhs - a[0,j]) / a[1,j]
-                    if 0 < tau < e_i.T:
+                    if 0 < tau < tau_min:
                         r = e_i.eval_position(tau)
-                        # pocket = table.is_position_near_pocket(r)
-                        # if pocket is not None:
-                        #     _logger.debug('pocket = %s', pocket)
-                        if table.is_position_in_bounds(r):
-                            times[side] = e_i.t + tau
+                        if -bnd < r[k] < bnd:
+                            tau_min = tau
+                            side_min = side
             else:
                 d = a[1,j]**2 - 4*a[2,j]*(a[0,j] - rhs)
                 if d > 1e-15:
                     pn = np.sqrt(d)
                     tau_p = (-a[1,j] + pn) / (2*a[2,j])
                     tau_n = (-a[1,j] - pn) / (2*a[2,j])
-                    if 0 < tau_p < e_i.T:
-                        r_p = e_i.eval_position(tau_p)
-                        # pocket = table.is_position_near_pocket(r_p)
-                        # if pocket is not None:
-                        #     _logger.debug('ball %s pocket = %s', e_i.i, pocket)
-                        if table.is_position_in_bounds(r_p):
-                            if 0 < tau_n < e_i.T:
-                                r_n = e_i.eval_position(tau_n)
-                                # pocket = table.is_position_near_pocket(r_n)
-                                # if pocket is not None:
-                                #     _logger.debug('ball %s pocket = %s', e_i.i, pocket)
-                                if table.is_position_in_bounds(r_n):
-                                    times[side] = e_i.t + min(tau_p, tau_n)
+                    if 0 < tau_n < tau_min and 0 < tau_p < tau_min:
+                        tau_a, tau_b = min(tau_n, tau_p), max(tau_n, tau_p)
+                        r = e_i.eval_position(tau_a)
+                        if -bnd < r[k] < bnd:
+                            tau_min = tau_a
+                            side_min = side
                             else:
-                                times[side] = e_i.t + tau_p
-                        elif 0 < tau_n < e_i.T:
-                            r_n = e_i.eval_position(tau_n)
-                            # pocket = table.is_position_near_pocket(r_n)
-                            # if pocket is not None:
-                            #     _logger.debug('ball %s pocket = %s', e_i.i, pocket)
-                            if table.is_position_in_bounds(r_n):
-                                times[side] = e_i.t + tau_n
-                    elif 0 < tau_n < e_i.T:
-                        r_n = e_i.eval_position(tau_n)
-                        # pocket = table.is_position_near_pocket(r_n)
-                        # if pocket is not None:
-                        #     _logger.debug('ball %s pocket = %s', e_i.i, pocket)
-                        if table.is_position_in_bounds(r_n):
-                            times[side] = e_i.t + tau_n
-        if times:
-            return min((t, side) for side, t in times.items())
+                            r = e_i.eval_position(tau_b)
+                            if -bnd < r[k] < bnd:
+                                tau_min = tau_b
+                                side_min = side
+                    elif 0 < tau_n < tau_min:
+                        r = e_i.eval_position(tau_n)
+                        if -bnd < r[k] < bnd:
+                            tau_min = tau_n
+                            side_min = side
+                    elif 0 < tau_p < tau_min:
+                        r = e_i.eval_position(tau_p)
+                        if -bnd < r[k] < bnd:
+                            tau_min = tau_p
+                            side_min = side
+        if side_min is not None:
+            return (e_i.t + tau_min, side_min)
 
     def _find_collision(self, e_i, e_j, t_min):
         if e_j.parent_event and e_i.parent_event and e_j.parent_event == e_i.parent_event:
@@ -522,12 +523,85 @@ class PoolPhysics(object):
         # try:
         #     return self._filter_roots(np.roots(p), t0, t1)
         # except np.linalg.linalg.LinAlgError as err:
+        #     # _logger.warning('LinAlgError occurred during solve for collision time:\np = %s\nerror:\n%s', p, err)
         #     pass
-        #     _logger.warning('LinAlgError occurred during solve for collision time:\np = %s\nerror:\n%s', p, err)
         return self._filter_roots(self.quartic_solve(p[::-1]), t0, t1)
 
     @classmethod
+    def quartic_solve(cls, p):
+        e, d, c, b, a = p
+        if abs(p[-1]) / max(abs(p[:-1])) < cls._ZERO_TOLERANCE:
+            return cls.cubic_solve(p[:-1])
+        Delta = 256*a**3*e**3 - 192*a**2*b*d*e**2 - 128*a**2*c**2*e**2 + 144*a**2*c*d**2*e - 27*a**2*d**4 \
+              + 144*a*b**2*c*e**2 - 6*a*b**2*d**2*e - 80*a*b*c**2*d*e + 18*a*b*c*d**3 + 16*a*c**4*e \
+              - 4*a*c**3*d**2 - 27*b**4*e**2 + 18*b**3*c*d*e - 4*b**3*d**3 - 4*b**2*c**3*e + b**2*c**2*d**2
+        P = 8*a*c - 3*b**2
+        D = 64*a**3*e - 16*a**2*c**2 + 16*a*b**2*c - 16*a**2*b*d - 3*b**4
+        if Delta > 0 and (P > 0 or D > 0):
+            # _logger.debug('all roots are complex and distinct')
+            return np.empty(0)
+        R = (b**3 - 4*a*b*c + 8*a**2*d)
+        Delta_0 = c**2 - 3*b*d + 12*a*e
+        if Delta == 0 and D == 0:
+            if P > 0 and R == 0:
+                # _logger.debug('two complex-conjugate double roots')
+                return np.empty(0)
+            elif Delta_0 == 0:
+                # _logger.debug('all roots are equal to -b / 4a')
+                return np.array([-0.25 * b / a])
+        Delta_1 = 2*c**3 - 9*b*c*d + 27*b**2*e + 27*a*d**2 - 72*a*c*e
+        p = P / (8*a**2)
+        q = R / (8*a**3)
+        if Delta > 0:
+            QQQ = (0.5*(Delta_1 + np.sqrt(-27.0*Delta + 0j)))
+        else:
+            QQQ = (0.5*(Delta_1 + np.sqrt(-27.0*Delta)))
+        if Delta > 0:
+                # _logger.debug('all roots are real and distinct')
+                Q = QQQ**(1.0/3)
+        elif Delta < 0:
+            # _logger.debug('two distinct real roots and a complex-conjugate pair of roots')
+            angle = np.angle(QQQ) / 3
+            if abs(angle) < 1e-8:
+                Q_mag = abs(QQQ)**(1.0/3)
+                Q = Q_mag * np.exp(1j*(angle + CUBE_ROOTS_OF_1_ANGLES[1]))
+            else:
+                Q = QQQ**(1.0/3)
+        elif Delta == 0:
+            if P < 0 and D < 0 and Delta_0 != 0:
+                # _logger.debug('one real double root and two other real roots')
+                Q = QQQ**(1.0/3)
+            elif D > 0 or (P > 0 and (D != 0 or R != 0)):
+                # _logger.debug('one real double root and a complex-conjugate pair of roots')
+                angle = np.angle(QQQ) / 3
+                if abs(angle) < 1e-8:
+                    Q_mag = abs(QQQ)**(1.0/3)
+                    Q = Q_mag * np.exp(1j*(angle + CUBE_ROOTS_OF_1_ANGLES[1]))
+                else:
+                    Q = QQQ**(1.0/3)
+            elif Delta_0 == 0 and D != 0:
+                # _logger.debug('one real triple root and one other real root')
+                Q = QQQ**(1.0/3)
+            elif D == 0 and P < 0:
+                    # _logger.debug('two real double roots')
+                    Q = QQQ**(1.0/3)
+        SSx4 = -2.0*p/3 + (Q + Delta_0/Q) / (3.0*a)
+        S = 0.5*np.sqrt(SSx4 if SSx4 >= 0 else SSx4 + 0j)
+        sqrp = -SSx4 - 2*p + q/S
+        sqrtp = np.sqrt(sqrp if sqrp >= 0 else sqrp + 0j)
+        sqrm = -SSx4 - 2*p - q/S
+        sqrtm = np.sqrt(sqrm if sqrm >= 0 else sqrm + 0j)
+        return np.array([
+            -b/(4*a) - S + 0.5*sqrtp,
+            -b/(4*a) - S - 0.5*sqrtp,
+            -b/(4*a) + S + 0.5*sqrtm,
+            -b/(4*a) + S - 0.5*sqrtm,
+        ])
+
+    @classmethod
     def cubic_solve(cls, p):
+        if abs(p[-1]) / max(abs(p[:-1])) < cls._ZERO_TOLERANCE:
+            return cls.quadratic_solve(p[:-1])
         a2, a1, a0 = p[2]/p[3], p[1]/p[3], p[0]/p[3]
         p = (3*a1 - a2**2) / 3.0
         q = (9*a1*a2 - 27*a0 - 2*a2**3) / 27.0
@@ -550,119 +624,14 @@ class PoolPhysics(object):
         return np.hstack((z0, z1))
 
     @classmethod
-    def quartic_solve(cls, p):
-        e, d, c, b, a = p
-        if abs(p[-1]) / max(abs(p[:-1])) < 1e-10:
-            return cls.cubic_solve(p[:-1])
-        Delta = 256*a**3*e**3 - 192*a**2*b*d*e**2 - 128*a**2*c**2*e**2 + 144*a**2*c*d**2*e - 27*a**2*d**4 \
-              + 144*a*b**2*c*e**2 - 6*a*b**2*d**2*e - 80*a*b*c**2*d*e + 18*a*b*c*d**3 + 16*a*c**4*e \
-              - 4*a*c**3*d**2 - 27*b**4*e**2 + 18*b**3*c*d*e - 4*b**3*d**3 - 4*b**2*c**3*e + b**2*c**2*d**2
-        P = 8*a*c - 3*b**2
-        R = (b**3 - 4*a*b*c + 8*a**2*d)
-        D = 64*a**3*e - 16*a**2*c**2 + 16*a*b**2*c - 16*a**2*b*d - 3*b**4
-        Delta_0 = c**2 - 3*b*d + 12*a*e
-        Delta_1 = 2*c**3 - 9*b*c*d + 27*b**2*e + 27*a*d**2 - 72*a*c*e
-        p = P / (8*a**2)
-        q = R / (8*a**3)
-        QQQ = (0.5*(Delta_1 + np.sqrt(-27.0*Delta + 0j)))
-        Q_mag = abs(QQQ)**(1.0/3)
-        angle = np.angle(QQQ) / 3
-        # find_z, find_z_conj = cls._find_z, cls._find_z_conj
-        # _logger.debug('Q:\n%s', '\n'.join(str(x) for x in Q))
-        if Delta > 0:
-            # if P < 0 and D < 0:
-            #     # _logger.debug('all roots are real and distinct')
-            #     Q = Q[0]
-            if P > 0 or D > 0:
-                # _logger.debug('all roots are complex and distinct')
-                return []
-            Q = Q_mag * np.exp(1j*angle)
-        elif Delta < 0:
-            # _logger.debug('two distinct real roots and a complex-conjugate pair of roots')
-            # i, z = find_z(Q)
-            # if z:
-            #     j = find_z_conj(Q, i, z)
-            #     if j:
-            #         Q = Q[i]
-            #     else:
-            #         Q = Q[1]
-            # else:
-            #     Q = Q[1]
-            angles = angle + PIx2/3*np.arange(3)
-            if (abs(np.divmod(angles[1:], PIx2)[1] + np.divmod(angle, PIx2)[1]) < 1e-5).any():
-                Q = Q_mag * np.exp(1j*angle)
-            else:
-                Q = Q_mag * np.exp(1j*angles[1])
-        elif Delta == 0:
-            if P < 0 and D < 0 and Delta_0 != 0:
-                # _logger.debug('one real double root and two other real roots')
-                # Q = Q[0]
-                Q = Q_mag * np.exp(1j*angle)
-            elif D > 0 or (P > 0 and (D != 0 or R != 0)):
-                # _logger.debug('one real double root and a complex-conjugate pair of roots')
-                # Q = Q_mag * np.exp(
-                #     1j * ( np.angle(QQQ) + 2*np.pi*np.arange(3) ) / 3.0
-                # )
-                # i, z = find_z(Q)
-                # if z:
-                #     j = find_z_conj(Q, i, z)
-                #     if j:
-                #         Q = Q[i]
-                #     else:
-                #         Q = Q[1]
-                # else:
-                #     Q = Q[1]
-                angles = angle + PIx2/3*np.arange(3)
-                if (abs(np.divmod(angles[1:], PIx2)[1] + np.divmod(angle, PIx2)[1]) < 1e-5).any():
-                    Q = Q_mag * np.exp(1j*angle)
-                else:
-                    Q = Q_mag * np.exp(1j*angles[1])
-            elif Delta_0 == 0 and D != 0:
-                # _logger.debug('one real triple root and one other real root')
-                # Q = Q[0]
-                Q = Q_mag * np.exp(1j*angle)
-            elif D == 0:
-                if P < 0:
-                    # _logger.debug('two real double roots')
-                    # Q = Q[0]
-                    Q = Q_mag * np.exp(1j*angle)
-                elif P > 0 and R == 0:
-                    # _logger.debug('two complex-conjugate double roots')
-                    # i, z = find_z(Q)
-                    # if z:
-                    #     j = find_z_conj(Q, i, z)
-                    #     if j:
-                    #         Q = Q[i]
-                    #     else:
-                    #         Q = Q[1]
-                    # else:
-                    #     Q = Q[1]
-                    return []
-                    # angles = angle + PIx2/3*np.arange(3)
-                    # if (abs(np.divmod(angles[1:], PIx2)[1] + np.divmod(angle, PIx2)[1]) < 1e-5).any():
-                    #     Q = Q_mag * np.exp(1j*angle)
-                    # else:
-                    #     Q = Q_mag * np.exp(1j*angles[1])
-                elif Delta_0 == 0:
-                    # _logger.debug('all roots are equal to -b / 4a')
-                    return np.array([-0.25 * b / a])
-        S = 0.5*np.sqrt(-2.0*p/3 + (Q + Delta_0/Q) / (3.0*a) + 0j)
-        return np.array([
-            -b/(4*a) - S + 0.5*np.sqrt(-4*S**2 - 2*p + q/S + 0j),
-            -b/(4*a) - S - 0.5*np.sqrt(-4*S**2 - 2*p + q/S + 0j),
-            -b/(4*a) + S + 0.5*np.sqrt(-4*S**2 - 2*p - q/S + 0j),
-            -b/(4*a) + S - 0.5*np.sqrt(-4*S**2 - 2*p - q/S + 0j),
-        ])
-
-    @classmethod
-    def _find_z(cls, roots):
-        return next(((i, z) for i, z in enumerate(roots) if abs(z.imag) > cls._IMAG_TOLERANCE), (None, None))
-
-    @classmethod
-    def _find_z_conj(cls, roots, i, z):
-        return next((j for j, z_conj in enumerate(roots[i+1:])
-                     if  abs(z.real - z_conj.real) < cls._ZERO_TOLERANCE
-                     and abs(z.imag + z_conj.imag) < cls._ZERO_TOLERANCE), None)
+    def quadratic_solve(cls, p):
+        if abs(p[2]) / max(abs(p[:2])) < cls._ZERO_TOLERANCE:
+            return np.array([-p[0] / p[1]])
+        else:
+            c, b, a = p
+            sqrtd = np.sqrt(b**2 - 4*a*c)
+            return np.array([(-b + sqrtd)/(2*a),
+                             (-b - sqrtd)/(2*a)])
 
     def _filter_roots(self, roots, t0, t1):
         # filter out possible complex-conjugate pairs of roots:
@@ -799,8 +768,8 @@ event: %s
     def glyph_meshes(self, t):
         if self._velocity_meshes is None:
             from ..gl_rendering import Material, Mesh
-            from ..primitives import ArrowMesh
-            from ..techniques import LAMBERT_TECHNIQUE
+            from ..gl_primitives import ArrowMesh
+            from ..gl_techniques import LAMBERT_TECHNIQUE
             self._velocity_material = Material(LAMBERT_TECHNIQUE, values={"u_color": [1.0, 0.0, 0.0, 0.0]})
             self._angular_velocity_material = Material(LAMBERT_TECHNIQUE, values={'u_color': [0.0, 0.0, 1.0, 0.0]})
             self._velocity_meshes = {i: ArrowMesh(material=self._velocity_material,
