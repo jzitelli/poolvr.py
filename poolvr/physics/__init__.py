@@ -426,9 +426,9 @@ class PoolPhysics(object):
                     t_min = t_c
                     next_collision = (t_c, e_i, e_j)
         if rail_collision and rail_collision[0] == t_min:
-                return RailCollisionEvent(t=rail_collision[0],
-                                          e_i=self.ball_events[i][-1],
-                                          side=rail_collision[1])
+            return RailCollisionEvent(t=rail_collision[0],
+                                      e_i=self.ball_events[i][-1],
+                                      side=rail_collision[1])
         if next_collision is not None:
             t_c, e_i, e_j = next_collision
             return self._ball_collision_event_class(t_c, e_i, e_j,
@@ -473,7 +473,7 @@ class PoolPhysics(object):
                         if -bnd < r[k] < bnd:
                             tau_min = tau_a
                             side_min = side
-                            else:
+                        else:
                             r = e_i.eval_position(tau_b)
                             if -bnd < r[k] < bnd:
                                 tau_min = tau_b
@@ -557,8 +557,8 @@ class PoolPhysics(object):
         else:
             QQQ = (0.5*(Delta_1 + np.sqrt(-27.0*Delta)))
         if Delta > 0:
-                # _logger.debug('all roots are real and distinct')
-                Q = QQQ**(1.0/3)
+            # _logger.debug('all roots are real and distinct')
+            Q = QQQ**(1.0/3)
         elif Delta < 0:
             # _logger.debug('two distinct real roots and a complex-conjugate pair of roots')
             angle = np.angle(QQQ) / 3
@@ -583,8 +583,8 @@ class PoolPhysics(object):
                 # _logger.debug('one real triple root and one other real root')
                 Q = QQQ**(1.0/3)
             elif D == 0 and P < 0:
-                    # _logger.debug('two real double roots')
-                    Q = QQQ**(1.0/3)
+                # _logger.debug('two real double roots')
+                Q = QQQ**(1.0/3)
         SSx4 = -2.0*p/3 + (Q + Delta_0/Q) / (3.0*a)
         S = 0.5*np.sqrt(SSx4 if SSx4 >= 0 else SSx4 + 0j)
         sqrp = -SSx4 - 2*p + q/S
