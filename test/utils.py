@@ -218,18 +218,23 @@ def plot_energy(physics, title=None, nt=1000,
 
 
 def gen_filename(name, ext, directory="."):
+    from pathlib import Path
+    path = Path(directory)
+    if not path.exists():
+        path.mkdir(parents=True)
     import re
-    matches = (re.match(r"({name}\.{{0,1}})(?P<number>\d*).{ext}".format(name=name, ext=ext), f)
-               for f in os.listdir(directory))
+    matches = (re.match(r"({name}\.{{0,1}})(?P<number>\d*).{ext}".format(name=name, ext=ext),
+                        f) for f in os.listdir(directory))
     number = max((int(m.group('number')) for m in matches
                   if m and m.group('number')), default=None)
     if number is None:
-        if matches:
-            return '{name}.0.{ext}'.format(name=name, ext=ext)
+        if not matches:
+            filename = '{name}.{ext}'.format(name=name, ext=ext)
         else:
-            return '{name}.{ext}'.format(name=name, ext=ext)
+            filename = '{name}.0.{ext}'.format(name=name, ext=ext)
     else:
-        return '{name}.{num}.{ext}'.format(name=name, ext=ext, num=number+1)
+        filename = '{name}.{num}.{ext}'.format(name=name, ext=ext, num=number+1)
+    return os.path.abspath(os.path.join(directory, filename))
 
 
 def git_head_hash():

@@ -174,7 +174,9 @@ def test_break(pool_physics,
     V = np.array((-0.01, 0.0, -1.6), dtype=np.float64)
     #V = np.array((-0.01, 0.0, -2.5), dtype=np.float64)
     M = 0.54
-    outname = gen_filename('test_break.%s' % git_head_hash(), 'pstats', directory=_here)
+
+    outname = gen_filename('test_break.%s' % git_head_hash(), 'pstats',
+                           directory=os.path.join(_here, 'pstats'))
     from time import perf_counter
     import cProfile
     pr = cProfile.Profile()

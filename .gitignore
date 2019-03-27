@@ -51,6 +51,9 @@ var/
 pip-log.txt
 pip-delete-this-directory.txt
 
+# cprofile dumps
+*.pstats
+
 # Unit test / coverage reports
 htmlcov/
 .tox/
