@@ -37,7 +37,7 @@ CUBE_ROOTS_OF_1_ANGLES = PIx2/3 * np.arange(3)
 class PoolPhysics(object):
     _ZERO_TOLERANCE = 1e-8
     _ZERO_TOLERANCE_SQRD = _ZERO_TOLERANCE**2
-    _IMAG_TOLERANCE = 1e-8
+    _IMAG_TOLERANCE = 1e-9
     _IMAG_TOLERANCE_SQRD = _IMAG_TOLERANCE**2
     def __init__(self,
                  num_balls=16,
@@ -114,9 +114,9 @@ class PoolPhysics(object):
         self._bndz = self._sz - 0.999*ball_radius
         self._sxcp = self._sx - table.M_cp/SQRT2
         self._szcp = self._sz - table.M_cp/SQRT2
-        self._rail_tuples = ((2,  self._rhsz, self._bndx, self._sxcp),
+        self._rail_tuples = ((2, -self._rhsz, self._bndx, self._sxcp),
                              (0,  self._rhsx, self._bndz, self._szcp),
-                             (2, -self._rhsz, self._bndx, self._sxcp),
+                             (2,  self._rhsz, self._bndx, self._sxcp),
                              (0, -self._rhsx, self._bndz, self._szcp))
         self._a_ij = np.zeros((self.num_balls, 3), dtype=np.float64)
         self._a_ij_mag = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
@@ -401,6 +401,7 @@ class PoolPhysics(object):
         else:
             t_min = float('inf')
         next_collision = None
+        next_rail_collision = None
         for i in sorted(self.balls_in_motion):
             if i not in self._collisions:
                 self._collisions[i] = {}
@@ -409,8 +410,7 @@ class PoolPhysics(object):
             rail_collision = self._find_rail_collision(e_i, t_min)
             if rail_collision and rail_collision[0] < t_min:
                 t_min = rail_collision[0]
-            else:
-                rail_collision = None
+                next_rail_collision = rail_collision
             for j in self.balls_on_table:
                 if j <= i and j in self.balls_in_motion:
                     continue
@@ -425,10 +425,10 @@ class PoolPhysics(object):
                 if t_c is not None and t_c < t_min:
                     t_min = t_c
                     next_collision = (t_c, e_i, e_j)
-        if rail_collision and rail_collision[0] == t_min:
-            return RailCollisionEvent(t=rail_collision[0],
-                                      e_i=self.ball_events[i][-1],
-                                      side=rail_collision[1])
+                    next_rail_collision = None
+        if next_rail_collision:
+            t, i, side = next_rail_collision
+            return RailCollisionEvent(t=t, e_i=self.ball_events[i][-1], side=side)
         if next_collision is not None:
             t_c, e_i, e_j = next_collision
             return self._ball_collision_event_class(t_c, e_i, e_j,
@@ -489,7 +489,7 @@ class PoolPhysics(object):
                             tau_min = tau_p
                             side_min = side
         if side_min is not None:
-            return (e_i.t + tau_min, side_min)
+            return (e_i.t + tau_min, e_i.i, side_min)
 
     def _find_collision(self, e_i, e_j, t_min):
         if e_j.parent_event and e_i.parent_event and e_j.parent_event == e_i.parent_event:
@@ -588,15 +588,15 @@ class PoolPhysics(object):
         SSx4 = -2.0*p/3 + (Q + Delta_0/Q) / (3.0*a)
         S = 0.5*np.sqrt(SSx4 if SSx4 >= 0 else SSx4 + 0j)
         sqrp = -SSx4 - 2*p + q/S
-        sqrtp = np.sqrt(sqrp if sqrp >= 0 else sqrp + 0j)
         sqrm = -SSx4 - 2*p - q/S
+        sqrtp = np.sqrt(sqrp if sqrp >= 0 else sqrp + 0j)
         sqrtm = np.sqrt(sqrm if sqrm >= 0 else sqrm + 0j)
-        return np.array([
+        return np.array((
             -b/(4*a) - S + 0.5*sqrtp,
             -b/(4*a) - S - 0.5*sqrtp,
             -b/(4*a) + S + 0.5*sqrtm,
             -b/(4*a) + S - 0.5*sqrtm,
-        ])
+        ))
 
     @classmethod
     def cubic_solve(cls, p):
@@ -615,13 +615,14 @@ class PoolPhysics(object):
         w0_mag = abs(wc0)**(1.0/3)
         w1_mag = abs(wc1)**(1.0/3)
         angle0 = np.angle(wc0) / 3
-        angle1 = np.angle(wc1) / 3
+        # angle1 = np.angle(wc1) / 3
         angles = 2*np.pi/3 * np.arange(3)
         w0 = w0_mag * np.exp(1j*(angles + angle0))
-        w1 = w1_mag * np.exp(1j*(angles + angle1))
-        z0 = w0 - p / (3*w0) - a2/3
-        z1 = w1 - p / (3*w1) - a2/3
-        return np.hstack((z0, z1))
+        #w1 = w1_mag * np.exp(1j*(angles + angle1))
+        #z0 = w0 - p / (3*w0) - a2/3
+        #z1 = w1 - p / (3*w1) - a2/3
+        #return np.hstack((z0, z1))
+        return w0
 
     @classmethod
     def quadratic_solve(cls, p):
