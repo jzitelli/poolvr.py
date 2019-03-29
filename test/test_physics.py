@@ -8,24 +8,6 @@ from utils import gen_filename, git_head_hash
 from poolvr.physics.events import PhysicsEvent, CueStrikeEvent, BallSlidingEvent, BallRollingEvent, BallRestEvent#, BallCollisionEvent
 
 
-
-INCH2METER = 0.0254
-ball_radius = 1.125 * INCH2METER
-ball_diameter = 2*ball_radius
-ball_mass = 0.17
-ball_I = 2.0/5 * ball_mass * ball_radius**2
-mu_r = 0.016 # coefficient of rolling friction between ball and table
-mu_sp = 0.044 # coefficient of spinning friction between ball and table
-mu_s = 0.2 # coefficient of sliding friction between ball and table
-mu_b = 0.06 # coefficient of friction between ball and cushions
-g = 9.81 # magnitude of acceleration due to gravity
-c_b = 4000.0 # ball material's speed of sound
-E_Y_b = 2.4e9 # ball material's Young's modulus of elasticity
-_ZERO_TOLERANCE = 1e-8
-_ZERO_TOLERANCE_SQRD = _ZERO_TOLERANCE**2
-PIx2 = 2*np.pi
-
-
 _here = os.path.dirname(__file__)
 
 
@@ -66,14 +48,16 @@ def test_occlusion(physics, request):
     plt.close()
 
 
-def test_strike_ball(physics,
+def test_strike_ball(pool_physics,
                      plot_motion_z_position,
                      plot_motion_timelapse,
-                     plot_energy):
+                     plot_energy,
+                     gl_rendering):
+    physics = pool_physics
     physics.reset(balls_on_table=[0])
     ball_positions = physics.eval_positions(0.0)
     r_c = ball_positions[0].copy()
-    r_c[2] += ball_radius
+    r_c[2] += physics.ball_radius
     V = np.zeros(3, dtype=np.float64)
     V[2] = -0.6
     M = 0.54
@@ -87,13 +71,14 @@ def test_strike_ball(physics,
     assert isinstance(events[3], BallRestEvent)
 
 
-def test_ball_collision(physics,
+def test_ball_collision(pool_physics,
                         plot_motion_z_position,
                         plot_motion_timelapse,
                         plot_energy,
                         gl_rendering):
+    physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
-    ball_positions[1] = ball_positions[0]; ball_positions[1,2] -= 8 * ball_radius
+    ball_positions[1] = ball_positions[0]; ball_positions[1,2] -= 8 * physics.ball_radius
     physics.reset(balls_on_table=[0, 1],
                   ball_positions=ball_positions)
     start_event = BallSlidingEvent(0, 0, r_0=ball_positions[0],
@@ -110,20 +95,21 @@ def test_ball_collision(physics,
     # assert isinstance(events[5], BallRestEvent)
 
 
-def test_angled_ball_collision(physics,
+def test_angled_ball_collision(pool_physics,
                                plot_motion_z_position,
                                plot_motion_x_position,
                                plot_motion_timelapse,
                                plot_energy,
                                gl_rendering):
+    physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
     ball_positions[1] = ball_positions[0]
-    ball_positions[1,0] -= 8 / np.sqrt(2) * ball_radius
-    ball_positions[1,2] -= 8 / np.sqrt(2) * ball_radius
+    ball_positions[1,0] -= 8 / np.sqrt(2) * physics.ball_radius
+    ball_positions[1,2] -= 8 / np.sqrt(2) * physics.ball_radius
     physics.reset(balls_on_table=[0, 1],
                   ball_positions=ball_positions)
     r_ij = ball_positions[1] - ball_positions[0]
-    r_ij[0] += ball_radius
+    r_ij[0] += physics.ball_radius
     e_ij = r_ij / np.linalg.norm(r_ij)
     v_0 = 0.9 * e_ij
     start_event = BallSlidingEvent(0, 0, r_0=ball_positions[0],
@@ -140,13 +126,14 @@ def test_angled_ball_collision(physics,
     # assert isinstance(events[5], BallRestEvent)
 
 
-def test_sliding_ball_collision(physics,
+def test_sliding_ball_collision(pool_physics,
                                 plot_motion_z_position,
                                 plot_motion_timelapse,
                                 plot_energy,
                                 gl_rendering):
+    physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
-    ball_positions[1] = ball_positions[0]; ball_positions[1,2] -= 8 * ball_radius
+    ball_positions[1] = ball_positions[0]; ball_positions[1,2] -= 8 * physics.ball_radius
     physics.reset(balls_on_table=[0, 1],
                   ball_positions=ball_positions)
     start_event = BallSlidingEvent(0, 0, r_0=ball_positions[0],
@@ -170,7 +157,7 @@ def test_break(pool_physics,
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
     r_c = ball_positions[0].copy()
-    r_c[2] += ball_radius
+    r_c[2] += physics.ball_radius
     V = np.array((-0.01, 0.0, -1.6), dtype=np.float64)
     #V = np.array((-0.01, 0.0, -2.5), dtype=np.float64)
     M = 0.54
@@ -196,7 +183,7 @@ def test_break_and_following_shot(pool_physics,
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
     r_c = ball_positions[0].copy()
-    r_c[2] += ball_radius
+    r_c[2] += physics.ball_radius
     V = np.array((-0.01, 0, -1.6), dtype=np.float64)
     M = 0.54
     events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
@@ -207,7 +194,7 @@ def test_break_and_following_shot(pool_physics,
     r_02 = ball_positions[2] - ball_positions[0]
     r_02_mag = np.sqrt(np.dot(r_02, r_02))
     n_02 = r_02 / r_02_mag
-    r_c = ball_positions[0] - ball_radius * n_02
+    r_c = ball_positions[0] - physics.ball_radius * n_02
     V = 0.99 * n_02
     events = physics.strike_ball(ntt, 0, ball_positions[0], r_c, V, M)
     _logger.debug('strike #2 on %d resulted in %d events:\n\n%s\n',
@@ -224,9 +211,9 @@ def test_strike_ball_english(pool_physics,
     cy = np.cos(45*np.pi/180)
     sxz = np.sin(80*np.pi/180)
     cxz = np.cos(80*np.pi/180)
-    r_c[1] += ball_radius * sy
-    r_c[0] += ball_radius * cy * sxz
-    r_c[2] += ball_radius * cy * cxz
+    r_c[1] += physics.ball_radius * sy
+    r_c[0] += physics.ball_radius * cy * sxz
+    r_c[2] += physics.ball_radius * cy * cxz
     V = np.zeros(3, dtype=np.float64)
     V[2] = -1.5
     M = 0.54
@@ -245,9 +232,9 @@ def test_strike_ball_less_english(pool_physics,
     cy = np.cos(40*np.pi/180)
     sxz = np.sin(30*np.pi/180)
     cxz = np.cos(30*np.pi/180)
-    r_c[1] += ball_radius * sy
-    r_c[0] += ball_radius * cy * sxz
-    r_c[2] += ball_radius * cy * cxz
+    r_c[1] += physics.ball_radius * sy
+    r_c[0] += physics.ball_radius * cy * sxz
+    r_c[2] += physics.ball_radius * cy * cxz
     V = np.zeros(3, dtype=np.float64)
     V[2] = -1.5
     M = 0.54

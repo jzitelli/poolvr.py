@@ -32,12 +32,13 @@ RAD2DEG = 180/np.pi
 INCH2METER = 0.0254
 SQRT2 = np.sqrt(2.0)
 CUBE_ROOTS_OF_1_ANGLES = PIx2/3 * np.arange(3)
+CUBE_ROOTS_OF_1 = np.exp(1j*CUBE_ROOTS_OF_1_ANGLES)
 
 
 class PoolPhysics(object):
     _ZERO_TOLERANCE = 1e-8
     _ZERO_TOLERANCE_SQRD = _ZERO_TOLERANCE**2
-    _IMAG_TOLERANCE = 1e-9
+    _IMAG_TOLERANCE = 1e-7
     _IMAG_TOLERANCE_SQRD = _IMAG_TOLERANCE**2
     def __init__(self,
                  num_balls=16,
@@ -458,7 +459,7 @@ class PoolPhysics(object):
                     tau = (rhs - a[0,j]) / a[1,j]
                     if 0 < tau < tau_min:
                         r = e_i.eval_position(tau)
-                        if -bnd < r[k] < bnd:
+                        if abs(r[k]) < bnd:
                             tau_min = tau
                             side_min = side
             else:
@@ -470,22 +471,22 @@ class PoolPhysics(object):
                     if 0 < tau_n < tau_min and 0 < tau_p < tau_min:
                         tau_a, tau_b = min(tau_n, tau_p), max(tau_n, tau_p)
                         r = e_i.eval_position(tau_a)
-                        if -bnd < r[k] < bnd:
+                        if abs(r[k]) < bnd:
                             tau_min = tau_a
                             side_min = side
                         else:
                             r = e_i.eval_position(tau_b)
-                            if -bnd < r[k] < bnd:
+                            if abs(r[k]) < bnd:
                                 tau_min = tau_b
                                 side_min = side
                     elif 0 < tau_n < tau_min:
                         r = e_i.eval_position(tau_n)
-                        if -bnd < r[k] < bnd:
+                        if abs(r[k]) < bnd:
                             tau_min = tau_n
                             side_min = side
                     elif 0 < tau_p < tau_min:
                         r = e_i.eval_position(tau_p)
-                        if -bnd < r[k] < bnd:
+                        if abs(r[k]) < bnd:
                             tau_min = tau_p
                             side_min = side
         if side_min is not None:
@@ -529,9 +530,9 @@ class PoolPhysics(object):
 
     @classmethod
     def quartic_solve(cls, p):
-        e, d, c, b, a = p
         if abs(p[-1]) / max(abs(p[:-1])) < cls._ZERO_TOLERANCE:
             return cls.cubic_solve(p[:-1])
+        e, d, c, b, a = p
         Delta = 256*a**3*e**3 - 192*a**2*b*d*e**2 - 128*a**2*c**2*e**2 + 144*a**2*c*d**2*e - 27*a**2*d**4 \
               + 144*a*b**2*c*e**2 - 6*a*b**2*d**2*e - 80*a*b*c**2*d*e + 18*a*b*c*d**3 + 16*a*c**4*e \
               - 4*a*c**3*d**2 - 27*b**4*e**2 + 18*b**3*c*d*e - 4*b**3*d**3 - 4*b**2*c**3*e + b**2*c**2*d**2
@@ -602,27 +603,22 @@ class PoolPhysics(object):
     def cubic_solve(cls, p):
         if abs(p[-1]) / max(abs(p[:-1])) < cls._ZERO_TOLERANCE:
             return cls.quadratic_solve(p[:-1])
-        a2, a1, a0 = p[2]/p[3], p[1]/p[3], p[0]/p[3]
-        p = (3*a1 - a2**2) / 3.0
-        q = (9*a1*a2 - 27*a0 - 2*a2**3) / 27.0
-        d = q**2 + 4*p**3/27.0
-        if d < 0:
-            wc0 = 0.5 * (q + np.sqrt(d + 0j))
-            wc1 = 0.5 * (q - np.sqrt(d + 0j))
-        else:
-            wc0 = 0.5 * (q + np.sqrt(d))
-            wc1 = 0.5 * (q - np.sqrt(d))
-        w0_mag = abs(wc0)**(1.0/3)
-        w1_mag = abs(wc1)**(1.0/3)
-        angle0 = np.angle(wc0) / 3
-        # angle1 = np.angle(wc1) / 3
-        angles = 2*np.pi/3 * np.arange(3)
-        w0 = w0_mag * np.exp(1j*(angles + angle0))
-        #w1 = w1_mag * np.exp(1j*(angles + angle1))
-        #z0 = w0 - p / (3*w0) - a2/3
-        #z1 = w1 - p / (3*w1) - a2/3
-        #return np.hstack((z0, z1))
-        return w0
+        a, b, c, d = p[::-1]
+        Delta = 18*a*b*c*d - 4*b**3*d + b**2*c**2 - 4*a*c**3 - 27*a**2*d**2
+        Delta_0 = b**2 - 3*a*c
+        if Delta == 0:
+            if Delta_0 == 0:
+                return np.array((-b/(3*a)))
+            else:
+                return np.array((              (9*a*d - b*c) / (2*Delta_0),
+                                 (4*a*b*c - 9*a**2*d - b**3) / (a*Delta_0)))
+        Delta_1 = 2*b**3 - 9*a*b*c + 27*a**2*d
+        DD = -27*a**2*Delta
+        CCC = 0.5 * (Delta_1 + np.sign(Delta_1)*np.sqrt(DD if DD >= 0 else DD + 0j))
+        if CCC == 0:
+            return np.array((-b/(3*a)))
+        C = CCC**(1.0/3)
+        return -(b + CUBE_ROOTS_OF_1*C + Delta_0 / (CUBE_ROOTS_OF_1*C)) / (3*a)
 
     @classmethod
     def quadratic_solve(cls, p):
@@ -641,7 +637,7 @@ class PoolPhysics(object):
         mask = self._mask; mask[:] = True
         for n in range(2):
             i, z = next(((i, z) for i, z in enumerate(roots)
-                         if abs(z.imag) >= PoolPhysics._ZERO_TOLERANCE),
+                         if abs(z.imag) > PoolPhysics._IMAG_TOLERANCE),
                         (None, None))
             if z is not None:
                 j = next((j for j, z_conj in enumerate(roots[i+1:])

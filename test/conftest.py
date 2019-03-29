@@ -145,7 +145,7 @@ def gl_rendering(pool_physics, pool_table, request):
     logging.getLogger('poolvr.gl_rendering').setLevel(logging.WARNING)
     physics = pool_physics
     table = pool_table
-    game = PoolGame(physics=physics, table=table)
+    game = PoolGame(physics=pool_physics, table=table)
     window_size = [xres, yres]
     title = '_'.join([request.function.__name__, pool_physics.ball_collision_model])
     window, renderer = setup_glfw(width=window_size[0],
