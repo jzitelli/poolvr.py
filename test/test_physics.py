@@ -56,10 +56,9 @@ def test_strike_ball(pool_physics,
     physics = pool_physics
     physics.reset(balls_on_table=[0])
     ball_positions = physics.eval_positions(0.0)
-    r_c = ball_positions[0].copy()
+    r_c = ball_positions[0]
     r_c[2] += physics.ball_radius
-    V = np.zeros(3, dtype=np.float64)
-    V[2] = -0.6
+    V = np.array((0, 0, -0.6), dtype=np.float64)
     M = 0.54
     events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
     _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
@@ -159,9 +158,7 @@ def test_break(pool_physics,
     r_c = ball_positions[0].copy()
     r_c[2] += physics.ball_radius
     V = np.array((-0.01, 0.0, -1.6), dtype=np.float64)
-    #V = np.array((-0.01, 0.0, -2.5), dtype=np.float64)
     M = 0.54
-
     outname = gen_filename('test_break.%s' % git_head_hash(), 'pstats',
                            directory=os.path.join(_here, 'pstats'))
     from time import perf_counter
@@ -172,8 +169,34 @@ def test_break(pool_physics,
     events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
     t1 = perf_counter()
     pr.dump_stats(outname)
+    _logger.info('evaluation time: %s', t1-t0)
     _logger.info('...dumped stats to "%s"', outname)
-    _logger.info('elapsed time: %s', t1-t0)
+    _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
+                  PhysicsEvent.events_str(events))
+
+
+def test_break_hard(pool_physics,
+                    plot_motion_timelapse,
+                    plot_energy,
+                    gl_rendering):
+    physics = pool_physics
+    ball_positions = physics.eval_positions(0.0)
+    r_c = ball_positions[0].copy()
+    r_c[2] += physics.ball_radius
+    V = np.array((-0.02, 0.0, -3.2), dtype=np.float64)
+    M = 0.54
+    outname = gen_filename('test_break_hard.%s' % git_head_hash(), 'pstats',
+                           directory=os.path.join(_here, 'pstats'))
+    from time import perf_counter
+    import cProfile
+    pr = cProfile.Profile()
+    pr.enable()
+    t0 = perf_counter()
+    events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
+    t1 = perf_counter()
+    pr.dump_stats(outname)
+    _logger.info('evaluation time: %s', t1-t0)
+    _logger.info('...dumped stats to "%s"', outname)
     _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
                   PhysicsEvent.events_str(events))
 

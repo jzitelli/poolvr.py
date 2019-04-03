@@ -38,7 +38,7 @@ def pool_physics(pool_table, request):
     from poolvr.physics import PoolPhysics
     return PoolPhysics(initial_positions=pool_table.calc_racked_positions(),
                        ball_collision_model='simple',
-                       enable_sanity_check=False)
+                       enable_sanity_check=True)
 physics = pool_physics
 
 

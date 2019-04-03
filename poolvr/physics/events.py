@@ -97,6 +97,8 @@ class BallStationaryEvent(BallEvent):
             self._a_global = a = np.zeros((3,3), dtype=np.float64)
             a[0] = self._r_0
         return self._a_global, None
+    def calc_shifted_motion_coeffs(self, t0):
+        return self.global_motion_coeffs
     def eval_position(self, tau, out=None):
         if out is None:
             out = self._r_0.copy()
@@ -137,9 +139,11 @@ class BallSpinningEvent(BallStationaryEvent):
         self._b = -5 * np.sign(omega_0_y) * self.mu_sp * self.g / (2 * R)
         T = abs(omega_0_y / self._b)
         super().__init__(t, i, r_0=r_0, T=T, **kwargs)
-        self._next_motion_event = BallRestEvent(t + T, i, r_0=r_0)
+        self._next_motion_event = None
     @property
     def next_motion_event(self):
+        if self._next_motion_event is None:
+            self._next_motion_event = BallRestEvent(self.t + self.T, self.i, r_0=self._r_0)
         return self._next_motion_event
     def eval_angular_velocity(self, tau, out=None):
         if out is None:
@@ -198,9 +202,18 @@ class BallMotionEvent(BallEvent):
         if self._ab_global is None:
             self._ab_global = self.calc_global_motion_coeffs(self.t, self._a, self._b)
         return self._ab_global[:3], self._ab_global[3:]
+    def calc_shifted_motion_coeffs(self, t0):
+        ab_global = self.calc_global_motion_coeffs(self.t - t0, self._a, self._b)
+        return ab_global[:3], ab_global[3:]
     @staticmethod
     def calc_global_motion_coeffs(t, a, b, out=None):
-        "Calculates the coefficients of the global-time equations of motion."
+        """
+        Calculates the coefficients of the global-time equations of motion.
+
+        :param t: the global time of the start of the motion
+        :param a: the local-time (0 at the start of the motion) linear motion coefficients
+        :param b: the local-time angular motion coefficients
+        """
         if out is None:
             out = np.zeros((5,3), dtype=np.float64)
         out[:3] = a

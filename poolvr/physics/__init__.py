@@ -27,7 +27,7 @@ from .events import (CueStrikeEvent,
                      MarlowBallCollisionEvent,
                      SimpleBallCollisionEvent,
                      RailCollisionEvent)
-#from .poly_solvers import quartic_solve
+from .poly_solvers import quartic_solve
 
 
 PIx2 = np.pi*2
@@ -37,9 +37,9 @@ INCH2METER = 0.0254
 
 
 class PoolPhysics(object):
-    _ZERO_TOLERANCE = 1e-8
+    _ZERO_TOLERANCE = 1e-9
     _ZERO_TOLERANCE_SQRD = _ZERO_TOLERANCE**2
-    _IMAG_TOLERANCE = 1e-7
+    _IMAG_TOLERANCE = 1e-9
     _IMAG_TOLERANCE_SQRD = _IMAG_TOLERANCE**2
     def __init__(self,
                  num_balls=16,
@@ -166,7 +166,9 @@ class PoolPhysics(object):
         self._psi_ij[:] = 0
         self._theta_ij[:] = 0
         self._balls_at_rest = set(self.balls_on_table)
-        self._collisions = {}
+        # self._collisions = {}
+        self._collision_roots = np.empty((self.num_balls, self.num_balls, 4), dtype=np.complex128)
+        self._collision_roots[:] = np.nan
         if self._realtime:
             self._find_collisions = False
         if self._enable_occlusion:
@@ -365,9 +367,11 @@ class PoolPhysics(object):
             event.e_j.T = event.t - event.e_j.t
         if isinstance(event, BallEvent):
             i = event.i
-            self._collisions.pop(i, None)
-            for v in self._collisions.values():
-                v.pop(i, None)
+            # self._collisions.pop(i, None)
+            # for v in self._collisions.values():
+            #     v.pop(i, None)
+            self._collision_roots[i] = np.nan
+            self._collision_roots[:,i] = np.nan
             if self.ball_events[i]:
                 last_ball_event = self.ball_events[i][-1]
                 if event.t < last_ball_event.t + last_ball_event.T:
@@ -405,9 +409,9 @@ class PoolPhysics(object):
         next_collision = None
         next_rail_collision = None
         for i in sorted(self.balls_in_motion):
-            if i not in self._collisions:
-                self._collisions[i] = {}
-            collisions = self._collisions[i]
+            # if i not in self._collisions:
+            #     self._collisions[i] = {}
+            # collisions = self._collisions[i]
             e_i = self.ball_events[i][-1]
             rail_collision = self._find_rail_collision(e_i, t_min)
             if rail_collision and rail_collision[0] < t_min:
@@ -417,13 +421,13 @@ class PoolPhysics(object):
                 if j <= i and j in self.balls_in_motion:
                     continue
                 e_j = self.ball_events[j][-1]
-                if j not in collisions:
-                    if self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j]:
-                        t_c = None
-                    else:
-                        t_c = self._find_collision(e_i, e_j, t_min)
-                    collisions[j] = t_c
-                t_c = collisions[j]
+                # if j not in collisions:
+                if self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j]:
+                    t_c = None
+                else:
+                    t_c = self._find_collision(e_i, e_j, t_min)
+                # collisions[j] = t_c
+                # t_c = collisions[j]
                 if t_c is not None and t_c < t_min:
                     t_min = t_c
                     next_collision = (t_c, e_i, e_j)
@@ -507,29 +511,42 @@ class PoolPhysics(object):
         if   np.sqrt(v_ij_0.dot(v_ij_0))*(t1-t0) + 0.5*a_ij_mag*(t1-t0)**2 \
            < np.sqrt(r_ij_0.dot(r_ij_0)) - self.ball_diameter:
             return None
-        a_i, b_i = e_i.global_motion_coeffs
-        a_j, b_j = e_j.global_motion_coeffs
-        return self._find_collision_time(a_i, a_j, t0, t1)
+        t_c = self._find_collision_time(e_i, e_j, t0, t1)
+        # t_c = self._find_collision_time(a_i, a_j, 0.0, t1-t0)
+        # if t_c is not None:
+        #     t_c += t0
+        return t_c
 
-    def _find_collision_time(self, a_i, a_j, t0, t1):
-        d = a_i - a_j
-        a_x, a_y = d[2, ::2]
-        b_x, b_y = d[1, ::2]
-        c_x, c_y = d[0, ::2]
-        p = self._p
-        p[0] = a_x**2 + a_y**2
-        p[1] = 2 * (a_x*b_x + a_y*b_y)
-        p[2] = b_x**2 + 2*a_x*c_x + 2*a_y*c_y + b_y**2
-        p[3] = 2 * b_x*c_x + 2 * b_y*c_y
-        p[4] = c_x**2 + c_y**2 - 4 * self.ball_radius**2
-        try:
-            return self._filter_roots(np.roots(p), t0, t1)
-        except np.linalg.linalg.LinAlgError as err:
-            _logger.warning('LinAlgError occurred during solve for collision time:\np = %s\nerror:\n%s', p, err)
-            pass
-        # return self._filter_roots(quartic_solve(p[::-1]), t0, t1)
+    def _find_collision_time(self, e_i, e_j, t0, t1):
+        i, j = e_i.i, e_j.i
+        if np.isnan(self._collision_roots[i,j,0]):
+            a_i, b_i = e_i.global_motion_coeffs
+            a_j, b_j = e_j.global_motion_coeffs
+            # a_i, b_i = e_i.calc_shifted_motion_coeffs(t0)
+            # a_j, b_j = e_j.calc_shifted_motion_coeffs(t0)
+            d = a_i - a_j
+            a_x, a_y = d[2, ::2]
+            b_x, b_y = d[1, ::2]
+            c_x, c_y = d[0, ::2]
+            p = self._p
+            p[0] = a_x**2 + a_y**2
+            p[1] = 2 * (a_x*b_x + a_y*b_y)
+            p[2] = b_x**2 + 2*a_x*c_x + 2*a_y*c_y + b_y**2
+            p[3] = 2 * b_x*c_x + 2 * b_y*c_y
+            p[4] = c_x**2 + c_y**2 - 4 * self.ball_radius**2
+            roots = self._filter_roots(np.roots(p))
+            # roots = self._filter_roots(quartic_solve(p[::-1], only_real=True))
+            if len(roots) == 0:
+                self._collision_roots[i,j,0] = float('-inf')
+            else:
+                self._collision_roots[i,j,:len(roots)] = roots
+        roots = self._collision_roots[i,j]
+        return min((t.real for t in roots[~np.isnan(roots)]
+                    if t0 <= t.real <= t1
+                    and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
+                   default=None)
 
-    def _filter_roots(self, roots, t0, t1):
+    def _filter_roots(self, roots):
         # filter out possible complex-conjugate pairs of roots:
         if len(roots) == 0:
             return None
@@ -550,10 +567,7 @@ class PoolPhysics(object):
                     break
             else:
                 break
-        return min((t.real for t in roots
-                    if t0 <= t.real <= t1
-                    and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
-                   default=None)
+        return roots
 
     def _update_occlusion(self, ball_positions=None):
         r_ij = self._r_ij
