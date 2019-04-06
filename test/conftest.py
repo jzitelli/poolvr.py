@@ -13,6 +13,8 @@ logging.getLogger('matplotlib').setLevel(logging.WARNING)
 def pytest_addoption(parser):
     parser.addoption("--render", help="display OpenGL-rendered view of test results",
                      action="store_true", default=False)
+    parser.addoption("--speed", help="playback speed of rendered view of test results",
+                     default='1.0')
     parser.addoption("--screenshot", help="save screenshot of OpenGL-rendered test results",
                      action="store_true", default=False)
     parser.addoption("--save_plots", help="save plots created by tests",
@@ -38,7 +40,7 @@ def pool_physics(pool_table, request):
     from poolvr.physics import PoolPhysics
     return PoolPhysics(initial_positions=pool_table.calc_racked_positions(),
                        ball_collision_model='simple',
-                       enable_sanity_check=True)
+                       enable_sanity_check=False)
 physics = pool_physics
 
 
@@ -131,6 +133,7 @@ def gl_rendering(pool_physics, pool_table, request):
     xres, yres = [int(n) for n in request.config.getoption('--resolution').split('x')]
     msaa = request.config.getoption('--msaa')
     glyphs = request.config.getoption('--glyphs')
+    speed = float(request.config.getoption('--speed'))
     yield
 
     import OpenGL
@@ -196,7 +199,7 @@ def gl_rendering(pool_physics, pool_table, request):
                 ball_mesh_positions[i][:] = pos
                 set_matrix_from_quaternion(game.ball_quaternions[i], out=ball_mesh_rotations[i])
                 ball_shadow_mesh_positions[i][0::2] = pos[0::2]
-        game.step(dt)
+        game.step(speed*dt)
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:
             st = glfw.GetTime()
