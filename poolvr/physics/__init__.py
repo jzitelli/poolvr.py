@@ -159,6 +159,7 @@ class PoolPhysics(object):
         self._balls_at_rest = set(self.balls_on_table)
         self._ball_motion_events = {}
         self._collisions = {}
+        self._rail_collisions = {}
         self._a_ij[:] = 0
         self._a_ij_mag[:] = 0
         # update occlusion buffers:
@@ -366,6 +367,7 @@ class PoolPhysics(object):
             event.e_j.T = event.t - event.e_j.t
         if isinstance(event, BallEvent):
             i = event.i
+            self._rail_collisions.pop(i, None)
             self._collisions.pop(i, None)
             for k, v in self._collisions.items():
                 v.pop(i, None)
@@ -410,7 +412,9 @@ class PoolPhysics(object):
                 self._collisions[i] = {}
             collisions = self._collisions[i]
             e_i = self.ball_events[i][-1]
-            rail_collision = self._find_rail_collision(e_i, t_min)
+            if i not in self._rail_collisions:
+                self._rail_collisions[i] = self._find_rail_collision(e_i, t_min)
+            rail_collision = self._rail_collisions[i]
             if rail_collision and rail_collision[0] < t_min:
                 t_min = rail_collision[0]
                 next_rail_collision = rail_collision

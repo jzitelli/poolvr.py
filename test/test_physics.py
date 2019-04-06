@@ -205,27 +205,27 @@ def test_break_hard(pool_physics,
     #               PhysicsEvent.events_str(events))
 
 
-# def test_break_and_following_shot(pool_physics,
-#                                   gl_rendering):
-#     physics = pool_physics
-#     ball_positions = physics.eval_positions(0.0)
-#     r_c = ball_positions[0].copy()
-#     r_c[2] += physics.ball_radius
-#     V = np.array((-0.01, 0, -1.6), dtype=np.float64)
-#     M = 0.54
-#     events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
-#     _logger.debug('strike #1 on %d resulted in %d events:\n\n%s\n',
-#                   0, len(events), PhysicsEvent.events_str(events))
-#     ntt = physics.next_turn_time
-#     ball_positions = physics.eval_positions(ntt)
-#     r_02 = ball_positions[2] - ball_positions[0]
-#     r_02_mag = np.sqrt(np.dot(r_02, r_02))
-#     n_02 = r_02 / r_02_mag
-#     r_c = ball_positions[0] - physics.ball_radius * n_02
-#     V = 0.99 * n_02
-#     events = physics.strike_ball(ntt, 0, ball_positions[0], r_c, V, M)
-#     _logger.debug('strike #2 on %d resulted in %d events:\n\n%s\n',
-#                   0, len(events), PhysicsEvent.events_str(events))
+def test_break_and_following_shot(pool_physics,
+                                  gl_rendering):
+    physics = pool_physics
+    ball_positions = physics.eval_positions(0.0)
+    r_c = ball_positions[0].copy()
+    r_c[2] += physics.ball_radius
+    V = np.array((-0.01, 0, -1.6), dtype=np.float64)
+    M = 0.54
+    events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
+    _logger.debug('strike #1 on %d resulted in %d events:\n\n%s\n',
+                  0, len(events), PhysicsEvent.events_str(events))
+    ntt = physics.next_turn_time
+    ball_positions = physics.eval_positions(ntt)
+    r_02 = ball_positions[2] - ball_positions[0]
+    r_02_mag = np.sqrt(np.dot(r_02, r_02))
+    n_02 = r_02 / r_02_mag
+    r_c = ball_positions[0] - physics.ball_radius * n_02
+    V = 0.99 * n_02
+    events = physics.strike_ball(ntt, 0, ball_positions[0], r_c, V, M)
+    _logger.debug('strike #2 on %d resulted in %d events:\n\n%s\n',
+                  0, len(events), PhysicsEvent.events_str(events))
 
 
 def test_strike_ball_english(pool_physics,
