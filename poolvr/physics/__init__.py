@@ -407,17 +407,19 @@ class PoolPhysics(object):
             t_min = INF
         next_collision = None
         next_rail_collision = None
-        for i in sorted(self.balls_in_motion):
-            if i not in self._collisions:
-                self._collisions[i] = {}
-            collisions = self._collisions[i]
+        for i in self.balls_in_motion:
             e_i = self.ball_events[i][-1]
+            if e_i.t >= t_min:
+                continue
             if i not in self._rail_collisions:
-                self._rail_collisions[i] = self._find_rail_collision(e_i, t_min)
+                self._rail_collisions[i] = self._find_rail_collision(e_i)
             rail_collision = self._rail_collisions[i]
             if rail_collision and rail_collision[0] < t_min:
                 t_min = rail_collision[0]
                 next_rail_collision = rail_collision
+            if i not in self._collisions:
+                self._collisions[i] = {}
+            collisions = self._collisions[i]
             for j in self.balls_on_table:
                 if j <= i and j in self.balls_in_motion:
                     continue
@@ -510,18 +512,13 @@ class PoolPhysics(object):
                 break
         return roots
 
-    def _find_rail_collision(self, e_i, t_min=None):
+    def _find_rail_collision(self, e_i):
         a = e_i._a
         if e_i.parent_event and isinstance(e_i.parent_event, RailCollisionEvent):
             prev_side = e_i.parent_event.side
         else:
             prev_side = None
-        if t_min is None:
-            tau_min = e_i.T
-        elif e_i.t >= t_min:
-            return None
-        else:
-            tau_min = t_min - e_i.t
+        tau_min = e_i.T
         side_min = None
         for side, (j, rhs, bnd, bnd_cp) in enumerate(self._rail_tuples):
             if side == prev_side:
