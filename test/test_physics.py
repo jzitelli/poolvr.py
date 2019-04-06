@@ -186,7 +186,7 @@ def test_break_hard(pool_physics,
     r_c = ball_positions[0].copy()
     r_c[2] += 0.5 * np.sqrt(2.0) * physics.ball_radius
     r_c[1] += 0.5 * np.sqrt(2.0) * physics.ball_radius
-    V = np.array((-0.01, 0.0, -3.3), dtype=np.float64)
+    V = np.array((-0.006, 0.0, -3.4), dtype=np.float64)
     M = 0.54
     outname = gen_filename('test_break_hard.%s' % git_head_hash(), 'pstats',
                            directory=os.path.join(_here, 'pstats'))

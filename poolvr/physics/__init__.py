@@ -27,7 +27,7 @@ from .events import (CueStrikeEvent,
                      MarlowBallCollisionEvent,
                      SimpleBallCollisionEvent,
                      RailCollisionEvent)
-from .poly_solvers import quartic_solve
+#from .poly_solvers import quartic_solve
 
 
 PIx2 = np.pi*2
@@ -35,7 +35,6 @@ SQRT2 = np.sqrt(2.0)
 RAD2DEG = 180/np.pi
 INCH2METER = 0.0254
 INF = float('inf')
-NINF = float('-inf')
 
 
 class PoolPhysics(object):
@@ -135,7 +134,6 @@ class PoolPhysics(object):
             self._ball_collision_model_kwargs = ball_collision_model_kwargs
         else:
             self._ball_collision_model_kwargs = {}
-        self._collision_times = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
         self.reset(ball_positions=ball_positions, balls_on_table=balls_on_table)
 
     def reset(self, ball_positions=None, balls_on_table=None):
@@ -161,7 +159,6 @@ class PoolPhysics(object):
         self._balls_at_rest = set(self.balls_on_table)
         self._ball_motion_events = {}
         self._collisions = {}
-        self._collision_times[:] = NINF
         self._a_ij[:] = 0
         self._a_ij_mag[:] = 0
         # update occlusion buffers:
@@ -231,7 +228,6 @@ class PoolPhysics(object):
         self._add_event(event)
         while self.balls_in_motion:
             event = self._determine_next_event()
-            _logger.debug('next event:\n%s', event)
             self._add_event(event)
         num_added_events = len(self.events) - num_events
         return self.events[-num_added_events:]
@@ -373,8 +369,6 @@ class PoolPhysics(object):
             self._collisions.pop(i, None)
             for k, v in self._collisions.items():
                 v.pop(i, None)
-            self._collision_times[i] = NINF
-            self._collision_times[:,i] = NINF
             if self.ball_events[i]:
                 last_ball_event = self.ball_events[i][-1]
                 if event.t < last_ball_event.t + last_ball_event.T:
@@ -402,10 +396,6 @@ class PoolPhysics(object):
             self._sanity_check(event)
 
     def _determine_next_event(self):
-        _logger.debug('''
-balls_in_motion: %s
-balls_at_rest:   %s
-''', self.balls_in_motion, self.balls_at_rest)
         next_motion_event = min(e.next_motion_event
                                 for e in self._ball_motion_events.values()
                                 if e.next_motion_event is not None)
@@ -415,7 +405,6 @@ balls_at_rest:   %s
             t_min = INF
         next_collision = None
         next_rail_collision = None
-        rail_collisions = {}
         for i in sorted(self.balls_in_motion):
             if i not in self._collisions:
                 self._collisions[i] = {}
@@ -431,33 +420,25 @@ balls_at_rest:   %s
                 e_j = self.ball_events[j][-1]
                 t0 = max(e_i.t, e_j.t)
                 if j not in collisions:
-                    _logger.debug('\n    i, j  = %s, %s\n', i, j)
                     if  ((e_j.parent_event and e_i.parent_event and e_j.parent_event == e_i.parent_event)
-                         or (self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j])
-                         or t_min <= t0):
+                         or (self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j])):
                         collisions[j] = None
-                        _logger.debug('t_min <= t0')
                         continue
                     t1 = min(e_i.t + e_i.T, e_j.t + e_j.T)
                     if t1 <= t0:
                         collisions[j] = None
-                        _logger.debug('t1 <= t0', )
+                        continue
+                    if t_min <= t0:
                         continue
                     if self._too_far_for_collision(e_i, e_j, t0, min(t1, t_min)):
                         if t1 <= t_min:
                             collisions[j] = None
-                            _logger.debug('t1 <= t_min:   t_min, t1  =  %s, %s', t_min, t1)
-                        else:
-                            _logger.debug('t_min < t1:   t_min, t1  =  %s, %s', t_min, t1)
                         continue
                     t_c = self._find_collision_time(e_i, e_j)
                     collisions[j] = t_c
-                else:
-                    _logger.debug('re-using from cache: collisions[j] = %s', collisions[j])
                 t_c = collisions[j]
                 if t_c is not None and t0 <= t_c < t_min:
                     t_min = t_c
-                    _logger.debug('new t_min = %s', t_min)
                     next_collision = (t_c, e_i, e_j)
                     next_rail_collision = None
         if next_rail_collision:
@@ -482,31 +463,25 @@ balls_at_rest:   %s
             r_ij_0 = e_i.eval_position(tau_i_0) - e_j.eval_position(tau_j_0)
         if   np.sqrt(v_ij_0.dot(v_ij_0))*(t1-t0) + 0.5*a_ij_mag*(t1-t0)**2 \
            < np.sqrt(r_ij_0.dot(r_ij_0)) - self.ball_diameter:
-            _logger.debug('np.sqrt(np.dot(r_ij_0, r_ij_0)) = %s',
-                          np.sqrt(np.dot(r_ij_0, r_ij_0)))
             return True
         return False
 
     def _find_collision_time(self, e_i, e_j):
-        i, j = e_i.i, e_j.i
-        if self._collision_times[i,j] == NINF:
-            a_i, _ = e_i.global_motion_coeffs
-            a_j, _ = e_j.global_motion_coeffs
-            d = a_i - a_j
-            a_x, a_y = d[2, ::2]
-            b_x, b_y = d[1, ::2]
-            c_x, c_y = d[0, ::2]
-            p = self._p
-            p[0] = a_x**2 + a_y**2
-            p[1] = 2 * (a_x*b_x + a_y*b_y)
-            p[2] = b_x**2 + 2*a_x*c_x + 2*a_y*c_y + b_y**2
-            p[3] = 2 * b_x*c_x + 2 * b_y*c_y
-            p[4] = c_x**2 + c_y**2 - 4 * self.ball_radius**2
-            t = min((t.real for t in self._filter_roots(np.roots(p))
-                     if t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
-                    default=INF)
-            self._collision_times[i,j] = t
-        return self._collision_times[i,j]
+        a_i, _ = e_i.global_motion_coeffs
+        a_j, _ = e_j.global_motion_coeffs
+        d = a_i - a_j
+        a_x, a_y = d[2, ::2]
+        b_x, b_y = d[1, ::2]
+        c_x, c_y = d[0, ::2]
+        p = self._p
+        p[0] = a_x**2 + a_y**2
+        p[1] = 2 * (a_x*b_x + a_y*b_y)
+        p[2] = b_x**2 + 2*a_x*c_x + 2*a_y*c_y + b_y**2
+        p[3] = 2 * b_x*c_x + 2 * b_y*c_y
+        p[4] = c_x**2 + c_y**2 - 4 * self.ball_radius**2
+        return min((t.real for t in self._filter_roots(np.roots(p))
+                    if t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
+                   default=INF)
 
     def _filter_roots(self, roots):
         # filter out possible complex-conjugate pairs of roots:
