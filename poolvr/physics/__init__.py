@@ -27,7 +27,7 @@ from .events import (CueStrikeEvent,
                      MarlowBallCollisionEvent,
                      SimpleBallCollisionEvent,
                      RailCollisionEvent)
-#from .poly_solvers import quartic_solve
+from .poly_solvers import quartic_solve
 
 
 PIx2 = np.pi*2
@@ -61,6 +61,7 @@ class PoolPhysics(object):
                  realtime=False,
                  collision_search_time_limit=0.2/90,
                  collision_search_time_forward=0.2,
+                 use_quartic_solver=True,
                  **kwargs):
         r"""
         Pool physics simulator
@@ -117,10 +118,10 @@ class PoolPhysics(object):
         self._bndz = self._sz - 0.999*ball_radius
         self._sxcp = self._sx - table.M_cp/SQRT2
         self._szcp = self._sz - table.M_cp/SQRT2
-        self._rail_tuples = ((2, -self._rhsz, self._bndx, self._sxcp),
-                             (0,  self._rhsx, self._bndz, self._szcp),
-                             (2,  self._rhsz, self._bndx, self._sxcp),
-                             (0, -self._rhsx, self._bndz, self._szcp))
+        self._rail_tuples = ((2, -1, -self._rhsz, self._bndx, self._sxcp),
+                             (0,  1,  self._rhsx, self._bndz, self._szcp),
+                             (2,  1,  self._rhsz, self._bndx, self._sxcp),
+                             (0, -1, -self._rhsx, self._bndz, self._szcp))
         self._a_ij = np.zeros((self.num_balls, 3), dtype=np.float64)
         self._a_ij_mag = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
         self._r_ij = np.zeros((self.num_balls, self.num_balls, 3), dtype=np.float64)
@@ -134,6 +135,10 @@ class PoolPhysics(object):
             self._ball_collision_model_kwargs = ball_collision_model_kwargs
         else:
             self._ball_collision_model_kwargs = {}
+        self._use_quartic_solver = use_quartic_solver
+        # self._taus = np.ones((num_balls, 3), dtype=np.float64)
+        # self._a = np.empty((num_balls, 3, 3), dtype=np.float64)
+        # self._i_balls = np.empty(num_balls, dtype=np.int)
         self.reset(ball_positions=ball_positions, balls_on_table=balls_on_table)
 
     def reset(self, ball_positions=None, balls_on_table=None):
@@ -420,7 +425,7 @@ class PoolPhysics(object):
             if i not in self._collisions:
                 self._collisions[i] = {}
             collisions = self._collisions[i]
-            for j in self.balls_on_table:
+            for j in sorted(self.balls_on_table, key=lambda j: self._r_ij_mag[i,j]):
                 if j <= i and j in self.balls_in_motion:
                     continue
                 e_j = self.ball_events[j][-1]
@@ -485,14 +490,13 @@ class PoolPhysics(object):
         p[2] = b_x**2 + 2*a_x*c_x + 2*a_y*c_y + b_y**2
         p[3] = 2 * b_x*c_x + 2 * b_y*c_y
         p[4] = c_x**2 + c_y**2 - 4 * self.ball_radius**2
-        return min((t.real for t in self._filter_roots(np.roots(p))
-                    if t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
-                   default=INF)
+        return min((t.real for t in self._filter_roots(
+                        quartic_solve(p[::-1], only_real=True) if self._use_quartic_solver else np.roots(p)
+                    ) if t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
+                   default=None)
 
     def _filter_roots(self, roots):
         # filter out possible complex-conjugate pairs of roots:
-        if len(roots) == 0:
-            return None
         mask = self._mask; mask[:] = True
         while len(roots) > 0:
             i, z = next(((i, z) for i, z in enumerate(roots)
@@ -520,10 +524,15 @@ class PoolPhysics(object):
             prev_side = None
         tau_min = e_i.T
         side_min = None
-        for side, (j, rhs, bnd, bnd_cp) in enumerate(self._rail_tuples):
+        for side, (j, sgn, rhs, bnd, bnd_cp) in enumerate(self._rail_tuples):
             if side == prev_side:
                 continue
             k = 2 - j
+            if sgn * a[1,j] <= 0:
+                # _logger.debug('skipping because not moving towards')
+                continue
+            elif abs(a[1,j]) * e_i.T < rhs - a[0,j]:
+                continue
             if abs(a[2,j]) < 1e-15:
                 if abs(a[1,j]) > 1e-15:
                     tau = (rhs - a[0,j]) / a[1,j]
