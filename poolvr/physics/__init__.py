@@ -21,6 +21,7 @@ from ..table import PoolTable
 from .events import (CueStrikeEvent,
                      BallEvent,
                      BallStationaryEvent,
+                     BallSpinningEvent,
                      BallRestEvent,
                      BallMotionEvent,
                      BallCollisionEvent,
@@ -137,9 +138,10 @@ class PoolPhysics(object):
         else:
             self._ball_collision_model_kwargs = {}
         self._use_quartic_solver = use_quartic_solver
-        # self._taus = np.ones((num_balls, 3), dtype=np.float64)
-        # self._a = np.empty((num_balls, 3, 3), dtype=np.float64)
-        # self._i_balls = np.empty(num_balls, dtype=np.int)
+        self._taus = np.zeros((num_balls, 3), dtype=np.float64)
+        self._taus[:,0] = 1
+        self._a = np.zeros((num_balls, 3, 3), dtype=np.float64)
+        self._b = np.zeros((num_balls, 2, 3), dtype=np.float64)
         self.reset(ball_positions=ball_positions, balls_on_table=balls_on_table)
 
     def reset(self, ball_positions=None, balls_on_table=None):
@@ -202,7 +204,7 @@ class PoolPhysics(object):
 
     @property
     def balls_in_motion(self):
-        return sorted(self._ball_motion_events.keys())
+        return list(self._ball_motion_events.keys())
 
     @property
     def balls_at_rest(self):
@@ -293,16 +295,27 @@ class PoolPhysics(object):
         :returns: shape (*N*, 3) array, where *N* is the number of balls
         """
         if balls is None:
-            balls = range(self.num_balls)
+            num_balls = self.num_balls
+            balls = range(num_balls)
+        else:
+            num_balls = len(balls)
         if out is None:
-            out = np.zeros((len(balls), 3), dtype=np.float64)
+            out = np.zeros((num_balls, 3), dtype=np.float64)
+        a = self._a
+        taus = self._taus
         for ii, i in enumerate(balls):
             events = self.ball_events.get(i, ())
+            events = events[:bisect(events, t)]
             if events:
-                for e in events[:bisect(events, t)][::-1]:
-                    if t <= e.t + e.T:
-                        out[ii] = e.eval_position(t - e.t)
-                        break
+                e = events[-1]
+                taus[ii,1] = t - e.t
+                if isinstance(e, BallMotionEvent):
+                    a[ii] = e._a
+                elif isinstance(e, BallStationaryEvent):
+                    a[ii,0] = e._r_0
+                    a[ii,1:] = 0
+        taus[:num_balls,2] = taus[:num_balls,1]**2
+        np.einsum('ijk,ij->ik', a[:num_balls], taus[:num_balls], out=out[:num_balls])
         return out
 
     def eval_velocities(self, t, balls=None, out=None):
@@ -312,16 +325,25 @@ class PoolPhysics(object):
         :returns: shape (*N*, 3) array, where *N* is the number of balls
         """
         if balls is None:
-            balls = range(self.num_balls)
+            num_balls = self.num_balls
+            balls = range(num_balls)
+        else:
+            num_balls = len(balls)
         if out is None:
-            out = np.zeros((len(balls), 3), dtype=np.float64)
+            out = np.zeros((num_balls, 3), dtype=np.float64)
+        a = self._a
+        taus = self._taus
         for ii, i in enumerate(balls):
             events = self.ball_events.get(i, ())
+            events = events[:bisect(events, t)]
             if events:
-                for e in events[:bisect(events, t)][::-1]:
-                    if t <= e.t + e.T:
-                        out[ii] = e.eval_velocity(t - e.t)
-                        break
+                e = events[-1]
+                taus[ii,1] = t - e.t
+                if isinstance(e, BallMotionEvent):
+                    a[ii] = e._a
+                elif isinstance(e, BallStationaryEvent):
+                    a[ii] = 0
+        np.einsum('ijk,ij->ik', a[:num_balls,1:], 2*taus[:num_balls,:2], out=out[:num_balls])
         return out
 
     def eval_angular_velocities(self, t, balls=None, out=None):
@@ -331,16 +353,28 @@ class PoolPhysics(object):
         :returns: shape (*N*, 3) array, where *N* is the number of balls
         """
         if balls is None:
-            balls = range(self.num_balls)
+            num_balls = self.num_balls
+            balls = range(num_balls)
+        else:
+            num_balls = len(balls)
         if out is None:
-            out = np.zeros((len(balls), 3), dtype=np.float64)
+            out = np.zeros((num_balls, 3), dtype=np.float64)
+        b = self._b
+        taus = self._taus
         for ii, i in enumerate(balls):
             events = self.ball_events.get(i, ())
+            events = events[:bisect(events, t)]
             if events:
-                for e in events[:bisect(events, t)][::-1]:
-                    if t <= e.t + e.T:
-                        out[ii] = e.eval_angular_velocity(t - e.t)
-                        break
+                e = events[-1]
+                taus[ii,1] = t - e.t
+                if isinstance(e, BallMotionEvent):
+                    b[ii] = e._b
+                elif isinstance(e, BallSpinningEvent):
+                    b[ii,:,::2] = 0
+                    b[ii,:,1] = (e._omega_0_y, e._b)
+                elif isinstance(e, BallStationaryEvent):
+                    b[ii] = 0
+        np.einsum('ijk,ij->ik', b[:num_balls], taus[:num_balls,:2], out=out[:num_balls])
         return out
 
     def eval_energy(self, t, balls=None, out=None):
@@ -528,11 +562,11 @@ class PoolPhysics(object):
         for side, (j, sgn, rhs, bnd, bnd_cp) in enumerate(self._rail_tuples):
             if side == prev_side:
                 continue
-            k = 2 - j
             if sgn * a[1,j] <= 0:
                 continue
             elif abs(a[1,j]) * tau_min < rhs - a[0,j]:
                 continue
+            k = 2 - j
             if abs(a[2,j]) < 1e-15:
                 if abs(a[1,j]) > 1e-15:
                     tau = (rhs - a[0,j]) / a[1,j]
