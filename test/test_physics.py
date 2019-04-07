@@ -286,3 +286,52 @@ def test_strike_ball_less_english(pool_physics,
 #                                    omega_0=np.zeros(3, dtype=np.float64))
 #     events = physics.add_event_sequence(start_event)
 #     _logger.debug('%d events added:\n\n%s\n', len(events), PhysicsEvent.events_str(events=events))
+
+
+def test_updating_occlusion(pool_physics,
+                            plot_motion_timelapse,
+                            request):
+    show_plots, save_plots = request.config.getoption('show_plots'), request.config.getoption('save_plots')
+    if not (show_plots or save_plots):
+        return
+    import matplotlib.pyplot as plt
+    physics = pool_physics
+    plt.imshow(physics._occ_ij)
+    if show_plots:
+        plt.show()
+    if save_plots:
+        try:
+            filename = os.path.join(os.path.dirname(__file__), 'plots', 'test_updating_occlusion_0.png')
+            dirname = os.path.dirname(filename)
+            if not os.path.exists(dirname):
+                os.makedirs(dirname, exist_ok=True)
+            plt.savefig(filename)
+            _logger.info('saved plot to "%s"', filename)
+        except Exception as err:
+            _logger.error(err)
+    plt.close()
+    ball_positions = physics.eval_positions(0.0)
+    r_c = ball_positions[0].copy()
+    r_c[2] += physics.ball_radius
+    V = np.array((-0.01, 0.0, -1.8), dtype=np.float64)
+    M = 0.54
+    from time import perf_counter
+    t0 = perf_counter()
+    events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
+    t1 = perf_counter()
+    _logger.info('evaluation time: %s', t1-t0)
+    _logger.debug('strike on %d resulted in %d events', 0, len(events))
+    plt.imshow(physics._occ_ij)
+    if show_plots:
+        plt.show()
+    if save_plots:
+        try:
+            filename = os.path.join(os.path.dirname(__file__), 'plots', 'test_updating_occlusion_1.png')
+            dirname = os.path.dirname(filename)
+            if not os.path.exists(dirname):
+                os.makedirs(dirname, exist_ok=True)
+            plt.savefig(filename)
+            _logger.info('saved plot to "%s"', filename)
+        except Exception as err:
+            _logger.error(err)
+    plt.close()

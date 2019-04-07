@@ -163,9 +163,30 @@ def plot_motion_timelapse(physics, table=None,
         positions = physics.eval_positions(t)
         for i in physics.balls_on_table:
             plt.gca().add_patch(plt.Circle(positions[i,::2], physics.ball_radius,
-                                           color=ball_colors[i], alpha=13/nt,
+                                           color=ball_colors[i],
+                                           alpha=13/nt,
                                            linewidth=0.001,
                                            antialiased=True))
+    for i in physics.balls_on_table:
+        start_event, end_event = physics.ball_events[i][0], physics.ball_events[i][-1]
+        r_0, r_1 = start_event.eval_position(0.0), end_event.eval_position(end_event.T)
+        plt.gca().add_patch(plt.Circle(r_1[::2], physics.ball_radius,
+                                       color=ball_colors[i],
+                                       fill=True,
+                                       linewidth=0.001,
+                                       antialiased=True))
+        plt.gca().add_patch(plt.Circle(r_0[::2], physics.ball_radius,
+                                       color='black',
+                                       fill=False,
+                                       linestyle='dashed',
+                                       linewidth=0.18,
+                                       antialiased=True))
+        plt.gca().add_patch(plt.Circle(r_1[::2], physics.ball_radius,
+                                       color='black',
+                                       fill=False,
+                                       linestyle='solid',
+                                       linewidth=0.18,
+                                       antialiased=True))
     #plt.xlim(-0.5*table.width, 0.5*table.width)
     #plt.ylim(-0.5*table.length, 0.5*table.length)
     # plt.xticks(np.linspace(-0.5*table.length, 0.5*table.length, 8))
@@ -175,7 +196,7 @@ def plot_motion_timelapse(physics, table=None,
         if not os.path.exists(dirname):
             os.makedirs(dirname, exist_ok=True)
         try:
-            plt.savefig(filename, dpi=500)
+            plt.savefig(filename, dpi=800)
             _logger.info('...saved figure to %s', filename)
         except Exception as err:
             _logger.warning('error saving figure:\n%s', err)
