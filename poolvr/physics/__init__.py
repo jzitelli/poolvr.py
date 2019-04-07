@@ -108,6 +108,7 @@ class PoolPhysics(object):
         self._collision_search_time_forward = collision_search_time_forward
         self._enable_occlusion = enable_occlusion
         self._enable_sanity_check = enable_sanity_check
+        self._use_quartic_solver = use_quartic_solver
         self._p = np.empty(5, dtype=np.float64)
         self._mask = np.array(4*[True])
         self._sx = 0.5*table.W
@@ -425,9 +426,8 @@ class PoolPhysics(object):
             if i not in self._collisions:
                 self._collisions[i] = {}
             collisions = self._collisions[i]
-            for j in sorted(self.balls_on_table, key=lambda j: self._r_ij_mag[i,j]):
-                if j <= i and j in self.balls_in_motion:
-                    continue
+            for j in sorted((j for j in self.balls_on_table if not (j <= i and j in self.balls_in_motion)),
+                            key=lambda j: self._r_ij_mag[i,j]):
                 e_j = self.ball_events[j][-1]
                 t0 = max(e_i.t, e_j.t)
                 if j not in collisions:
@@ -480,19 +480,20 @@ class PoolPhysics(object):
     def _find_collision_time(self, e_i, e_j):
         a_i, _ = e_i.global_motion_coeffs
         a_j, _ = e_j.global_motion_coeffs
-        d = a_i - a_j
-        a_x, a_y = d[2, ::2]
-        b_x, b_y = d[1, ::2]
-        c_x, c_y = d[0, ::2]
+        a_ji = a_i - a_j
+        a_x, a_y = a_ji[2, ::2]
+        b_x, b_y = a_ji[1, ::2]
+        c_x, c_y = a_ji[0, ::2]
         p = self._p
         p[0] = a_x**2 + a_y**2
         p[1] = 2 * (a_x*b_x + a_y*b_y)
         p[2] = b_x**2 + 2*a_x*c_x + 2*a_y*c_y + b_y**2
         p[3] = 2 * b_x*c_x + 2 * b_y*c_y
         p[4] = c_x**2 + c_y**2 - 4 * self.ball_radius**2
-        return min((t.real for t in self._filter_roots(
-                        quartic_solve(p[::-1], only_real=True) if self._use_quartic_solver else np.roots(p)
-                    ) if t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
+        return min((t.real for t in self._filter_roots(quartic_solve(p[::-1], only_real=True)
+                                                       if self._use_quartic_solver else
+                                                       np.roots(p))
+                    if t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
                    default=None)
 
     def _filter_roots(self, roots):
@@ -529,9 +530,8 @@ class PoolPhysics(object):
                 continue
             k = 2 - j
             if sgn * a[1,j] <= 0:
-                # _logger.debug('skipping because not moving towards')
                 continue
-            elif abs(a[1,j]) * e_i.T < rhs - a[0,j]:
+            elif abs(a[1,j]) * tau_min < rhs - a[0,j]:
                 continue
             if abs(a[2,j]) < 1e-15:
                 if abs(a[1,j]) > 1e-15:
