@@ -343,7 +343,8 @@ class PoolPhysics(object):
                     a[ii] = e._a
                 elif isinstance(e, BallStationaryEvent):
                     a[ii] = 0
-        np.einsum('ijk,ij->ik', a[:num_balls,1:], 2*taus[:num_balls,:2], out=out[:num_balls])
+        taus[:num_balls,1] *= 2
+        np.einsum('ijk,ij->ik', a[:num_balls,1:], taus[:num_balls,:2], out=out[:num_balls])
         return out
 
     def eval_angular_velocities(self, t, balls=None, out=None):
