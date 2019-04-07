@@ -25,6 +25,9 @@ def parse_args():
                         metavar='<name of collision model>',
                         help="set the ball-to-ball collision model to use (this parameter only applies to the event-based physics engine)",
                         default='simple')
+    parser.add_argument('--use_quartic_solver',
+                        help="solve for collision times using the internal quartic solver instead of numpy.roots",
+                        action='store_true')
     parser.add_argument('--bb-particles',
                         help='render balls using billboard particle shader instead of polygon meshes',
                         action='store_true')
@@ -84,7 +87,8 @@ def main():
                     glyphs=args.glyphs,
                     realtime=args.realtime,
                     balls_on_table=args.balls_on_table,
-                    technique=LAMBERT_TECHNIQUE if args.technique.lower() == 'lambert' else EGA_TECHNIQUE)
+                    technique=LAMBERT_TECHNIQUE if args.technique.lower() == 'lambert' else EGA_TECHNIQUE,
+                    use_quartic_solver=args.use_quartic_solver)
 
 
 def start_sound(sound_device):

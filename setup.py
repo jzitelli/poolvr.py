@@ -10,9 +10,6 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='poolvr.py',
-    # Versions should comply with PEP440.  For a discussion on single-sourcing
-    # the version across setup.py and the project code, see
-    # https://packaging.python.org/en/latest/single_source_version.html
     version='0.0.1',
     description='Python VR pool simulator',
     packages=['poolvr'],
@@ -32,21 +29,11 @@ setup(
     keywords='virtual reality vr pool billiards pyopenvr openvr event based physics cue table pocket bumper rail',
     install_requires=['openvr', 'numpy', 'pyopengl', 'pillow'], # 'cyglfw3'],
     extras_require={},
-    # If there are data files included in your packages that need to be
-    # installed, specify them here.  If using Python 2.6 or less, then these
-    # have to be included in MANIFEST.in as well.
     package_data={
         'poolvr': [path.join('shaders', filename) for filename in listdir(path.join('poolvr', 'shaders'))],
     },
-    # Although 'package_data' is the preferred approach, in some case you may
-    # need to place data files outside of your packages. See:
-    # http://docs.python.org/3.4/distutils/setupscript.html#installing-additional-files # noqa
-    # In this case, 'data_file' will be installed into '<sys.prefix>/my_data'
     data_files=[],
     scripts=[path.join('scripts', 'gen_assets.py')],
-    # To provide executable scripts, use entry points in preference to the
-    # "scripts" keyword. Entry points provide cross-platform support and allow
-    # pip to create the appropriate form of executable for the target platform.
     entry_points={
         'console_scripts': [
             'poolvr = poolvr.__main__:main'

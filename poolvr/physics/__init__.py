@@ -41,7 +41,7 @@ INF = float('inf')
 class PoolPhysics(object):
     _ZERO_TOLERANCE = 1e-9
     _ZERO_TOLERANCE_SQRD = _ZERO_TOLERANCE**2
-    _IMAG_TOLERANCE = 1e-9
+    _IMAG_TOLERANCE = 1e-8
     _IMAG_TOLERANCE_SQRD = _IMAG_TOLERANCE**2
     def __init__(self,
                  num_balls=16,
@@ -470,15 +470,14 @@ class PoolPhysics(object):
                          or (self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j])):
                         collisions[j] = None
                         continue
+                    if t_min <= t0:
+                        continue
                     t1 = min(e_i.t + e_i.T, e_j.t + e_j.T)
                     if t1 <= t0:
                         collisions[j] = None
                         continue
-                    if t_min <= t0:
-                        continue
-                    if self._too_far_for_collision(e_i, e_j, t0, min(t1, t_min)):
-                        if t1 <= t_min:
-                            collisions[j] = None
+                    if self._too_far_for_collision(e_i, e_j, t0, t1):
+                        collisions[j] = None
                         continue
                     t_c = self._find_collision_time(e_i, e_j)
                     collisions[j] = t_c
@@ -507,8 +506,8 @@ class PoolPhysics(object):
             tau_i_0, tau_j_0 = t0 - e_i.t, t0 - e_j.t
             v_ij_0 = e_i.eval_velocity(tau_i_0) - e_j.eval_velocity(tau_j_0)
             r_ij_0 = e_i.eval_position(tau_i_0) - e_j.eval_position(tau_j_0)
-        if   np.sqrt(v_ij_0.dot(v_ij_0))*(t1-t0) + 0.5*a_ij_mag*(t1-t0)**2 \
-           < np.sqrt(r_ij_0.dot(r_ij_0)) - self.ball_diameter:
+        if   np.sqrt(np.dot(v_ij_0, v_ij_0))*(t1-t0) + 0.5*a_ij_mag*(t1-t0)**2 \
+           < np.sqrt(np.dot(r_ij_0, r_ij_0)) - self.ball_diameter:
             return True
         return False
 
@@ -525,11 +524,13 @@ class PoolPhysics(object):
         p[2] = b_x**2 + 2*a_x*c_x + 2*a_y*c_y + b_y**2
         p[3] = 2 * b_x*c_x + 2 * b_y*c_y
         p[4] = c_x**2 + c_y**2 - 4 * self.ball_radius**2
+        t0, t1 = max(e_i.t, e_j.t), min(e_i.t + e_i.T, e_j.t + e_j.T)
         return min((t.real for t in self._filter_roots(quartic_solve(p[::-1], only_real=True)
                                                        if self._use_quartic_solver else
                                                        np.roots(p))
-                    if t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
-                   default=None)
+                    if t0 < t.real <= t1
+                    and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
+                    default=None)
 
     def _filter_roots(self, roots):
         # filter out possible complex-conjugate pairs of roots:
@@ -660,15 +661,6 @@ class PoolPhysics(object):
                     jj_a, jj, jj_b = (bisect(theta_i_occ_bnds, theta_a),
                                       bisect(theta_i_occ_bnds, theta),
                                       bisect(theta_i_occ_bnds, theta_b))
-                    # jj = bisect(theta_i_occ_bnds, theta)
-                    # jja = jj
-                    # while theta_a < theta_i_occ_bnds[max(0, min(len(theta_i_occ_bnds)-1,jja))]:
-                    #     jja -= 1
-                    # jj_a = jja
-                    # jjb = jj
-                    # while theta_b >= theta_i_occ_bnds[max(0, min(len(theta_i_occ_bnds)-1,jjb))]:
-                    #     jjb += 1
-                    # jj_b = jjb
                     center_occluded, a_occluded, b_occluded = jj % 2 == 1, jj_a % 2 == 1, jj_b % 2 == 1
                     if center_occluded and jj_a == jj == jj_b:
                         if not occ_ij[i,j]:
@@ -740,7 +732,7 @@ event: %s
                 tau = t - event.t
                 r = event.eval_position(tau)
                 v = event.eval_velocity(tau)
-                v_mag = np.sqrt(v.dot(v))
+                v_mag = np.sqrt(np.dot(v, v))
                 if v_mag > self._ZERO_TOLERANCE:
                     y = v / v_mag
                     mesh = self._velocity_meshes[event.i]

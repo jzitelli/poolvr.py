@@ -100,7 +100,8 @@ def main(window_size=(800,600),
          glyphs=False,
          realtime=False,
          balls_on_table=None,
-         technique=LAMBERT_TECHNIQUE):
+         technique=LAMBERT_TECHNIQUE,
+         use_quartic_solver=False):
     """
     The main routine.
 
@@ -125,23 +126,26 @@ def main(window_size=(800,600),
     if use_ode:
         try:
             from .ode_physics import ODEPoolPhysics
-            physics = ODEPoolPhysics(num_balls=16, table=table)
+            physics = ODEPoolPhysics(num_balls=16, table=table,
+                                     balls_on_table=balls_on_table)
         except ImportError as err:
+            _logger.error('could not import ode_physics:\n%s', err)
+            ODEPoolPhysics = None
             physics = PoolPhysics(num_balls=16, table=table,
                                   ball_collision_model=ball_collision_model,
                                   enable_sanity_check=novr,
                                   enable_occlusion=False,
                                   realtime=realtime,
-                                  balls_on_table=balls_on_table)
-            _logger.warning('could not import ode_physics:\n%s', err)
-            ODEPoolPhysics = None
+                                  balls_on_table=balls_on_table,
+                                  use_quartic_solver=use_quartic_solver)
     else:
         physics = PoolPhysics(num_balls=16, table=table,
                               ball_collision_model=ball_collision_model,
                               enable_sanity_check=novr,
                               enable_occlusion=False,
                               realtime=realtime,
-                              balls_on_table=balls_on_table)
+                              balls_on_table=balls_on_table,
+                              use_quartic_solver=use_quartic_solver)
     game = PoolGame(table=table,
                     physics=physics)
     cue = PoolCue()
