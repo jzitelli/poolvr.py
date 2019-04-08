@@ -123,6 +123,47 @@ def plot_motion_timelapse(pool_physics, pool_table, request):
 
 
 @pytest.fixture
+def plot_initial_positions(pool_physics, pool_table, request):
+    show_plots, save_plots = request.config.getoption('--show_plots'), request.config.getoption('--save_plots')
+    if not (show_plots or save_plots):
+        yield
+        return
+    from utils import plot_motion_timelapse as plot
+    yield
+    test_name = '_'.join([request.function.__name__, pool_physics.ball_collision_model])
+    plot(pool_physics, table=pool_table,
+         nt=0,
+         t_0=0.0, t_1=0.0,
+         title=test_name + ' (initial positions)',
+         filename=os.path.join(PLOTS_DIR, test_name + '-initial-positions.png') if save_plots else None,
+         show=show_plots)
+
+
+@pytest.fixture
+def plot_final_positions(pool_physics, pool_table, request):
+    show_plots, save_plots = request.config.getoption('--show_plots'), request.config.getoption('--save_plots')
+    if not (show_plots or save_plots):
+        yield
+        return
+    from utils import plot_motion_timelapse as plot
+    yield
+    test_name = '_'.join([request.function.__name__, pool_physics.ball_collision_model])
+    events = pool_physics.events
+    if events:
+        t1 = events[-1].t
+        if events[-1].T < float('inf'):
+            t1 += events[-1].T
+    else:
+        t1 = 0.0
+    plot(pool_physics, table=pool_table,
+         nt=0,
+         t_0=t1, t_1=t1,
+         title=test_name + ' (final positions)',
+         filename=os.path.join(PLOTS_DIR, test_name + '-final-positions.png') if save_plots else None,
+         show=show_plots)
+
+
+@pytest.fixture
 def gl_rendering(pool_physics, pool_table, request):
     should_render = request.config.getoption('--render')
     should_screenshot = request.config.getoption('--screenshot')

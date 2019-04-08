@@ -138,7 +138,7 @@ def plot_motion_timelapse(physics, table=None,
     if t_0 is None:
         t_0 = events[0].t
     else:
-        events = [e for e in events if t_0 <= e.t + e.T]
+        events = [e for e in events if t_0 < e.t + e.T]
     if t_1 is None:
         t_1 = events[-1].t
         if events[-1].T < float('inf'):
@@ -169,24 +169,46 @@ def plot_motion_timelapse(physics, table=None,
                                            antialiased=True))
     for i in physics.balls_on_table:
         start_event, end_event = physics.ball_events[i][0], physics.ball_events[i][-1]
-        r_0, r_1 = start_event.eval_position(0.0), end_event.eval_position(end_event.T)
-        plt.gca().add_patch(plt.Circle(r_1[::2], physics.ball_radius,
-                                       color=ball_colors[i],
-                                       fill=True,
-                                       linewidth=0.001,
-                                       antialiased=True))
-        plt.gca().add_patch(plt.Circle(r_0[::2], physics.ball_radius,
-                                       color='black',
-                                       fill=False,
-                                       linestyle='dashed',
-                                       linewidth=0.18,
-                                       antialiased=True))
-        plt.gca().add_patch(plt.Circle(r_1[::2], physics.ball_radius,
-                                       color='black',
-                                       fill=False,
-                                       linestyle='solid',
-                                       linewidth=0.18,
-                                       antialiased=True))
+        if nt == 0:
+            if t_1 == 0:
+                r = start_event.eval_position(0)
+            else:
+                r = end_event.eval_position(t_1)
+            plt.gca().add_patch(plt.Circle(r[::2], physics.ball_radius,
+                                           color=ball_colors[i],
+                                           fill=True,
+                                           linewidth=0.001,
+                                           antialiased=True))
+            plt.gca().add_patch(plt.Circle(r[::2], physics.ball_radius,
+                                           color='black',
+                                           fill=False,
+                                           linestyle='solid',
+                                           linewidth=0.18,
+                                           antialiased=True))
+        else:
+            r_0, r_1 = start_event.eval_position(t_0), end_event.eval_position(t_1)
+            plt.gca().add_patch(plt.Circle(r_0[::2], physics.ball_radius,
+                                           color=ball_colors[i],
+                                           fill=True,
+                                           linewidth=0.001,
+                                           antialiased=True))
+            plt.gca().add_patch(plt.Circle(r_1[::2], physics.ball_radius,
+                                           color=ball_colors[i],
+                                           fill=True,
+                                           linewidth=0.001,
+                                           antialiased=True))
+            plt.gca().add_patch(plt.Circle(r_0[::2], physics.ball_radius,
+                                           color='black',
+                                           fill=False,
+                                           linestyle='dashed',
+                                           linewidth=0.18,
+                                           antialiased=True))
+            plt.gca().add_patch(plt.Circle(r_1[::2], physics.ball_radius,
+                                           color='black',
+                                           fill=False,
+                                           linestyle='solid',
+                                           linewidth=0.18,
+                                           antialiased=True))
     #plt.xlim(-0.5*table.width, 0.5*table.width)
     #plt.ylim(-0.5*table.length, 0.5*table.length)
     # plt.xticks(np.linspace(-0.5*table.length, 0.5*table.length, 8))

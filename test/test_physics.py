@@ -13,6 +13,23 @@ _here = os.path.dirname(__file__)
 
 def test_occlusion(pool_physics, request):
     physics = pool_physics
+    show_plots, save_plots = request.config.getoption('show_plots'), request.config.getoption('save_plots')
+    if show_plots or save_plots:
+        import matplotlib.pyplot as plt
+        plt.imshow(physics._occ_ij)
+        if show_plots:
+            plt.show()
+        if save_plots:
+            try:
+                filename = os.path.join(os.path.dirname(__file__), 'plots', 'test_occlusion.png')
+                dirname = os.path.dirname(filename)
+                if not os.path.exists(dirname):
+                        os.makedirs(dirname, exist_ok=True)
+                plt.savefig(filename)
+                _logger.info('saved plot to "%s"', filename)
+            except Exception as err:
+                _logger.error(err)
+        plt.close()
     assert (physics._occ_ij == ~np.array([[0,1,1,1,1,1,1,0,0,0,1,0,0,1,0,1],
                                           [1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0],
                                           [1,1,0,1,0,0,1,1,0,0,0,0,0,0,0,0],
@@ -29,24 +46,6 @@ def test_occlusion(pool_physics, request):
                                           [1,0,0,0,0,0,0,0,0,0,1,1,0,0,1,1],
                                           [0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,1],
                                           [1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0]], dtype=np.bool)).all()
-    show_plots, save_plots = request.config.getoption('show_plots'), request.config.getoption('save_plots')
-    if not (show_plots or save_plots):
-        return
-    import matplotlib.pyplot as plt
-    plt.imshow(physics._occ_ij)
-    if show_plots:
-        plt.show()
-    if save_plots:
-        try:
-            filename = os.path.join(os.path.dirname(__file__), 'plots', 'test_occlusion.png')
-            dirname = os.path.dirname(filename)
-            if not os.path.exists(dirname):
-                    os.makedirs(dirname, exist_ok=True)
-            plt.savefig(filename)
-            _logger.info('saved plot to "%s"', filename)
-        except Exception as err:
-            _logger.error(err)
-    plt.close()
 
 
 def test_strike_ball(pool_physics,
@@ -290,6 +289,8 @@ def test_strike_ball_less_english(pool_physics,
 
 def test_updating_occlusion(pool_physics,
                             plot_motion_timelapse,
+                            plot_initial_positions,
+                            plot_final_positions,
                             request):
     show_plots, save_plots = request.config.getoption('show_plots'), request.config.getoption('save_plots')
     if not (show_plots or save_plots):

@@ -620,7 +620,8 @@ class PoolPhysics(object):
         argsort = balls.argsort()
         positions = np.array(positions)[argsort]
         U = balls[argsort]
-        r_ij[U,U] = positions
+        r_ij[U,U] = positions # diagonal contains the global rest position for balls at rest,
+                              # and the motion start position for balls in motion
         R = np.array([i for i in self.balls_at_rest
                       if i not in U], dtype=np.int32); R.sort()
         M = np.array(self.balls_in_motion, dtype=np.int32)
