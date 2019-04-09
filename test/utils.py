@@ -242,12 +242,17 @@ def plot_energy(physics, title=None, nt=1000,
     plt.title(title)
     plt.xlabel('$t$ (seconds)')
     plt.ylabel('energy (Joules)')
+    labeled = set()
     for e in events:
-        plt.axvline(e.t, color=EVENT_COLORS[type(e)])
+        typee = e.__class__.__name__
+        plt.axvline(e.t, color=EVENT_COLORS[type(e)],
+                    label=typee if typee not in labeled else None)
+        labeled.add(typee)
     ts = np.linspace(t_0, t_1, nt)
     ts = np.concatenate([[a.t] + list(ts[(ts >= a.t) & (ts < b.t)]) + [b.t]
                          for a, b in zip(events[:-1], events[1:])])
     plt.plot(ts, [physics.eval_energy(t) for t in ts], color='green')
+    plt.legend()
     if filename:
         dirname = os.path.dirname(filename)
         if not os.path.exists(dirname):
