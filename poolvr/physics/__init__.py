@@ -235,9 +235,11 @@ class PoolPhysics(object):
     def add_event_sequence(self, event):
         num_events = len(self.events)
         self._add_event(event)
+        #_logger.debug('added event %s', event)
         while self.balls_in_motion:
             event = self._determine_next_event()
             self._add_event(event)
+            #_logger.debug('added event %s', event)
         num_added_events = len(self.events) - num_events
         return self.events[-num_added_events:]
 

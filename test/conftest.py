@@ -164,6 +164,31 @@ def plot_final_positions(pool_physics, pool_table, request):
 
 
 @pytest.fixture
+def plot_occlusion(pool_physics, request):
+    show_plots, save_plots = request.config.getoption('--show_plots'), request.config.getoption('--save_plots')
+    if not (show_plots or save_plots):
+        yield
+        return
+    import matplotlib.pyplot as plt
+    yield
+    plt.imshow(pool_physics._occ_ij)
+    if show_plots:
+        plt.show()
+    if save_plots:
+        try:
+            test_name = '_'.join([request.function.__name__, pool_physics.ball_collision_model])
+            filename = os.path.join(os.path.dirname(__file__), 'plots', test_name + '-occlusion.png')
+            dirname = os.path.dirname(filename)
+            if not os.path.exists(dirname):
+                os.makedirs(dirname, exist_ok=True)
+            plt.savefig(filename)
+            _logger.info('saved plot to "%s"', filename)
+        except Exception as err:
+            _logger.error(err)
+    plt.close()
+
+
+@pytest.fixture
 def gl_rendering(pool_physics, pool_table, request):
     should_render = request.config.getoption('--render')
     should_screenshot = request.config.getoption('--screenshot')
