@@ -267,12 +267,18 @@ class BallRollingEvent(BallMotionEvent):
         self._b[1,::2] = -omega_0[::2] / T
         self._b[1,1] = -np.sign(omega_0_y) * 5 / 7 * self.mu_r * self.g / R
         #self._b[1,1] = -np.sign(omega_0_y) * 5 / 2 * self.mu_sp * self.g / R
-        omega_1 = self.eval_angular_velocity(T)
-        if abs(omega_1[1]) < self._ZERO_TOLERANCE:
-            self._next_motion_event = BallRestEvent(t + T, i, r_0=self.eval_position(T))
-        else:
-            self._next_motion_event = BallSpinningEvent(t + T, i, r_0=self.eval_position(T),
-                                                        omega_0_y=omega_1[1])
+        self._next_motion_event = None
+    @property
+    def next_motion_event(self):
+        if self._next_motion_event is None:
+            i, t, T = self.i, self.t, self.T
+            omega_1 = self.eval_angular_velocity(T)
+            if abs(omega_1[1]) < self._ZERO_TOLERANCE:
+                self._next_motion_event = BallRestEvent(t + T, i, r_0=self.eval_position(T))
+            else:
+                self._next_motion_event = BallSpinningEvent(t + T, i, r_0=self.eval_position(T),
+                                                            omega_0_y=omega_1[1])
+        return self._next_motion_event
     def eval_slip_velocity(self, tau, out=None, **kwargs):
         if out is None:
             out = np.zeros(3, dtype=np.float64)
@@ -294,11 +300,17 @@ class BallSlidingEvent(BallMotionEvent):
         self._b[0] = omega_0
         self._b[1,::2] = 5 * self.mu_s * self.g / (2 * R) * np.cross(_k, u_0 / u_0_mag)[::2]
         self._b[1,1] = -np.sign(omega_0[1]) * 5 * self.mu_sp * self.g / (2 * R)
-        omega_1 = self.eval_angular_velocity(T)
-        self._next_motion_event = BallRollingEvent(t + T, i,
-                                                   r_0=self.eval_position(T),
-                                                   v_0=self.eval_velocity(T),
-                                                   omega_0_y=omega_1[1])
+        self._next_motion_event = None
+    @property
+    def next_motion_event(self):
+        if self._next_motion_event is None:
+            i, t, T = self.i, self.t, self.T
+            omega_1 = self.eval_angular_velocity(T)
+            self._next_motion_event = BallRollingEvent(t + T, i,
+                                                       r_0=self.eval_position(T),
+                                                       v_0=self.eval_velocity(T),
+                                                       omega_0_y=omega_1[1])
+        return self._next_motion_event
 
 
 class CueStrikeEvent(BallEvent):
@@ -390,7 +402,7 @@ class BallCollisionEvent(PhysicsEvent):
             v_i_1, v_j_1 = self._v_i_1, self._v_j_1
             omega_i_1, omega_j_1 = self._omega_i_1, self._omega_j_1
             if np.dot(v_i_1, v_i_1) < self._ZERO_TOLERANCE_SQRD:
-                if omega_i_1[1] < self._ZERO_TOLERANCE:
+                if abs(omega_i_1[1]) < self._ZERO_TOLERANCE:
                     e_i_1 = BallRestEvent(self.t, e_i.i,
                                           r_0=self._r_i,
                                           parent_event=self)
@@ -413,7 +425,7 @@ class BallCollisionEvent(PhysicsEvent):
                                              omega_0=omega_i_1,
                                              parent_event=self)
             if np.dot(v_j_1, v_j_1) < self._ZERO_TOLERANCE_SQRD:
-                if omega_j_1[1] < self._ZERO_TOLERANCE:
+                if abs(omega_j_1[1]) < self._ZERO_TOLERANCE:
                     e_j_1 = BallRestEvent(self.t, e_j.i,
                                           r_0=self._r_j,
                                           parent_event=self)

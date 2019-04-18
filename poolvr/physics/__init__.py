@@ -167,6 +167,7 @@ class PoolPhysics(object):
         self._balls_at_rest = set(self.balls_on_table)
         self._ball_motion_events = {}
         self._collisions = {}
+        self._last_ball_collision = {}
         self._rail_collisions = {}
         self._a_ij[:] = 0
         self._a_ij_mag[:] = 0
@@ -405,9 +406,11 @@ class PoolPhysics(object):
         self.events.append(event)
         if isinstance(event, RailCollisionEvent):
             event.e_i.T = event.t - event.e_i.t
+            self._last_ball_collision.pop(event.e_i.i, None)
         elif isinstance(event, BallCollisionEvent):
             event.e_i.T = event.t - event.e_i.t
             event.e_j.T = event.t - event.e_j.t
+            self._last_ball_collision[event.i] = self._last_ball_collision[event.j] = event
         if isinstance(event, BallEvent):
             i = event.i
             self._rail_collisions.pop(i, None)
@@ -425,7 +428,7 @@ class PoolPhysics(object):
                 self._a_ij[i] = 0
                 self._a_ij_mag[i,i] = 0
                 self._a_ij_mag[i,:] = self._a_ij_mag[:,i] = self._a_ij_mag.diagonal()
-                self._balls_at_rest.add(event.i)
+                self._balls_at_rest.add(i)
                 if self._enable_occlusion and isinstance(event, BallStationaryEvent):
                     self._update_occlusion({i: event._r_0})
             elif isinstance(event, BallMotionEvent):
@@ -433,8 +436,8 @@ class PoolPhysics(object):
                 self._a_ij[i] = event.acceleration
                 self._a_ij_mag[i,:] = self._a_ij_mag[:,i] = np.linalg.norm(self._a_ij - event.acceleration, axis=1)
                 self._a_ij_mag[i,i] = np.sqrt(np.dot(event.acceleration, event.acceleration))
-                if event.i in self._balls_at_rest:
-                    self._balls_at_rest.remove(event.i)
+                if i in self._balls_at_rest:
+                    self._balls_at_rest.remove(i)
         for child_event in event.child_events:
             self._add_event(child_event)
         if self._enable_sanity_check and isinstance(event, BallCollisionEvent):
@@ -468,8 +471,10 @@ class PoolPhysics(object):
                 e_j = self.ball_events[j][-1]
                 t0 = max(e_i.t, e_j.t)
                 if j not in collisions:
-                    if  ((e_j.parent_event and e_i.parent_event and e_j.parent_event == e_i.parent_event)
-                         or (self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j])):
+                    if self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j]:
+                        collisions[j] = None
+                        continue
+                    elif self._last_ball_collision.get(i, False) == self._last_ball_collision.get(j, True):
                         collisions[j] = None
                         continue
                     if t_min <= t0:
