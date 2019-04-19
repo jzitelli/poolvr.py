@@ -61,7 +61,7 @@ class PoolPhysics(object):
                  enable_occlusion=True,
                  realtime=False,
                  collision_search_time_limit=INF,
-                 collision_search_time_forward=1.0,
+                 collision_search_time_forward=2.5,
                  use_quartic_solver=True,
                  **kwargs):
         r"""
@@ -179,8 +179,6 @@ class PoolPhysics(object):
         self._r_ij_mag[:] = 0
         self._psi_ij[:] = 0
         self._theta_ij[:] = 0
-        if self._realtime:
-            self._find_collisions = True
         if self._enable_occlusion:
             self._update_occlusion({e.i: e._r_0 for e in self._BALL_REST_EVENTS})
 
@@ -229,7 +227,6 @@ class PoolPhysics(object):
         #assert abs(np.linalg.norm(r_c - r_i) - self.ball_radius) < self._ZERO_TOLERANCE, 'abs(np.linalg.norm(r_c - r_i) - self.ball_radius) = %s' % abs(np.linalg.norm(r_c - r_i) - self.ball_radius)
         event = CueStrikeEvent(t, i, r_i, r_c, V, M)
         if self._realtime:
-            self._find_collisions = True
             return self.add_event_sequence_realtime(event)
         else:
             return self.add_event_sequence(event)
@@ -268,16 +265,14 @@ class PoolPhysics(object):
 
     def step(self, dt):
         if self._realtime:
-            self._find_collisions = self._step_realtime(dt,
-                                                        find_collisions=self._find_collisions)
+            self._step_realtime(dt)
         else:
             self.t += dt
 
-    def _step_realtime(self, dt,
-                       find_collisions=True):
+    def _step_realtime(self, dt):
         self.t += dt
         if not self.balls_in_motion:
-            return False
+            return
         T, T_f = self._collision_search_time_limit, self._collision_search_time_forward
         if T_f is None:
             t_max = INF
@@ -289,20 +284,20 @@ class PoolPhysics(object):
                 if event:
                     self._add_event(event)
                     if event.t >= t_max:
-                        return bool(self.balls_in_motion)
-            return False
-        lt = perf_counter()
-        while T > 0 and self.balls_in_motion:
-            event = self._determine_next_event()
-            if event:
-                self._add_event(event)
-                if event.t >= t_max:
-                    return bool(self.balls_in_motion)
-            t = perf_counter()
-            dt = t - lt; lt = t
-            T -= dt
-        if T <= 0:
-            return bool(self.balls_in_motion)
+                        return
+            return
+        else:
+            lt = perf_counter()
+            while T > 0 and self.balls_in_motion:
+                event = self._determine_next_event()
+                if event:
+                    self._add_event(event)
+                    if event.t >= t_max:
+                        return
+                t = perf_counter()
+                dt = t - lt; lt = t
+                T -= dt
+            return
 
     def eval_positions(self, t, balls=None, out=None):
         """
