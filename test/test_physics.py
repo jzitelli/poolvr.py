@@ -11,26 +11,6 @@ from poolvr.physics.events import PhysicsEvent, CueStrikeEvent, BallSlidingEvent
 _here = os.path.dirname(__file__)
 
 
-def test_occlusion(pool_physics, plot_occlusion, request):
-    physics = pool_physics
-    assert (physics._occ_ij == ~np.array([[0,1,1,1,1,1,1,0,0,0,1,0,0,1,0,1],
-                                          [1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0],
-                                          [1,1,0,1,0,0,1,1,0,0,0,0,0,0,0,0],
-                                          [1,0,1,0,1,0,0,1,1,0,0,0,0,0,0,0],
-                                          [1,0,0,1,0,1,0,0,1,1,0,0,0,0,0,0],
-                                          [1,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0],
-                                          [1,1,1,0,0,0,0,1,0,0,1,0,0,0,0,0],
-                                          [0,0,1,1,0,0,1,0,1,0,1,1,0,0,0,0],
-                                          [0,0,0,1,1,0,0,1,0,1,0,1,1,0,0,0],
-                                          [0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,0],
-                                          [1,0,0,0,0,0,1,1,0,0,0,1,0,1,0,0],
-                                          [0,0,0,0,0,0,0,1,1,0,1,0,1,1,1,0],
-                                          [0,0,0,0,0,0,0,0,1,1,0,1,0,0,1,0],
-                                          [1,0,0,0,0,0,0,0,0,0,1,1,0,0,1,1],
-                                          [0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,1],
-                                          [1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0]], dtype=np.bool)).all()
-
-
 def test_strike_ball(pool_physics,
                      plot_motion_timelapse,
                      plot_energy,
@@ -182,6 +162,32 @@ def test_break_hard(pool_physics,
     #               PhysicsEvent.events_str(events))
 
 
+def test_break_hard_realtime(pool_physics_realtime,
+                             plot_motion_timelapse,
+                             plot_energy,
+                             gl_rendering):
+    physics = pool_physics_realtime
+    ball_positions = physics.eval_positions(0.0)
+    r_c = ball_positions[0].copy()
+    r_c[2] += 0.5 * np.sqrt(2.0) * physics.ball_radius
+    r_c[1] += 0.5 * np.sqrt(2.0) * physics.ball_radius
+    V = np.array((-0.006, 0.0, -3.4), dtype=np.float64)
+    M = 0.54
+    outname = gen_filename('test_break_hard_realtime.%s' % git_head_hash(), 'pstats',
+                           directory=os.path.join(_here, 'pstats'))
+    from time import perf_counter
+    import cProfile
+    pr = cProfile.Profile()
+    pr.enable()
+    t0 = perf_counter()
+    events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
+    t1 = perf_counter()
+    pr.dump_stats(outname)
+    _logger.info('evaluation time: %s', t1-t0)
+    _logger.info('...dumped stats to "%s"', outname)
+    _logger.info('strike on %d resulted in %d events', 0, len(events))
+
+
 def test_break_and_following_shot(pool_physics,
                                   gl_rendering):
     physics = pool_physics
@@ -224,8 +230,9 @@ def test_strike_ball_english(pool_physics,
     V[2] = -1.5
     M = 0.54
     events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
-    _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
-                  PhysicsEvent.events_str(events))
+    _logger.info('strike on %d resulted in %d events', 0, len(events))
+    # _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
+    #               PhysicsEvent.events_str(events))
 
 
 def test_strike_ball_less_english(pool_physics,
@@ -245,8 +252,9 @@ def test_strike_ball_less_english(pool_physics,
     V[2] = -1.5
     M = 0.54
     events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
-    _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
-                  PhysicsEvent.events_str(events))
+    _logger.info('strike on %d resulted in %d events', 0, len(events))
+    # _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
+    #               PhysicsEvent.events_str(events))
 
 
 # def test_pocket_scratch(pool_physics,
@@ -265,6 +273,26 @@ def test_strike_ball_less_english(pool_physics,
 #                                    omega_0=np.zeros(3, dtype=np.float64))
 #     events = physics.add_event_sequence(start_event)
 #     _logger.debug('%d events added:\n\n%s\n', len(events), PhysicsEvent.events_str(events=events))
+
+
+# def test_occlusion(pool_physics, plot_occlusion, request):
+#     physics = pool_physics
+#     assert (physics._occ_ij == ~np.array([[0,1,1,1,1,1,1,0,0,0,1,0,0,1,0,1],
+#                                           [1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0],
+#                                           [1,1,0,1,0,0,1,1,0,0,0,0,0,0,0,0],
+#                                           [1,0,1,0,1,0,0,1,1,0,0,0,0,0,0,0],
+#                                           [1,0,0,1,0,1,0,0,1,1,0,0,0,0,0,0],
+#                                           [1,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0],
+#                                           [1,1,1,0,0,0,0,1,0,0,1,0,0,0,0,0],
+#                                           [0,0,1,1,0,0,1,0,1,0,1,1,0,0,0,0],
+#                                           [0,0,0,1,1,0,0,1,0,1,0,1,1,0,0,0],
+#                                           [0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,0],
+#                                           [1,0,0,0,0,0,1,1,0,0,0,1,0,1,0,0],
+#                                           [0,0,0,0,0,0,0,1,1,0,1,0,1,1,1,0],
+#                                           [0,0,0,0,0,0,0,0,1,1,0,1,0,0,1,0],
+#                                           [1,0,0,0,0,0,0,0,0,0,1,1,0,0,1,1],
+#                                           [0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,1],
+#                                           [1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0]], dtype=np.bool)).all()
 
 
 def test_updating_occlusion(pool_physics,

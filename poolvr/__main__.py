@@ -18,6 +18,9 @@ def parse_args():
                         metavar='<multisample level>', type=int,
                         help='enable multi-sampled anti-aliasing (disabled by default) at specified level (must be a non-negative power of 2)',
                         default=0)
+    parser.add_argument('--bb-particles',
+                        help='render balls using billboard particle shader instead of polygon meshes',
+                        action='store_true')
     parser.add_argument('-o', "--ode",
                         help="use ODE for physics simulation instead of the default event-based physics engine",
                         action="store_true")
@@ -25,11 +28,8 @@ def parse_args():
                         metavar='<name of collision model>',
                         help="set the ball-to-ball collision model to use (this parameter only applies to the event-based physics engine)",
                         default='simple')
-    parser.add_argument('--use_quartic_solver',
+    parser.add_argument('--use-quartic-solver',
                         help="solve for collision times using the internal quartic solver instead of numpy.roots",
-                        action='store_true')
-    parser.add_argument('--bb-particles',
-                        help='render balls using billboard particle shader instead of polygon meshes',
                         action='store_true')
     parser.add_argument('-s', '--sound-device',
                         metavar='<device ID>',

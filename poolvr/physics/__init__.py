@@ -60,8 +60,8 @@ class PoolPhysics(object):
                  enable_sanity_check=True,
                  enable_occlusion=True,
                  realtime=False,
-                 collision_search_time_limit=0.2/90,
-                 collision_search_time_forward=0.2,
+                 collision_search_time_limit=INF,
+                 collision_search_time_forward=1.0,
                  use_quartic_solver=True,
                  **kwargs):
         r"""
@@ -180,7 +180,7 @@ class PoolPhysics(object):
         self._psi_ij[:] = 0
         self._theta_ij[:] = 0
         if self._realtime:
-            self._find_collisions = False
+            self._find_collisions = True
         if self._enable_occlusion:
             self._update_occlusion({e.i: e._r_0 for e in self._BALL_REST_EVENTS})
 
@@ -268,17 +268,29 @@ class PoolPhysics(object):
 
     def step(self, dt):
         if self._realtime:
-            self._find_collisions = self.step_realtime(dt, find_collisions=self._find_collisions)
+            self._find_collisions = self._step_realtime(dt,
+                                                        find_collisions=self._find_collisions)
         else:
             self.t += dt
 
-    def step_realtime(self, dt,
-                      find_collisions=True):
+    def _step_realtime(self, dt,
+                       find_collisions=True):
         self.t += dt
-        if not find_collisions:
+        if not self.balls_in_motion:
             return False
-        T = self._collision_search_time_limit
-        t_max = self.t + self._collision_search_time_forward
+        T, T_f = self._collision_search_time_limit, self._collision_search_time_forward
+        if T_f is None:
+            t_max = INF
+        else:
+            t_max = self.t + T_f
+        if T is None:
+            while self.balls_in_motion:
+                event = self._determine_next_event()
+                if event:
+                    self._add_event(event)
+                    if event.t >= t_max:
+                        return bool(self.balls_in_motion)
+            return False
         lt = perf_counter()
         while T > 0 and self.balls_in_motion:
             event = self._determine_next_event()
@@ -472,22 +484,32 @@ class PoolPhysics(object):
                             key=lambda j: self._r_ij_mag[i,j]):
                 e_j = self.ball_events[j][-1]
                 t0 = max(e_i.t, e_j.t)
+                if t_min <= t0:
+                    continue
                 if j not in collisions:
                     if self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j]:
                         collisions[j] = None
-                        continue
-                    elif self._last_ball_collision.get(i, False) == self._last_ball_collision.get(j, True):
-                        collisions[j] = None
-                        continue
-                    if t_min <= t0:
                         continue
                     t1 = min(e_i.t + e_i.T, e_j.t + e_j.T)
                     if t1 <= t0:
                         collisions[j] = None
                         continue
+                    if self._moving_farther_away(e_i, e_j):
+                        # _logger.debug('%d, %d moving farther away:\n%s\n%s', i, j, e_i, e_j)
+                        collisions[j] = None
+                        continue
                     if self._too_far_for_collision(e_i, e_j, t0, t1):
                         collisions[j] = None
                         continue
+                    #if self._last_ball_collision.get(i, False) == self._last_ball_collision.get(j, True) == e_i.parent_event == e_j.parent_event:
+                    # if isinstance(e_i.parent_event, BallCollisionEvent) and e_i.parent_event == e_j.parent_event:
+                    #     cevent = e_i.parent_event
+                    #     # v_ij = e_j.eval_velocity(t0) - e_i.eval_velocity(t0)
+                    #     v_ij = np.dot(cevent._v_j_1 - cevent._v_i_1, cevent._i)
+                    #     # if self._a_ij_mag[i,j] * (t1-t0) <= np.sqrt(np.dot(v_ij, v_ij)):
+                    #     if v_ij + np.dot(e_j.acceleration - e_i.acceleration, cevent._i) * (t1-t0) <= 0:
+                    #         collisions[j] = None
+                    #         continue
                     t_c = self._find_collision_time(e_i, e_j)
                     collisions[j] = t_c
                 t_c = collisions[j]
@@ -517,6 +539,21 @@ class PoolPhysics(object):
             r_ij_0 = e_i.eval_position(tau_i_0) - e_j.eval_position(tau_j_0)
         if   np.sqrt(np.dot(v_ij_0, v_ij_0))*(t1-t0) + 0.5*a_ij_mag*(t1-t0)**2 \
            < np.sqrt(np.dot(r_ij_0, r_ij_0)) - self.ball_diameter:
+            return True
+        return False
+
+    def _moving_farther_away(self, e_i, e_j):
+        i, j = e_i.i, e_j.i
+        t0 = max(e_i.t, e_j.t)
+        t1 = min(e_i.t + e_i.T, e_j.t + e_j.T)
+        tau_i, tau_j = t0 - e_i.t, t0 - e_j.t
+        r_ij = e_j.eval_position(tau_j) - e_i.eval_position(tau_i)
+        r_ij_mag = np.sqrt(np.dot(r_ij, r_ij))
+        _i = r_ij / r_ij_mag
+        v_ij = e_j.eval_velocity(tau_j) - e_i.eval_velocity(tau_i)
+        a_ij = self._a_ij[j] - self._a_ij[i]
+        away_velocity = np.dot(v_ij, _i)
+        if away_velocity >= 0 and away_velocity + np.dot(a_ij, _i) * (t1-t0) >= 0:
             return True
         return False
 

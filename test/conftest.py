@@ -44,6 +44,15 @@ def pool_physics(pool_table, request):
 
 
 @pytest.fixture
+def pool_physics_realtime(pool_table, request):
+    from poolvr.physics import PoolPhysics
+    return PoolPhysics(initial_positions=pool_table.calc_racked_positions(),
+                       ball_collision_model='simple',
+                       enable_sanity_check=False,
+                       realtime=True)
+
+
+@pytest.fixture
 def plot_motion(pool_physics, request):
     show_plots, save_plots = request.config.getoption('--show_plots'), request.config.getoption('--save_plots')
     if not (show_plots or save_plots):

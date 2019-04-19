@@ -35,9 +35,6 @@ class PhysicsEvent(object):
     @property
     def parent_event(self):
         return self._parent_event
-    @property
-    def next_motion_event(self):
-        return None
     @staticmethod
     def set_quaternion_from_euler_angles(psi=0.0, theta=0.0, phi=0.0, out=None):
         if out is None:
@@ -71,6 +68,9 @@ class BallEvent(PhysicsEvent):
     def __init__(self, t, i, **kwargs):
         super().__init__(t, **kwargs)
         self.i = i
+    @property
+    def next_motion_event(self):
+        return None
     def __eq__(self, other):
         return self.__class__ == other.__class__ and self.t == other.t and self.T == other.T and self.i == other.i
     def __str__(self):
@@ -458,7 +458,7 @@ class SimpleBallCollisionEvent(BallCollisionEvent):
         super().__init__(t, e_i, e_j)
         r_i, r_j = self._r_i, self._r_j
         r_ij = r_i - r_j
-        _i = r_ij / np.sqrt(np.dot(r_ij, r_ij))
+        self._i = _i = r_ij / np.sqrt(np.dot(r_ij, r_ij))
         v_i, v_j = self._v_i, self._v_j
         vp_i = np.dot(v_i, _i) * _i
         vp_j = np.dot(v_j, _i) * _i
@@ -486,7 +486,7 @@ class MarlowBallCollisionEvent(BallCollisionEvent):
         F_max = 1.48001 * self.ball_radius**2 * self.E_Y_b * s_max**1.5
         r_i, r_j = self._r_i, self._r_j
         r_ij = r_j - r_i
-        _i = r_ij / np.linalg.norm(r_ij)
+        self._i = _i = r_ij / np.linalg.norm(r_ij)
         J = max(0.5 * F_max * delta_t,
                 abs(self.ball_mass * np.dot(v_ij, _i))) # missing 2 factor?
         v_i_1 = v_i - (J / self.ball_mass) * _i
