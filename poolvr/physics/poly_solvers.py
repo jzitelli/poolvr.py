@@ -48,8 +48,10 @@ def quartic_solve(p, only_real=False):
         S = 0.5 * (np.sqrt(-2*p/3 + 2*np.sqrt(Delta_0)*np.cos(phi/3)/3))
         SSx4 = 4*S**2
     else:
-        QQQ = (0.5*(Delta_1 + np.sqrt(-27.0*Delta if Delta <= 0 else -27.0*Delta + 0j)))
-        Q = QQQ**(1.0/3)
+        QQQ = 0.5*(Delta_1 + np.sqrt(-27.0*Delta if Delta <= 0 else -27.0*Delta + 0j))
+        # if QQQ == 0:
+        #     QQQ = 0.5*(Delta_1 - np.sqrt(-27.0*Delta if Delta <= 0 else -27.0*Delta + 0j))
+        Q = (QQQ + 0j)**(1.0/3)
         SSx4 = -2.0*p/3 + (Q*CUBE_ROOTS_OF_1 + Delta_0/(Q*CUBE_ROOTS_OF_1)) / 3.0
         if Delta > 0:
             # _logger.debug('all roots are complex and distinct')

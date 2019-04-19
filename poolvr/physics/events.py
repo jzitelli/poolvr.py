@@ -185,6 +185,7 @@ class BallMotionEvent(BallEvent):
         self._v_0 = a[1]
         self._omega_0 = b[0]
         self._ab_global = None
+        self._next_motion_event = None
     @property
     def acceleration(self):
         return 2 * self._a[2]
@@ -350,9 +351,6 @@ class CueStrikeEvent(BallEvent):
     @property
     def child_events(self):
         return self._child_events
-    @property
-    def next_motion_event(self):
-        return self._child_events[0]
     def __str__(self):
         return super().__str__()[:-1] + '\n Q=%s\n V=%s\n M=%s>' % (self.Q, self.V, self.M)
 

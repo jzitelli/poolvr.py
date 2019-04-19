@@ -142,6 +142,7 @@ class PoolPhysics(object):
         self._taus[:,0] = 1
         self._a = np.zeros((num_balls, 3, 3), dtype=np.float64)
         self._b = np.zeros((num_balls, 2, 3), dtype=np.float64)
+        self._F = np.zeros(num_balls, dtype=np.int)
         self.reset(ball_positions=ball_positions, balls_on_table=balls_on_table)
 
     def reset(self, ball_positions=None, balls_on_table=None):
@@ -432,10 +433,11 @@ class PoolPhysics(object):
                 if self._enable_occlusion and isinstance(event, BallStationaryEvent):
                     self._update_occlusion({i: event._r_0})
             elif isinstance(event, BallMotionEvent):
+                accel = event.acceleration
                 self._ball_motion_events[i] = event
-                self._a_ij[i] = event.acceleration
-                self._a_ij_mag[i,:] = self._a_ij_mag[:,i] = np.linalg.norm(self._a_ij - event.acceleration, axis=1)
-                self._a_ij_mag[i,i] = np.sqrt(np.dot(event.acceleration, event.acceleration))
+                self._a_ij[i] = accel
+                self._a_ij_mag[i,:] = self._a_ij_mag[:,i] = np.linalg.norm(self._a_ij - accel, axis=1)
+                self._a_ij_mag[i,i] = np.sqrt(np.dot(accel, accel))
                 if i in self._balls_at_rest:
                     self._balls_at_rest.remove(i)
         for child_event in event.child_events:
@@ -622,30 +624,37 @@ class PoolPhysics(object):
         occ_ij = self._occ_ij
         if ball_positions is None:
             ball_positions = {}
-        balls, positions = zip(*ball_positions.items())
-        balls = np.array(balls, dtype=np.int32)
-        argsort = balls.argsort()
-        positions = np.array(positions)[argsort]
-        U = balls[argsort]
-        r_ij[U,U] = positions # diagonal contains the global rest position for balls at rest,
-                              # and the motion start position for balls in motion
-        R = np.array([i for i in self.balls_at_rest
-                      if i not in U], dtype=np.int32); R.sort()
-        M = np.array(self.balls_in_motion, dtype=np.int32)
+        balls, ball_positions = zip(*ball_positions.items())
+        balls = list(balls)
+        nballs = len(balls)
+        F = self._F
+        U = F[:nballs] = balls # U: ball no.s corresponding to the input ball_positions, respectively - these balls must be at rest.
+        R = [i                 # R: ball no.s of all other balls at rest.
+             for i in self.balls_at_rest if i not in U]
+        R = F[nballs:nballs+len(R)] = R
+        F = F[:nballs+len(R)]
+        r_ij[U,U] = ball_positions # diagonal contains the global rest position for balls at rest,
+                                   # and the motion start position for balls in motion
+        U.sort()
+        R.sort()
+        M = np.array(self.balls_in_motion, dtype=np.int)
         occ_ij[M,:] = occ_ij[:,M] = False
         occ_ij[M,M] = True
-        if len(R) > 0:
-            F = np.hstack((U, R))
-        else:
-            F = U
         for ii, i in enumerate(U):
             F_i = F[ii+1:]
             if len(F_i) == 0:
                 continue
             r_ij[i,F_i] = r_ij[F_i,F_i] - r_ij[i,i]
-            r_ij_mag[i,F_i] = np.linalg.norm(r_ij[i,F_i], axis=1)
+            r_ij[F_i,i] = -r_ij[i,F_i]
+            r_ij_mag[i,F_i] = r_ij_mag[F_i,i] = np.linalg.norm(r_ij[i,F_i], axis=1)
             thetas_ij[i,F_i] = np.arctan2(r_ij[i,F_i,2], r_ij[i,F_i,0])
-            psi_ij[i,F_i] = np.arcsin(self.ball_diameter / r_ij_mag[i,F_i])
+            thetas_ij[F_i,i] = thetas_ij[i,F_i] + np.pi
+            psi_ij[i,F_i] = psi_ij[F_i,i] = np.arcsin(self.ball_diameter / r_ij_mag[i,F_i])
+        for ii, i in enumerate(U):
+            F_i = F[:-1].copy()
+            if len(F_i) == 0:
+                continue
+            F_i[ii:] = F[ii+1:]
             jj_sorted = r_ij_mag[i,F_i].argsort()
             j_sorted = F_i[jj_sorted]
             theta_i = thetas_ij[i,j_sorted]
@@ -671,9 +680,7 @@ class PoolPhysics(object):
                                       bisect(theta_i_occ_bnds, theta_b))
                     center_occluded, a_occluded, b_occluded = jj % 2 == 1, jj_a % 2 == 1, jj_b % 2 == 1
                     if center_occluded and jj_a == jj == jj_b:
-                        if not occ_ij[i,j]:
-                            pass
-                        occ_ij[i,j] = occ_ij[j,i] = True
+                        occ_ij[i,j] = True
                         break
                     if a_occluded and b_occluded:
                         theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + theta_i_occ_bnds[jj_b:]

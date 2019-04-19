@@ -146,7 +146,8 @@ def plot_motion_timelapse(physics, table=None,
     events = [e for e in events if e.t <= t_1]
     if figure is None:
         figure = plt.figure()
-    plt.title(title)
+    plt.title(title, fontsize='xx-small')
+    plt.xticks([]); plt.yticks([])
     ts = np.linspace(t_0, t_1, nt)
     #ax = plt.subplot(111, facecolor='green')
     plt.gca().set_xlim(-0.5*table.W, 0.5*table.W)
@@ -161,6 +162,7 @@ def plot_motion_timelapse(physics, table=None,
     ball_colors[0] = 'white'
     for t in ts:
         positions = physics.eval_positions(t)
+        positions[:,2] *= -1
         for i in physics.balls_on_table:
             plt.gca().add_patch(plt.Circle(positions[i,::2], physics.ball_radius,
                                            color=ball_colors[i],
@@ -174,6 +176,7 @@ def plot_motion_timelapse(physics, table=None,
                 r = start_event.eval_position(0)
             else:
                 r = end_event.eval_position(t_1)
+            r[2] *= -1
             plt.gca().add_patch(plt.Circle(r[::2], physics.ball_radius,
                                            color=ball_colors[i],
                                            fill=True,
@@ -187,6 +190,7 @@ def plot_motion_timelapse(physics, table=None,
                                            antialiased=True))
         else:
             r_0, r_1 = start_event.eval_position(t_0), end_event.eval_position(t_1)
+            r_0[2] *= -1; r_1[2] *= -1
             plt.gca().add_patch(plt.Circle(r_0[::2], physics.ball_radius,
                                            color=ball_colors[i],
                                            fill=True,
