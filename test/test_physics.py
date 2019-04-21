@@ -300,7 +300,7 @@ def test_updating_occlusion(pool_physics,
                             plot_initial_positions,
                             plot_final_positions,
                             request):
-    show_plots, save_plots = request.config.getoption('show_plots'), request.config.getoption('save_plots')
+    show_plots, save_plots = request.config.getoption('--show-plots'), request.config.getoption('--save-plots')
     if not (show_plots or save_plots):
         return
     import matplotlib.pyplot as plt

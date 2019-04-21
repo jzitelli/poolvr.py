@@ -1,6 +1,7 @@
 import sys
 import os.path
 import logging
+from itertools import chain
 import numpy as np
 import OpenGL
 OpenGL.ERROR_CHECKING = False
@@ -14,7 +15,7 @@ _logger = logging.getLogger('poolvr')
 
 
 from .gl_rendering import OpenGLRenderer, set_quaternion_from_matrix, set_matrix_from_quaternion
-from .gl_techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
+from .gl_techniques import LAMBERT_TECHNIQUE
 try:
     from .pyopenvr_renderer import openvr, OpenVRRenderer
 except ImportError as err:
@@ -98,15 +99,18 @@ def main(window_size=(800,600),
          cube_map=None,
          speed=1.0,
          glyphs=False,
-         realtime=False,
          balls_on_table=None,
          technique=LAMBERT_TECHNIQUE,
-         use_quartic_solver=False):
+         use_quartic_solver=False,
+         **kwargs):
     """
     The main routine.
 
     Performs initializations, setups, kicks off the render loop.
     """
+    _logger.debug('''configuration:
+%s''', '\n'.join('%s: %s' % item for item in
+                 {k: v for k, v in chain(dict(locals()).items(), kwargs.items())}.items()))
     window, fallback_renderer = setup_glfw(window_size=window_size,
                                            double_buffered=novr, multisample=multisample)
     if not novr and OpenVRRenderer is not None:
@@ -133,24 +137,22 @@ def main(window_size=(800,600),
             ODEPoolPhysics = None
             physics = PoolPhysics(num_balls=16, table=table,
                                   ball_collision_model=ball_collision_model,
-                                  enable_sanity_check=novr,
+                                  enable_sanity_check=False,
                                   enable_occlusion=False,
-                                  realtime=realtime,
                                   balls_on_table=balls_on_table,
-                                  use_quartic_solver=use_quartic_solver)
+                                  use_quartic_solver=use_quartic_solver,
+                                  **kwargs)
     else:
         physics = PoolPhysics(num_balls=16, table=table,
                               ball_collision_model=ball_collision_model,
-                              enable_sanity_check=novr,
+                              enable_sanity_check=False,
                               enable_occlusion=False,
-                              realtime=realtime,
                               balls_on_table=balls_on_table,
-                              use_quartic_solver=use_quartic_solver)
+                              use_quartic_solver=use_quartic_solver,
+                              **kwargs)
     game = PoolGame(table=table,
                     physics=physics)
     cue = PoolCue()
-    cue.position[1] = game.table.H + 0.1
-    cue.position[2] += game.table.L * 0.3
     game.physics.add_cue(cue)
     game.reset(balls_on_table=balls_on_table)
     table_mesh = game.table.export_mesh(surface_technique=technique, cushion_technique=technique)
@@ -175,6 +177,9 @@ def main(window_size=(800,600),
         meshes.insert(0, skybox_mesh)
     for mesh in meshes:
         mesh.init_gl()
+    cue.shadow_mesh.update(c=table.H+0.001)
+    cue.position[1] = game.table.H + 0.001
+    cue.position[2] += game.table.L * 0.1
     for i, mesh in enumerate(ball_meshes):
         if i not in balls_on_table:
             mesh.visible = False
@@ -190,7 +195,7 @@ def main(window_size=(800,600),
         game.reset(balls_on_table=balls_on_table)
         last_contact_t = float('-inf')
         cue.position[0] = 0
-        cue.position[1] = game.table.H + 0.1
+        cue.position[1] = game.table.H + 0.001
         cue.position[2] = game.table.L * 0.3
     process_mouse_input = init_mouse(window)
     process_keyboard_input = init_keyboard(window)

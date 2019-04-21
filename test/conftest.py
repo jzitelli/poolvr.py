@@ -17,9 +17,9 @@ def pytest_addoption(parser):
                      default='1.0')
     parser.addoption("--screenshot", help="save screenshot of OpenGL-rendered test results",
                      action="store_true", default=False)
-    parser.addoption("--save_plots", help="save plots created by tests",
+    parser.addoption("--save-plots", help="save plots created by tests",
                      action="store_true", default=False)
-    parser.addoption("--show_plots", help="show plots created by tests",
+    parser.addoption("--show-plots", help="show plots created by tests",
                      action="store_true", default=False)
     parser.addoption('--glyphs', help='render velocity and angular velocity glyphs',
                      action='store_true', default=False)
@@ -27,6 +27,8 @@ def pytest_addoption(parser):
                      default='4')
     parser.addoption('--resolution', help='OpenGL viewport resolution, e.g. 960x680',
                      default='960x680')
+    parser.addoption('--keep-render-window', help='do not close OpenGL render window when all events have finished',
+                     action='store_true')
 
 
 @pytest.fixture
@@ -40,7 +42,8 @@ def pool_physics(pool_table, request):
     from poolvr.physics import PoolPhysics
     return PoolPhysics(initial_positions=pool_table.calc_racked_positions(),
                        ball_collision_model='simple',
-                       enable_sanity_check=False)
+                       enable_sanity_check=False,
+                       enable_occlusion=False)
 
 
 @pytest.fixture
@@ -49,12 +52,13 @@ def pool_physics_realtime(pool_table, request):
     return PoolPhysics(initial_positions=pool_table.calc_racked_positions(),
                        ball_collision_model='simple',
                        enable_sanity_check=False,
+                       enable_occlusion=False,
                        realtime=True)
 
 
 @pytest.fixture
 def plot_motion(pool_physics, request):
-    show_plots, save_plots = request.config.getoption('--show_plots'), request.config.getoption('--save_plots')
+    show_plots, save_plots = request.config.getoption('--show-plots'), request.config.getoption('--save-plots')
     if not (show_plots or save_plots):
         yield
         return
@@ -70,7 +74,7 @@ def plot_motion(pool_physics, request):
 
 @pytest.fixture
 def plot_motion_x_position(pool_physics, request):
-    show_plots, save_plots = request.config.getoption('--show_plots'), request.config.getoption('--save_plots')
+    show_plots, save_plots = request.config.getoption('--show-plots'), request.config.getoption('--save-plots')
     if not (show_plots or save_plots):
         yield
         return
@@ -86,7 +90,7 @@ def plot_motion_x_position(pool_physics, request):
 
 @pytest.fixture
 def plot_motion_z_position(pool_physics, request):
-    show_plots, save_plots = request.config.getoption('--show_plots'), request.config.getoption('--save_plots')
+    show_plots, save_plots = request.config.getoption('--show-plots'), request.config.getoption('--save-plots')
     if not (show_plots or save_plots):
         yield
         return
@@ -103,7 +107,7 @@ def plot_motion_z_position(pool_physics, request):
 
 @pytest.fixture
 def plot_energy(pool_physics, request):
-    show_plots, save_plots = request.config.getoption('--show_plots'), request.config.getoption('--save_plots')
+    show_plots, save_plots = request.config.getoption('--show-plots'), request.config.getoption('--save-plots')
     if not (show_plots or save_plots):
         yield
         return
@@ -118,7 +122,7 @@ def plot_energy(pool_physics, request):
 
 @pytest.fixture
 def plot_motion_timelapse(pool_physics, pool_table, request):
-    show_plots, save_plots = request.config.getoption('--show_plots'), request.config.getoption('--save_plots')
+    show_plots, save_plots = request.config.getoption('--show-plots'), request.config.getoption('--save-plots')
     if not (show_plots or save_plots):
         yield
         return
@@ -133,7 +137,7 @@ def plot_motion_timelapse(pool_physics, pool_table, request):
 
 @pytest.fixture
 def plot_initial_positions(pool_physics, pool_table, request):
-    show_plots, save_plots = request.config.getoption('--show_plots'), request.config.getoption('--save_plots')
+    show_plots, save_plots = request.config.getoption('--show-plots'), request.config.getoption('--save-plots')
     if not (show_plots or save_plots):
         yield
         return
@@ -150,7 +154,7 @@ def plot_initial_positions(pool_physics, pool_table, request):
 
 @pytest.fixture
 def plot_final_positions(pool_physics, pool_table, request):
-    show_plots, save_plots = request.config.getoption('--show_plots'), request.config.getoption('--save_plots')
+    show_plots, save_plots = request.config.getoption('--show-plots'), request.config.getoption('--save-plots')
     if not (show_plots or save_plots):
         yield
         return
@@ -174,7 +178,7 @@ def plot_final_positions(pool_physics, pool_table, request):
 
 @pytest.fixture
 def plot_occlusion(pool_physics, request):
-    show_plots, save_plots = request.config.getoption('--show_plots'), request.config.getoption('--save_plots')
+    show_plots, save_plots = request.config.getoption('--show-plots'), request.config.getoption('--save-plots')
     if not (show_plots or save_plots):
         yield
         return
@@ -208,6 +212,7 @@ def gl_rendering(pool_physics, pool_table, request):
     msaa = request.config.getoption('--msaa')
     glyphs = request.config.getoption('--glyphs')
     speed = float(request.config.getoption('--speed'))
+    keep_render_window = request.config.getoption('--keep-render-window')
     yield
 
     import OpenGL
@@ -259,7 +264,7 @@ def gl_rendering(pool_physics, pool_table, request):
         t_end = physics.events[-1].t if physics.events else 5.0
     else:
         t_end = game.t
-    while not glfw.WindowShouldClose(window) and game.t < t_end:
+    while not glfw.WindowShouldClose(window) and (keep_render_window or game.t < t_end):
         t = glfw.GetTime()
         dt = t - lt
         lt = t

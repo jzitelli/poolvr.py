@@ -331,7 +331,10 @@ class ProjectedMesh(Mesh):
         self._shadow_matrix = np.eye(4, dtype=np.float32)
         self.light_position = light_position
 
-    def update(self):
+    def update(self, c=None):
+        if c is not None:
+            self.c = c
+            self._plane = np.array(list(self.normal[:]) + [-self.c])
         light_position = self.light_position
         v = self._plane.dot(light_position)
         shadow_matrix = self._shadow_matrix

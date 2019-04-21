@@ -16,8 +16,8 @@ def parse_args():
                         action="store_true")
     parser.add_argument("-a", "--msaa",
                         metavar='<multisample level>', type=int,
-                        help='enable multi-sampled anti-aliasing (disabled by default) at specified level (must be a non-negative power of 2)',
-                        default=0)
+                        help='enable multi-sampled anti-aliasing at specified level (must be a non-negative power of 2); default is 4',
+                        default=4)
     parser.add_argument('--bb-particles',
                         help='render balls using billboard particle shader instead of polygon meshes',
                         action='store_true')
@@ -28,7 +28,7 @@ def parse_args():
                         metavar='<name of collision model>',
                         help="set the ball-to-ball collision model to use (this parameter only applies to the event-based physics engine)",
                         default='simple')
-    parser.add_argument('--use-quartic-solver',
+    parser.add_argument('-q', '--use-quartic-solver',
                         help="solve for collision times using the internal quartic solver instead of numpy.roots",
                         action='store_true')
     parser.add_argument('-s', '--sound-device',
@@ -51,15 +51,37 @@ def parse_args():
     parser.add_argument('-r', '--realtime',
                         action='store_true',
                         help='enable the realtime version (intended for interactive usage) of the event-based physics engine')
+    parser.add_argument('--collision_search_time_forward',
+                        help='''time into the future in seconds to calculate events for
+                        before yielding to render a new frame - using this option enables the realtime engine''')
+    parser.add_argument('--collision_search_time_limit',
+                        help='maximum time in seconds to spend calculating events before yielding to render a new frame - using this option enables the realtime engine')
     parser.add_argument('--balls-on-table',
                         help='comma-separated list of balls on table',
                         default=','.join(str(n) for n in range(16)))
-    parser.add_argument('--technique',
+    parser.add_argument('--gl-technique',
                         help='overall gl_rendering technique; possible values: ega, lambert',
                         default='ega')
     args = parser.parse_args()
     args.msaa = int(args.msaa)
     args.balls_on_table = [int(n) for n in args.balls_on_table.split(',')]
+
+    if args.collision_search_time_limit is not None:
+        collision_search_time_limit = float(args.collision_search_time_limit)
+    elif args.realtime:
+        collision_search_time_limit = None
+    else:
+        collision_search_time_limit = None
+    args.collision_search_time_limit = collision_search_time_limit
+
+    if args.collision_search_time_forward is not None:
+        collision_search_time_forward = float(args.collision_search_time_forward)
+    elif args.realtime:
+        collision_search_time_forward = 4.0/90
+    else:
+        collision_search_time_forward = None
+    args.collision_search_time_forward = collision_search_time_forward
+
     return args
 
 
@@ -85,10 +107,13 @@ def main():
                     cube_map=args.cube_map,
                     speed=args.speed,
                     glyphs=args.glyphs,
-                    realtime=args.realtime,
                     balls_on_table=args.balls_on_table,
-                    technique=LAMBERT_TECHNIQUE if args.technique.lower() == 'lambert' else EGA_TECHNIQUE,
-                    use_quartic_solver=args.use_quartic_solver)
+                    technique=LAMBERT_TECHNIQUE
+                              if args.gl_technique.lower() == 'lambert'
+                              else EGA_TECHNIQUE,
+                    use_quartic_solver=args.use_quartic_solver,
+                    collision_search_time_forward=args.collision_search_time_forward,
+                    collision_search_time_limit=args.collision_search_time_limit)
 
 
 def start_sound(sound_device):
