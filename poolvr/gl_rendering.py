@@ -22,6 +22,7 @@ DTYPE_COMPONENT_TYPE_INV = {v: k for k, v in DTYPE_COMPONENT_TYPE.items()}
 
 
 GLSL_TYPE_SPEC = {
+    'int': gl.GL_INT,
     'float': gl.GL_FLOAT,
     'vec2': gl.GL_FLOAT_VEC2,
     'vec3': gl.GL_FLOAT_VEC3,
@@ -321,7 +322,7 @@ class Material(GLRendering):
             u_modelview_inverse_transpose=None,
             u_modelview_inverse=None,
             u_model=None,
-            frame_data=None):
+            **frame_data):
         # if Material._current is self:
         #     return
         if not self._initialized:
@@ -558,6 +559,45 @@ class Mesh(Node):
         if self._after_draw:
             self._after_draw(self, frame_data)
         super().draw(**frame_data)
+
+
+class FragBox(Node):
+    _VS_SRC = r"""#version 410 core
+const vec2 quadVertices[4] = vec2[4](vec2(-1.0, -1.0), vec2( 1.0, -1.0), vec2(-1.0,  1.0), vec2( 1.0,  1.0));
+void main() { gl_Position = vec4(quadVertices[gl_VertexID], 0.0, 1.0); }
+"""
+    def __init__(self, fs_src, **kwargs):
+        super().__init__(**kwargs)
+        self.material = Material(Technique(Program(self._VS_SRC, fs_src, parse_uniforms=True)))
+        self._initialized = False
+    def init_gl(self, force=False):
+        if force:
+            self._initialized = False
+        if self._initialized:
+            return
+        self.material.init_gl(force=force)
+        err = gl.glGetError()
+        if err != gl.GL_NO_ERROR:
+            raise Exception('failed to init %s: %s' % (self.__class__.__name__, err))
+        _logger.info('%s.init_gl: OK' % self.__class__.__name__)
+        self._initialized = True
+    def update_world_matrices(self, world_matrix=None):
+        if world_matrix is None:
+            world_matrix = np.eye(4)
+        for child in self.children:
+            child.update_world_matrices(world_matrix=world_matrix)
+    def draw(self, **frame_data):
+        super().draw(**frame_data)
+        self.material.use(**frame_data)
+        gl.glDrawArrays(gl.GL_TRIANGLE_STRIP, 0, 4)
+        try:
+            if CHECK_GL_ERRORS:
+                err = gl.glGetError()
+                if err != gl.GL_NO_ERROR:
+                    raise Exception('error drawing %s: %d' % (self.__class__.__name__, err))
+        finally:
+            self.material.release()
+            self.material.technique.release()
 
 
 class OpenGLRenderer(object):

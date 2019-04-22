@@ -202,7 +202,12 @@ def plot_occlusion(pool_physics, request):
 
 
 @pytest.fixture
-def gl_rendering(pool_physics, pool_table, request):
+def meshes():
+    return []
+
+
+@pytest.fixture
+def gl_rendering(pool_physics, pool_table, request, meshes):
     should_render = request.config.getoption('--render')
     should_screenshot = request.config.getoption('--screenshot')
     if not (should_render or should_screenshot):
@@ -245,7 +250,10 @@ def gl_rendering(pool_physics, pool_table, request):
         if not on_table:
             ball_mesh.visible = False
             shadow_mesh.visible = False
-    meshes = [table.export_mesh()] + ball_meshes + ball_shadow_meshes
+    if not meshes:
+        meshes = [table.export_mesh()] + ball_meshes + ball_shadow_meshes
+    else:
+        glyphs = False
     for mesh in meshes:
         mesh.init_gl(force=True)
     ball_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_meshes]
