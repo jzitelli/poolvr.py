@@ -329,22 +329,21 @@ class Material(GLRendering):
             self.init_gl()
         self.technique.use()
         if self._on_use:
-            self._on_use(self, frame_data)
+            frame_data.update({'u_view': u_view,
+                               'u_modelview': u_modelview,
+                               'u_projection': u_projection,
+                               'u_modelview_inverse_transpose': u_modelview_inverse_transpose,
+                               'u_modelview_inverse': u_modelview_inverse,
+                               'u_model': u_model})
+            self._on_use(self, **frame_data)
         tex_unit = 0
         for uniform_name, location in self.technique.uniform_locations.items():
             uniform = self.technique.uniforms[uniform_name]
             uniform_type = uniform['type']
-            if uniform_type == gl.GL_SAMPLER_2D:
+            if uniform_type in (gl.GL_SAMPLER_2D, gl.GL_SAMPLER_CUBE):
                 texture = self.textures[uniform_name]
                 gl.glActiveTexture(gl.GL_TEXTURE0+tex_unit)
-                gl.glBindTexture(gl.GL_TEXTURE_2D, texture.texture_id)
-                gl.glBindSampler(tex_unit, texture.sampler_id)
-                gl.glUniform1i(location, tex_unit)
-                tex_unit += 1
-            elif uniform_type == gl.GL_SAMPLER_CUBE:
-                texture = self.textures[uniform_name]
-                gl.glActiveTexture(gl.GL_TEXTURE0+tex_unit)
-                gl.glBindTexture(gl.GL_TEXTURE_CUBE_MAP, texture.texture_id)
+                gl.glBindTexture(uniform_type, texture.texture_id)
                 gl.glBindSampler(tex_unit, texture.sampler_id)
                 gl.glUniform1i(location, tex_unit)
                 tex_unit += 1
@@ -540,7 +539,7 @@ class Mesh(Node):
         for material, prims in self.primitives.items():
             material.use(u_view=view, u_projection=projection, u_modelview=self._modelview,
                          u_modelview_inverse_transpose=self._normal, u_model=self.world_matrix,
-                         frame_data=frame_data)
+                         **frame_data)
             technique = material.technique
             for prim in prims:
                 gl.glBindVertexArray(prim.vaos[technique])
@@ -566,9 +565,11 @@ class FragBox(Node):
 const vec2 quadVertices[4] = vec2[4](vec2(-1.0, -1.0), vec2( 1.0, -1.0), vec2(-1.0,  1.0), vec2( 1.0,  1.0));
 void main() { gl_Position = vec4(quadVertices[gl_VertexID], 0.0, 1.0); }
 """
-    def __init__(self, fs_src, **kwargs):
+    def __init__(self, fs_src, on_use=None, **kwargs):
         super().__init__(**kwargs)
-        self.material = Material(Technique(Program(self._VS_SRC, fs_src, parse_uniforms=True)))
+        program = Program(self._VS_SRC, fs_src, parse_uniforms=True)
+        self.material = Material(Technique(program),
+                                 on_use=on_use)
         self._initialized = False
     def init_gl(self, force=False):
         if force:
@@ -624,7 +625,7 @@ class OpenGLRenderer(object):
         gl.glEnable(gl.GL_DEPTH_TEST)
         gl.glViewport(0, 0, self.window_size[0], self.window_size[1])
     @contextmanager
-    def render(self, meshes=None):
+    def render(self, meshes=None, dt=None):
         """
         Render the given meshes.
 
@@ -640,7 +641,8 @@ class OpenGLRenderer(object):
             'camera_world_matrix': self.camera_matrix,
             'camera_position': self.camera_position,
             'view_matrix': self.view_matrix,
-            'projection_matrix': self.projection_matrix
+            'projection_matrix': self.projection_matrix,
+            'dt': dt
         }
         yield frame_data
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)

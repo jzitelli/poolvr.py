@@ -281,12 +281,12 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
             glyph_meshes = physics.glyph_meshes(game.t)
         else:
             glyph_meshes = []
-        with renderer.render(meshes=meshes+glyph_meshes):
+        game.step(speed*dt)
+        with renderer.render(meshes=meshes+glyph_meshes, dt=dt):
             for i, pos in enumerate(game.ball_positions):
                 ball_mesh_positions[i][:] = pos
                 set_matrix_from_quaternion(game.ball_quaternions[i], out=ball_mesh_rotations[i])
                 ball_shadow_mesh_positions[i][0::2] = pos[0::2]
-        game.step(speed*dt)
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:
             st = glfw.GetTime()
