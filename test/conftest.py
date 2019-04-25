@@ -320,3 +320,73 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
     renderer.shutdown()
     glfw.DestroyWindow(window)
     glfw.Terminate()
+
+
+@pytest.fixture
+def render_meshes(request):
+    should_screenshot = request.config.getoption('--screenshot')
+    xres, yres = [int(n) for n in request.config.getoption('--resolution').split('x')]
+    msaa = request.config.getoption('--msaa')
+    meshes = []
+    yield meshes
+
+    import OpenGL
+    OpenGL.ERROR_CHECKING = False
+    OpenGL.ERROR_LOGGING = False
+    OpenGL.ERROR_ON_COPY = True
+    import cyglfw3 as glfw
+    from poolvr.glfw_app import setup_glfw, capture_window
+    from poolvr.keyboard_controls import init_keyboard
+    logging.getLogger('poolvr.gl_rendering').setLevel(logging.WARNING)
+    window_size = [xres, yres]
+    title = request.function.__name__
+    window, renderer = setup_glfw(width=window_size[0],
+                                  height=window_size[1],
+                                  double_buffered=True,
+                                  multisample=int(msaa),
+                                  title=title)
+    camera_world_matrix = renderer.camera_matrix
+    camera_position = camera_world_matrix[3,:3]
+    camera_position[:] = 0
+    for mesh in meshes:
+        mesh.init_gl(force=True)
+    process_keyboard_input = init_keyboard(window)
+    def process_input(dt):
+        glfw.PollEvents()
+        process_keyboard_input(dt, camera_world_matrix)
+    _logger.info('entering render loop...')
+    stdout.flush()
+    nframes = 0
+    max_frame_time = 0.0
+    lt = glfw.GetTime()
+    while not glfw.WindowShouldClose(window):
+        t = glfw.GetTime()
+        dt = t - lt
+        lt = t
+        process_input(dt)
+        with renderer.render(meshes=meshes, dt=dt):
+            pass
+        max_frame_time = max(max_frame_time, dt)
+        if nframes == 0:
+            st = glfw.GetTime()
+        nframes += 1
+    if nframes > 1:
+        _logger.info('''...exited render loop:
+        average FPS: %f
+        minimum FPS: %f
+        average frame time: %f
+        maximum frame time: %f
+        ''',
+                     (nframes - 1) / (t - st),
+                     max_frame_time,
+                     1 / max_frame_time,
+                     (t - st) / (nframes - 1))
+    if should_screenshot:
+        with renderer.render(meshes=meshes):
+            pass
+        capture_window(window,
+                       filename=os.path.join(os.path.dirname(__file__), 'screenshots',
+                                             title.replace(' ', '_') + '.png'))
+    renderer.shutdown()
+    glfw.DestroyWindow(window)
+    glfw.Terminate()
