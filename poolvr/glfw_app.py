@@ -61,7 +61,7 @@ def setup_glfw(width=800, height=600, double_buffered=False, title="poolvr.py 0.
     renderer = OpenGLRenderer(window_size=(width, height), znear=0.1, zfar=1000)
     def on_resize(window, width, height):
         gl.glViewport(0, 0, width, height)
-        renderer.window_size = (width, height)
+        renderer.window_size[:] = (width, height)
         renderer.update_projection_matrix()
     glfw.SetWindowSizeCallback(window, on_resize)
     gl.glViewport(0, 0, width, height)

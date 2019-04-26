@@ -608,7 +608,7 @@ class OpenGLRenderer(object):
         Renderer for non-VR OpenGL renderering
 
         """
-        self.window_size = window_size
+        self.window_size = np.array(window_size, dtype=np.float32)
         self.znear = znear
         self.zfar = zfar
         self.camera_matrix = np.eye(4, dtype=np.float32)
@@ -642,6 +642,7 @@ class OpenGLRenderer(object):
             'camera_position': self.camera_position,
             'view_matrix': self.view_matrix,
             'projection_matrix': self.projection_matrix,
+            'window_size': self.window_size,
             'dt': dt
         }
         yield frame_data

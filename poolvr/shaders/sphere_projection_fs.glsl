@@ -1,6 +1,9 @@
 #version 410 core
 uniform float iTime = 0.0;
 uniform vec3 camera_position = vec3(0.0);
+uniform vec2 iResolution = vec2(1024.0, 768.0);
+uniform mat4 u_view;
+uniform vec3[16] ball_positions;
 
 // The MIT License
 // Copyright © 2014 Inigo Quilez
@@ -186,22 +189,28 @@ float gridTextureGradBox( in vec2 p, in vec2 ddx, in vec2 ddy )
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
-    vec2 iResolution = vec2(1024.0, 768.0);
 	vec2 p = (-iResolution.xy + 2.0*fragCoord.xy) / iResolution.y;
 
-	float fov = 1.0;
+	float fov = 1.3;
 
-	float an = 12.0 + 0.5*iTime;
-	vec3 ro = camera_position + vec3(0.0, 0.0, 3.0); // + vec3( 3.0*cos(an), 0.0, 3.0*sin(an) );
-	vec3 ta = camera_position + vec3( 0.0, 0.0, 0.0 );
+	// float an = 12.0 + 0.5*iTime;
+	// vec3 ro = vec3( 3.0*cos(an), 0.0, 3.0*sin(an) );
+	// vec3 ta = vec3( 0.0, 0.0, 0.0 );
+	vec3 ro = camera_position;
+	vec3 ta = camera_position - vec3( 0.0, 0.0, 3.0 );
 	vec3 ww = normalize( ta - ro );
 	vec3 uu = normalize( cross(ww,vec3(0.0,1.0,0.0) ) );
 	vec3 vv = normalize( cross(uu,ww));
-	vec3 rd = normalize( p.x*uu + p.y*vv + fov*ww );
 	mat4 cam = mat4( uu.x, uu.y, uu.z, 0.0,
-					 vv.x, vv.y, vv.z, 0.0,
-					 ww.x, ww.y, ww.z, 0.0,
-					 -dot(uu,ro), -dot(vv,ro), -dot(ww,ro), 1.0 );
+			 vv.x, vv.y, vv.z, 0.0,
+			 ww.x, ww.y, ww.z, 0.0,
+			 -dot(uu,ro), -dot(vv,ro), -dot(ww,ro), 1.0 );
+	// mat4 cam = u_view;
+	// mat4 camT = transpose(cam);
+	// vec3 uu = camT[0].xyz;
+	// vec3 vv = camT[1].xyz;
+	// vec3 ww = camT[2].xyz;
+	vec3 rd = normalize( p.x*uu + p.y*vv + fov*ww );
 
 	vec4 sph1 = vec4(-2.0, 1.0,0.0,1.1);
 	vec4 sph2 = vec4( 3.0, 1.5,1.0,1.2);
