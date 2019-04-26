@@ -23,41 +23,41 @@ def test_frag_box(render_meshes):
     render_meshes.append(mesh)
 
 
-def test_cone_mesh(gl_rendering, meshes):
+def test_cone_mesh(render_meshes):
     from poolvr.gl_primitives import ConeMesh
     material = Material(LAMBERT_TECHNIQUE, values={'u_color': [1.0, 1.0, 0.0, 0.0]})
     mesh = ConeMesh(material, radius=0.15, height=0.3)
     for prim in mesh.primitives[material]:
         prim.attributes['a_position'] = prim.attributes['vertices']
     mesh.world_matrix[3,2] = -3
-    meshes.append(mesh)
+    render_meshes.append(mesh)
 
 
-def test_sphere_mesh(gl_rendering, meshes):
+def test_sphere_mesh(render_meshes):
     from poolvr.gl_primitives import SpherePrimitive
     material = Material(LAMBERT_TECHNIQUE, values={'u_color': [0.0, 1.0, 1.0, 0.0]})
     prim = SpherePrimitive(radius=0.1)
     prim.attributes['a_position'] = prim.attributes['vertices']
     mesh = Mesh({material: [prim]})
     mesh.world_matrix[3,2] = -3
-    meshes.append(mesh)
+    render_meshes.append(mesh)
 
 
-def test_cylinder_mesh(gl_rendering, meshes):
+def test_cylinder_mesh(render_meshes):
     from poolvr.gl_primitives import CylinderMesh
     material = Material(LAMBERT_TECHNIQUE, values={'u_color': [1.0, 1.0, 0.0, 0.0]})
     mesh = CylinderMesh(material=material, radius=0.15, height=0.5)
     for prim in mesh.primitives[material]:
         prim.attributes['a_position'] = prim.attributes['vertices']
     mesh.world_matrix[3,2] = -3
-    meshes.append(mesh)
+    render_meshes.append(mesh)
 
 
-def test_arrow_mesh(gl_rendering, meshes):
+def test_arrow_mesh(render_meshes):
     from poolvr.gl_primitives import ArrowMesh
     material = Material(LAMBERT_TECHNIQUE, values={'u_color': [1.0, 1.0, 0.0, 0.0]})
     mesh = ArrowMesh(material=material)
     for prim in mesh.primitives[material]:
         prim.attributes['a_position'] = prim.attributes['vertices']
     mesh.world_matrix[3,2] = -3
-    meshes.append(mesh)
+    render_meshes.append(mesh)

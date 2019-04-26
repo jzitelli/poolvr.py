@@ -281,12 +281,12 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
             glyph_meshes = physics.glyph_meshes(game.t)
         else:
             glyph_meshes = []
-        with renderer.render(meshes=meshes+glyph_meshes):
+        game.step(speed*dt)
+        with renderer.render(meshes=meshes+glyph_meshes, dt=dt):
             for i, pos in enumerate(game.ball_positions):
                 ball_mesh_positions[i][:] = pos
                 set_matrix_from_quaternion(game.ball_quaternions[i], out=ball_mesh_rotations[i])
                 ball_shadow_mesh_positions[i][0::2] = pos[0::2]
-        game.step(speed*dt)
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:
             st = glfw.GetTime()
@@ -324,10 +324,14 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
 
 @pytest.fixture
 def render_meshes(request):
+    should_render = request.config.getoption('--render')
     should_screenshot = request.config.getoption('--screenshot')
+    meshes = []
+    if not (should_render or should_screenshot):
+        yield meshes
+        return
     xres, yres = [int(n) for n in request.config.getoption('--resolution').split('x')]
     msaa = request.config.getoption('--msaa')
-    meshes = []
     yield meshes
 
     import OpenGL
@@ -347,7 +351,8 @@ def render_meshes(request):
                                   title=title)
     camera_world_matrix = renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
-    camera_position[:] = 0
+    camera_position[1] = 0.6
+    camera_position[2] = 0.75
     for mesh in meshes:
         mesh.init_gl(force=True)
     process_keyboard_input = init_keyboard(window)
@@ -370,6 +375,7 @@ def render_meshes(request):
         if nframes == 0:
             st = glfw.GetTime()
         nframes += 1
+        glfw.SwapBuffers(window)
     if nframes > 1:
         _logger.info('''...exited render loop:
         average FPS: %f
@@ -384,6 +390,7 @@ def render_meshes(request):
     if should_screenshot:
         with renderer.render(meshes=meshes):
             pass
+        glfw.SwapBuffers(window)
         capture_window(window,
                        filename=os.path.join(os.path.dirname(__file__), 'screenshots',
                                              title.replace(' ', '_') + '.png'))
