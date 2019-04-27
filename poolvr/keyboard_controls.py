@@ -17,8 +17,6 @@ key_state = defaultdict(bool)
 def __on_keydown(window, key, scancode, action, mods):
     if key == glfw.KEY_ESCAPE and action == glfw.PRESS:
         glfw.SetWindowShouldClose(window, gl.GL_TRUE)
-    elif key == glfw.KEY_R and action == glfw.PRESS:
-        glfw
     elif action == glfw.PRESS:
         key_state[key] = True
     elif action == glfw.RELEASE:
@@ -44,9 +42,6 @@ def init_keyboard(window):
         camera_world_matrix[0,2] = -sin
         camera_world_matrix[2,0] = sin
         camera_world_matrix[2,2] = cos
-        # camera_world_matrix[3,0] += dt * KB_MOVE_SPEED * (key_state[glfw.KEY_D] - key_state[glfw.KEY_A])
-        # camera_world_matrix[3,1] += dt * KB_MOVE_SPEED * (key_state[glfw.KEY_Q] - key_state[glfw.KEY_Z])
-        # camera_world_matrix[3,2] += dt * KB_MOVE_SPEED * (key_state[glfw.KEY_S] - key_state[glfw.KEY_W])
         dist = dt * KB_MOVE_SPEED
         camera_world_matrix[3,:3] += \
             dist*(key_state[glfw.KEY_S]-key_state[glfw.KEY_W]) * camera_world_matrix[2,:3] \

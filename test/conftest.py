@@ -341,8 +341,7 @@ def render_meshes(request):
     logging.getLogger('poolvr.gl_rendering').setLevel(logging.WARNING)
     window_size = [xres, yres]
     title = request.function.__name__
-    window, renderer = setup_glfw(width=window_size[0],
-                                  height=window_size[1],
+    window, renderer = setup_glfw(window_size=window_size,
                                   double_buffered=True,
                                   multisample=int(msaa),
                                   title=title)
@@ -354,7 +353,7 @@ def render_meshes(request):
 
     camera_world_matrix = renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
-    camera_position[1] = 0.6
+    camera_position[1] = 0.5
     camera_position[2] = 0.75
     for mesh in meshes:
         mesh.init_gl(force=True)

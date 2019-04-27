@@ -1,19 +1,14 @@
 import sys
-import os.path
 import logging
 from itertools import chain
 import numpy as np
-import OpenGL
-OpenGL.ERROR_CHECKING = False
-OpenGL.ERROR_LOGGING = False
-OpenGL.ERROR_ON_COPY = True
-import OpenGL.GL as gl
 import cyglfw3 as glfw
 
 
 _logger = logging.getLogger('poolvr')
 
 
+from .glfw_app import setup_glfw
 from .gl_rendering import OpenGLRenderer, set_quaternion_from_matrix, set_matrix_from_quaternion
 from .gl_techniques import LAMBERT_TECHNIQUE
 try:
@@ -31,63 +26,6 @@ from .mouse_controls import init_mouse
 from .sound import init_sound
 from .room import floor_mesh
 # from .gl_text import TexturedText
-
-
-BG_COLOR = (0.0, 0.0, 0.0, 0.0)
-
-
-# TODO: pkgutils way
-TEXTURES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            os.path.pardir,
-                            'textures')
-
-
-_window_renderer = None
-
-
-def setup_glfw(window_size=(800,600), double_buffered=False,
-               title="poolvr.py 0.0.1", multisample=0):
-    if not glfw.Init():
-        raise Exception('failed to initialize glfw')
-    if not double_buffered:
-        glfw.WindowHint(glfw.DOUBLEBUFFER, False)
-        glfw.SwapInterval(0)
-    if multisample:
-        glfw.WindowHint(glfw.SAMPLES, multisample)
-    width, height = window_size
-    window = glfw.CreateWindow(width, height, title)
-    if not window:
-        glfw.Terminate()
-        raise Exception('failed to create glfw window')
-    glfw.MakeContextCurrent(window)
-    _logger.info('GL_VERSION: %s', gl.glGetString(gl.GL_VERSION))
-    renderer = OpenGLRenderer(window_size=(width, height), znear=0.1, zfar=1000)
-    global _window_renderer
-    _window_renderer = renderer
-    def on_resize(window, width, height):
-        global _window_renderer
-        gl.glViewport(0, 0, width, height)
-        _window_renderer.window_size = (width, height)
-        _window_renderer.update_projection_matrix()
-    glfw.SetWindowSizeCallback(window, on_resize)
-    renderer.init_gl()
-    on_resize(window, window_size[0], window_size[1])
-    return window, renderer
-
-
-def capture_window(window,
-                   filename='screenshot.png'):
-    import PIL
-    if not filename.endswith('.png'):
-        filename += '.png'
-    _logger.info('saving screen capture...')
-    mWidth, mHeight = glfw.GetWindowSize(window)
-    gl.glPixelStorei(gl.GL_PACK_ALIGNMENT, 1)
-    pixels = gl.glReadPixels(0, 0, mWidth, mHeight, gl.GL_RGB, gl.GL_UNSIGNED_BYTE)
-    pil_image = PIL.Image.frombytes('RGB', (mWidth, mHeight), pixels)
-    pil_image = pil_image.transpose(PIL.Image.FLIP_TOP_BOTTOM)
-    pil_image.save(filename)
-    _logger.info('...saved screen capture to "%s"', filename)
 
 
 def main(window_size=(800,600),

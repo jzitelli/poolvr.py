@@ -627,7 +627,7 @@ class OpenGLRenderer(object):
         gl.glEnable(gl.GL_DEPTH_TEST)
         gl.glViewport(0, 0, self.window_size[0], self.window_size[1])
     @contextmanager
-    def render(self, meshes=None, dt=None):
+    def render(self, meshes=None, **kwargs):
         """
         Render the given meshes.
 
@@ -637,16 +637,17 @@ class OpenGLRenderer(object):
 
         :param meshes *optional*: iterable collection of :ref:`Mesh`-like objects
         """
-        self.view_matrix[3,:3] = -self.camera_matrix[3,:3]
-        self.view_matrix[:3,:3] = self.camera_matrix[:3,:3].T
+        # self.view_matrix[3,:3] = -self.camera_matrix[3,:3]
+        # self.view_matrix[:3,:3] = self.camera_matrix[:3,:3].T
+        self.view_matrix = np.linalg.inv(self.camera_matrix)
         frame_data = {
             'camera_world_matrix': self.camera_matrix,
             'camera_position': self.camera_position,
             'view_matrix': self.view_matrix,
             'projection_matrix': self.projection_matrix,
             'window_size': self.window_size,
-            'dt': dt
         }
+        frame_data.update(kwargs)
         yield frame_data
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         if meshes is not None:
