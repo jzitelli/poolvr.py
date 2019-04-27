@@ -583,13 +583,15 @@ void main() { gl_Position = vec4(quadVertices[gl_VertexID], 0.0, 1.0); }
         _logger.info('%s.init_gl: OK' % self.__class__.__name__)
         self._initialized = True
     def update_world_matrices(self, world_matrix=None):
+        self.world_matrix = np.eye(4)
         if world_matrix is None:
-            world_matrix = np.eye(4)
+            world_matrix = self.world_matrix
         for child in self.children:
             child.update_world_matrices(world_matrix=world_matrix)
     def draw(self, **frame_data):
         super().draw(**frame_data)
-        self.material.use(**frame_data)
+        view = frame_data.get('view_matrix', None)
+        self.material.use(u_view=view, **frame_data)
         gl.glDrawArrays(gl.GL_TRIANGLE_STRIP, 0, 4)
         try:
             if CHECK_GL_ERRORS:
