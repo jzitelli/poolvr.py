@@ -38,5 +38,5 @@ u_light_position = light_position.copy()
 
 floor_material = Material(PHONG_NORMAL_DIFFUSE_ROUGHNESS_TECHNIQUE,
                           values={'u_light_position': u_light_position},
-                          on_use=lambda self, frame_data: frame_data['view_matrix'].T.dot(light_position, out=u_light_position))
+                          on_use=lambda self, **frame_data: frame_data['view_matrix'].T.dot(light_position, out=u_light_position))
 floor_mesh = Mesh({floor_material: [floor_geom]})

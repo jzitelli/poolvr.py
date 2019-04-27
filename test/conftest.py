@@ -326,14 +326,11 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
 def render_meshes(request):
     should_render = request.config.getoption('--render')
     should_screenshot = request.config.getoption('--screenshot')
-    meshes = []
     if not (should_render or should_screenshot):
-        yield meshes
+        yield None
         return
     xres, yres = [int(n) for n in request.config.getoption('--resolution').split('x')]
     msaa = request.config.getoption('--msaa')
-    yield meshes
-
     import OpenGL
     OpenGL.ERROR_CHECKING = False
     OpenGL.ERROR_LOGGING = False
@@ -349,6 +346,12 @@ def render_meshes(request):
                                   double_buffered=True,
                                   multisample=int(msaa),
                                   title=title)
+    class Yielded(list):
+        def __init__(self, renderer, window):
+            self.renderer = renderer; self.window = window
+    meshes = Yielded(renderer, window)
+    yield meshes
+
     camera_world_matrix = renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
     camera_position[1] = 0.6
@@ -388,7 +391,7 @@ def render_meshes(request):
                      1 / max_frame_time,
                      (t - st) / (nframes - 1))
     if should_screenshot:
-        with renderer.render(meshes=meshes):
+        with renderer.render(meshes=meshes, dt=0.0):
             pass
         glfw.SwapBuffers(window)
         capture_window(window,

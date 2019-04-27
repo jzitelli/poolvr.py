@@ -9,6 +9,8 @@ from poolvr.gl_techniques import LAMBERT_TECHNIQUE
 
 
 def test_frag_box(render_meshes):
+    if render_meshes is None:
+        return
     import poolvr
     from poolvr.gl_rendering import FragBox
     with open(os.path.join(os.path.dirname(poolvr.__file__), 'shaders', 'sphere_projection_fs.glsl')) as f:
@@ -21,6 +23,8 @@ def test_frag_box(render_meshes):
         material.values['camera_position'] = frame_data['camera_position']
         material.values['iResolution'] = frame_data['window_size']
     mesh = FragBox(fs_src, on_use=on_use)
+    renderer = render_meshes.renderer
+    renderer.camera_matrix[3,2] += 3.0
     render_meshes.append(mesh)
 
 
