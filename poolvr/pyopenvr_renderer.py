@@ -32,7 +32,9 @@ class OpenVRRenderer(object):
         self.eye_transforms = (np.asarray(matrixForOpenVRMatrix(self.vr_system.getEyeToHeadTransform(openvr.Eye_Left)).I),
                                np.asarray(matrixForOpenVRMatrix(self.vr_system.getEyeToHeadTransform(openvr.Eye_Right)).I))
         self.view_matrices = (np.empty((4,4), dtype=np.float32), np.empty((4,4), dtype=np.float32))
+        self.camera_matrices = (np.eye(4, dtype=np.float32), np.eye(4, dtype=np.float32))
         self.hmd_matrix = np.eye(4, dtype=np.float32)
+        self.hmd_matrix_inv = np.eye(4, dtype=np.float32)
         self.vr_event = openvr.VREvent_t()
         self._poll_for_controllers()
 
@@ -44,7 +46,7 @@ class OpenVRRenderer(object):
         pass
 
     @contextmanager
-    def render(self, meshes=None):
+    def render(self, meshes=None, **kwargs):
         self.vr_compositor.waitGetPoses(self.poses, openvr.k_unMaxTrackedDeviceCount, None, 0)
         hmd_pose = self.poses[openvr.k_unTrackedDeviceIndex_Hmd]
         if not hmd_pose.bPoseIsValid:
@@ -55,8 +57,6 @@ class OpenVRRenderer(object):
         poses = [hmd_34]
         velocities = [np.ctypeslib.as_array(hmd_pose.vVelocity.v)]
         angular_velocities = [np.ctypeslib.as_array(hmd_pose.vAngularVelocity.v)]
-        self.hmd_matrix[:,:3] = hmd_34.T
-        view = np.linalg.inv(self.hmd_matrix)
         for i in self._controller_indices:
             controller_pose = self.poses[i]
             if controller_pose.bPoseIsValid:
@@ -65,9 +65,19 @@ class OpenVRRenderer(object):
                 poses.append(pose_34)
                 velocities.append(np.ctypeslib.as_array(controller_pose.vVelocity.v))
                 angular_velocities.append(np.ctypeslib.as_array(controller_pose.vAngularVelocity.v))
+        hmd_matrix = self.hmd_matrix
+        hmd_matrix_inv = self.hmd_matrix_inv
+        hmd_matrix[:,:3] = hmd_34.T
+        hmd_matrix_inv[:3,:3] = hmd_34[:,:3]
+        np.dot(hmd_matrix[:3,:3], hmd_matrix[3,:3], out=hmd_matrix_inv[3,:3])
+        hmd_matrix_inv[3,:3] *= -1
         for eye in (0,1):
-            view.dot(self.eye_transforms[eye], out=self.view_matrices[eye])
-
+            view_matrix = self.view_matrices[eye]
+            camera_matrix = self.camera_matrices[eye]
+            hmd_matrix_inv.dot(self.eye_transforms[eye], out=view_matrix)
+            camera_matrix[:3,:3] = view_matrix[:3,:3].T
+            np.dot(camera_matrix[:3,:3], view_matrix[3,:3], out=camera_matrix[3,:3])
+            camera_matrix[3,:3] *= -1
         frame_data = {
             'hmd_pose': hmd_34,
             'hmd_velocity': velocities[0],
@@ -76,10 +86,11 @@ class OpenVRRenderer(object):
             'controller_poses': poses[1:],
             'controller_velocities': velocities[1:],
             'controller_angular_velocities': angular_velocities[1:],
+            'camera_matrices': self.camera_matrices,
             'view_matrices': self.view_matrices,
             'projection_matrices': self.projection_matrices,
         }
-
+        frame_data.update(kwargs)
         yield frame_data
 
         for eye in (0,1):
@@ -87,6 +98,8 @@ class OpenVRRenderer(object):
             gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, self.vr_framebuffers[eye].fb)
             gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
             frame_data['view_matrix'] = self.view_matrices[eye]
+            frame_data['camera_matrix'] = self.camera_matrices[eye]
+            frame_data['camera_position'] = self.camera_matrices[eye][3,:3]
             frame_data['projection_matrix'] = self.projection_matrices[eye]
             if meshes is not None:
                 for mesh in meshes:

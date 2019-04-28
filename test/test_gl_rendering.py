@@ -19,7 +19,8 @@ def test_frag_box(render_meshes):
         if 'iTime' not in material.values:
             material.values['iTime'] = 0.0
         material.values['iTime'] += frame_data.get('dt', 1.0/60)
-        material.values['u_view_matrix'] = frame_data['view_matrix']
+        material.values['u_view'] = frame_data['view_matrix']
+        material.values['u_camera'] = frame_data['camera_matrix']
         material.values['camera_position'] = frame_data['camera_position']
         material.values['iResolution'] = frame_data['window_size']
     mesh = FragBox(fs_src, on_use=on_use)

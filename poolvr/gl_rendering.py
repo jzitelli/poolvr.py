@@ -621,13 +621,15 @@ class OpenGLRenderer(object):
 
         :param meshes *optional*: iterable collection of :ref:`Mesh`-like objects
         """
-        self.view_matrix[:3,:3] = self.camera_matrix[:3,:3].T
-        np.dot(self.camera_matrix[:3,:3], self.camera_matrix[3,:3], out=self.view_matrix[3,:3])
-        self.view_matrix[3,:3] *= -1
+        camera = self.camera_matrix
+        view = self.view_matrix
+        view[:3,:3] = camera[:3,:3].T
+        np.dot(camera[:3,:3], camera[3,:3], out=view[3,:3])
+        view[3,:3] *= -1
         frame_data = {
-            'camera_world_matrix': self.camera_matrix,
+            'camera_matrix': camera,
             'camera_position': self.camera_position,
-            'view_matrix': self.view_matrix,
+            'view_matrix': view,
             'projection_matrix': self.projection_matrix,
             'window_size': self.window_size,
         }
