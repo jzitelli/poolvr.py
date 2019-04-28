@@ -45,8 +45,8 @@ class GLRendering(object):
 
 
 class Program(GLRendering):
-    ATTRIBUTE_DECL_RE = re.compile(r"attribute\s+(?P<type_spec>\w+)\s+(?P<attribute_name>\w+)\s*;")
-    UNIFORM_DECL_RE = re.compile(r"uniform\s+(?P<type_spec>\w+)\s+(?P<uniform_name>\w+)\s*(=\s*(?P<initialization>.*)\s*;|;)")
+    ATTRIBUTE_DECL_RE = re.compile(r"\s*attribute\s+(?P<type_spec>\w+)\s+(?P<attribute_name>\w+)\s*;")
+    UNIFORM_DECL_RE = re.compile(r"\s*uniform\s+(?P<type_spec>\w+)\s+(?P<uniform_name>\w+)\s*(=\s*(?P<initialization>.*)\s*;|;)")
     _current = None
     def __init__(self, vs_src, fs_src, parse_attributes=True, parse_uniforms=True, name=None):
         """
@@ -278,6 +278,19 @@ class CubeTexture(Texture):
 
 class Material(GLRendering):
     _current = None
+    TYPE_TO_UNIFORM_FN = {
+        gl.GL_INT: gl.glUniform1i,
+        gl.GL_INT_VEC2: lambda location, value: gl.glUniform2i(location, *value),
+        gl.GL_INT_VEC3: lambda location, value: gl.glUniform3i(location, *value),
+        gl.GL_INT_VEC4: lambda location, value: gl.glUniform4i(location, *value),
+        gl.GL_FLOAT: gl.glUniform1f,
+        gl.GL_FLOAT_VEC2: lambda location, value: gl.glUniform2f(location, *value),
+        gl.GL_FLOAT_VEC3: lambda location, value: gl.glUniform3f(location, *value),
+        gl.GL_FLOAT_VEC4: lambda location, value: gl.glUniform4f(location, *value),
+        gl.GL_FLOAT_MAT2: lambda location, value: gl.glUniformMatrix2fv(location, 1, False, value),
+        gl.GL_FLOAT_MAT3: lambda location, value: gl.glUniformMatrix3fv(location, 1, False, value),
+        gl.GL_FLOAT_MAT4: lambda location, value: gl.glUniformMatrix4fv(location, 1, False, value),
+    }
     def __init__(self, technique, values=None, textures=None, on_use=None, on_release=None, name=None):
         """
         A Material object is a customization of a :ref:`Technique` with a
@@ -316,12 +329,6 @@ class Material(GLRendering):
         self._initialized = True
         _logger.debug('%s.init_gl: OK', self.__class__.__name__)
     def use(self,
-            u_view=None,
-            u_modelview=None,
-            u_projection=None,
-            u_modelview_inverse_transpose=None,
-            u_modelview_inverse=None,
-            u_model=None,
             **frame_data):
         # if Material._current is self:
         #     return
@@ -329,12 +336,6 @@ class Material(GLRendering):
             self.init_gl()
         self.technique.use()
         if self._on_use:
-            frame_data.update({'u_view': u_view,
-                               'u_modelview': u_modelview,
-                               'u_projection': u_projection,
-                               'u_modelview_inverse_transpose': u_modelview_inverse_transpose,
-                               'u_modelview_inverse': u_modelview_inverse,
-                               'u_model': u_model})
             self._on_use(self, **frame_data)
         tex_unit = 0
         for uniform_name, location in self.technique.uniform_locations.items():
@@ -349,29 +350,12 @@ class Material(GLRendering):
                 tex_unit += 1
             elif uniform_name in self.values:
                 value = self.values[uniform_name]
-                if uniform_type == gl.GL_FLOAT:
-                    gl.glUniform1f(location, value)
-                elif uniform_type == gl.GL_FLOAT_VEC2:
-                    gl.glUniform2f(location, *value)
-                elif uniform_type == gl.GL_FLOAT_VEC3:
-                    gl.glUniform3f(location, *value)
-                elif uniform_type == gl.GL_FLOAT_VEC4:
-                    gl.glUniform4f(location, *value)
+                if uniform_type in self.TYPE_TO_UNIFORM_FN:
+                    self.TYPE_TO_UNIFORM_FN[uniform_type](location, value)
                 else:
                     raise Exception('unhandled uniform type: %d' % uniform_type)
-            else:
-                if u_modelview is not None and uniform_name == 'u_modelview':
-                    gl.glUniformMatrix4fv(location, 1, False, u_modelview)
-                elif u_modelview_inverse is not None and uniform_name == 'u_modelview_inverse':
-                    gl.glUniformMatrix4fv(location, 1, False, u_modelview_inverse)
-                elif u_model is not None and uniform_name == 'u_model':
-                    gl.glUniformMatrix4fv(location, 1, False, u_model)
-                elif u_view is not None and uniform_name == 'u_view':
-                    gl.glUniformMatrix4fv(location, 1, False, u_view)
-                elif u_projection is not None and uniform_name == 'u_projection':
-                    gl.glUniformMatrix4fv(location, 1, False, u_projection)
-                elif u_modelview_inverse_transpose is not None and uniform_name == 'u_modelview_inverse_transpose':
-                    gl.glUniformMatrix3fv(location, 1, False, u_modelview_inverse_transpose)
+            elif uniform_name in frame_data and uniform_type in self.TYPE_TO_UNIFORM_FN:
+                self.TYPE_TO_UNIFORM_FN[uniform_type](location, frame_data[uniform_name])
             if CHECK_GL_ERRORS:
                 err = gl.glGetError()
                 if err != gl.GL_NO_ERROR:
@@ -637,9 +621,9 @@ class OpenGLRenderer(object):
 
         :param meshes *optional*: iterable collection of :ref:`Mesh`-like objects
         """
-        # self.view_matrix[3,:3] = -self.camera_matrix[3,:3]
-        # self.view_matrix[:3,:3] = self.camera_matrix[:3,:3].T
-        self.view_matrix = np.linalg.inv(self.camera_matrix)
+        self.view_matrix[:3,:3] = self.camera_matrix[:3,:3].T
+        np.dot(self.camera_matrix[:3,:3], self.camera_matrix[3,:3], out=self.view_matrix[3,:3])
+        self.view_matrix[3,:3] *= -1
         frame_data = {
             'camera_world_matrix': self.camera_matrix,
             'camera_position': self.camera_position,
