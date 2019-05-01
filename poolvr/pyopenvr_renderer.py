@@ -16,7 +16,8 @@ class OpenVRRenderer(object):
     def __init__(self, multisample=0, znear=0.1, zfar=1000, window_size=(960,1080)):
         self.vr_system = openvr.init(openvr.VRApplication_Scene)
         w, h = self.vr_system.getRecommendedRenderTargetSize()
-        self.window_size = window_size
+        self.render_target_size = np.array((w, h), dtype=np.float32)
+        self.window_size = np.array(window_size, dtype=np.int64)
         self.multisample = multisample
         self.vr_framebuffers = (OpenVRFramebuffer(w, h, multisample=multisample),
                                 OpenVRFramebuffer(w, h, multisample=multisample))
@@ -27,15 +28,26 @@ class OpenVRRenderer(object):
         self.vr_framebuffers[1].init_gl()
         poses_t = openvr.TrackedDevicePose_t * openvr.k_unMaxTrackedDeviceCount
         self.poses = poses_t()
+        self.znear, self.zfar = znear, zfar
         self.projection_matrices = (np.asarray(matrixForOpenVRMatrix(self.vr_system.getProjectionMatrix(openvr.Eye_Left, znear, zfar))),
                                     np.asarray(matrixForOpenVRMatrix(self.vr_system.getProjectionMatrix(openvr.Eye_Right, znear, zfar))))
+        self.projection_lrbts = (np.array(self.vr_system.getProjectionRaw(openvr.Eye_Left)),
+                                 np.array(self.vr_system.getProjectionRaw(openvr.Eye_Right)))
+        _logger.debug('self.projection_lrtbs:\n%s\n%s',
+                      self.projection_lrbts[0], self.projection_lrbts[1])
+        self.eye_to_head_transforms = (np.asarray(matrixForOpenVRMatrix(self.vr_system.getEyeToHeadTransform(openvr.Eye_Left))),
+                                       np.asarray(matrixForOpenVRMatrix(self.vr_system.getEyeToHeadTransform(openvr.Eye_Right))))
         self.eye_transforms = (np.asarray(matrixForOpenVRMatrix(self.vr_system.getEyeToHeadTransform(openvr.Eye_Left)).I),
                                np.asarray(matrixForOpenVRMatrix(self.vr_system.getEyeToHeadTransform(openvr.Eye_Right)).I))
-        self.view_matrices = (np.empty((4,4), dtype=np.float32), np.empty((4,4), dtype=np.float32))
+        _logger.debug('self.eye_to_head_transforms:\n%s\n%s\nself.eye_transforms:\n%s\n%s',
+                      self.eye_to_head_transforms[0], self.eye_to_head_transforms[1],
+                      self.eye_transforms[0], self.eye_transforms[1])
+        self.eye_matrices = (np.eye(4, dtype=np.float32), np.eye(4, dtype=np.float32))
         self.camera_matrices = (np.eye(4, dtype=np.float32), np.eye(4, dtype=np.float32))
         self.hmd_matrix = np.eye(4, dtype=np.float32)
         self.hmd_matrix_inv = np.eye(4, dtype=np.float32)
         self.vr_event = openvr.VREvent_t()
+        self._nframes = 0
         self._poll_for_controllers()
 
     def init_gl(self, clear_color=(0.0, 0.0, 0.0, 0.0)):
@@ -43,11 +55,17 @@ class OpenVRRenderer(object):
         gl.glEnable(gl.GL_DEPTH_TEST)
 
     def update_projection_matrix(self):
-        pass
+        znear, zfar = self.znear, self.zfar
+        self.projection_matrices = (np.asarray(matrixForOpenVRMatrix(self.vr_system.getProjectionMatrix(openvr.Eye_Left, znear, zfar))),
+                                    np.asarray(matrixForOpenVRMatrix(self.vr_system.getProjectionMatrix(openvr.Eye_Right, znear, zfar))))
+        self.projection_ltrbs = (np.array(self.vr_system.getProjectionRaw(openvr.Eye_Left)),
+                                 np.array(self.vr_system.getProjectionRaw(openvr.Eye_Right)))
+
 
     @contextmanager
-    def render(self, meshes=None, **kwargs):
+    def render(self, meshes=None, **frame_data):
         self.vr_compositor.waitGetPoses(self.poses, openvr.k_unMaxTrackedDeviceCount, None, 0)
+        # self.update_projection_matrix()
         hmd_pose = self.poses[openvr.k_unTrackedDeviceIndex_Hmd]
         if not hmd_pose.bPoseIsValid:
             yield None
@@ -68,17 +86,17 @@ class OpenVRRenderer(object):
         hmd_matrix = self.hmd_matrix
         hmd_matrix_inv = self.hmd_matrix_inv
         hmd_matrix[:,:3] = hmd_34.T
-        hmd_matrix_inv[:3,:3] = hmd_34[:,:3]
-        np.dot(hmd_matrix[:3,:3], hmd_matrix[3,:3], out=hmd_matrix_inv[3,:3])
-        hmd_matrix_inv[3,:3] *= -1
+        # hmd_matrix_inv[:3,:3] = hmd_34[:,:3]
+        # np.dot(hmd_matrix[:3,:3], hmd_matrix[3,:3], out=hmd_matrix_inv[3,:3])
+        # hmd_matrix_inv[3,:3] *= -1
+        hmd_matrix_inv[:] = np.linalg.inv(hmd_matrix)
         for eye in (0,1):
-            view_matrix = self.view_matrices[eye]
-            camera_matrix = self.camera_matrices[eye]
-            hmd_matrix_inv.dot(self.eye_transforms[eye], out=view_matrix)
-            camera_matrix[:3,:3] = view_matrix[:3,:3].T
-            np.dot(camera_matrix[:3,:3], view_matrix[3,:3], out=camera_matrix[3,:3])
-            camera_matrix[3,:3] *= -1
-        frame_data = {
+            hmd_matrix_inv.dot(self.eye_transforms[eye], out=self.eye_matrices[eye])
+            self.camera_matrices[eye][:] = np.linalg.inv(self.eye_matrices[eye])
+            # camera_matrix = self.camera_matrices[eye]
+            # camera_matrix[:] = hmd_matrix
+            # camera_matrix[3,:3] += np.dot(camera_matrix[:3,:3], self.self.eye_to_head_transforms[eye][3,:3])
+        frame_data.update({
             'hmd_pose': hmd_34,
             'hmd_velocity': velocities[0],
             'hmd_angular_velocity': angular_velocities[0],
@@ -87,20 +105,31 @@ class OpenVRRenderer(object):
             'controller_velocities': velocities[1:],
             'controller_angular_velocities': angular_velocities[1:],
             'camera_matrices': self.camera_matrices,
-            'view_matrices': self.view_matrices,
+            'eye_matrices': self.eye_matrices,
             'projection_matrices': self.projection_matrices,
-        }
-        frame_data.update(kwargs)
+            'projection_lrbts': self.projection_lrbts,
+            'window_size': self.render_target_size,
+            'iResolution': self.render_target_size,
+            'znear': self.znear,
+            'zfar': self.zfar
+        })
+        if self._nframes % 90 == 0:
+            _logger.debug('yielding frame_data:\n\n%s\n\n',
+                          '\n'.join('%s:\n%s' % item for item in frame_data.items()))
         yield frame_data
 
         for eye in (0,1):
             gl.glViewport(0, 0, self.vr_framebuffers[eye].width, self.vr_framebuffers[eye].height)
             gl.glBindFramebuffer(gl.GL_FRAMEBUFFER, self.vr_framebuffers[eye].fb)
             gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
-            frame_data['view_matrix'] = self.view_matrices[eye]
+            frame_data['view_matrix'] = self.eye_matrices[eye]
             frame_data['camera_matrix'] = self.camera_matrices[eye]
-            frame_data['camera_position'] = self.camera_matrices[eye][3,:3]
             frame_data['projection_matrix'] = self.projection_matrices[eye]
+            frame_data['projection_lrbt'] = self.projection_lrbts[eye]
+            frame_data['fov'] = self.projection_matrices[eye][1,1]
+            if self._nframes % 90 == 0:
+                _logger.debug('drawing for eye %d with frame_data:\n\n%s\n\n', eye,
+                              '\n'.join('%s:\n%s' % item for item in frame_data.items()))
             if meshes is not None:
                 for mesh in meshes:
                     mesh.draw(**frame_data)
@@ -117,6 +146,7 @@ class OpenVRRenderer(object):
                              0, 0, self.window_size[0], self.window_size[1],
                              gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT,
                              gl.GL_NEAREST)
+        self._nframes += 1
 
     def process_input(self, button_press_callbacks=None, axis_callbacks=None):
         if len(self._controller_indices) < 2:

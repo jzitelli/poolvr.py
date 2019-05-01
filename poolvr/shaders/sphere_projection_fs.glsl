@@ -1,11 +1,12 @@
 #version 410 core
 uniform mat4 u_camera = mat4(1.0);
 uniform mat4 u_view = mat4(1.0);
-uniform vec3 camera_position = vec3(0.0);
-uniform vec3[16] ball_positions;
+uniform vec4 u_projection_lrbt = vec4(1.0);
+uniform float u_fov = 1.0;
 uniform vec2 iResolution = vec2(1024.0, 768.0);
+uniform float u_znear;
+uniform vec3[16] ball_positions;
 uniform float ball_radius = 1.125*0.0254;
-uniform float iTime = 0.0;
 
 // The MIT License
 // Copyright © 2014 Inigo Quilez
@@ -27,99 +28,6 @@ uniform float iTime = 0.0;
 // More info, here: http://www.iquilezles.org/www/articles/sphereproj/sphereproj.htm
 
 // ---------------------------------------------------------------------------------------------
-
-struct ProjectionResult
-{
-  float area;      // probably all we care about in practical applications is the area,
-  vec2  center;    // but i'm outputing all the information for debugging and ilustration
-  vec2  axisA;     // purposes
-  vec2  axisB;
-  float a, b, c, d, e, f;
-};
-
-ProjectionResult projectSphere( /* sphere        */ in vec4 sph,
-                                /* camera matrix */ in mat4 cam,
-                                /* projection    */ in float fle )
-{
-  // transform to camera space
-  vec3  o = (cam*vec4(sph.xyz,1.0)).xyz;
-
-  float r2 = sph.w*sph.w;
-  float z2 = o.z*o.z;
-  float l2 = dot(o,o);
-
-  float area = -3.141593*fle*fle*r2*sqrt(abs((l2-r2)/(r2-z2)))/(r2-z2);
-
-  //return area;
-
-
-  //-- debug stuff ---
-
-
-  // axis
-  vec2 axa = fle*sqrt(-r2*(r2-l2)/((l2-z2)*(r2-z2)*(r2-z2)))*vec2( o.x,o.y);
-  vec2 axb = fle*sqrt(-r2*(r2-l2)/((l2-z2)*(r2-z2)*(r2-l2)))*vec2(-o.y,o.x);
-
-  //area = length(axa)*length(axb)*3.141593;
-
-  // center
-  vec2  cen = fle*o.z*o.xy/(z2-r2);
-
-  return ProjectionResult( area,
-                           cen, axa, axb,
-                           /* implicit ellipse f(x,y) = aÂ·xÂ² + bÂ·yÂ² + cÂ·xÂ·y + dÂ·x + eÂ·y + f = 0 */
-                           /* a */ r2 - o.y*o.y - z2,
-                           /* b */ r2 - o.x*o.x - z2,
-                           /* c */ 2.0*o.x*o.y,
-                           /* d */ 2.0*o.x*o.z*fle,
-                           /* e */ 2.0*o.y*o.z*fle,
-                           /* f */ (r2-l2+z2)*fle*fle );
-
-}
-
-//-----------------------------------------------------------------
-// Digit drawing function by P_Malin (https://www.shadertoy.com/view/4sf3RN)
-
-float SampleDigit(const in float n, const in vec2 vUV)
-{
-  if(vUV.x  < 0.0) return 0.0;
-  if(vUV.y  < 0.0) return 0.0;
-  if(vUV.x >= 1.0) return 0.0;
-  if(vUV.y >= 1.0) return 0.0;
-
-  float data = 0.0;
-
-  if(n < 0.5) data = 7.0 + 5.0*16.0 + 5.0*256.0 + 5.0*4096.0 + 7.0*65536.0;
-  else if(n < 1.5) data = 2.0 + 2.0*16.0 + 2.0*256.0 + 2.0*4096.0 + 2.0*65536.0;
-  else if(n < 2.5) data = 7.0 + 1.0*16.0 + 7.0*256.0 + 4.0*4096.0 + 7.0*65536.0;
-  else if(n < 3.5) data = 7.0 + 4.0*16.0 + 7.0*256.0 + 4.0*4096.0 + 7.0*65536.0;
-  else if(n < 4.5) data = 4.0 + 7.0*16.0 + 5.0*256.0 + 1.0*4096.0 + 1.0*65536.0;
-  else if(n < 5.5) data = 7.0 + 4.0*16.0 + 7.0*256.0 + 1.0*4096.0 + 7.0*65536.0;
-  else if(n < 6.5) data = 7.0 + 5.0*16.0 + 7.0*256.0 + 1.0*4096.0 + 7.0*65536.0;
-  else if(n < 7.5) data = 4.0 + 4.0*16.0 + 4.0*256.0 + 4.0*4096.0 + 7.0*65536.0;
-  else if(n < 8.5) data = 7.0 + 5.0*16.0 + 7.0*256.0 + 5.0*4096.0 + 7.0*65536.0;
-  else if(n < 9.5) data = 7.0 + 4.0*16.0 + 7.0*256.0 + 5.0*4096.0 + 7.0*65536.0;
-
-  vec2 vPixel = floor(vUV * vec2(4.0, 5.0));
-  float fIndex = vPixel.x + (vPixel.y * 4.0);
-
-  return mod(floor(data / pow(2.0, fIndex)), 2.0);
-}
-
-float PrintInt(const in vec2 uv, const in float value )
-{
-  float res = 0.0;
-  float maxDigits = 1.0+ceil(log2(value)/log2(10.0));
-  float digitID = floor(uv.x);
-  if( digitID>0.0 && digitID<maxDigits )
-    {
-      float digitVa = mod( floor( value/pow(10.0,maxDigits-1.0-digitID) ), 10.0 );
-      res = SampleDigit( digitVa, vec2(fract(uv.x), uv.y) );
-    }
-
-  return res;
-}
-
 
 float iSphere( in vec3 ro, in vec3 rd, in vec4 sph )
 {
@@ -161,22 +69,6 @@ float sdSegment( vec2 a, vec2 b, vec2 p )
   return length( pa - ba*h );
 }
 
-vec3 drawMaths( vec3 col, in ProjectionResult res, in vec2 p )
-{
-  float showMaths = 1.0;//smoothstep( -0.5, 0.5, cos(0.5*6.2831*lTime) );
-
-  float impl = res.a*p.x*p.x + res.b*p.y*p.y + res.c*p.x*p.y + res.d*p.x + res.e*p.y + res.f;
-
-  col = mix( col, vec3(1.0,0.0,0.0), showMaths*(1.0-smoothstep(0.00,0.10, abs(impl))));
-  col = mix( col, vec3(1.0,1.0,0.0), showMaths*(1.0-smoothstep(0.00,0.01, sdSegment( res.center-res.axisA, res.center+res.axisA, p  )) ));
-  col = mix( col, vec3(1.0,1.0,0.0), showMaths*(1.0-smoothstep(0.00,0.01, sdSegment( res.center-res.axisB, res.center+res.axisB, p  )) ));
-  col = mix( col, vec3(1.0,0.0,0.0), showMaths*(1.0-smoothstep(0.03,0.04, length(p-res.center))));
-  vec2 pp  = res.center + 0.5*max( max( res.axisA, -res.axisA ), max( res.axisB, -res.axisB ) );
-  col = mix( col, vec3(1.0), PrintInt( ((p-pp)-vec2(0.0,0.0))/0.07, floor(res.area) ) );
-
-  return col;
-}
-
 float gridTextureGradBox( in vec2 p, in vec2 ddx, in vec2 ddy )
 {
   const float N = 10.0;
@@ -189,29 +81,35 @@ float gridTextureGradBox( in vec2 p, in vec2 ddx, in vec2 ddy )
 }
 
 
-void mainImage( out vec4 fragColor, in vec2 fragCoord )
-{
-  vec2 p = (-iResolution.xy + 2.0*fragCoord.xy) / iResolution.y;
-
-  float fov = 1.0;
-
+void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
+  // vec2 iResolution = vec2(1024.0, 768.0);
+  // vec2 p = (-iResolution.xy + 2.0*fragCoord.xy) / iResolution.y;
+  // float fov = 1.0;
   // float an = 12.0 + 0.5*iTime;
   // vec3 ro = vec3( 3.0*cos(an), 0.0, 3.0*sin(an) );
   // vec3 ta = vec3( 0.0, 0.0, 0.0 );
   // vec3 ww = normalize( ta - ro );
   // vec3 uu = normalize( cross(ww,vec3(0.0,1.0,0.0) ) );
   // vec3 vv = normalize( cross(uu,ww));
+  // vec3 rd = normalize( p.x*uu + p.y*vv + fov*ww );
   // mat4 cam = mat4( uu.x, uu.y, uu.z, 0.0,
-  // 		 vv.x, vv.y, vv.z, 0.0,
-  // 		 ww.x, ww.y, ww.z, 0.0,
-  // 		 -dot(uu,ro), -dot(vv,ro), -dot(ww,ro), 1.0 );
+  // 		   vv.x, vv.y, vv.z, 0.0,
+  // 		   ww.x, ww.y, ww.z, 0.0,
+  // 		   -dot(uu,ro), -dot(vv,ro), -dot(ww,ro), 1.0 );
+  vec2 p = fragCoord.xy / iResolution.xy;
+  // mat4 cam = transpose(u_camera);
+  // mat4 cam = u_view;
+  vec3 uu = normalize(u_camera[0].xyz);
+  vec3 vv = normalize(u_camera[1].xyz);
+  vec3 ww = normalize(-u_camera[2].xyz);
+  vec3 ro = u_camera[3].xyz;
 
-  mat4 cam = u_camera;
-  vec3 uu = cam[0].xyz;
-  vec3 vv = cam[1].xyz;
-  vec3 ww = -cam[2].xyz;
-  vec3 ro = camera_position;
-  vec3 rd = normalize( p.x*uu + p.y*vv + fov*ww );
+  // vec3 rd = normalize( p.x*uu + p.y*vv + fov*ww );
+  vec3 rd = normalize(
+		      u_znear * ((1.0-p.x) * u_projection_lrbt.x + p.x * u_projection_lrbt.y) * uu
+		    + u_znear * ((1.0-p.y) * u_projection_lrbt.z + p.y * u_projection_lrbt.w) * vv
+		    + ww * u_znear
+		      );
 
   vec4 sph1 = vec4(-2.0, 1.0,0.0,1.1);
   vec4 sph2 = vec4( 3.0, 1.5,1.0,1.2);

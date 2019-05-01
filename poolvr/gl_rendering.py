@@ -34,6 +34,8 @@ GLSL_TYPE_SPEC = {
 }
 
 
+DEG2RAD = np.pi/180
+RAD2DEG = 180/np.pi
 c_float_p = POINTER(c_float)
 NULL_PTR = c_void_p(0)
 _logger = logging.getLogger(__name__)
@@ -574,8 +576,7 @@ void main() { gl_Position = vec4(quadVertices[gl_VertexID], 0.0, 1.0); }
             child.update_world_matrices(world_matrix=world_matrix)
     def draw(self, **frame_data):
         super().draw(**frame_data)
-        view = frame_data.get('view_matrix', None)
-        self.material.use(u_view=view, **frame_data)
+        self.material.use(**frame_data)
         gl.glDrawArrays(gl.GL_TRIANGLE_STRIP, 0, 4)
         try:
             if CHECK_GL_ERRORS:
@@ -603,6 +604,7 @@ class OpenGLRenderer(object):
         self.projection_matrix = np.empty((4,4), dtype=np.float32)
         self.update_projection_matrix()
         self._gl_states = {}
+        self._nframes = 0
     def update_projection_matrix(self):
         window_size, znear, zfar = self.window_size, self.znear, self.zfar
         self.projection_matrix[:] = calc_projection_matrix(np.pi / 180 * 60, window_size[0] / window_size[1], znear, zfar).T
@@ -626,19 +628,34 @@ class OpenGLRenderer(object):
         view[:3,:3] = camera[:3,:3].T
         np.dot(camera[:3,:3], camera[3,:3], out=view[3,:3])
         view[3,:3] *= -1
+        fov = self.projection_matrix[1,1]
+        yfov = 60.0 * DEG2RAD
+        window_size = self.window_size
+        aspect = window_size[0] / window_size[1]
+        projection_lrbt = np.array([[-aspect*np.tan(0.5*yfov), aspect*np.tan(0.5*yfov)],
+                                    [-np.tan(0.5*yfov*aspect),        np.tan(0.5*yfov*aspect)]],
+                                   dtype=np.float32).ravel()
         frame_data = {
             'camera_matrix': camera,
             'camera_position': self.camera_position,
             'view_matrix': view,
             'projection_matrix': self.projection_matrix,
+            'projection_lrbt': projection_lrbt,
+            'znear': self.znear,
+            'zfar': self.zfar,
             'window_size': self.window_size,
+            'fov': fov,
         }
         frame_data.update(kwargs)
+        if self._nframes % 90 == 0:
+            _logger.debug('rendering with frame_data:\n%s',
+                          '\n'.join('%s:\n%s' % it for it in frame_data.items()))
         yield frame_data
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         if meshes is not None:
             for mesh in meshes:
                 mesh.draw(**frame_data)
+        self._nframes += 1
     def process_input(self, **kwargs):
         pass
     def shutdown(self):

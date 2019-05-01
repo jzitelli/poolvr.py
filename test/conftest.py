@@ -29,6 +29,8 @@ def pytest_addoption(parser):
                      default='960x680')
     parser.addoption('--keep-render-window', help='do not close OpenGL render window when all events have finished',
                      action='store_true')
+    parser.addoption('--vr', help='display in VR',
+                     action='store_true')
 
 
 @pytest.fixture
@@ -301,9 +303,9 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
         maximum frame time: %f
         ''',
                      (nframes - 1) / (t - st),
-                     max_frame_time,
                      1 / max_frame_time,
-                     (t - st) / (nframes - 1))
+                     (t - st) / (nframes - 1),
+                     max_frame_time)
 
     if should_screenshot:
         with renderer.render(meshes=meshes):
@@ -330,7 +332,8 @@ def render_meshes(request):
         yield None
         return
     xres, yres = [int(n) for n in request.config.getoption('--resolution').split('x')]
-    msaa = request.config.getoption('--msaa')
+    msaa = int(request.config.getoption('--msaa'))
+    vr = request.config.getoption('--vr')
     import OpenGL
     OpenGL.ERROR_CHECKING = False
     OpenGL.ERROR_LOGGING = False
@@ -338,20 +341,22 @@ def render_meshes(request):
     import cyglfw3 as glfw
     from poolvr.glfw_app import setup_glfw, capture_window
     from poolvr.keyboard_controls import init_keyboard
-    logging.getLogger('poolvr.gl_rendering').setLevel(logging.WARNING)
     window_size = [xres, yres]
     title = request.function.__name__
     window, renderer = setup_glfw(window_size=window_size,
-                                  double_buffered=True,
-                                  multisample=int(msaa),
+                                  double_buffered=not vr,
+                                  multisample=msaa,
                                   title=title)
+    camera_world_matrix = renderer.camera_matrix
+    if vr:
+        from poolvr.pyopenvr_renderer import OpenVRRenderer
+        renderer = OpenVRRenderer(multisample=msaa, window_size=window_size)
     class Yielded(list):
         def __init__(self, renderer, window):
             self.renderer = renderer; self.window = window
     meshes = Yielded(renderer, window)
     yield meshes
 
-    camera_world_matrix = renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
     camera_position[1] = 0.5
     camera_position[2] = 0.75
@@ -386,9 +391,9 @@ def render_meshes(request):
         maximum frame time: %f
         ''',
                      (nframes - 1) / (t - st),
-                     max_frame_time,
                      1 / max_frame_time,
-                     (t - st) / (nframes - 1))
+                     (t - st) / (nframes - 1),
+                     max_frame_time)
     if should_screenshot:
         with renderer.render(meshes=meshes, dt=0.0):
             pass
