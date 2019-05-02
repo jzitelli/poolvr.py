@@ -13,15 +13,18 @@ def test_frag_box(render_meshes):
         return
     import poolvr
     from poolvr.gl_rendering import FragBox
+    from poolvr.table import PoolTable
+    import numpy as np
+    ball_positions = np.array(PoolTable().calc_racked_positions(), dtype=np.float32)
     with open(os.path.join(os.path.dirname(poolvr.__file__), 'shaders', 'sphere_projection_fs.glsl')) as f:
         fs_src = f.read()
     def on_use(material, **frame_data):
         material.values['u_view'] = frame_data['view_matrix']
         material.values['u_camera'] = frame_data['camera_matrix']
         material.values['u_projection_lrbt'] = frame_data['projection_lrbt']
-        material.values['u_fov'] = frame_data['fov']
         material.values['u_znear'] = frame_data['znear']
         material.values['iResolution'] = frame_data['window_size']
+        material.values['ball_positions'] = ball_positions
     mesh = FragBox(fs_src, on_use=on_use)
     render_meshes.append(mesh)
 

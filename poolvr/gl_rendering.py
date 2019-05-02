@@ -34,6 +34,34 @@ GLSL_TYPE_SPEC = {
 }
 
 
+TYPE_TO_UNIFORM_FN = {
+    gl.GL_INT: gl.glUniform1i,
+    gl.GL_INT_VEC2: lambda location, value: gl.glUniform2i(location, *value),
+    gl.GL_INT_VEC3: lambda location, value: gl.glUniform3i(location, *value),
+    gl.GL_INT_VEC4: lambda location, value: gl.glUniform4i(location, *value),
+    gl.GL_FLOAT: gl.glUniform1f,
+    gl.GL_FLOAT_VEC2: lambda location, value: gl.glUniform2f(location, *value),
+    gl.GL_FLOAT_VEC3: lambda location, value: gl.glUniform3f(location, *value),
+    gl.GL_FLOAT_VEC4: lambda location, value: gl.glUniform4f(location, *value),
+    gl.GL_FLOAT_MAT2: lambda location, value: gl.glUniformMatrix2fv(location, 1, False, value),
+    gl.GL_FLOAT_MAT3: lambda location, value: gl.glUniformMatrix3fv(location, 1, False, value),
+    gl.GL_FLOAT_MAT4: lambda location, value: gl.glUniformMatrix4fv(location, 1, False, value),
+}
+ARRAY_TYPE_TO_UNIFORM_FN = {
+    gl.GL_INT: gl.glUniform1iv,
+    gl.GL_INT_VEC2: gl.glUniform2iv,
+    gl.GL_INT_VEC3: gl.glUniform3iv,
+    gl.GL_INT_VEC4: gl.glUniform4iv,
+    gl.GL_FLOAT: gl.glUniform1fv,
+    gl.GL_FLOAT_VEC2: gl.glUniform2fv,
+    gl.GL_FLOAT_VEC3: gl.glUniform3fv,
+    gl.GL_FLOAT_VEC4: gl.glUniform4fv,
+    gl.GL_FLOAT_MAT2: lambda location, count, value: gl.glUniformMatrix2fv(location, 1, False, value),
+    gl.GL_FLOAT_MAT3: lambda location, count, value: gl.glUniformMatrix3fv(location, 1, False, value),
+    gl.GL_FLOAT_MAT4: lambda location, count, value: gl.glUniformMatrix4fv(location, 1, False, value),
+}
+
+
 DEG2RAD = np.pi/180
 RAD2DEG = 180/np.pi
 c_float_p = POINTER(c_float)
@@ -48,7 +76,7 @@ class GLRendering(object):
 
 class Program(GLRendering):
     ATTRIBUTE_DECL_RE = re.compile(r"\s*attribute\s+(?P<type_spec>\w+)\s+(?P<attribute_name>\w+)\s*;")
-    UNIFORM_DECL_RE = re.compile(r"\s*uniform\s+(?P<type_spec>\w+)\s+(?P<uniform_name>\w+)\s*(=\s*(?P<initialization>.*)\s*;|;)")
+    UNIFORM_DECL_RE = re.compile(r"\s*uniform\s+(?P<type_spec>\w+)(?P<array_spec>\[\d+\])?\s+(?P<uniform_name>\w+)\s*(=\s*(?P<initialization>.*)\s*;|;)")
     _current = None
     def __init__(self, vs_src, fs_src, parse_attributes=True, parse_uniforms=True, name=None):
         """
@@ -74,13 +102,18 @@ class Program(GLRendering):
                 m = self.UNIFORM_DECL_RE.match(line)
                 if m:
                     uniform_name, type_spec, initialization = m.group('uniform_name'), m.group('type_spec'), m.group('initialization')
+                    # _logger.debug('array_spec = %s', array_spec)
                     uniforms[uniform_name] = {'type': GLSL_TYPE_SPEC[type_spec]}
+                    array_spec = m.group('array_spec')
+                    if array_spec:
+                        uniforms[uniform_name]['array_size'] = int(array_spec[1:-1])
                     if initialization:
                         uniforms[uniform_name]['initialization'] = initialization
             self.uniforms = uniforms
         else:
             self.uniforms = {}
         self._initialized = False
+        _logger.debug('self.uniforms:\n%s', '\n'.join('%s: %s' % it for it in self.uniforms.items()))
     def init_gl(self, force=False):
         if force:
             self.program_id = None
@@ -280,19 +313,6 @@ class CubeTexture(Texture):
 
 class Material(GLRendering):
     _current = None
-    TYPE_TO_UNIFORM_FN = {
-        gl.GL_INT: gl.glUniform1i,
-        gl.GL_INT_VEC2: lambda location, value: gl.glUniform2i(location, *value),
-        gl.GL_INT_VEC3: lambda location, value: gl.glUniform3i(location, *value),
-        gl.GL_INT_VEC4: lambda location, value: gl.glUniform4i(location, *value),
-        gl.GL_FLOAT: gl.glUniform1f,
-        gl.GL_FLOAT_VEC2: lambda location, value: gl.glUniform2f(location, *value),
-        gl.GL_FLOAT_VEC3: lambda location, value: gl.glUniform3f(location, *value),
-        gl.GL_FLOAT_VEC4: lambda location, value: gl.glUniform4f(location, *value),
-        gl.GL_FLOAT_MAT2: lambda location, value: gl.glUniformMatrix2fv(location, 1, False, value),
-        gl.GL_FLOAT_MAT3: lambda location, value: gl.glUniformMatrix3fv(location, 1, False, value),
-        gl.GL_FLOAT_MAT4: lambda location, value: gl.glUniformMatrix4fv(location, 1, False, value),
-    }
     def __init__(self, technique, values=None, textures=None, on_use=None, on_release=None, name=None):
         """
         A Material object is a customization of a :ref:`Technique` with a
@@ -352,12 +372,15 @@ class Material(GLRendering):
                 tex_unit += 1
             elif uniform_name in self.values:
                 value = self.values[uniform_name]
-                if uniform_type in self.TYPE_TO_UNIFORM_FN:
-                    self.TYPE_TO_UNIFORM_FN[uniform_type](location, value)
+                array_size = uniform.get('array_size')
+                if array_size is None and uniform_type in TYPE_TO_UNIFORM_FN:
+                    TYPE_TO_UNIFORM_FN[uniform_type](location, value)
+                elif array_size is not None and uniform_type in ARRAY_TYPE_TO_UNIFORM_FN:
+                    ARRAY_TYPE_TO_UNIFORM_FN[uniform_type](location, array_size, value)
                 else:
                     raise Exception('unhandled uniform type: %d' % uniform_type)
-            elif uniform_name in frame_data and uniform_type in self.TYPE_TO_UNIFORM_FN:
-                self.TYPE_TO_UNIFORM_FN[uniform_type](location, frame_data[uniform_name])
+            elif uniform_name in frame_data and uniform_type in TYPE_TO_UNIFORM_FN:
+                TYPE_TO_UNIFORM_FN[uniform_type](location, frame_data[uniform_name])
             if CHECK_GL_ERRORS:
                 err = gl.glGetError()
                 if err != gl.GL_NO_ERROR:
@@ -518,7 +541,7 @@ class Mesh(Node):
         view = frame_data.get('view_matrix', None)
         projection = frame_data.get('projection_matrix', None)
         if self._before_draw:
-            self._before_draw(self, frame_data)
+            self._before_draw(self, **frame_data)
         if view is not None:
             self.world_matrix.dot(view, out=self._modelview)
             self._normal[:] = np.linalg.inv(self._modelview[:3,:3].T)
@@ -542,7 +565,7 @@ class Mesh(Node):
             material.release()
             material.technique.release()
         if self._after_draw:
-            self._after_draw(self, frame_data)
+            self._after_draw(self, **frame_data)
         super().draw(**frame_data)
 
 
@@ -582,7 +605,7 @@ void main() { gl_Position = vec4(quadVertices[gl_VertexID], 0.0, 1.0); }
             if CHECK_GL_ERRORS:
                 err = gl.glGetError()
                 if err != gl.GL_NO_ERROR:
-                    raise Exception('error drawing %s: %d' % (self.__class__.__name__, err))
+                    raise Exception('error drawing %s: glGetError returned %d' % (self.__class__.__name__, err))
         finally:
             self.material.release()
             self.material.technique.release()
@@ -602,12 +625,18 @@ class OpenGLRenderer(object):
         self.camera_position = self.camera_matrix[3,:3]
         self.view_matrix = np.eye(4, dtype=np.float32)
         self.projection_matrix = np.empty((4,4), dtype=np.float32)
+        self.projection_lrbt = np.zeros(4, dtype=np.float32)
         self.update_projection_matrix()
         self._gl_states = {}
         self._nframes = 0
     def update_projection_matrix(self):
         window_size, znear, zfar = self.window_size, self.znear, self.zfar
         self.projection_matrix[:] = calc_projection_matrix(np.pi / 180 * 60, window_size[0] / window_size[1], znear, zfar).T
+        yfov = 60.0 * DEG2RAD
+        aspect = window_size[0] / window_size[1]
+        tan = np.tan(0.5*yfov)
+        self.projection_lrbt[:] = (-aspect*tan, aspect*tan,
+                                          -tan,        tan)
     def init_gl(self, clear_color=(0.0, 0.0, 0.0, 0.0)):
         gl.glClearColor(*clear_color)
         gl.glEnable(gl.GL_DEPTH_TEST)
@@ -626,25 +655,17 @@ class OpenGLRenderer(object):
         camera = self.camera_matrix
         view = self.view_matrix
         view[:3,:3] = camera[:3,:3].T
-        np.dot(camera[:3,:3], camera[3,:3], out=view[3,:3])
+        np.dot(camera[:3,:3], camera[3,:3],
+               out=view[3,:3])
         view[3,:3] *= -1
-        fov = self.projection_matrix[1,1]
-        yfov = 60.0 * DEG2RAD
-        window_size = self.window_size
-        aspect = window_size[0] / window_size[1]
-        projection_lrbt = np.array([[-aspect*np.tan(0.5*yfov), aspect*np.tan(0.5*yfov)],
-                                    [-np.tan(0.5*yfov*aspect),        np.tan(0.5*yfov*aspect)]],
-                                   dtype=np.float32).ravel()
         frame_data = {
             'camera_matrix': camera,
-            'camera_position': self.camera_position,
             'view_matrix': view,
             'projection_matrix': self.projection_matrix,
-            'projection_lrbt': projection_lrbt,
+            'projection_lrbt': self.projection_lrbt,
             'znear': self.znear,
             'zfar': self.zfar,
             'window_size': self.window_size,
-            'fov': fov,
         }
         frame_data.update(kwargs)
         if self._nframes % 90 == 0:
