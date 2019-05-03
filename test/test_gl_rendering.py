@@ -16,6 +16,9 @@ def test_frag_box(render_meshes):
     from poolvr.table import PoolTable
     import numpy as np
     ball_positions = np.array(PoolTable().calc_racked_positions(), dtype=np.float32)
+    ball_quaternions = np.array(np.random.rand(16,4), dtype=np.float32)
+    for q in ball_quaternions:
+        q[:] = q / np.sqrt(np.dot(q, q))
     with open(os.path.join(os.path.dirname(poolvr.__file__), 'shaders', 'sphere_projection_fs.glsl')) as f:
         fs_src = f.read()
     def on_use(material, **frame_data):
@@ -25,6 +28,7 @@ def test_frag_box(render_meshes):
         material.values['u_znear'] = frame_data['znear']
         material.values['iResolution'] = frame_data['window_size']
         material.values['ball_positions'] = ball_positions
+        material.values['ball_quaternions'] = ball_quaternions
     mesh = FragBox(fs_src, on_use=on_use)
     render_meshes.append(mesh)
 
