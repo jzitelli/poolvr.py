@@ -17,12 +17,20 @@ def test_frag_box(render_meshes):
     import numpy as np
     ball_positions = np.array(PoolTable().calc_racked_positions(), dtype=np.float32)
     ball_quaternions = np.array(np.random.rand(16,4), dtype=np.float32)
+    ball_angular_velocities = np.array(np.random.rand(16,3), dtype=np.float32)
     for q in ball_quaternions:
         q[:] = q / np.sqrt(np.dot(q, q))
-    with open(os.path.join(os.path.dirname(poolvr.__file__), 'shaders', 'sphere_projection_fs.glsl')) as f:
+    with open(os.path.join(os.path.dirname(poolvr.__file__),
+                           'shaders',
+                           'sphere_projection_fs.glsl')) as f:
         fs_src = f.read()
-    def on_use(material, **frame_data):
-        material.values['u_view'] = frame_data['view_matrix']
+    def on_use(material, dt=None, **frame_data):
+        if dt is not None:
+            for q, omega in zip(ball_quaternions, ball_angular_velocities):
+                q_w = q[3]
+                q[3] -= 0.5 * dt * omega.dot(q[:3])
+                q[:3] += 0.5 * dt * (q_w * omega + np.cross(omega, q[:3]))
+                q /= np.sqrt(np.dot(q, q))
         material.values['u_camera'] = frame_data['camera_matrix']
         material.values['u_projection_lrbt'] = frame_data['projection_lrbt']
         material.values['u_znear'] = frame_data['znear']
@@ -30,6 +38,11 @@ def test_frag_box(render_meshes):
         material.values['ball_positions'] = ball_positions
         material.values['ball_quaternions'] = ball_quaternions
     mesh = FragBox(fs_src, on_use=on_use)
+    ball_colors = np.array([[float(c & 0xff0000) / 0xff0000,
+                             float(c & 0x00ff00) / 0x00ff00,
+                             float(c & 0x0000ff) / 0x0000ff]
+                            for c in PoolTable.BALL_COLORS], dtype=np.float32)
+    mesh.material.values['ball_colors'] = ball_colors
     render_meshes.append(mesh)
 
 

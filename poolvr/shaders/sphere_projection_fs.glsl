@@ -28,22 +28,24 @@ uniform float u_znear;
 uniform vec3[16] ball_positions;
 uniform vec4[16] ball_quaternions;
 uniform float ball_radius = 1.125*0.0254;
-const vec3 ball_colors[16] = vec3[16](vec3(1.0, 1.0, 1.0),
-				      vec3(1.0, 0.0, 0.0),
-				      vec3(0.0, 1.0, 0.0),
-				      vec3(0.0, 0.0, 1.0),
-				      vec3(1.0, 1.0, 0.0),
-				      vec3(0.0, 1.0, 1.0),
-				      vec3(1.0, 0.0, 1.0),
-				      vec3(0.0, 0.0, 0.0),
-				      vec3(1.0, 1.0, 1.0),
-				      vec3(1.0, 0.0, 0.0),
-				      vec3(0.0, 1.0, 0.0),
-				      vec3(0.0, 0.0, 1.0),
-				      vec3(1.0, 1.0, 0.0),
-				      vec3(0.0, 1.0, 1.0),
-				      vec3(1.0, 0.0, 1.0),
-				      vec3(0.0, 0.0, 0.0));
+// const vec3 ball_colors[16] = vec3[16](vec3(1.0, 1.0, 1.0),
+// 				      vec3(1.0, 0.0, 0.0),
+// 				      vec3(0.0, 1.0, 0.0),
+// 				      vec3(0.0, 0.0, 1.0),
+// 				      vec3(1.0, 1.0, 0.0),
+// 				      vec3(0.0, 1.0, 1.0),
+// 				      vec3(1.0, 0.0, 1.0),
+// 				      vec3(0.0, 0.0, 0.0),
+// 				      vec3(1.0, 1.0, 1.0),
+// 				      vec3(1.0, 0.0, 0.0),
+// 				      vec3(0.0, 1.0, 0.0),
+// 				      vec3(0.0, 0.0, 1.0),
+// 				      vec3(1.0, 1.0, 0.0),
+// 				      vec3(0.0, 1.0, 1.0),
+// 				      vec3(1.0, 0.0, 1.0),
+// 				      vec3(0.0, 0.0, 0.0));
+uniform vec3[16] ball_colors;
+
 
 vec3 rotateByQuaternion(inout vec3 v, in vec4 q) {
   float ix =  q.w * v.x + q.y * v.z - q.z * v.y;
@@ -107,6 +109,20 @@ float gridTextureGradBox( in vec2 p, in vec2 ddx, in vec2 ddy )
   return (1.0-i.x)*(1.0-i.y);
 }
 
+float sdBox( vec3 p, vec3 b ) {
+  vec3 d = abs(p) - b;
+  return length(max(d,0.0)) + min(max(d.x,max(d.y,d.z)),0.0);
+}
+
+float sdCylinder( vec3 p, vec3 c ) {
+  return length(p.xz-c.xy)-c.z;
+}
+
+float sdPlane( vec3 p, vec4 n ) {
+  // n must be normalized
+  return dot(p,n.xyz) + n.w;
+}
+
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   vec2 p = fragCoord.xy / iResolution.xy;
@@ -121,10 +137,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
 		    + ww
 		      );
 
-  vec4 sph1 = vec4(-2.0, 1.0,0.0,1.1);
-  vec4 sph2 = vec4( 3.0, 1.5,1.0,1.2);
-  vec4 sph3 = vec4( 1.0,-1.0,1.0,1.3);
-
   float tmin = 10000.0;
   vec3  nor = vec3(0.0);
   float occ = 1.0;
@@ -133,93 +145,72 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   vec3 sur = vec3(1.0);
 
   vec4 sph = vec4(0.0, 0.0, 0.0, ball_radius);
-
+  int imin = -1;
   float h, ss;
   for (int i = 0; i < 16; i++) {
     sph.xyz = ball_positions[i];
     h = iSphere( ro, rd, sph );
     if( h>0.0 && h<tmin ) {
       tmin = h;
+      imin = i;
       pos = ro + h*rd;
       nor = normalize(pos-sph.xyz);
-      // sur = vec3(1.0,0.7,0.2)*smoothstep(-0.6,-0.2,sin(20.0*(pos.x-sph.x)));
-      vec3 sv = vec3(1.0, 0.0, 0.0);
-      rotateByQuaternion(sv, ball_quaternions[i]);
-      ss = i > 8 ? smoothstep(-0.6,-0.2,sin(200.0*(dot(pos.xyz-sph.xyz, sv)))) : 1.0;
-      sur = ball_colors[i]*ss;
-      // occ = oSphere( pos, nor, sph2 ) * oSphere( pos, nor, sph3 );
-      occ = 1.0;
-      for (int j = 0; j < 16; j++) {
-        if (i == j) {
-          continue;
-        }
-        sph.xyz = ball_positions[j];
-        occ *= oSphere( pos, nor, sph );
-      }
+      // if (i > 8) {
+      //   vec3 sv = vec3(1.0, 0.0, 0.0);
+      //   rotateByQuaternion(sv, ball_quaternions[i]);
+      //   ss = smoothstep(-0.5,0.5,1sin(0.5*321.0*(dot(pos.xyz-sph.xyz, sv))));
+      //   sur = ball_colors[i] + ss; //vec3(ss*ss);
+      // } else {
+      //   sur = ball_colors[i];
+      // }
+      sur = ball_colors[i];
     }
   }
 
-  // float h = iSphere( ro, rd, sph1 );
-  // if( h>0.0 && h<tmin )
-  //   {
-  //     tmin = h;
-  //     pos = ro + h*rd;
-  //     nor = normalize(pos-sph1.xyz);
-  //     occ = oSphere( pos, nor, sph2 ) * oSphere( pos, nor, sph3 );
-  //     sur = vec3(1.0,0.7,0.2)*smoothstep(-0.6,-0.2,sin(20.0*(pos.x-sph1.x)));
-  //   }
-  // h = iSphere( ro, rd, sph2 );
-  // if( h>0.0 && h<tmin )
-  //   {
-  //     tmin = h;
-  //     pos = ro + h*rd;
-  //     nor = normalize(pos-sph2.xyz);
-  //     occ = oSphere( pos, nor, sph1 ) * oSphere( pos, nor, sph3 );
-  //     sur = vec3(0.7,1.0,0.2)*smoothstep(-0.6,-0.2,sin(20.0*(pos.z-sph2.z)));
-  //   }
-  // h = iSphere( ro, rd, sph3 );
-  // if( h>0.0 && h<tmin )
-  //   {
-  //     tmin = h;
-  //     pos = ro + h*rd;
-  //     nor = normalize(pos-sph3.xyz);
-  //     occ = oSphere( pos, nor, sph1 ) * oSphere( pos, nor, sph2 );
-  //     sur = vec3(1.0,0.2,0.2)*smoothstep(-0.6,-0.2,sin(20.0*(pos.y-sph3.y)));
-  //   }
-  h = (-2.0-ro.y)/rd.y;
-  if( h>0.0 && h<tmin )
-    {
-      tmin = h;
-      pos = ro + h*rd;
-      nor = vec3(0.0,1.0,0.0);
-      occ = 1.0; //oSphere( pos, nor, sph1 ) * oSphere( pos, nor, sph2 ) * oSphere( pos, nor, sph3 );
-      sur = vec3(1.0)*gridTextureGradBox( pos.xz, dFdx(pos.xz), dFdy(pos.xz) );
+  h = (29.25*0.0254-ro.y)/rd.y;
+  if( h>0.0 && h<tmin ) {
+    tmin = h;
+    pos = ro + h*rd;
+    nor = vec3(0.0,1.0,0.0);
+    occ = 1.0; //oSphere( pos, nor, sph1 ) * oSphere( pos, nor, sph2 ) * oSphere( pos, nor, sph3 );
+    sur = vec3(1.0)*gridTextureGradBox( pos.xz, dFdx(pos.xz), dFdy(pos.xz) );
+  }
+  else if (imin > -1) {
+    if (imin > 8) {
+      vec3 sv = vec3(1.0, 0.0, 0.0);
+      rotateByQuaternion(sv, ball_quaternions[imin]);
+      ss = smoothstep(-0.2,-0.6,sin(0.5*321.0*(dot(pos.xyz-sph.xyz, sv))));
+      sur += vec3(ss*ss);
     }
+    occ = 1.0;
+    for (int j = 0; j < 16; j++) {
+      if (imin == j) continue;
+      sph.xyz = ball_positions[j];
+      occ *= oSphere( pos, nor, sph );
+    }
+  }
 
   vec3 col = vec3(0.0);
 
-  if( tmin<100.0 )
-    {
-      pos = ro + tmin*rd;
-      col = vec3(1.0);
-
-      vec3 lig = normalize( vec3(2.0,1.4,-1.0) );
-      float sha = 1.0;
-
-      // sha *= ssSphere( pos, lig, sph1 );
-      // sha *= ssSphere( pos, lig, sph2 );
-      // sha *= ssSphere( pos, lig, sph3 );
-
-      float ndl = clamp( dot(nor,lig), 0.0, 1.0 );
-      col = occ*(0.5+0.5*nor.y)*vec3(0.2,0.3,0.4) + sha*vec3(1.0,0.9,0.8)*ndl + sha*vec3(1.5)*ndl*pow( clamp(dot(normalize(-rd+lig),nor),0.0,1.0), 16.0 );
-      col *= sur;
-
-      col *= exp( -0.25*(max(0.0,tmin-3.0)) );
-
+  if( tmin < 300.0 ) {
+    pos = ro + tmin*rd;
+    col = vec3(1.0);
+    vec3 lig = normalize( vec3(2.0,10.0,-1.0) );
+    float sha = 1.0;
+    for (int i = 0; i < 16; i++) {
+      if (imin == i) continue;
+      sph.xyz = ball_positions[i];
+      sha *= ssSphere( pos, lig, sph );
     }
+    float ndl = clamp( dot(nor,lig), 0.0, 1.0 );
+    col = occ*(0.5+0.5*nor.y)*vec3(0.02,0.03,0.04)
+      + sha*vec3(1.0,0.9,0.8)*ndl
+      + sha*vec3(1.5)*ndl*pow( clamp(dot(normalize(-rd+lig),nor),0.0,1.0), 16.0 );
+    col *= sur;
+    col *= exp( -0.25*(max(0.0,tmin-3.0)) );
+  }
 
   col = pow( col, vec3(0.45) );
-
   fragColor = vec4( col, 1.0 );
 }
 

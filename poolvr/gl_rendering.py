@@ -372,19 +372,18 @@ class Material(GLRendering):
                 tex_unit += 1
             elif uniform_name in self.values:
                 value = self.values[uniform_name]
-                array_size = uniform.get('array_size')
-                if array_size is None and uniform_type in TYPE_TO_UNIFORM_FN:
-                    TYPE_TO_UNIFORM_FN[uniform_type](location, value)
-                elif array_size is not None and uniform_type in ARRAY_TYPE_TO_UNIFORM_FN:
-                    ARRAY_TYPE_TO_UNIFORM_FN[uniform_type](location, array_size, value)
-                else:
-                    raise Exception('unhandled uniform type: %d' % uniform_type)
-            elif uniform_name in frame_data and uniform_type in TYPE_TO_UNIFORM_FN:
-                TYPE_TO_UNIFORM_FN[uniform_type](location, frame_data[uniform_name])
-            if CHECK_GL_ERRORS:
-                err = gl.glGetError()
-                if err != gl.GL_NO_ERROR:
-                    raise Exception('error setting material state: %d' % err)
+            elif uniform_name in frame_data:
+                value = frame_data[uniform_name]
+            else:
+                continue
+            if 'array_size' in uniform:
+                ARRAY_TYPE_TO_UNIFORM_FN[uniform_type](location, uniform['array_size'], value)
+            else:
+                TYPE_TO_UNIFORM_FN[uniform_type](location, value)
+        if CHECK_GL_ERRORS:
+            err = gl.glGetError()
+            if err != gl.GL_NO_ERROR:
+                raise Exception('error setting material state: %d' % err)
         Material._current = self
     def release(self):
         if self._on_release:
