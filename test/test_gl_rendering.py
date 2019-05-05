@@ -16,10 +16,9 @@ def test_frag_box(render_meshes):
     from poolvr.table import PoolTable
     import numpy as np
     ball_positions = np.array(PoolTable().calc_racked_positions(), dtype=np.float32)
-    ball_quaternions = np.array(np.random.rand(16,4), dtype=np.float32)
+    ball_quaternions = np.zeros((16,4), dtype=np.float32)
+    ball_quaternions[:,3] = 1
     ball_angular_velocities = np.array(np.random.rand(16,3), dtype=np.float32)
-    for q in ball_quaternions:
-        q[:] = q / np.sqrt(np.dot(q, q))
     with open(os.path.join(os.path.dirname(poolvr.__file__),
                            'shaders',
                            'sphere_projection_fs.glsl')) as f:

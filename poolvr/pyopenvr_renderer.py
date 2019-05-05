@@ -33,15 +33,10 @@ class OpenVRRenderer(object):
                                     np.asarray(matrixForOpenVRMatrix(self.vr_system.getProjectionMatrix(openvr.Eye_Right, znear, zfar))))
         self.projection_lrbts = (np.array(self.vr_system.getProjectionRaw(openvr.Eye_Left)),
                                  np.array(self.vr_system.getProjectionRaw(openvr.Eye_Right)))
-        _logger.debug('self.projection_lrtbs:\n%s\n%s',
-                      self.projection_lrbts[0], self.projection_lrbts[1])
         self.eye_to_head_transforms = (np.asarray(matrixForOpenVRMatrix(self.vr_system.getEyeToHeadTransform(openvr.Eye_Left))),
                                        np.asarray(matrixForOpenVRMatrix(self.vr_system.getEyeToHeadTransform(openvr.Eye_Right))))
         self.eye_transforms = (np.asarray(matrixForOpenVRMatrix(self.vr_system.getEyeToHeadTransform(openvr.Eye_Left)).I),
                                np.asarray(matrixForOpenVRMatrix(self.vr_system.getEyeToHeadTransform(openvr.Eye_Right)).I))
-        _logger.debug('self.eye_to_head_transforms:\n%s\n%s\nself.eye_transforms:\n%s\n%s',
-                      self.eye_to_head_transforms[0], self.eye_to_head_transforms[1],
-                      self.eye_transforms[0], self.eye_transforms[1])
         self.eye_matrices = (np.eye(4, dtype=np.float32), np.eye(4, dtype=np.float32))
         self.camera_matrices = (np.eye(4, dtype=np.float32), np.eye(4, dtype=np.float32))
         self.hmd_matrix = np.eye(4, dtype=np.float32)
@@ -65,7 +60,6 @@ class OpenVRRenderer(object):
     @contextmanager
     def render(self, meshes=None, **frame_data):
         self.vr_compositor.waitGetPoses(self.poses, openvr.k_unMaxTrackedDeviceCount, None, 0)
-        # self.update_projection_matrix()
         hmd_pose = self.poses[openvr.k_unTrackedDeviceIndex_Hmd]
         if not hmd_pose.bPoseIsValid:
             yield None
@@ -86,16 +80,12 @@ class OpenVRRenderer(object):
         hmd_matrix = self.hmd_matrix
         hmd_matrix_inv = self.hmd_matrix_inv
         hmd_matrix[:,:3] = hmd_34.T
-        # hmd_matrix_inv[:3,:3] = hmd_34[:,:3]
-        # np.dot(hmd_matrix[:3,:3], hmd_matrix[3,:3], out=hmd_matrix_inv[3,:3])
-        # hmd_matrix_inv[3,:3] *= -1
-        hmd_matrix_inv[:] = np.linalg.inv(hmd_matrix)
+        hmd_matrix_inv[:3,:3] = hmd_34[:,:3]
+        np.dot(hmd_matrix[:3,:3], hmd_matrix[3,:3], out=hmd_matrix_inv[3,:3])
+        hmd_matrix_inv[3,:3] *= -1
         for eye in (0,1):
-            hmd_matrix_inv.dot(self.eye_transforms[eye], out=self.eye_matrices[eye])
-            self.camera_matrices[eye][:] = np.linalg.inv(self.eye_matrices[eye])
-            # camera_matrix = self.camera_matrices[eye]
-            # camera_matrix[:] = hmd_matrix
-            # camera_matrix[3,:3] += np.dot(camera_matrix[:3,:3], self.self.eye_to_head_transforms[eye][3,:3])
+            np.dot(hmd_matrix_inv, self.eye_transforms[eye], out=self.eye_matrices[eye])
+            np.dot(self.eye_to_head_transforms[eye], hmd_matrix, out=self.camera_matrices[eye])
         frame_data.update({
             'hmd_pose': hmd_34,
             'hmd_velocity': velocities[0],
@@ -126,7 +116,6 @@ class OpenVRRenderer(object):
             frame_data['camera_matrix'] = self.camera_matrices[eye]
             frame_data['projection_matrix'] = self.projection_matrices[eye]
             frame_data['projection_lrbt'] = self.projection_lrbts[eye]
-            frame_data['fov'] = self.projection_matrices[eye][1,1]
             if self._nframes % 90 == 0:
                 _logger.debug('drawing for eye %d with frame_data:\n\n%s\n\n', eye,
                               '\n'.join('%s:\n%s' % item for item in frame_data.items()))

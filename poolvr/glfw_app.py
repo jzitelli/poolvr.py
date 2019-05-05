@@ -13,8 +13,11 @@ _logger = logging.getLogger('poolvr')
 from .gl_rendering import OpenGLRenderer
 
 
-def setup_glfw(window_size=(800,600), double_buffered=False,
-               title="poolvr.py 0.0.1", multisample=4):
+def setup_glfw(title="poolvr.py 0.0.1",
+               window_size=(800,600),
+               double_buffered=False,
+               multisample=4,
+               fullscreen=False):
     if not glfw.Init():
         raise Exception('failed to initialize glfw')
     if not double_buffered:
@@ -23,7 +26,10 @@ def setup_glfw(window_size=(800,600), double_buffered=False,
     if multisample:
         glfw.WindowHint(glfw.SAMPLES, multisample)
     width, height = window_size
-    window = glfw.CreateWindow(width, height, title)
+    if fullscreen:
+        window = glfw.CreateWindow(width, height, title, glfw.GetPrimaryMonitor())
+    else:
+        window = glfw.CreateWindow(width, height, title)
     if not window:
         glfw.Terminate()
         raise Exception('failed to create glfw window')

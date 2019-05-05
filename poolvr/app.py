@@ -1,3 +1,4 @@
+import os.path
 import sys
 import logging
 from itertools import chain
@@ -33,6 +34,7 @@ def main(window_size=(800,600),
          ball_collision_model='simple',
          use_ode=False,
          multisample=0,
+         fullscreen=False,
          use_bb_particles=False,
          cube_map=None,
          speed=1.0,
@@ -40,6 +42,7 @@ def main(window_size=(800,600),
          balls_on_table=None,
          technique=LAMBERT_TECHNIQUE,
          use_quartic_solver=False,
+         render_method='raycast',
          **kwargs):
     """
     The main routine.
@@ -50,7 +53,9 @@ def main(window_size=(800,600),
 %s''', '\n'.join('%s: %s' % item for item in
                  {k: v for k, v in chain(dict(locals()).items(), kwargs.items())}.items()))
     window, fallback_renderer = setup_glfw(window_size=window_size,
-                                           double_buffered=novr, multisample=multisample)
+                                           double_buffered=novr,
+                                           multisample=multisample,
+                                           fullscreen=fullscreen)
     if not novr and OpenVRRenderer is not None:
         try:
             renderer = OpenVRRenderer(window_size=window_size, multisample=multisample)
@@ -95,24 +100,56 @@ def main(window_size=(800,600),
     game.reset(balls_on_table=balls_on_table)
     table_mesh = game.table.export_mesh(surface_technique=technique, cushion_technique=technique)
     ball_meshes = game.table.export_ball_meshes(technique=technique,
-                                                use_bb_particles=use_bb_particles)
-    if use_bb_particles:
-        ball_shadow_meshes = []
-    else:
-        ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
+                                                use_bb_particles=render_method == 'bb_particles')
     # textured_text = TexturedText()
-    if use_bb_particles:
+    # if use_bb_particles:
+    if render_method == 'bb_particles':
         billboard_particles = ball_meshes[0]
         ball_mesh_positions = billboard_particles.primitive.attributes['translate']
         ball_mesh_rotations = np.array(game.num_balls * [np.eye(3)])
+        meshes = [floor_mesh, table_mesh] + ball_meshes + [cue.shadow_mesh, cue]
+    elif render_method == 'raycast':
+        ball_mesh_positions = np.zeros((game.num_balls, 3), dtype=np.float32)
+        ball_quaternions = np.zeros((game.num_balls, 4), dtype=np.float32)
+        ball_quaternions[:,3] = 1
+        from poolvr.gl_rendering import FragBox
+        def on_use(material,
+                   dt=None,
+                   camera_matrix=None,
+                   znear=None,
+                   projection_lrbt=None,
+                   window_size=None,
+                   **frame_data):
+            if dt is not None:
+                for q, omega in zip(ball_quaternions, game.ball_angular_velocities):
+                    q_w = q[3]
+                    q[3] -= 0.5 * dt * omega.dot(q[:3])
+                    q[:3] += 0.5 * dt * (q_w * omega + np.cross(omega, q[:3]))
+                    q /= np.sqrt(np.dot(q, q))
+            material.values['u_camera'] = camera_matrix
+            material.values['u_projection_lrbt'] = projection_lrbt
+            material.values['u_znear'] = znear
+            material.values['iResolution'] = window_size
+            material.values['ball_positions'] = ball_mesh_positions
+            material.values['ball_quaternions'] = ball_quaternions
+            material.values['cue_position'] = np.array(cue.position, dtype=np.float32)
+            material.values['cue_quaternion'] = np.array(cue.quaternion, dtype=np.float32)
+            material.values['cue_length'] = cue.length
+            material.values['cue_radius'] = cue.radius
+        import poolvr
+        fragbox = FragBox(os.path.join(os.path.dirname(poolvr.__file__),
+                                       'shaders', 'sphere_projection_fs.glsl'),
+                          on_use=on_use)
+        meshes = [table_mesh, fragbox]
     else:
+        ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
         ball_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_meshes]
         ball_mesh_rotations = [mesh.world_matrix[:3,:3].T for mesh in ball_meshes]
         ball_shadow_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_shadow_meshes]
-    meshes = [floor_mesh, table_mesh] + ball_meshes + ball_shadow_meshes + [cue.shadow_mesh, cue]
-    if cube_map:
-        from .room import skybox_mesh
-        meshes.insert(0, skybox_mesh)
+        meshes = [floor_mesh, table_mesh] + ball_meshes + ball_shadow_meshes + [cue.shadow_mesh, cue]
+        if cube_map:
+            from .room import skybox_mesh
+            meshes.insert(0, skybox_mesh)
     for mesh in meshes:
         mesh.init_gl()
     cue.shadow_mesh.update(c=table.H+0.001)
@@ -208,14 +245,18 @@ def main(window_size=(800,600),
                 if use_ode and isinstance(physics, ODEPoolPhysics):
                     set_quaternion_from_matrix(cue.rotation.dot(cue.world_matrix[:3, :3].T),
                                                cue.quaternion)
-            if use_bb_particles:
+            if render_method == 'bb_particles':
                 billboard_particles.update_gl()
-            else:
+            elif render_method == 'mesh':
                 for i, pos in enumerate(game.ball_positions):
                     ball_mesh_positions[i][:] = pos
                     ball_shadow_mesh_positions[i][0::2] = pos[0::2]
                 for i, quat in enumerate(game.ball_quaternions):
                     set_matrix_from_quaternion(quat, ball_mesh_rotations[i])
+            else:
+                for i, (pos, quat) in enumerate(zip(game.ball_positions, game.ball_quaternions)):
+                    ball_mesh_positions[i][:] = pos
+                    ball_quaternions[i][:] = quat
             cue.shadow_mesh.update()
             # sdf_text.set_text("%9.3f" % dt)
             # sdf_text.update_gl()

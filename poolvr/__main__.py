@@ -18,6 +18,12 @@ def parse_args():
                         metavar='<multisample level>', type=int,
                         help='enable multi-sampled anti-aliasing at specified level (must be a non-negative power of 2); default is 4',
                         default=4)
+    parser.add_argument('--resolution',
+                        help='OpenGL viewport resolution, e.g. 960x680',
+                        default='960x680')
+    parser.add_argument('--fullscreen',
+                        help='create fullscreen window',
+                        action='store_true')
     parser.add_argument('--bb-particles',
                         help='render balls using billboard particle shader instead of polygon meshes',
                         action='store_true')
@@ -65,7 +71,7 @@ def parse_args():
     args = parser.parse_args()
     args.msaa = int(args.msaa)
     args.balls_on_table = [int(n) for n in args.balls_on_table.split(',')]
-
+    args.resolution = [int(x) for x in args.resolution.split('x')]
     if args.collision_search_time_limit is not None:
         collision_search_time_limit = float(args.collision_search_time_limit)
     elif args.realtime:
@@ -73,7 +79,6 @@ def parse_args():
     else:
         collision_search_time_limit = None
     args.collision_search_time_limit = collision_search_time_limit
-
     if args.collision_search_time_forward is not None:
         collision_search_time_forward = float(args.collision_search_time_forward)
     elif args.realtime:
@@ -81,7 +86,6 @@ def parse_args():
     else:
         collision_search_time_forward = None
     args.collision_search_time_forward = collision_search_time_forward
-
     return args
 
 
@@ -113,7 +117,9 @@ def main():
                               else EGA_TECHNIQUE,
                     use_quartic_solver=args.use_quartic_solver,
                     collision_search_time_forward=args.collision_search_time_forward,
-                    collision_search_time_limit=args.collision_search_time_limit)
+                    collision_search_time_limit=args.collision_search_time_limit,
+                    fullscreen=args.fullscreen,
+                    window_size=args.resolution)
 
 
 def start_sound(sound_device):

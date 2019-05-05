@@ -571,9 +571,14 @@ class Mesh(Node):
 class FragBox(Node):
     _VS_SRC = r"""#version 410 core
 const vec2 quadVertices[4] = vec2[4](vec2(-1.0, -1.0), vec2( 1.0, -1.0), vec2(-1.0,  1.0), vec2( 1.0,  1.0));
-void main() { gl_Position = vec4(quadVertices[gl_VertexID], 0.0, 1.0); }
+void main() { gl_Position = vec4(quadVertices[gl_VertexID], 0.0, 0.0); }
 """
     def __init__(self, fs_src, on_use=None, **kwargs):
+        try:
+            with open(fs_src) as f:
+                fs_src = f.read()
+        except:
+            pass
         super().__init__(**kwargs)
         program = Program(self._VS_SRC, fs_src, parse_uniforms=True)
         self.material = Material(Technique(program),
