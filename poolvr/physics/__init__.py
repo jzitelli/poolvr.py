@@ -171,7 +171,6 @@ class PoolPhysics(object):
         self._balls_at_rest = set(self.balls_on_table)
         self._ball_motion_events = {}
         self._collisions = {}
-        self._last_ball_collision = {}
         self._rail_collisions = {}
         self._a_ij[:] = 0
         self._a_ij_mag[:] = 0
@@ -430,11 +429,11 @@ class PoolPhysics(object):
         self.events.append(event)
         if isinstance(event, RailCollisionEvent):
             event.e_i.T = event.t - event.e_i.t
-            self._last_ball_collision.pop(event.e_i.i, None)
         elif isinstance(event, BallCollisionEvent):
+            event.e_i.T_orig = event.e_i.T
+            event.e_j.T_orig = event.e_j.T
             event.e_i.T = event.t - event.e_i.t
             event.e_j.T = event.t - event.e_j.t
-            self._last_ball_collision[event.i] = self._last_ball_collision[event.j] = event
         if isinstance(event, BallEvent):
             i = event.i
             self._rail_collisions.pop(i, None)
@@ -446,23 +445,32 @@ class PoolPhysics(object):
                 if event.t < last_ball_event.t + last_ball_event.T:
                     last_ball_event.T = event.t - last_ball_event.t
             self.ball_events[i].append(event)
+            F = self._F
+            F[:] = self.balls_on_table
+            a_ij, a_ij_mag = self._a_ij, self._a_ij_mag
             if isinstance(event, BallStationaryEvent):
                 if i in self._ball_motion_events:
                     self._ball_motion_events.pop(i)
-                self._a_ij[i] = 0
-                self._a_ij_mag[i,i] = 0
-                self._a_ij_mag[i,:] = self._a_ij_mag[:,i] = self._a_ij_mag.diagonal()
                 self._balls_at_rest.add(i)
+                a_ij[i] = 0
+                a_ij_mag[i,F] = a_ij_mag[F,i] = a_ij_mag[F,F]
+                a_ij_mag[i,i] = 0
                 if self._enable_occlusion and isinstance(event, BallStationaryEvent):
                     self._update_occlusion({i: event._r_0})
             elif isinstance(event, BallMotionEvent):
                 accel = event.acceleration
                 self._ball_motion_events[i] = event
-                self._a_ij[i] = accel
-                self._a_ij_mag[i,:] = self._a_ij_mag[:,i] = np.linalg.norm(self._a_ij - accel, axis=1)
-                self._a_ij_mag[i,i] = np.sqrt(np.dot(accel, accel))
+                a_ij[i] = accel
+                a_ij_mag[i,F] = a_ij_mag[F,i] = np.linalg.norm(a_ij[F] - accel, axis=1)
+                a_ij_mag[i,i] = np.sqrt(np.dot(accel, accel))
                 if i in self._balls_at_rest:
                     self._balls_at_rest.remove(i)
+            if not isinstance(event, (CueStrikeEvent, RailCollisionEvent)):
+                r_ij, r_ij_mag = self._r_ij, self._r_ij_mag
+                r_ij[i,F] = r_ij[F,F] - event._r_0
+                r_ij[F,i] = -r_ij[i,F]
+                r_ij[i,i] = event._r_0
+                r_ij_mag[i,F] = r_ij_mag[F,i] = np.linalg.norm(r_ij[i,F], axis=1)
         for child_event in event.child_events:
             self._add_event(child_event)
         if self._enable_sanity_check and isinstance(event, BallCollisionEvent):
@@ -498,24 +506,18 @@ class PoolPhysics(object):
                 if t_min <= t0:
                     continue
                 if j not in collisions:
-                    if self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j]:
-                        collisions[j] = None
-                        continue
                     t1 = min(e_i.t + e_i.T, e_j.t + e_j.T)
                     if t1 <= t0:
                         collisions[j] = None
                         continue
-                    mint1tmin = min(t1,t_min)
-                    if self._moving_farther_away(e_i, e_j, t0, mint1tmin):
-                        # _logger.debug('%d, %d moving farther away:\n%s\n%s', i, j, e_i, e_j)
-                        if mint1tmin == t1:
-                            collisions[j] = None
+                    if self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j]:
+                        collisions[j] = None
                         continue
-                    toofar = self._too_far_for_collision(e_i, e_j, t0, mint1tmin)
-                    if toofar[0]:
-                        if mint1tmin == t1:
-                            collisions[j] = None
-                        # _logger.debug('%d, %d too far for collision:\n%s\n%s', i, j, e_i, e_j)
+                    if e_j.parent_event and e_i.parent_event and e_j.parent_event == e_i.parent_event:
+                        collisions[j] = None
+                        continue
+                    if self._too_far_for_collision(e_i, e_j, t0, t1):
+                        collisions[j] = None
                         continue
                     t_c = self._find_collision_time(e_i, e_j)
                     collisions[j] = t_c
@@ -534,10 +536,8 @@ class PoolPhysics(object):
         else:
             return next_motion_event
 
-    def _too_far_for_collision(self, e_i, e_j, t0, t1, *ts):
+    def _too_far_for_collision(self, e_i, e_j, t0, t1):
         a_ij_mag = self._a_ij_mag[e_i.i, e_j.i]
-        ts = np.array(list(chain([t1], ts)), dtype=np.float64)
-        out = np.empty(len(ts), dtype=np.bool8)
         if isinstance(e_j, BallStationaryEvent):
             tau_i_0 = t0 - e_i.t
             v_ij_0 = e_i.eval_velocity(tau_i_0)
@@ -546,21 +546,8 @@ class PoolPhysics(object):
             tau_i_0, tau_j_0 = t0 - e_i.t, t0 - e_j.t
             v_ij_0 = e_i.eval_velocity(tau_i_0) - e_j.eval_velocity(tau_j_0)
             r_ij_0 = e_i.eval_position(tau_i_0) - e_j.eval_position(tau_j_0)
-        dist_bnd = np.sqrt(np.dot(v_ij_0, v_ij_0))*(ts-t0) + 0.5*a_ij_mag*(ts-t0)**2
-        out[:] = dist_bnd < (np.sqrt(np.dot(r_ij_0, r_ij_0)) - self.ball_diameter) * np.ones(dist_bnd.shape)
-        return out
-
-    def _moving_farther_away(self, e_i, e_j, t0, t1):
-        tau_i, tau_j = t0 - e_i.t, t0 - e_j.t
-        r_ij = e_j.eval_position(tau_j) - e_i.eval_position(tau_i)
-        r_ij_mag = np.sqrt(np.dot(r_ij, r_ij))
-        _i = r_ij / r_ij_mag
-        v_ij = e_j.eval_velocity(tau_j) - e_i.eval_velocity(tau_i)
-        a_ij = e_j.acceleration - e_i.acceleration
-        away_velocity = np.dot(v_ij, _i)
-        if away_velocity >= 0 and away_velocity + np.dot(a_ij, _i) * (t1-t0) >= 0:
-            return True
-        return False
+        return np.sqrt(np.dot(v_ij_0, v_ij_0))*(t1-t0) + 0.5*a_ij_mag*(t1-t0)**2 \
+             < np.sqrt(np.dot(r_ij_0, r_ij_0)) - self.ball_diameter
 
     def _find_collision_time(self, e_i, e_j):
         a_i, _ = e_i.global_motion_coeffs
@@ -579,7 +566,7 @@ class PoolPhysics(object):
         return min((t.real for t in self._filter_roots(quartic_solve(p[::-1], only_real=True)
                                                        if self._use_quartic_solver else
                                                        np.roots(p))
-                    if t0 < t.real <= t1
+                    if t0 <= t.real <= t1
                     and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
                     default=None)
 
@@ -740,10 +727,9 @@ class PoolPhysics(object):
                 with open('%s.pickle.dump' % self.__class__.__name__, 'wb') as f:
                     pickle.dump(physics, f)
                 super().__init__(*args, **kwargs)
-
         if isinstance(event, BallCollisionEvent):
             e_i, e_j = event.child_events
-            for t in np.linspace(event.t, event.t + min(e_i.T, e_j.T), 20):
+            for t in np.linspace(event.t, event.t + min(e_i.T, e_j.T), 100):
                 if e_i.t + e_i.T >= t or e_j.t + e_j.T >= t:
                     r_i, r_j = self.eval_positions(t, balls=[event.i, event.j])
                     d_ij = np.linalg.norm(r_i - r_j)
@@ -756,10 +742,10 @@ ball_diameter = %s
           r_i = %s
           r_j = %s
             t = %s
-event: %s
+event %d: %s
   e_i: %s
   e_j: %s
-''' % (2*self.ball_radius, d_ij, r_i, r_j, self.t, event, e_i, e_j))
+''' % (2*self.ball_radius, d_ij, r_i, r_j, t, len(self.events)-1, event, e_i, e_j))
 
     def glyph_meshes(self, t):
         if self._velocity_meshes is None:

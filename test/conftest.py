@@ -237,8 +237,7 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
     game = PoolGame(physics=pool_physics, table=table)
     window_size = [xres, yres]
     title = '_'.join([request.function.__name__, pool_physics.ball_collision_model])
-    window, renderer = setup_glfw(width=window_size[0],
-                                  height=window_size[1],
+    window, renderer = setup_glfw(window_size=window_size,
                                   double_buffered=True,
                                   multisample=int(msaa),
                                   title=title)

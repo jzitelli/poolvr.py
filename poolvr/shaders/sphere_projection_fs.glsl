@@ -51,6 +51,7 @@ const vec3 ball_colors[16] = vec3[16](vec3(0.8666667,0.8666667,0.87058824),
 const float L_2 = 50*0.0254;
 const float W_2 =25*0.0254;
 const vec3 table_color = vec3(0.0, float(0xaa)/0xff, 0.0);
+const vec3 lig = normalize( vec3(0.0,8.0,0.0) );
 
 vec3 rotateByQuaternion(inout vec3 v, in vec4 q) {
   v += 2 * cross(q.xyz, cross(q.xyz, v) + q.w * v);
@@ -206,7 +207,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   if( tmin < 400.0 ) {
     pos = ro + tmin*rd;
     col = vec3(1.0);
-    vec3 lig = normalize( vec3(2.0,8.0,-1.0) );
+    // vec3 lig = normalize( vec3(2.0,8.0,-1.0) );
     float sha = 1.0;
     for (int i = 0; i < 16; i++) {
       if (imin == i) continue;
