@@ -45,7 +45,7 @@ def pool_physics(pool_table, request):
     return PoolPhysics(initial_positions=pool_table.calc_racked_positions(),
                        ball_collision_model='simple',
                        enable_sanity_check=False,
-                       enable_occlusion=False)
+                       enable_occlusion=True)
 
 
 @pytest.fixture

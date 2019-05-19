@@ -110,7 +110,7 @@ class PoolPhysics(object):
             self._realtime = True
         else:
             self._realtime = False
-        self._enable_occlusion = enable_occlusion
+        self._enable_occlusion = False #enable_occlusion
         self._enable_sanity_check = enable_sanity_check
         self._use_quartic_solver = use_quartic_solver
         self._p = np.empty(5, dtype=np.float64)
@@ -140,7 +140,6 @@ class PoolPhysics(object):
             self._ball_collision_model_kwargs = ball_collision_model_kwargs
         else:
             self._ball_collision_model_kwargs = {}
-        self._use_quartic_solver = use_quartic_solver
         self._taus = np.zeros((num_balls, 3), dtype=np.float64)
         self._taus[:,0] = 1
         self._a = np.zeros((num_balls, 3, 3), dtype=np.float64)
@@ -174,11 +173,17 @@ class PoolPhysics(object):
         self._rail_collisions = {}
         self._a_ij[:] = 0
         self._a_ij_mag[:] = 0
+        F, r_ij, r_ij_mag = self._F, self._r_ij, self._r_ij_mag
+        F[:] = self.balls_on_table
+        r_ij[F,F] = ball_positions
+        for ii, i in enumerate(self.balls_on_table):
+            r_ij[i,F] = r_ij[F,F] - ball_positions[ii]
+            r_ij[F,i] = -r_ij[i,F]
+            r_ij[i,i] = ball_positions[ii]
+            r_ij_mag[i,F] = r_ij_mag[F,i] = np.linalg.norm(r_ij[i,F], axis=1)
         # update occlusion buffers:
         self._occ_ij[:] = False
-        self._occ_ij[range(self.num_balls), range(self.num_balls)] = True
-        self._r_ij[:] = 0
-        self._r_ij_mag[:] = 0
+        self._occ_ij[F, F] = True
         self._psi_ij[:] = 0
         self._theta_ij[:] = 0
         if self._enable_occlusion:
@@ -455,7 +460,7 @@ class PoolPhysics(object):
                 a_ij[i] = 0
                 a_ij_mag[i,F] = a_ij_mag[F,i] = a_ij_mag[F,F]
                 a_ij_mag[i,i] = 0
-                if self._enable_occlusion and isinstance(event, BallStationaryEvent):
+                if self._enable_occlusion and not self.balls_in_motion:
                     self._update_occlusion({i: event._r_0})
             elif isinstance(event, BallMotionEvent):
                 accel = event.acceleration
@@ -486,10 +491,12 @@ class PoolPhysics(object):
             t_min = INF
         next_collision = None
         next_rail_collision = None
+        r_ij_mag = self._r_ij_mag
         for i in self.balls_in_motion:
             e_i = self.ball_events[i][-1]
             if e_i.t >= t_min:
                 continue
+            nballs_in_motion = len(self.balls_in_motion)
             if i not in self._rail_collisions:
                 self._rail_collisions[i] = self._find_rail_collision(e_i)
             rail_collision = self._rail_collisions[i]
@@ -500,7 +507,7 @@ class PoolPhysics(object):
                 self._collisions[i] = {}
             collisions = self._collisions[i]
             for j in sorted((j for j in self.balls_on_table if not (j <= i and j in self.balls_in_motion)),
-                            key=lambda j: self._r_ij_mag[i,j]):
+                            key=lambda j: r_ij_mag[i,j]):
                 e_j = self.ball_events[j][-1]
                 t0 = max(e_i.t, e_j.t)
                 if t_min <= t0:
@@ -510,7 +517,10 @@ class PoolPhysics(object):
                     if t1 <= t0:
                         collisions[j] = None
                         continue
-                    if self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j]:
+                    # if self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j]:
+                    #     collisions[j] = None
+                    #     continue
+                    if self._enable_occlusion and nballs_in_motion == 1 and self._occ_ij[i,j]:
                         collisions[j] = None
                         continue
                     if e_j.parent_event and e_i.parent_event and e_j.parent_event == e_i.parent_event:
@@ -646,24 +656,24 @@ class PoolPhysics(object):
             return (e_i.t + tau_min, e_i.i, side_min)
 
     def _update_occlusion(self, ball_positions=None):
-        r_ij = self._r_ij
-        r_ij_mag = self._r_ij_mag
-        thetas_ij = self._theta_ij
-        psi_ij = self._psi_ij
-        occ_ij = self._occ_ij
         if ball_positions is None:
             ball_positions = {}
         balls, ball_positions = zip(*ball_positions.items())
         balls = list(balls)
         nballs = len(balls)
+        r_ij = self._r_ij
+        r_ij_mag = self._r_ij_mag
+        thetas_ij = self._theta_ij
+        psi_ij = self._psi_ij
+        occ_ij = self._occ_ij
         F = self._F
         U = F[:nballs] = balls # U: ball no.s corresponding to the input ball_positions, respectively - these balls must be at rest.
         R = [i                 # R: ball no.s of all other balls at rest.
              for i in self.balls_at_rest if i not in U]
         R = F[nballs:nballs+len(R)] = R
         F = F[:nballs+len(R)]
-        r_ij[U,U] = ball_positions # diagonal contains the global rest position for balls at rest,
-                                   # and the motion start position for balls in motion
+        # r_ij[U,U] = ball_positions # diagonal contains the global rest position for balls at rest,
+        #                            # and the motion start position for balls in motion
         U.sort()
         R.sort()
         M = np.array(self.balls_in_motion, dtype=np.int)
@@ -673,9 +683,6 @@ class PoolPhysics(object):
             F_i = F[ii+1:]
             if len(F_i) == 0:
                 continue
-            r_ij[i,F_i] = r_ij[F_i,F_i] - r_ij[i,i]
-            r_ij[F_i,i] = -r_ij[i,F_i]
-            r_ij_mag[i,F_i] = r_ij_mag[F_i,i] = np.linalg.norm(r_ij[i,F_i], axis=1)
             thetas_ij[i,F_i] = np.arctan2(r_ij[i,F_i,2], r_ij[i,F_i,0])
             thetas_ij[F_i,i] = thetas_ij[i,F_i] + np.pi
             psi_ij[i,F_i] = psi_ij[F_i,i] = np.arcsin(self.ball_diameter / r_ij_mag[i,F_i])
