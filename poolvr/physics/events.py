@@ -399,57 +399,36 @@ class BallCollisionEvent(PhysicsEvent):
     @property
     def child_events(self):
         if self._child_events is None:
-            e_i, e_j = self.e_i, self.e_j
-            v_i_1, v_j_1 = self._v_i_1, self._v_j_1
-            omega_i_1, omega_j_1 = self._omega_i_1, self._omega_j_1
-            y_loc = self._j
-            if np.dot(v_i_1, v_i_1) < self._ZERO_VELOCITY_CLIP_SQRD:
-                if abs(omega_i_1[1]) < self._ZERO_ANGULAR_VELOCITY_CLIP:
-                    e_i_1 = BallRestEvent(self.t, e_i.i,
-                                          r_0=self._r_i,
-                                          parent_event=self)
+            child_events = []
+            x_loc, y_loc = self._i, self._j
+            for (r, v_1, omega_1, e) in (
+                    (self._r_i, self._v_i_1, self._omega_i_1, self.e_i),
+                    (self._r_j, self._v_j_1, self._omega_j_1, self.e_j)
+            ):
+                if np.dot(v_1, v_1) < self._ZERO_VELOCITY_CLIP_SQRD:
+                    if abs(omega_1[1]) < self._ZERO_ANGULAR_VELOCITY_CLIP:
+                        e_1 = BallRestEvent(self.t, e.i,
+                                            r_0=r,
+                                            parent_event=self)
+                    else:
+                        e_1 = BallSpinningEvent(self.t, e.i,
+                                                r_0=r,
+                                                omega_0_y=omega_1[1],
+                                                parent_event=self)
                 else:
-                    e_i_1 = BallSpinningEvent(self.t, e_i.i,
-                                              r_0=self._r_i,
-                                              omega_0_y=omega_i_1[1],
-                                              parent_event=self)
-            else:
-                omega_i_1y = omega_i_1 - np.dot(omega_i_1, y_loc) * y_loc
-                if abs(np.dot(v_i_1, y_loc) / self.ball_radius) <= np.sqrt(np.dot(omega_i_1y, omega_i_1y)):
-                    e_i_1 = BallRollingEvent(self.t, e_i.i,
-                                             r_0=self._r_i,
-                                             v_0=v_i_1,
-                                             parent_event=self)
-                else:
-                    e_i_1 = BallSlidingEvent(self.t, e_i.i,
-                                             r_0=self._r_i,
-                                             v_0=v_i_1,
-                                             omega_0=omega_i_1,
-                                             parent_event=self)
-            if np.dot(v_j_1, v_j_1) < self._ZERO_VELOCITY_CLIP_SQRD:
-                if abs(omega_j_1[1]) < self._ZERO_ANGULAR_VELOCITY_CLIP:
-                    e_j_1 = BallRestEvent(self.t, e_j.i,
-                                          r_0=self._r_j,
-                                          parent_event=self)
-                else:
-                    e_j_1 = BallSpinningEvent(self.t, e_j.i,
-                                              r_0=self._r_j,
-                                              omega_0_y=omega_j_1[1],
-                                              parent_event=self)
-            else:
-                omega_j_1y = omega_j_1 - np.dot(omega_j_1, y_loc) * y_loc
-                if abs(np.dot(v_j_1, y_loc) / self.ball_radius) <= np.sqrt(np.dot(omega_j_1y, omega_j_1y)):
-                    e_j_1 = BallRollingEvent(self.t, e_j.i,
-                                             r_0=self._r_j,
-                                             v_0=v_j_1,
-                                             parent_event=self)
-                else:
-                    e_j_1 = BallSlidingEvent(self.t, e_j.i,
-                                             r_0=self._r_j,
-                                             v_0=v_j_1,
-                                             omega_0=omega_j_1,
-                                             parent_event=self)
-            self._child_events = (e_i_1, e_j_1)
+                    if abs(np.dot(v_1, y_loc) / self.ball_radius) <= abs(np.dot(omega_1, x_loc)):
+                        e_1 = BallRollingEvent(self.t, e.i,
+                                               r_0=r,
+                                               v_0=v_1,
+                                               parent_event=self)
+                    else:
+                        e_1 = BallSlidingEvent(self.t, e.i,
+                                               r_0=r,
+                                               v_0=v_1,
+                                               omega_0=omega_1,
+                                               parent_event=self)
+                child_events.append(e_1)
+            self._child_events = tuple(child_events)
         return self._child_events
     def __str__(self):
         return super().__str__()[:-1] + ' i=%s j=%s\n v_i_0=%s\n v_j_0=%s\n v_i_1=%s\n v_j_1=%s\n v_ij_0=%s\n v_ij_1=%s>' % (

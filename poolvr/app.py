@@ -22,11 +22,20 @@ from .physics import PoolPhysics
 from .table import PoolTable
 from .cue import PoolCue
 from .game import PoolGame
-from .keyboard_controls import init_keyboard, set_on_keydown_callback
+from .keyboard_controls import (init_keyboard, set_on_keydown_callback, key_state,
+                                KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN,
+                                KEY_W, KEY_S, KEY_A, KEY_D, KEY_Q, KEY_Z,
+                                KEY_R, KEY_ESCAPE)
 from .mouse_controls import init_mouse
 from .sound import init_sound
 from .room import floor_mesh
 # from .gl_text import TexturedText
+
+
+KB_TURN_SPEED = 0.5
+KB_MOVE_SPEED = 0.5
+KB_CUE_MOVE_SPEED = 0.2
+KB_CUE_ROTATE_SPEED = 0.1
 
 
 def main(window_size=(800,600),
@@ -173,17 +182,29 @@ def main(window_size=(800,600),
         cue.position[1] = game.table.H + 0.001
         cue.position[2] = game.table.L * 0.3
     process_mouse_input = init_mouse(window)
-    process_keyboard_input = init_keyboard(window)
+    init_keyboard(window)
     def on_keydown(window, key, scancode, action, mods):
         if key == glfw.KEY_R and action == glfw.PRESS:
             reset()
     set_on_keydown_callback(window, on_keydown)
-
+    theta = 0.0
+    def process_keyboard_input(dt, camera_world_matrix):
+        nonlocal theta
+        theta += KB_TURN_SPEED * dt * (key_state[KEY_LEFT] - key_state[KEY_RIGHT])
+        sin, cos = np.sin(theta), np.cos(theta)
+        camera_world_matrix[0,0] = cos
+        camera_world_matrix[0,2] = -sin
+        camera_world_matrix[2,0] = sin
+        camera_world_matrix[2,2] = cos
+        dist = dt * KB_MOVE_SPEED
+        camera_world_matrix[3,:3] += \
+            dist*(key_state[KEY_S]-key_state[KEY_W]) * camera_world_matrix[2,:3] \
+          + dist*(key_state[KEY_D]-key_state[KEY_A]) * camera_world_matrix[0,:3] \
+          + dist*(key_state[KEY_Q]-key_state[KEY_Z]) * camera_world_matrix[1,:3]
     def process_input(dt):
         glfw.PollEvents()
         process_keyboard_input(dt, camera_world_matrix)
         process_mouse_input(dt, cue)
-
     if isinstance(renderer, OpenVRRenderer):
         from .vr_input import calc_cue_transformation, calc_cue_contact_velocity, axis_callbacks, button_press_callbacks
         button_press_callbacks[openvr.k_EButton_ApplicationMenu] = reset

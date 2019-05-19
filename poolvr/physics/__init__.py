@@ -140,7 +140,6 @@ class PoolPhysics(object):
             self._ball_collision_model_kwargs = ball_collision_model_kwargs
         else:
             self._ball_collision_model_kwargs = {}
-        self._use_quartic_solver = use_quartic_solver
         self._taus = np.zeros((num_balls, 3), dtype=np.float64)
         self._taus[:,0] = 1
         self._a = np.zeros((num_balls, 3, 3), dtype=np.float64)
