@@ -28,8 +28,7 @@ uniform float u_znear;
 uniform vec3[16] ball_positions;
 uniform vec4[16] ball_quaternions;
 uniform float ball_radius = 1.125*0.0254;
-uniform vec4 cue_quaternion;
-uniform vec3 cue_position;
+uniform mat4 cue_world_matrix = mat4(1.0);
 uniform float cue_radius;
 uniform float cue_length;
 const vec3 ball_colors[16] = vec3[16](vec3(0.8666667,0.8666667,0.87058824),
@@ -49,7 +48,8 @@ const vec3 ball_colors[16] = vec3[16](vec3(0.8666667,0.8666667,0.87058824),
 				      vec3(0.0,0.93333334,0.0),
 				      vec3(0.73333335,0.13333334,0.26666668));
 const float L_2 = 50*0.0254;
-const float W_2 =25*0.0254;
+const float W_2 = 25*0.0254;
+const float table_height = 29.25*0.0254;
 const vec3 table_color = vec3(0.0, float(0xaa)/0xff, 0.0);
 const vec3 lig = normalize( vec3(0.0,8.0,0.0) );
 
@@ -68,22 +68,24 @@ float iSphere( in vec3 ro, in vec3 rd, in vec4 sph )
   return -b - sqrt( h );
 }
 
-float iCylinder( in vec3 ro, in vec3 rd, in vec3 cen, in vec4 q, in float h, in float rad ) {
+float iCylinder( in vec3 ro, in vec3 rd, in mat4 cue_world_matrix, in float h, in float rad ) {
   // transform to cylinder local-coordinates:
-  vec4 q_conj = vec4(-q.xyz, q.w);
-  vec3 ro_loc = ro - cen;
-  vec3 rd_loc = rd;
-  rd_loc = rotateByQuaternion(rd_loc, q_conj);
+  mat3 cue_rot_inv = transpose(mat3(cue_world_matrix));
+  vec3 cue_position = cue_world_matrix[3].xyz;
+  vec3 ro_loc = cue_rot_inv * (ro - cue_position);
+  vec3 rd_loc = cue_rot_inv * rd;
   float A = dot(rd_loc.xz, rd_loc.xz);
-  float B = 2*dot(ro_loc.xz, rd_loc.xz);
+  float B = dot(ro_loc.xz, rd_loc.xz);
   float C = dot(ro_loc.xz, ro_loc.xz) - rad*rad;
-  float DD = B*B - 4*A*C;
+  float DD = B*B - A*C;
   if (DD < 0.0) {
     return -1.0;
+  } else if (DD == 0.0) {
+    return -B/A;
   }
   float D = sqrt(DD);
-  float tm = (-B-D)/(2*A);
-  float tp = (-B+D)/(2*A);
+  float tm = (-B-D)/A;
+  float tp = (-B+D)/A;
   if ( tm < tp && tm > 0.0 && abs(ro_loc.y + rd_loc.y*tm) < 0.5*h ) {
     return tm;
   } else if ( tp > 0.0 && abs(ro_loc.y + rd_loc.y*tp) < 0.5*h ) {
@@ -162,7 +164,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     }
   }
 
-  h = (29.25*0.0254-ro.y)/rd.y;
+  h = (table_height-ro.y)/rd.y;
   if ( h>0.0 && h<tmin && abs(ro.x+h*rd.x) < W_2 && abs(ro.z+h*rd.z) < L_2) {
     pos = ro + h*rd;
     tmin = h;
@@ -175,7 +177,25 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     }
     // sur = vec3(1.0)*gridTextureGradBox( pos.xz, dFdx(pos.xz), dFdy(pos.xz) );
     sur = table_color;
-  } else if (imin > -1) {
+  }
+
+  h = iCylinder( ro, rd, cue_world_matrix, cue_length, cue_radius );
+  if ( h > 0.0 && h < tmin ) {
+    pos = ro + h*rd;
+    tmin = h;
+    imin = -1;
+    // nor = normalize(vec3(pos.x - cue_world_matrix[3].x, 0.0, pos.z - cue_world_matrix[3].z));
+    nor = pos - cue_world_matrix[3].xyz;
+    nor -= dot(nor,cue_world_matrix[1].xyz) * cue_world_matrix[1].xyz;
+    nor = normalize(nor);
+    sur = vec3(0.7, 0.3, 0.05);
+  }
+
+  if (tmin == 10000.0) {
+    discard;
+  }
+
+  if (imin > -1) {
     if (imin > 8) {
       vec3 sv = vec3(1.0, 0.0, 0.0);
       rotateByQuaternion(sv, ball_quaternions[imin]);
@@ -189,17 +209,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       sph.xyz = ball_positions[j];
       occ *= oSphere( pos, nor, sph );
     }
-  } else {
-    h = iCylinder( ro, rd, cue_position, cue_quaternion, cue_length, cue_radius );
-    if ( h > 0.0 && h < tmin ) {
-      pos = ro + h*rd;
-      tmin = h;
-      imin = -1;
-      nor = normalize(vec3(pos.x - cue_position.x, 0.0, pos.z - cue_position.z));
-      sur = vec3(0.0, 0.0, 1.0);
-    } else {
-      discard;
-    }
   }
 
   vec3 col = vec3(0.0);
@@ -207,7 +216,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   if( tmin < 400.0 ) {
     pos = ro + tmin*rd;
     col = vec3(1.0);
-    // vec3 lig = normalize( vec3(2.0,8.0,-1.0) );
     float sha = 1.0;
     for (int i = 0; i < 16; i++) {
       if (imin == i) continue;
