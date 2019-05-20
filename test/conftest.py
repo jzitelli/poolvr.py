@@ -222,13 +222,18 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
     keep_render_window = request.config.getoption('--keep-render-window')
     yield
 
+    import numpy as np
     import OpenGL
     OpenGL.ERROR_CHECKING = False
     OpenGL.ERROR_LOGGING = False
     OpenGL.ERROR_ON_COPY = True
     import cyglfw3 as glfw
     from poolvr.glfw_app import setup_glfw, capture_window
-    from poolvr.keyboard_controls import init_keyboard
+    from poolvr.app import KB_MOVE_SPEED, KB_TURN_SPEED, KB_CUE_MOVE_SPEED, KB_CUE_ROTATE_SPEED
+    from poolvr.keyboard_controls import (init_keyboard, set_on_keydown_callback, key_state,
+                                    KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN,
+                                    KEY_W, KEY_S, KEY_A, KEY_D, KEY_Q, KEY_Z,
+                                    KEY_R, KEY_ESCAPE)
     from poolvr.game import PoolGame
     from poolvr.gl_rendering import set_matrix_from_quaternion
     logging.getLogger('poolvr.gl_rendering').setLevel(logging.WARNING)
@@ -260,7 +265,21 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
     ball_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_meshes]
     ball_mesh_rotations = [mesh.world_matrix[:3,:3].T for mesh in ball_meshes]
     ball_shadow_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_shadow_meshes]
-    process_keyboard_input = init_keyboard(window)
+    init_keyboard(window)
+    theta = 0.0
+    def process_keyboard_input(dt, camera_world_matrix):
+        nonlocal theta
+        theta += KB_TURN_SPEED * dt * (key_state[KEY_LEFT] - key_state[KEY_RIGHT])
+        sin, cos = np.sin(theta), np.cos(theta)
+        camera_world_matrix[0,0] = cos
+        camera_world_matrix[0,2] = -sin
+        camera_world_matrix[2,0] = sin
+        camera_world_matrix[2,2] = cos
+        dist = dt * KB_MOVE_SPEED
+        camera_world_matrix[3,:3] += \
+            dist*(key_state[KEY_S]-key_state[KEY_W]) * camera_world_matrix[2,:3] \
+          + dist*(key_state[KEY_D]-key_state[KEY_A]) * camera_world_matrix[0,:3] \
+          + dist*(key_state[KEY_Q]-key_state[KEY_Z]) * camera_world_matrix[1,:3]
     def process_input(dt):
         glfw.PollEvents()
         process_keyboard_input(dt, camera_world_matrix)
@@ -339,7 +358,10 @@ def render_meshes(request):
     OpenGL.ERROR_ON_COPY = True
     import cyglfw3 as glfw
     from poolvr.glfw_app import setup_glfw, capture_window
-    from poolvr.keyboard_controls import init_keyboard
+    from .keyboard_controls import (init_keyboard, set_on_keydown_callback, key_state,
+                                    KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN,
+                                    KEY_W, KEY_S, KEY_A, KEY_D, KEY_Q, KEY_Z,
+                                    KEY_R, KEY_ESCAPE)
     window_size = [xres, yres]
     title = request.function.__name__
     window, renderer = setup_glfw(window_size=window_size,
@@ -361,7 +383,7 @@ def render_meshes(request):
     camera_position[2] = 0.75
     for mesh in meshes:
         mesh.init_gl(force=True)
-    process_keyboard_input = init_keyboard(window)
+    init_keyboard(window)
     def process_input(dt):
         glfw.PollEvents()
         process_keyboard_input(dt, camera_world_matrix)
