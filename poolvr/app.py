@@ -44,12 +44,10 @@ def main(window_size=(800,600),
          use_ode=False,
          multisample=0,
          fullscreen=False,
-         use_bb_particles=False,
          cube_map=None,
          speed=1.0,
          glyphs=False,
          balls_on_table=None,
-         technique=LAMBERT_TECHNIQUE,
          use_quartic_solver=False,
          render_method='raycast',
          **kwargs):
@@ -107,12 +105,12 @@ def main(window_size=(800,600),
     cue = PoolCue()
     game.physics.add_cue(cue)
     game.reset(balls_on_table=balls_on_table)
-    table_mesh = game.table.export_mesh(surface_technique=technique, cushion_technique=technique)
-    ball_meshes = game.table.export_ball_meshes(technique=technique,
-                                                use_bb_particles=render_method == 'bb_particles')
+    table_mesh = game.table.export_mesh(surface_technique=LAMBERT_TECHNIQUE, cushion_technique=LAMBERT_TECHNIQUE)
+    ball_meshes = game.table.export_ball_meshes(technique=LAMBERT_TECHNIQUE,
+                                                use_bb_particles=render_method == 'billboards')
     # textured_text = TexturedText()
     # if use_bb_particles:
-    if render_method == 'bb_particles':
+    if render_method == 'billboards':
         billboard_particles = ball_meshes[0]
         ball_mesh_positions = billboard_particles.primitive.attributes['translate']
         ball_mesh_rotations = np.array(game.num_balls * [np.eye(3)])
@@ -265,19 +263,18 @@ def main(window_size=(800,600),
                 if use_ode and isinstance(physics, ODEPoolPhysics):
                     set_quaternion_from_matrix(cue.rotation.dot(cue.world_matrix[:3, :3].T),
                                                cue.quaternion)
-            if render_method == 'bb_particles':
+            if render_method == 'billboards':
                 billboard_particles.update_gl()
-            elif render_method == 'mesh':
-                for i, pos in enumerate(game.ball_positions):
-                    ball_mesh_positions[i][:] = pos
-                    ball_shadow_mesh_positions[i][0::2] = pos[0::2]
-                for i, quat in enumerate(game.ball_quaternions):
-                    set_matrix_from_quaternion(quat, ball_mesh_rotations[i])
-            else:
+            elif render_method == 'raycast':
                 for i, (pos, quat) in enumerate(zip(game.ball_positions, game.ball_quaternions)):
                     ball_mesh_positions[i][:] = pos
                     ball_quaternions[i][:] = quat
-            cue.shadow_mesh.update()
+            else:
+                for i, (pos, quat) in enumerate(zip(game.ball_positions, game.ball_quaternions)):
+                    ball_mesh_positions[i][:] = pos
+                    ball_shadow_mesh_positions[i][0::2] = pos[0::2]
+                    set_matrix_from_quaternion(quat, ball_mesh_rotations[i])
+                cue.shadow_mesh.update()
             # sdf_text.set_text("%9.3f" % dt)
             # sdf_text.update_gl()
 

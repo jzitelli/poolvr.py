@@ -445,7 +445,8 @@ class PoolPhysics(object):
                     last_ball_event.T = event.t - last_ball_event.t
             self.ball_events[i].append(event)
             F = self._F
-            F[:] = self.balls_on_table
+            nballs = len(self.balls_on_table)
+            F = F[:nballs] = self.balls_on_table
             a_ij, a_ij_mag = self._a_ij, self._a_ij_mag
             if isinstance(event, BallStationaryEvent):
                 if i in self._ball_motion_events:
