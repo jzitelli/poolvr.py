@@ -589,7 +589,7 @@ class PoolPhysics(object):
         return min((t.real for t in self._filter_roots(quartic_solve(p[::-1], only_real=True)
                                                        if self._use_quartic_solver else
                                                        np.roots(p))
-                    if t0 <= t.real <= t1
+                    if t0 < t.real <= t1
                     and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
                     default=None)
 

@@ -3,11 +3,6 @@ import logging
 _logger = logging.getLogger(__name__)
 import numpy as np
 
-from .gl_rendering import Mesh, Material, Texture
-from .gl_primitives import PlanePrimitive, HexaPrimitive, SpherePrimitive, CirclePrimitive, BoxPrimitive
-from .gl_techniques import EGA_TECHNIQUE, LAMBERT_TECHNIQUE
-from .billboards import BillboardParticles
-
 
 # TODO: pkgutils way
 TEXTURES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -121,11 +116,20 @@ class PoolTable(object):
 
     def export_mesh(self,
                     surface_material=None,
-                    surface_technique=LAMBERT_TECHNIQUE,
+                    surface_technique=None,
                     cushion_material=None,
-                    cushion_technique=LAMBERT_TECHNIQUE,
+                    cushion_technique=None,
                     rail_material=None,
-                    rail_technique=EGA_TECHNIQUE):
+                    rail_technique=None):
+        from .gl_rendering import Mesh, Material
+        from .gl_primitives import PlanePrimitive, HexaPrimitive, BoxPrimitive
+        from .gl_techniques import EGA_TECHNIQUE
+        if surface_technique is None:
+            surface_technique = EGA_TECHNIQUE
+        if cushion_technique is None:
+            cushion_technique = EGA_TECHNIQUE
+        if rail_technique is None:
+            rail_technique = EGA_TECHNIQUE
         surface_material = surface_material or \
             Material(surface_technique,
                      values={'u_color': [0.0, 0xaa/0xff, 0.0, 0.0]})
@@ -221,7 +225,13 @@ class PoolTable(object):
     def export_ball_meshes(self,
                            striped_balls=tuple(range(9,16)),
                            use_bb_particles=False,
-                           technique=LAMBERT_TECHNIQUE):
+                           technique=None):
+        from .gl_rendering import Mesh, Material, Texture
+        from .gl_primitives import SpherePrimitive, CirclePrimitive
+        from .gl_techniques import EGA_TECHNIQUE
+        from .billboards import BillboardParticles
+        if technique is None:
+            technique = EGA_TECHNIQUE
         num_balls = self.num_balls
         ball_quaternions = np.zeros((num_balls, 4), dtype=np.float32)
         ball_quaternions[:,3] = 1

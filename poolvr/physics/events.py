@@ -252,6 +252,14 @@ class BallMotionEvent(BallEvent):
             out = np.empty(3, dtype=np.float64)
         out[:] = v + self.ball_radius * np.cross(_k, omega)
         return out
+    def eval_position_and_velocity(self, tau, out=None):
+        if out is None:
+            out = np.empty((2,3), dtype=np.float64)
+        taus = np.array((1.0, tau, tau**2))
+        a = self._a
+        np.dot(taus, a, out=out[0])
+        out[1] = a[1] + 2*tau*a[2]
+        return out
     def __str__(self):
         return super().__str__()[:-1] + '\n r_0=%s\n v_0=%s\n a=%s\n omega_0=%s>' % (self._r_0, self._v_0, self.acceleration, self._omega_0)
 
@@ -441,7 +449,7 @@ class SimpleBallCollisionEvent(BallCollisionEvent):
         r_i, r_j = self._r_i, self._r_j
         r_ij = r_i - r_j
         self._i = _i = r_ij / np.sqrt(np.dot(r_ij, r_ij))
-        self._j = _j = np.array((_i[2], 0.0, -_i[0])) #= np.cross(_k, self._i)
+        self._j = _j = np.array((_i[2], 0.0, -_i[0]))
         v_i, v_j = self._v_i, self._v_j
         vp_i = np.dot(v_i, _i) * _i
         vp_j = np.dot(v_j, _i) * _i

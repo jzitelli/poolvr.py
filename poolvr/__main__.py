@@ -24,9 +24,6 @@ def parse_args():
     parser.add_argument('--fullscreen',
                         help='create fullscreen window',
                         action='store_true')
-    parser.add_argument('--bb-particles',
-                        help='render balls using billboard particle shader instead of polygon meshes',
-                        action='store_true')
     parser.add_argument('-o', "--ode",
                         help="use ODE for physics simulation instead of the default event-based physics engine",
                         action="store_true")
@@ -57,10 +54,10 @@ def parse_args():
     parser.add_argument('-r', '--realtime',
                         action='store_true',
                         help='enable the realtime version (intended for interactive usage) of the event-based physics engine')
-    parser.add_argument('--collision_search_time_forward',
+    parser.add_argument('--collision-search-time-forward',
                         help='''time into the future in seconds to calculate events for
                         before yielding to render a new frame - using this option enables the realtime engine''')
-    parser.add_argument('--collision_search_time_limit',
+    parser.add_argument('--collision-search-time-limit',
                         help='maximum time in seconds to spend calculating events before yielding to render a new frame - using this option enables the realtime engine')
     parser.add_argument('--balls-on-table',
                         help='comma-separated list of balls on table',
@@ -106,7 +103,6 @@ def main():
                     ball_collision_model=args.collision_model,
                     use_ode=args.ode,
                     multisample=args.msaa,
-                    use_bb_particles=args.bb_particles,
                     cube_map=args.cube_map,
                     speed=args.speed,
                     glyphs=args.glyphs,
