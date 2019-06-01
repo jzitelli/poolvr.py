@@ -37,8 +37,7 @@ class PhysicsEvent(object):
         return self._parent_event
     @staticmethod
     def set_quaternion_from_euler_angles(psi=0.0, theta=0.0, phi=0.0, out=None):
-        if out is None:
-            out = np.empty(4, dtype=np.float64)
+        if out is None: out = np.empty(4, dtype=np.float64)
         angles = np.array((psi, theta, phi))
         c1, c2, c3 = np.cos(0.5 * angles)
         s1, s2, s3 = np.sin(0.5 * angles)
@@ -442,7 +441,7 @@ class SimpleBallCollisionEvent(BallCollisionEvent):
         r_i, r_j = self._r_i, self._r_j
         r_ij = r_i - r_j
         self._i = _i = r_ij / np.sqrt(np.dot(r_ij, r_ij))
-        self._j = _j = np.cross(_k, self._i)
+        self._j = _j = np.array((_i[2], 0.0, -_i[0])) #= np.cross(_k, self._i)
         v_i, v_j = self._v_i, self._v_j
         vp_i = np.dot(v_i, _i) * _i
         vp_j = np.dot(v_j, _i) * _i

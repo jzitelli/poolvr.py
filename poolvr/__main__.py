@@ -65,9 +65,9 @@ def parse_args():
     parser.add_argument('--balls-on-table',
                         help='comma-separated list of balls on table',
                         default=','.join(str(n) for n in range(16)))
-    parser.add_argument('--gl-technique',
-                        help='overall gl_rendering technique; possible values: ega, lambert',
-                        default='ega')
+    parser.add_argument('--render-method',
+                        help='OpenGL rendering method/style to use, one of: "ega", "lambert", "billboards", "raycast"',
+                        default='raycast')
     args = parser.parse_args()
     args.msaa = int(args.msaa)
     args.balls_on_table = [int(n) for n in args.balls_on_table.split(',')]
@@ -112,9 +112,7 @@ def main():
                     speed=args.speed,
                     glyphs=args.glyphs,
                     balls_on_table=args.balls_on_table,
-                    technique=LAMBERT_TECHNIQUE
-                              if args.gl_technique.lower() == 'lambert'
-                              else EGA_TECHNIQUE,
+                    render_method=args.render_method,
                     use_quartic_solver=args.use_quartic_solver,
                     collision_search_time_forward=args.collision_search_time_forward,
                     collision_search_time_limit=args.collision_search_time_limit,
