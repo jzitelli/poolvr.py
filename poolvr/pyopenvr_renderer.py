@@ -103,9 +103,9 @@ class OpenVRRenderer(object):
             'znear': self.znear,
             'zfar': self.zfar
         })
-        if self._nframes % 90 == 0:
-            _logger.debug('yielding frame_data:\n\n%s\n\n',
-                          '\n'.join('%s:\n%s' % item for item in frame_data.items()))
+        # if self._nframes % 90 == 0:
+        #     _logger.debug('yielding frame_data:\n\n%s\n\n',
+        #                   '\n'.join('%s:\n%s' % item for item in frame_data.items()))
         yield frame_data
 
         for eye in (0,1):
@@ -116,9 +116,9 @@ class OpenVRRenderer(object):
             frame_data['camera_matrix'] = self.camera_matrices[eye]
             frame_data['projection_matrix'] = self.projection_matrices[eye]
             frame_data['projection_lrbt'] = self.projection_lrbts[eye]
-            if self._nframes % 90 == 0:
-                _logger.debug('drawing for eye %d with frame_data:\n\n%s\n\n', eye,
-                              '\n'.join('%s:\n%s' % item for item in frame_data.items()))
+            # if self._nframes % 90 == 0:
+            #     _logger.debug('drawing for eye %d with frame_data:\n\n%s\n\n', eye,
+            #                   '\n'.join('%s:\n%s' % item for item in frame_data.items()))
             if meshes is not None:
                 for mesh in meshes:
                     mesh.draw(**frame_data)

@@ -31,22 +31,24 @@ uniform float ball_radius = 1.125*0.0254;
 uniform mat4 cue_world_matrix = mat4(1.0);
 uniform float cue_radius;
 uniform float cue_length;
-const vec3 ball_colors[16] = vec3[16](vec3(0.8666667,0.8666667,0.87058824),
-				      vec3(0.93333334,0.93333334,0.0),
-				      vec3(0.0,0.0,0.93333334),
-				      vec3(0.93333334,0.0,0.0),
-				      vec3(0.93333334,0.0,0.93333334),
-				      vec3(0.93333334,0.46666667,0.0),
-				      vec3(0.0,0.93333334,0.0),
-				      vec3(0.73333335,0.13333334,0.26666668),
-				      vec3(0.06666667,0.06666667,0.06666667),
-				      vec3(0.93333334,0.93333334,0.0),
-				      vec3(0.0,0.0,0.93333334),
-				      vec3(0.93333334,0.0,0.0),
-				      vec3(0.93333334,0.0,0.93333334),
-				      vec3(0.93333334,0.46666667,0.0),
-				      vec3(0.0,0.93333334,0.0),
-				      vec3(0.73333335,0.13333334,0.26666668));
+const vec3 ball_colors[16] = vec3[16](
+  vec3(0.8666667,0.8666667,0.87058824),
+  vec3(0.93333334,0.93333334,0.0),
+  vec3(0.0,0.0,0.93333334),
+  vec3(0.93333334,0.0,0.0),
+  vec3(0.93333334,0.0,0.93333334),
+  vec3(0.93333334,0.46666667,0.0),
+  vec3(0.0,0.93333334,0.0),
+  vec3(0.73333335,0.13333334,0.26666668),
+  vec3(0.06666667,0.06666667,0.06666667),
+  vec3(0.93333334,0.93333334,0.0),
+  vec3(0.0,0.0,0.93333334),
+  vec3(0.93333334,0.0,0.0),
+  vec3(0.93333334,0.0,0.93333334),
+  vec3(0.93333334,0.46666667,0.0),
+  vec3(0.0,0.93333334,0.0),
+  vec3(0.73333335,0.13333334,0.26666668)
+);
 const float L_2 = 50*0.0254;
 const float W_2 = 25*0.0254;
 const float table_height = 29.25*0.0254;
@@ -71,8 +73,7 @@ float iSphere( in vec3 ro, in vec3 rd, in vec4 sph )
 float iCylinder( in vec3 ro, in vec3 rd, in mat4 cue_world_matrix, in float h, in float rad ) {
   // transform to cylinder local-coordinates:
   mat3 cue_rot_inv = transpose(mat3(cue_world_matrix));
-  vec3 cue_position = cue_world_matrix[3].xyz;
-  vec3 ro_loc = cue_rot_inv * (ro - cue_position);
+  vec3 ro_loc = cue_rot_inv * (ro - cue_world_matrix[3].xyz);
   vec3 rd_loc = cue_rot_inv * rd;
   float A = dot(rd_loc.xz, rd_loc.xz);
   float B = dot(ro_loc.xz, rd_loc.xz);
@@ -120,17 +121,6 @@ float sdCappedCylinder( vec3 p, vec2 h ) {
   return min(max(d.x,d.y),0.0) + length(max(d,0.0));
 }
 
-float gridTextureGradBox( in vec2 p, in vec2 ddx, in vec2 ddy )
-{
-  const float N = 10.0;
-  vec2 w = max(abs(ddx), abs(ddy)) + 0.01;
-  vec2 a = p + 0.5*w;
-  vec2 b = p - 0.5*w;
-  vec2 i = (floor(a)+min(fract(a)*N,1.0)-
-            floor(b)-min(fract(b)*N,1.0))/(N*w);
-  return (1.0-i.x)*(1.0-i.y);
-}
-
 void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
   vec2 p = fragCoord.xy / iResolution.xy;
   vec3 uu = normalize(u_camera[0].xyz);
@@ -175,7 +165,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       sph.xyz = ball_positions[j];
       occ *= oSphere( pos, nor, sph );
     }
-    // sur = vec3(1.0)*gridTextureGradBox( pos.xz, dFdx(pos.xz), dFdy(pos.xz) );
     sur = table_color;
   }
 
@@ -184,7 +173,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
     pos = ro + h*rd;
     tmin = h;
     imin = -1;
-    // nor = normalize(vec3(pos.x - cue_world_matrix[3].x, 0.0, pos.z - cue_world_matrix[3].z));
     nor = pos - cue_world_matrix[3].xyz;
     nor -= dot(nor,cue_world_matrix[1].xyz) * cue_world_matrix[1].xyz;
     nor = normalize(nor);

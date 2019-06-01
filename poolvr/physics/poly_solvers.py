@@ -32,7 +32,6 @@ def quartic_solve(p, only_real=False):
     if only_real and Delta > 0 and (p > 0 or D > 0):
         # _logger.debug('all roots are complex and distinct')
         return np.empty(0)
-    # R = 8*d
     Delta_0 = cc + 12*e
     if Delta == 0 and D == 0:
         if only_real and p > 0 and r == 0:
@@ -53,14 +52,11 @@ def quartic_solve(p, only_real=False):
         #     QQQ = 0.5*(Delta_1 - np.sqrt(-27.0*Delta if Delta <= 0 else -27.0*Delta + 0j))
         Q = (QQQ + 0j)**(1.0/3)
         SSx4 = -2.0*p/3 + (Q*CUBE_ROOTS_OF_1 + Delta_0/(Q*CUBE_ROOTS_OF_1)) / 3.0
-        if Delta > 0:
-            # _logger.debug('all roots are complex and distinct')
-            S = 0.5*np.sqrt(SSx4 + 0j)
-            argsort = np.argsort(abs(S))
-            S = S[argsort[-1]]
-            SSx4 = SSx4[argsort[-1]]
-        elif Delta < 0:
-            # _logger.debug('two distinct real roots and a complex-conjugate pair of roots')
+        if Delta != 0:
+            # if Delta > 0:
+            #     _logger.debug('all roots are complex and distinct')
+            # else:
+            #     _logger.debug('two distinct real roots and a complex-conjugate pair of roots')
             S = 0.5*np.sqrt(SSx4 + 0j)
             argsort = np.argsort(abs(S))
             S = S[argsort[-1]]

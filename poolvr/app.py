@@ -305,8 +305,8 @@ def main(window_size=(800,600),
         _logger.info('...exited render loop: average FPS: %f, maximum frame time: %f, average frame time: %f',
                      (nframes - 1) / (t - st), max_frame_time, (t - st) / (nframes - 1))
 
-    from .physics.events import PhysicsEvent
-    _logger.debug(PhysicsEvent.events_str(physics.events))
+    # from .physics.events import PhysicsEvent
+    # _logger.debug(PhysicsEvent.events_str(physics.events))
 
     renderer.shutdown()
     _logger.info('...shut down renderer')

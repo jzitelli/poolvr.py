@@ -123,10 +123,14 @@ class PoolPhysics(object):
         self._bndz = self._sz - 0.999*ball_radius
         self._sxcp = self._sx - table.M_cp/SQRT2
         self._szcp = self._sz - table.M_cp/SQRT2
-        self._rail_tuples = ((2, -1, -self._rhsz, self._bndx, -self._sz, self._sxcp),
-                             (0,  1,  self._rhsx, self._bndz,  self._sx, self._szcp),
-                             (2,  1,  self._rhsz, self._bndx,  self._sz, self._sxcp),
-                             (0, -1, -self._rhsx, self._bndz, -self._sx, self._szcp))
+        self._rail_tuples = (
+            # 0: collision eqn. var; 1: normal sign; 2: collision eqn. RHS; 3: bound of validity along perpendicular axis;
+            # 4: position of corner pocket vertex along parallel axis; 5: position of corner pocket vertex along perpendicular axis
+            ( 2, -1, -self._rhsz, self._bndx, -self._sz, self._sxcp ),
+            ( 0,  1,  self._rhsx, self._bndz,  self._sx, self._szcp ),
+            ( 2,  1,  self._rhsz, self._bndx,  self._sz, self._sxcp ),
+            ( 0, -1, -self._rhsx, self._bndz, -self._sx, self._szcp )
+        )
         self._a_ij = np.zeros((self.num_balls, 3), dtype=np.float64)
         self._a_ij_mag = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
         self._r_ij = np.zeros((self.num_balls, self.num_balls, 3), dtype=np.float64)
@@ -174,8 +178,9 @@ class PoolPhysics(object):
         self._a_ij[:] = 0
         self._a_ij_mag[:] = 0
         F, r_ij, r_ij_mag = self._F, self._r_ij, self._r_ij_mag
-        nballs = len(self.balls_on_table)
-        F = F[:nballs] = self.balls_on_table
+        bot = self.balls_on_table
+        nballs = len(bot)
+        F = F[:nballs] = bot
         r_ij[F,F] = ball_positions
         for ii, i in enumerate(self.balls_on_table):
             r_ij[i,F] = r_ij[F,F] - ball_positions[ii]
@@ -452,8 +457,9 @@ class PoolPhysics(object):
                     last_ball_event.T = event.t - last_ball_event.t
             self.ball_events[i].append(event)
             F = self._F
-            nballs = len(self.balls_on_table)
-            F = F[:nballs] = self.balls_on_table
+            bot = self.balls_on_table
+            nballs = len(bot)
+            F[:nballs] = bot
             a_ij, a_ij_mag = self._a_ij, self._a_ij_mag
             if isinstance(event, BallStationaryEvent):
                 if i in self._ball_motion_events:
@@ -674,12 +680,11 @@ class PoolPhysics(object):
                           if 0.0 <= t.real <= e_i.T
                           and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
                          default=None)
-            _logger.debug('tau_cp = %s', tau_cp)
             if tau_cp and (tau_min is None or tau_cp < tau_min):
                 tau_min = tau_cp
                 cp_min = side
                 side_min = None
-                _logger.debug('tau_min = %s, cp_min = %s', tau_min, cp_min)
+                #_logger.debug('tau_min = %s, cp_min = %s', tau_min, cp_min)
         if side_min is not None:
             return (e_i.t + tau_min, e_i.i, side_min)
         elif cp_min is not None:

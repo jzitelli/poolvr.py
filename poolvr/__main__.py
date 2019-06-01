@@ -102,7 +102,6 @@ def main():
     if args.sound_device:
         start_sound(args.sound_device)
     import poolvr.app
-    from poolvr.gl_techniques import LAMBERT_TECHNIQUE, EGA_TECHNIQUE
     poolvr.app.main(novr=args.novr,
                     ball_collision_model=args.collision_model,
                     use_ode=args.ode,

@@ -672,9 +672,9 @@ class OpenGLRenderer(object):
             'window_size': self.window_size,
         }
         frame_data.update(kwargs)
-        if self._nframes % 90 == 0:
-            _logger.debug('rendering with frame_data:\n%s',
-                          '\n'.join('%s:\n%s' % it for it in frame_data.items()))
+        # if self._nframes % 90 == 0:
+        #     _logger.debug('rendering with frame_data:\n%s',
+        #                   '\n'.join('%s:\n%s' % it for it in frame_data.items()))
         yield frame_data
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         if meshes is not None:
