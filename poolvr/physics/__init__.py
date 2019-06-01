@@ -110,7 +110,7 @@ class PoolPhysics(object):
             self._realtime = True
         else:
             self._realtime = False
-        self._enable_occlusion = False #enable_occlusion
+        self._enable_occlusion = enable_occlusion
         self._enable_sanity_check = enable_sanity_check
         self._use_quartic_solver = use_quartic_solver
         self._p = np.empty(5, dtype=np.float64)
@@ -174,7 +174,8 @@ class PoolPhysics(object):
         self._a_ij[:] = 0
         self._a_ij_mag[:] = 0
         F, r_ij, r_ij_mag = self._F, self._r_ij, self._r_ij_mag
-        F[:] = self.balls_on_table
+        nballs = len(self.balls_on_table)
+        F = F[:nballs] = self.balls_on_table
         r_ij[F,F] = ball_positions
         for ii, i in enumerate(self.balls_on_table):
             r_ij[i,F] = r_ij[F,F] - ball_positions[ii]
@@ -493,11 +494,11 @@ class PoolPhysics(object):
         next_collision = None
         next_rail_collision = None
         r_ij_mag = self._r_ij_mag
+        nballs_in_motion = len(self.balls_in_motion)
         for i in self.balls_in_motion:
             e_i = self.ball_events[i][-1]
             if e_i.t >= t_min:
                 continue
-            nballs_in_motion = len(self.balls_in_motion)
             if i not in self._rail_collisions:
                 self._rail_collisions[i] = self._find_rail_collision(e_i)
             rail_collision = self._rail_collisions[i]

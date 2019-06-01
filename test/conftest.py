@@ -31,6 +31,8 @@ def pytest_addoption(parser):
                      action='store_true')
     parser.addoption('--vr', help='display in VR',
                      action='store_true')
+    parser.addoption('--sanity-check', help='enable physics sanity check',
+                     action='store_true')
 
 
 @pytest.fixture
@@ -42,18 +44,20 @@ def pool_table():
 @pytest.fixture
 def pool_physics(pool_table, request):
     from poolvr.physics import PoolPhysics
+    enable_sanity_check = request.config.getoption('--sanity-check')
     return PoolPhysics(initial_positions=pool_table.calc_racked_positions(),
                        ball_collision_model='simple',
-                       enable_sanity_check=False,
-                       enable_occlusion=True)
+                       enable_sanity_check=enable_sanity_check,
+                       enable_occlusion=False)
 
 
 @pytest.fixture
 def pool_physics_realtime(pool_table, request):
     from poolvr.physics import PoolPhysics
+    enable_sanity_check = request.config.getoption('--sanity-check')
     return PoolPhysics(initial_positions=pool_table.calc_racked_positions(),
                        ball_collision_model='simple',
-                       enable_sanity_check=False,
+                       enable_sanity_check=enable_sanity_check,
                        enable_occlusion=False,
                        realtime=True)
 
