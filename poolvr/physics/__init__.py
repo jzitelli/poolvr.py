@@ -57,8 +57,8 @@ class PoolPhysics(object):
                  ball_collision_model="simple",
                  ball_collision_model_kwargs=None,
                  table=None,
-                 enable_sanity_check=True,
-                 enable_occlusion=True,
+                 enable_sanity_check=False,
+                 enable_occlusion=False,
                  collision_search_time_limit=None,
                  collision_search_time_forward=None,
                  use_quartic_solver=True,
@@ -123,10 +123,10 @@ class PoolPhysics(object):
         self._bndz = self._sz - 0.999*ball_radius
         self._sxcp = self._sx - table.M_cp/SQRT2
         self._szcp = self._sz - table.M_cp/SQRT2
-        self._rail_tuples = ((2, -1, -self._rhsz, self._bndx, self._sxcp),
-                             (0,  1,  self._rhsx, self._bndz, self._szcp),
-                             (2,  1,  self._rhsz, self._bndx, self._sxcp),
-                             (0, -1, -self._rhsx, self._bndz, self._szcp))
+        self._rail_tuples = ((2, -1, -self._rhsz, self._bndx, -self._sz, self._sxcp),
+                             (0,  1,  self._rhsx, self._bndz,  self._sx, self._szcp),
+                             (2,  1,  self._rhsz, self._bndx,  self._sz, self._sxcp),
+                             (0, -1, -self._rhsx, self._bndz, -self._sx, self._szcp))
         self._a_ij = np.zeros((self.num_balls, 3), dtype=np.float64)
         self._a_ij_mag = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
         self._r_ij = np.zeros((self.num_balls, self.num_balls, 3), dtype=np.float64)
@@ -493,6 +493,11 @@ class PoolPhysics(object):
             if i not in self._rail_collisions:
                 self._rail_collisions[i] = self._find_rail_collision(e_i)
             rail_collision = self._rail_collisions[i]
+            if rail_collision and rail_collision[-1] < 0:
+                self._rail_collisions.pop(i)
+                cp_collision = rail_collision
+                rail_collision = None
+                _logger.debug('cp_collision = %s', cp_collision)
             if rail_collision and rail_collision[0] < t_min:
                 t_min = rail_collision[0]
                 next_rail_collision = rail_collision
@@ -593,15 +598,10 @@ class PoolPhysics(object):
 
     def _find_rail_collision(self, e_i):
         a = e_i._a
-        # if e_i.parent_event and isinstance(e_i.parent_event, RailCollisionEvent):
-        #     prev_side = e_i.parent_event.side
-        # else:
-        #     prev_side = None
         tau_min = e_i.T
         side_min = None
-        for side, (j, sgn, rhs, bnd, bnd_cp) in enumerate(self._rail_tuples):
-            # if side == prev_side:
-            #     continue
+        cp_min = None
+        for side, (j, sgn, rhs, bnd, r_inc_cp, bnd_cp) in enumerate(self._rail_tuples):
             if sgn * a[1,j] <= 0:
                 continue
             elif abs(a[1,j]) * tau_min < rhs - a[0,j]:
@@ -642,8 +642,36 @@ class PoolPhysics(object):
                         if abs(r[k]) < bnd:
                             tau_min = tau_p
                             side_min = side
+            p = self._p
+            r_c = np.zeros(3, dtype=np.float64)
+            r_c[1] = self.table.H
+            r_c[k] = r_inc_cp
+            r_c[2-k] = bnd_cp
+            r_c_mag_sqrd = np.dot(r_c, r_c)
+            a_0_mag_sqrd = np.dot(a[0], a[0])
+            a_1_mag_sqrd = np.dot(a[1], a[1])
+            R = self.ball_radius
+            p[0] = r_c_mag_sqrd - 2*np.dot(a[0], r_c) + a_0_mag_sqrd - R
+            p[1] = 2*np.dot(a[0], a[1]) - 2*np.dot(a[1], r_c)
+            p[2] = 2*np.dot(a[0], a[2]) + a_1_mag_sqrd
+            p[3] = 2*np.dot(a[1], a[2])
+            p[4] = np.dot(a[2], a[2])
+            tau_cp = min((t.real for t in self._filter_roots(quartic_solve(p, only_real=True)
+                                                             if self._use_quartic_solver else
+                                                             np.roots(p[::-1]))
+                          if 0.0 <= t.real <= e_i.T
+                          and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
+                         default=None)
+            _logger.debug('tau_cp = %s', tau_cp)
+            if tau_cp and (tau_min is None or tau_cp < tau_min):
+                tau_min = tau_cp
+                cp_min = side
+                side_min = None
+                _logger.debug('tau_min = %s, cp_min = %s', tau_min, cp_min)
         if side_min is not None:
             return (e_i.t + tau_min, e_i.i, side_min)
+        elif cp_min is not None:
+            return (e_i.t + tau_min, e_i.i, -cp_min)
 
     def _update_occlusion(self, ball_positions=None):
         r_ij = self._r_ij

@@ -121,18 +121,11 @@ def main(window_size=(800,600),
         ball_quaternions[:,3] = 1
         from poolvr.gl_rendering import FragBox
         def on_use(material,
-                   dt=None,
                    camera_matrix=None,
                    znear=None,
                    projection_lrbt=None,
                    window_size=None,
                    **frame_data):
-            if dt is not None:
-                for q, omega in zip(ball_quaternions, game.ball_angular_velocities):
-                    q_w = q[3]
-                    q[3] -= 0.5 * dt * omega.dot(q[:3])
-                    q[:3] += 0.5 * dt * (q_w * omega + np.cross(omega, q[:3]))
-                    q /= np.sqrt(np.dot(q, q))
             material.values['u_camera'] = camera_matrix
             material.values['u_projection_lrbt'] = projection_lrbt
             material.values['u_znear'] = znear
