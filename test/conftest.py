@@ -33,6 +33,9 @@ def pytest_addoption(parser):
                      action='store_true')
     parser.addoption('--sanity-check', help='enable physics sanity check',
                      action='store_true')
+    parser.addoption('--render-method',
+                     help='OpenGL rendering method/style to use, one of: "ega", "lambert", "billboards", "raycast"',
+                     default='lambert')
 
 
 @pytest.fixture
@@ -224,6 +227,7 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
     glyphs = request.config.getoption('--glyphs')
     speed = float(request.config.getoption('--speed'))
     keep_render_window = request.config.getoption('--keep-render-window')
+    render_method = request.config.getoption('--render-method')
     yield
 
     import numpy as np
@@ -240,27 +244,29 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
     from poolvr.game import PoolGame
     from poolvr.gl_rendering import set_matrix_from_quaternion
     logging.getLogger('poolvr.gl_rendering').setLevel(logging.WARNING)
+    if render_method == 'ega':
+        from poolvr.gl_techniques import EGA_TECHNIQUE as technique
+    elif render_method == 'lambert':
+        from poolvr.gl_techniques import LAMBERT_TECHNIQUE as technique
     physics = pool_physics
     table = pool_table
     game = PoolGame(physics=pool_physics, table=table)
-    window_size = [xres, yres]
     title = '_'.join([request.function.__name__, pool_physics.ball_collision_model])
-    window, renderer = setup_glfw(window_size=window_size,
-                                  double_buffered=True,
-                                  multisample=int(msaa),
-                                  title=title)
+    window, renderer = setup_glfw(window_size=[xres, yres], double_buffered=True,
+                                  multisample=int(msaa), title=title)
     camera_world_matrix = renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
     camera_position[1] = table.H + 0.6
     camera_position[2] = table.L - 0.1
-    ball_meshes = table.export_ball_meshes()
+    table_mesh = table.export_mesh(surface_technique=technique, cushion_technique=technique, rail_technique=technique)
+    ball_meshes = table.export_ball_meshes(technique=technique)
     ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
     for ball_mesh, shadow_mesh, on_table in zip(ball_meshes, ball_shadow_meshes, physics._on_table):
         if not on_table:
             ball_mesh.visible = False
             shadow_mesh.visible = False
     if not meshes:
-        meshes = [table.export_mesh()] + ball_meshes + ball_shadow_meshes
+        meshes = [table_mesh] + ball_meshes + ball_shadow_meshes
     else:
         glyphs = False
     for mesh in meshes:
@@ -326,7 +332,6 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
                      1 / max_frame_time,
                      (t - st) / (nframes - 1),
                      max_frame_time)
-
     if should_screenshot:
         if physics.events:
             t_end = physics.events[-1].t
@@ -337,10 +342,8 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
                 set_matrix_from_quaternion(game.ball_quaternions[i], out=ball_mesh_rotations[i])
                 ball_shadow_mesh_positions[i][0::2] = pos[0::2]
         glfw.SwapBuffers(window)
-        capture_window(window,
-                       filename=os.path.join(os.path.dirname(__file__), 'screenshots',
-                                             title.replace(' ', '_') + '.png'))
-
+        capture_window(window, filename=os.path.join(os.path.dirname(__file__), 'screenshots',
+                                                     title.replace(' ', '_') + '.png'))
     renderer.shutdown()
     glfw.DestroyWindow(window)
     glfw.Terminate()

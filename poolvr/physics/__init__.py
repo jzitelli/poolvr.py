@@ -520,9 +520,9 @@ class PoolPhysics(object):
             rail_collision = self._rail_collisions[i]
             if rail_collision and type(rail_collision[-1]) is tuple:
                 self._rail_collisions.pop(i)
-                cp_collision = rail_collision;
+                cp_collision = rail_collision
                 rail_collision = None
-                _logger.info('cp_collision = %s', cp_collision)
+                #_logger.debug('cp_collision = %s', cp_collision)
             if rail_collision and rail_collision[0] < t_min:
                 t_min = rail_collision[0]
                 next_rail_collision = rail_collision
