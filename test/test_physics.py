@@ -257,6 +257,25 @@ def test_strike_ball_less_english(pool_physics,
     #               PhysicsEvent.events_str(events))
 
 
+def test_corner_pocket_collision(pool_physics,
+                                 gl_rendering,
+                                 plot_motion_timelapse,
+                                 plot_energy):
+    physics = pool_physics
+    ball_positions = physics.eval_positions(0.0)
+    physics.reset(balls_on_table=[0],
+                  ball_positions=ball_positions)
+    r_c = physics._r_cp[0,0]
+    r_0c = r_c - ball_positions[0]
+    v_0 = 1.9 * r_0c / np.sqrt(np.dot(r_0c, r_0c))
+    start_event = BallSlidingEvent(0, 0,
+                                   r_0=ball_positions[0],
+                                   v_0=v_0,
+                                   omega_0=np.zeros(3, dtype=np.float64))
+    events = physics.add_event_sequence(start_event)
+    _logger.debug('%d events added:\n\n%s\n', len(events), PhysicsEvent.events_str(events=events))
+
+
 # def test_pocket_scratch(pool_physics,
 #                         gl_rendering,
 #                         plot_motion_timelapse,

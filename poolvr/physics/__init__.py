@@ -520,9 +520,9 @@ class PoolPhysics(object):
             rail_collision = self._rail_collisions[i]
             if rail_collision and type(rail_collision[-1]) is tuple:
                 self._rail_collisions.pop(i)
-                # cp_collision = rail_collision;
+                cp_collision = rail_collision;
                 rail_collision = None
-                # _logger.debug('cp_collision = %s', cp_collision)
+                _logger.info('cp_collision = %s', cp_collision)
             if rail_collision and rail_collision[0] < t_min:
                 t_min = rail_collision[0]
                 next_rail_collision = rail_collision
@@ -546,7 +546,7 @@ class PoolPhysics(object):
                     # if self._enable_occlusion and nballs_in_motion == 1 and self._occ_ij[i,j]:
                     #     collisions[j] = None
                     #     continue
-                    if e_j.parent_event and e_i.parent_event and e_j.parent_event == e_i.parent_event:
+                    if e_j.parent_event and e_i.parent_event and e_j.parent_event is e_i.parent_event:
                         collisions[j] = None
                         continue
                     if self._too_far_for_collision(e_i, e_j, t0, t1):
@@ -599,7 +599,7 @@ class PoolPhysics(object):
         return min((t.real for t in self._filter_roots(quartic_solve(p[::-1], only_real=True)
                                                        if self._use_quartic_solver else
                                                        np.roots(p))
-                    if t0 < t.real <= t1
+                    if t0 < t.real < t1
                     and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
                     default=None)
 
@@ -640,20 +640,22 @@ class PoolPhysics(object):
             if abs(a[2,j]) < 1e-15:
                 if abs(a[1,j]) > 1e-15:
                     tau = (rhs - a[0,j]) / a[1,j]
+                    if tau > 0:
+                        check_corners = True
                     if 0 < tau < tau_min:
                         r = e_i.eval_position(tau)
                         if abs(r[k]) < bnd:
                             tau_min = tau
                             side_min = side
                             cp_min = None
-                        else:
-                            check_corners = True
             else:
                 d = a[1,j]**2 - 4*a[2,j]*(a[0,j] - rhs)
                 if d > 1e-15:
                     pn = np.sqrt(d)
                     tau_p = (-a[1,j] + pn) / (2*a[2,j])
                     tau_n = (-a[1,j] - pn) / (2*a[2,j])
+                    if tau_p > 0 or tau_n > 0:
+                        check_corners = True
                     if 0 < tau_n < tau_min and 0 < tau_p < tau_min:
                         tau_a, tau_b = min(tau_n, tau_p), max(tau_n, tau_p)
                         r = e_i.eval_position(tau_a)
@@ -667,46 +669,40 @@ class PoolPhysics(object):
                                 tau_min = tau_b
                                 side_min = side
                                 cp_min = None
-                            else:
-                                check_corners = True
                     elif 0 < tau_n < tau_min:
                         r = e_i.eval_position(tau_n)
                         if abs(r[k]) < bnd:
                             tau_min = tau_n
                             side_min = side
                             cp_min = None
-                        else:
-                            check_corners = True
                     elif 0 < tau_p < tau_min:
                         r = e_i.eval_position(tau_p)
                         if abs(r[k]) < bnd:
                             tau_min = tau_p
                             side_min = side
                             cp_min = None
-                        else:
-                            check_corners = True
-                    if check_corners:
-                        check_corners = False
-                        if p is None:
-                            p = self._p
-                            a_0_mag_sqrd = np.dot(a[0], a[0])
-                            a_1_mag_sqrd = np.dot(a[1], a[1])
-                            p[2] = 2*np.dot(a[0], a[2]) + a_1_mag_sqrd
-                            p[3] = 2*np.dot(a[1], a[2])
-                            p[4] = np.dot(a[2], a[2])
-                        for i_c, (r_c, r_c_mag_sqrd) in enumerate(zip(r_cs, r_cs_mag_sqrd)):
-                            p[0] = r_c_mag_sqrd - 2*np.dot(a[0], r_c) + a_0_mag_sqrd - R_sqrd
-                            p[1] = 2*np.dot(a[0], a[1]) - 2*np.dot(a[1], r_c)
-                            tau_cp = min((t.real for t in self._filter_roots(quartic_solve(p, only_real=True)
-                                                                             if self._use_quartic_solver else
-                                                                             np.roots(p[::-1]))
-                                          if 0.0 < t.real < (tau_min if tau_min is not None else e_i.T)
-                                          and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
-                                         default=None)
-                            if tau_cp:
-                                tau_min = tau_cp
-                                cp_min = i_c
-                                side_min = None
+            if check_corners:
+                check_corners = False
+                if p is None:
+                    p = self._p
+                    a_0_mag_sqrd = np.dot(a[0], a[0])
+                    a_1_mag_sqrd = np.dot(a[1], a[1])
+                    p[2] = 2*np.dot(a[0], a[2]) + a_1_mag_sqrd
+                    p[3] = 2*np.dot(a[1], a[2])
+                    p[4] = np.dot(a[2], a[2])
+                for i_c, (r_c, r_c_mag_sqrd) in enumerate(zip(r_cs, r_cs_mag_sqrd)):
+                    p[0] = r_c_mag_sqrd - 2*np.dot(a[0], r_c) + a_0_mag_sqrd - R_sqrd
+                    p[1] = 2*np.dot(a[0], a[1]) - 2*np.dot(a[1], r_c)
+                    tau_cp = min((t.real for t in self._filter_roots(quartic_solve(p, only_real=True)
+                                                                     if self._use_quartic_solver else
+                                                                     np.roots(p[::-1]))
+                                  if 0.0 < t.real < (tau_min if tau_min is not None else e_i.T)
+                                  and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
+                                 default=None)
+                    if tau_cp:
+                        tau_min = tau_cp
+                        cp_min = i_c
+                        side_min = None
         if cp_min is not None:
             return (e_i.t + tau_min, e_i.i, (side, cp_min))
         elif side_min is not None:
@@ -837,43 +833,25 @@ event %d: %s
                 tau = t - event.t
                 r = event.eval_position(tau)
                 v = event.eval_velocity(tau)
-                v_mag = np.sqrt(np.dot(v, v))
-                if v_mag > self._ZERO_TOLERANCE:
-                    y = v / v_mag
-                    mesh = self._velocity_meshes[event.i]
-                    mesh.world_matrix[:] = 0
-                    mesh.world_matrix[0,0] = mesh.world_matrix[1,1] = mesh.world_matrix[2,2] = mesh.world_matrix[3,3] = 1
-                    mesh.world_matrix[1,:3] = y
-                    x, z = mesh.world_matrix[0,:3], mesh.world_matrix[2,:3]
-                    ydotx, ydotz = y.dot(x), y.dot(z)
-                    if abs(ydotx) >= abs(ydotz):
-                        mesh.world_matrix[2,:3] -= ydotz * y
-                        mesh.world_matrix[2,:3] /= np.sqrt(mesh.world_matrix[2,:3].dot(mesh.world_matrix[2,:3]))
-                        mesh.world_matrix[0,:3] = np.cross(mesh.world_matrix[1,:3], mesh.world_matrix[2,:3])
-                    else:
-                        mesh.world_matrix[0,:3] -= ydotx * y
-                        mesh.world_matrix[0,:3] /= np.sqrt(mesh.world_matrix[0,:3].dot(mesh.world_matrix[0,:3]))
-                        mesh.world_matrix[2,:3] = np.cross(mesh.world_matrix[0,:3], mesh.world_matrix[1,:3])
-                    mesh.world_matrix[3,:3] = r + (2*self.ball_radius)*y
-                    meshes.append(mesh)
                 omega = event.eval_angular_velocity(tau)
-                omega_mag = np.sqrt(omega.dot(omega))
-                if omega_mag > self._ZERO_TOLERANCE:
-                    y = omega / omega_mag
-                    mesh = self._angular_velocity_meshes[event.i]
-                    mesh.world_matrix[:] = 0
-                    mesh.world_matrix[0,0] = mesh.world_matrix[1,1] = mesh.world_matrix[2,2] = mesh.world_matrix[3,3] = 1
-                    mesh.world_matrix[1,:3] = y
-                    x, z = mesh.world_matrix[0,:3], mesh.world_matrix[2,:3]
-                    ydotx, ydotz = y.dot(x), y.dot(z)
-                    if abs(ydotx) >= abs(ydotz):
-                        mesh.world_matrix[2,:3] -= ydotz * y
-                        mesh.world_matrix[2,:3] /= np.sqrt(mesh.world_matrix[2,:3].dot(mesh.world_matrix[2,:3]))
-                        mesh.world_matrix[0,:3] = np.cross(mesh.world_matrix[1,:3], mesh.world_matrix[2,:3])
-                    else:
-                        mesh.world_matrix[0,:3] -= ydotx * y
-                        mesh.world_matrix[0,:3] /= np.sqrt(mesh.world_matrix[0,:3].dot(mesh.world_matrix[0,:3]))
-                        mesh.world_matrix[2,:3] = np.cross(mesh.world_matrix[0,:3], mesh.world_matrix[1,:3])
-                    mesh.world_matrix[3,:3] = r + (2*self.ball_radius)*y
-                    meshes.append(mesh)
+                for (vec, vec_mag, vec_meshes) in ((v, np.sqrt(np.dot(v, v)), self._velocity_meshes),
+                                                   (omega, np.sqrt(np.dot(omega, omega)), self._angular_velocity_meshes)):
+                    if vec > self._ZERO_TOLERANCE:
+                        y = vec / vec_mag
+                        mesh = vec_meshes[event.i]
+                        mesh.world_matrix[:] = 0
+                        mesh.world_matrix[0,0] = mesh.world_matrix[1,1] = mesh.world_matrix[2,2] = mesh.world_matrix[3,3] = 1
+                        mesh.world_matrix[1,:3] = y
+                        x, z = mesh.world_matrix[0,:3], mesh.world_matrix[2,:3]
+                        ydotx, ydotz = y.dot(x), y.dot(z)
+                        if abs(ydotx) >= abs(ydotz):
+                            mesh.world_matrix[2,:3] -= ydotz * y
+                            mesh.world_matrix[2,:3] /= np.sqrt(mesh.world_matrix[2,:3].dot(mesh.world_matrix[2,:3]))
+                            mesh.world_matrix[0,:3] = np.cross(mesh.world_matrix[1,:3], mesh.world_matrix[2,:3])
+                        else:
+                            mesh.world_matrix[0,:3] -= ydotx * y
+                            mesh.world_matrix[0,:3] /= np.sqrt(mesh.world_matrix[0,:3].dot(mesh.world_matrix[0,:3]))
+                            mesh.world_matrix[2,:3] = np.cross(mesh.world_matrix[0,:3], mesh.world_matrix[1,:3])
+                        mesh.world_matrix[3,:3] = r + (2*self.ball_radius)*y
+                        meshes.append(mesh)
         return meshes
