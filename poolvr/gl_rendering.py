@@ -370,6 +370,7 @@ class Material(GLRendering):
                 gl.glBindSampler(tex_unit, texture.sampler_id)
                 gl.glUniform1i(location, tex_unit)
                 tex_unit += 1
+                continue
             elif uniform_name in self.values:
                 value = self.values[uniform_name]
             elif uniform_name in frame_data:

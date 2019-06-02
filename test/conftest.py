@@ -26,7 +26,7 @@ def pytest_addoption(parser):
     parser.addoption('--msaa', help='multisample anti-aliasing level (defaults to 4)',
                      default='4')
     parser.addoption('--resolution', help='OpenGL viewport resolution, e.g. 960x680',
-                     default='960x680')
+                     default='1680x1050')
     parser.addoption('--keep-render-window', help='do not close OpenGL render window when all events have finished',
                      action='store_true')
     parser.addoption('--vr', help='display in VR',

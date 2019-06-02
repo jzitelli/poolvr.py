@@ -115,36 +115,31 @@ class PoolPhysics(object):
         self._use_quartic_solver = use_quartic_solver
         self._p = np.empty(5, dtype=np.float64)
         self._mask = np.array(4*[True])
-        self._sx = 0.5*table.W
-        self._sz = 0.5*table.L
-        self._rhsx = self._sx - ball_radius
-        self._rhsz = self._sz - ball_radius
-        self._bndx = self._sx - 0.999*ball_radius
-        self._bndz = self._sz - 0.999*ball_radius
-        self._sxcp = self._sx - table.M_cp/SQRT2
-        self._szcp = self._sz - table.M_cp/SQRT2
-        self._r_cp = np.zeros((4,2,3), dtype=np.float64)
+        self._rhsx = 0.5*table.W - ball_radius
+        self._rhsz = 0.5*table.L - ball_radius
+        self._bndx = 0.5*table.W - 0.999*ball_radius
+        self._bndz = 0.5*table.L - 0.999*ball_radius
+        self._r_cp = np.empty((4,2,3), dtype=np.float64)
         self._r_cp[...,1] = table.H + table.h
-        self._r_cp[0,0,0::2] = (-(0.5*table.W - table.M_cp/SQRT2), -0.5*table.L)
-        self._r_cp[0,1,0::2] = ( (0.5*table.W - table.M_cp/SQRT2), -0.5*table.L)
-        self._r_cp[1,0,0::2] = (-0.5*table.W, -(0.5*table.L - table.M_cp/SQRT2))
-        self._r_cp[1,1,0::2] = (-0.5*table.W,  (0.5*table.L - table.M_cp/SQRT2))
-        self._r_cp[0,0,0::2] = ( (0.5*table.W - table.M_cp/SQRT2), 0.5*table.L)
-        self._r_cp[0,1,0::2] = (-(0.5*table.W - table.M_cp/SQRT2), 0.5*table.L)
-        self._r_cp[1,0,0::2] = (0.5*table.W, -(0.5*table.L - table.M_cp/SQRT2))
-        self._r_cp[1,1,0::2] = (0.5*table.W,  (0.5*table.L - table.M_cp/SQRT2))
-        self._r_cp_mag_sqrd = np.empty((4,2), dtype=np.float64)
-        np.einsum('ijk,ijk->ij', self._r_cp, self._r_cp, out=self._r_cp_mag_sqrd)
+        self._r_cp[0,0,0::2] = ( -(0.5*table.W - table.M_cp/SQRT2),  -0.5*table.L                     )
+        self._r_cp[0,1,0::2] = (  (0.5*table.W - table.M_cp/SQRT2),  -0.5*table.L                     )
+        self._r_cp[1,0,0::2] = (   0.5*table.W,                     -(0.5*table.L - table.M_cp/SQRT2) )
+        self._r_cp[1,1,0::2] = (   0.5*table.W,                      (0.5*table.L - table.M_cp/SQRT2) )
+        self._r_cp[2,0,0::2] = (  (0.5*table.W - table.M_cp/SQRT2),   0.5*table.L                     )
+        self._r_cp[2,1,0::2] = ( -(0.5*table.W - table.M_cp/SQRT2),   0.5*table.L                     )
+        self._r_cp[3,0,0::2] = (  -0.5*table.W,                      (0.5*table.L - table.M_cp/SQRT2) )
+        self._r_cp[3,1,0::2] = (  -0.5*table.W,                     -(0.5*table.L - table.M_cp/SQRT2) )
+        self._r_cp_mag_sqrd = np.einsum('ijk,ijk->ij', self._r_cp, self._r_cp)
         self._rail_tuples = (
             # 0: collision eqn. var;
             # 1: normal sign;
             # 2: collision eqn. RHS;
             # 3: bound of validity along perpendicular axis;
             # 4: positions of corner pocket corners
-            ( 2, -1, -self._rhsz, self._bndx, self._r_cp[0], self._r_cp_mag_sqrd[0]),
-            ( 0,  1,  self._rhsx, self._bndz, self._r_cp[1], self._r_cp_mag_sqrd[1]),
-            ( 2,  1,  self._rhsz, self._bndx, self._r_cp[2], self._r_cp_mag_sqrd[2]),
-            ( 0, -1, -self._rhsx, self._bndz, self._r_cp[3], self._r_cp_mag_sqrd[3])
+            ( 2, -1, -self._rhsz, self._bndx, self._r_cp[0], self._r_cp_mag_sqrd[0] ),
+            ( 0,  1,  self._rhsx, self._bndz, self._r_cp[1], self._r_cp_mag_sqrd[1] ),
+            ( 2,  1,  self._rhsz, self._bndx, self._r_cp[2], self._r_cp_mag_sqrd[2] ),
+            ( 0, -1, -self._rhsx, self._bndz, self._r_cp[3], self._r_cp_mag_sqrd[3] )
         )
         self._a_ij = np.zeros((self.num_balls, 3), dtype=np.float64)
         self._a_ij_mag = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
@@ -515,7 +510,7 @@ class PoolPhysics(object):
         next_collision = None
         next_rail_collision = None
         r_ij_mag = self._r_ij_mag
-        nballs_in_motion = len(self.balls_in_motion)
+        #nballs_in_motion = len(self.balls_in_motion)
         for i in self.balls_in_motion:
             e_i = self.ball_events[i][-1]
             if e_i.t >= t_min:
@@ -525,9 +520,9 @@ class PoolPhysics(object):
             rail_collision = self._rail_collisions[i]
             if rail_collision and type(rail_collision[-1]) is tuple:
                 self._rail_collisions.pop(i)
-                cp_collision = rail_collision
+                # cp_collision = rail_collision;
                 rail_collision = None
-                _logger.info('cp_collision = %s', cp_collision)
+                # _logger.debug('cp_collision = %s', cp_collision)
             if rail_collision and rail_collision[0] < t_min:
                 t_min = rail_collision[0]
                 next_rail_collision = rail_collision
@@ -548,9 +543,9 @@ class PoolPhysics(object):
                     # if self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j]:
                     #     collisions[j] = None
                     #     continue
-                    if self._enable_occlusion and nballs_in_motion == 1 and self._occ_ij[i,j]:
-                        collisions[j] = None
-                        continue
+                    # if self._enable_occlusion and nballs_in_motion == 1 and self._occ_ij[i,j]:
+                    #     collisions[j] = None
+                    #     continue
                     if e_j.parent_event and e_i.parent_event and e_j.parent_event == e_i.parent_event:
                         collisions[j] = None
                         continue
@@ -634,10 +629,12 @@ class PoolPhysics(object):
         tau_min = e_i.T
         side_min = None
         cp_min = None
-        for side, (j, sgn, rhs, bnd, r_cps, r_cps_mag_sqrd) in enumerate(self._rail_tuples):
-            if sgn * a[1,j] <= 0:
-                continue
-            elif abs(a[1,j]) * tau_min < rhs - a[0,j]:
+        check_corners = False
+        p = None
+        R_sqrd = self.ball_radius**2
+        for side, (j, sgn, rhs, bnd, r_cs, r_cs_mag_sqrd) in enumerate(self._rail_tuples):
+            if sgn * a[1,j] <= 0 \
+               or abs(a[1,j]) * tau_min < rhs - a[0,j]:
                 continue
             k = 2 - j
             if abs(a[2,j]) < 1e-15:
@@ -648,6 +645,9 @@ class PoolPhysics(object):
                         if abs(r[k]) < bnd:
                             tau_min = tau
                             side_min = side
+                            cp_min = None
+                        else:
+                            check_corners = True
             else:
                 d = a[1,j]**2 - 4*a[2,j]*(a[0,j] - rhs)
                 if d > 1e-15:
@@ -660,40 +660,53 @@ class PoolPhysics(object):
                         if abs(r[k]) < bnd:
                             tau_min = tau_a
                             side_min = side
+                            cp_min = None
                         else:
                             r = e_i.eval_position(tau_b)
                             if abs(r[k]) < bnd:
                                 tau_min = tau_b
                                 side_min = side
+                                cp_min = None
+                            else:
+                                check_corners = True
                     elif 0 < tau_n < tau_min:
                         r = e_i.eval_position(tau_n)
                         if abs(r[k]) < bnd:
                             tau_min = tau_n
                             side_min = side
+                            cp_min = None
+                        else:
+                            check_corners = True
                     elif 0 < tau_p < tau_min:
                         r = e_i.eval_position(tau_p)
                         if abs(r[k]) < bnd:
                             tau_min = tau_p
                             side_min = side
-            p = self._p
-            R = self.ball_radius
-            a_0_mag_sqrd = np.dot(a[0], a[0])
-            a_1_mag_sqrd = np.dot(a[1], a[1])
-            p[2] = 2*np.dot(a[0], a[2]) + a_1_mag_sqrd
-            p[3] = 2*np.dot(a[1], a[2])
-            p[4] = np.dot(a[2], a[2])
-            for i_c, (r_c, r_c_mag_sqrd) in enumerate(zip(r_cps, r_cps_mag_sqrd)):
-                p[0] = r_c_mag_sqrd - 2*np.dot(a[0], r_c) + a_0_mag_sqrd - R**2
-                p[1] = 2*np.dot(a[0], a[1]) - 2*np.dot(a[1], r_c)
-                tau_cp = min((t.real for t in self._filter_roots(quartic_solve(p, only_real=True)
-                                                                 if self._use_quartic_solver else
-                                                                 np.roots(p[::-1]))
-                              if 0.0 <= t.real <= e_i.T
-                              and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
-                             default=None)
-                if tau_cp and (tau_min is None or tau_cp < tau_min):
-                    tau_min = tau_cp
-                    cp_min = i_c
+                            cp_min = None
+                        else:
+                            check_corners = True
+                    if check_corners:
+                        check_corners = False
+                        if p is None:
+                            p = self._p
+                            a_0_mag_sqrd = np.dot(a[0], a[0])
+                            a_1_mag_sqrd = np.dot(a[1], a[1])
+                            p[2] = 2*np.dot(a[0], a[2]) + a_1_mag_sqrd
+                            p[3] = 2*np.dot(a[1], a[2])
+                            p[4] = np.dot(a[2], a[2])
+                        for i_c, (r_c, r_c_mag_sqrd) in enumerate(zip(r_cs, r_cs_mag_sqrd)):
+                            p[0] = r_c_mag_sqrd - 2*np.dot(a[0], r_c) + a_0_mag_sqrd - R_sqrd
+                            p[1] = 2*np.dot(a[0], a[1]) - 2*np.dot(a[1], r_c)
+                            tau_cp = min((t.real for t in self._filter_roots(quartic_solve(p, only_real=True)
+                                                                             if self._use_quartic_solver else
+                                                                             np.roots(p[::-1]))
+                                          if 0.0 < t.real < (tau_min if tau_min is not None else e_i.T)
+                                          and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
+                                         default=None)
+                            if tau_cp:
+                                tau_min = tau_cp
+                                cp_min = i_c
+                                side_min = None
         if cp_min is not None:
             return (e_i.t + tau_min, e_i.i, (side, cp_min))
         elif side_min is not None:
