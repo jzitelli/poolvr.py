@@ -27,7 +27,8 @@ from .events import (CueStrikeEvent,
                      BallCollisionEvent,
                      MarlowBallCollisionEvent,
                      SimpleBallCollisionEvent,
-                     RailCollisionEvent)
+                     RailCollisionEvent,
+                     CornerCollisionEvent)
 from .poly_solvers import quartic_solve
 
 
@@ -448,7 +449,7 @@ class PoolPhysics(object):
 
     def _add_event(self, event):
         self.events.append(event)
-        if isinstance(event, RailCollisionEvent):
+        if isinstance(event, (RailCollisionEvent, CornerCollisionEvent)):
             event.e_i.T = event.t - event.e_i.t
         elif isinstance(event, BallCollisionEvent):
             event.e_i.T_orig = event.e_i.T
@@ -488,7 +489,7 @@ class PoolPhysics(object):
                 a_ij_mag[i,i] = np.sqrt(np.dot(accel, accel))
                 if i in self._balls_at_rest:
                     self._balls_at_rest.remove(i)
-            if not isinstance(event, (CueStrikeEvent, RailCollisionEvent)):
+            if not isinstance(event, (CueStrikeEvent, RailCollisionEvent, CornerCollisionEvent)):
                 r_ij, r_ij_mag = self._r_ij, self._r_ij_mag
                 r_ij[i,F] = r_ij[F,F] - event._r_0
                 r_ij[F,i] = -r_ij[i,F]
@@ -518,11 +519,6 @@ class PoolPhysics(object):
             if i not in self._rail_collisions:
                 self._rail_collisions[i] = self._find_rail_collision(e_i)
             rail_collision = self._rail_collisions[i]
-            if rail_collision and type(rail_collision[-1]) is tuple:
-                self._rail_collisions.pop(i)
-                cp_collision = rail_collision
-                rail_collision = None
-                #_logger.debug('cp_collision = %s', cp_collision)
             if rail_collision and rail_collision[0] < t_min:
                 t_min = rail_collision[0]
                 next_rail_collision = rail_collision
@@ -560,8 +556,14 @@ class PoolPhysics(object):
                     next_collision = (t_c, e_i, e_j)
                     next_rail_collision = None
         if next_rail_collision:
-            t, i, side = next_rail_collision
-            return RailCollisionEvent(t=t, e_i=self.ball_events[i][-1], side=side)
+            if isinstance(next_rail_collision[-1], tuple):
+                t, i, (side, i_c) = next_rail_collision
+                _logger.debug('t = %s,  i = %s,  side = %s,  i_c = %d',
+                              t, i, side, i_c)
+                return CornerCollisionEvent(t=t, e_i=self.ball_events[i][-1], side=side, i_c=i_c, r_c=self._r_cp[side,i_c])
+            else:
+                t, i, side = next_rail_collision
+                return RailCollisionEvent(t=t, e_i=self.ball_events[i][-1], side=side)
         if next_collision is not None:
             t_c, e_i, e_j = next_collision
             return self._ball_collision_event_class(t_c, e_i, e_j,
@@ -603,44 +605,25 @@ class PoolPhysics(object):
                     and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
                     default=None)
 
-    def _filter_roots(self, roots):
-        # filter out possible complex-conjugate pairs of roots:
-        mask = self._mask; mask[:] = True
-        while len(roots) > 0:
-            i, z = next(((i, z) for i, z in enumerate(roots)
-                         if abs(z.imag) > PoolPhysics._IMAG_TOLERANCE),
-                        (None, None))
-            if z is not None:
-                j = next((j for j, z_conj in enumerate(roots[i+1:])
-                          if  abs(z.real - z_conj.real) < PoolPhysics._ZERO_TOLERANCE
-                          and abs(z.imag + z_conj.imag) < PoolPhysics._ZERO_TOLERANCE),
-                         None)
-                if j is not None:
-                    mask[i] = mask[i+j+1] = False
-                    roots = roots[mask[:len(roots)]]
-                else:
-                    break
-            else:
-                break
-        return roots
-
     def _find_rail_collision(self, e_i):
         a = e_i._a
-        tau_min = e_i.T
+        T = e_i.t
+        tau_min = T
         side_min = None
         cp_min = None
         check_corners = False
         p = None
         R_sqrd = self.ball_radius**2
         for side, (j, sgn, rhs, bnd, r_cs, r_cs_mag_sqrd) in enumerate(self._rail_tuples):
-            if sgn * a[1,j] <= 0 \
-               or abs(a[1,j]) * tau_min < rhs - a[0,j]:
-                continue
+            # if sgn * a[1,j] <= 0 \
+            #    or abs(a[1,j]) * tau_min < rhs - a[0,j]:
+            #     continue
+            # check_corners = False
             k = 2 - j
             if abs(a[2,j]) < 1e-15:
                 if abs(a[1,j]) > 1e-15:
                     tau = (rhs - a[0,j]) / a[1,j]
-                    if tau > 0:
+                    if 0 < tau < T:
                         check_corners = True
                     if 0 < tau < tau_min:
                         r = e_i.eval_position(tau)
@@ -654,7 +637,7 @@ class PoolPhysics(object):
                     pn = np.sqrt(d)
                     tau_p = (-a[1,j] + pn) / (2*a[2,j])
                     tau_n = (-a[1,j] - pn) / (2*a[2,j])
-                    if tau_p > 0 or tau_n > 0:
+                    if 0 < tau_p < T or 0 < tau_n < T:
                         check_corners = True
                     if 0 < tau_n < tau_min and 0 < tau_p < tau_min:
                         tau_a, tau_b = min(tau_n, tau_p), max(tau_n, tau_p)
@@ -681,32 +664,58 @@ class PoolPhysics(object):
                             tau_min = tau_p
                             side_min = side
                             cp_min = None
-            if check_corners:
-                check_corners = False
-                if p is None:
-                    p = self._p
-                    a_0_mag_sqrd = np.dot(a[0], a[0])
-                    a_1_mag_sqrd = np.dot(a[1], a[1])
-                    p[2] = 2*np.dot(a[0], a[2]) + a_1_mag_sqrd
-                    p[3] = 2*np.dot(a[1], a[2])
-                    p[4] = np.dot(a[2], a[2])
-                for i_c, (r_c, r_c_mag_sqrd) in enumerate(zip(r_cs, r_cs_mag_sqrd)):
-                    p[0] = r_c_mag_sqrd - 2*np.dot(a[0], r_c) + a_0_mag_sqrd - R_sqrd
-                    p[1] = 2*np.dot(a[0], a[1]) - 2*np.dot(a[1], r_c)
-                    tau_cp = min((t.real for t in self._filter_roots(quartic_solve(p, only_real=True)
-                                                                     if self._use_quartic_solver else
-                                                                     np.roots(p[::-1]))
-                                  if 0.0 < t.real < (tau_min if tau_min is not None else e_i.T)
-                                  and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
-                                 default=None)
-                    if tau_cp:
-                        tau_min = tau_cp
-                        cp_min = i_c
-                        side_min = None
+            check_corners = True
+            p = self._p
+            for i_c, (r_c, r_c_mag_sqrd) in enumerate([(r_cs[0], r_cs_mag_sqrd[0]),
+                                                       (r_cs[1], r_cs_mag_sqrd[1])]):
+                a_0_mag_sqrd = np.dot(a[0], a[0])
+                a_1_mag_sqrd = np.dot(a[1], a[1])
+                p[0] = r_c_mag_sqrd \
+                    - 2*np.dot(a[0], r_c) \
+                    + a_0_mag_sqrd \
+                    - R_sqrd
+                p[1] = 2*np.dot(a[0], a[1]) \
+                    - 2*np.dot(a[1], r_c)
+                p[2] = 2*np.dot(a[0], a[2]) \
+                    + a_1_mag_sqrd \
+                    - 2*np.dot(a[2], r_c) # comment to have collisions?
+                p[3] = 2*np.dot(a[1], a[2])
+                p[4] = np.dot(a[2], a[2])
+                tau_cp = min((t.real for t in self._filter_roots(quartic_solve(p, only_real=False)
+                                                                 if self._use_quartic_solver else
+                                                                 np.roots(p[::-1]))
+                              if 0.0 < t.real < (tau_min if tau_min is not None else e_i.T)
+                              and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
+                             default=None)
+                if tau_cp is not None and tau_cp < tau_min:
+                    tau_min = tau_cp
+                    cp_min = i_c
+                    side_min = None
         if cp_min is not None:
             return (e_i.t + tau_min, e_i.i, (side, cp_min))
         elif side_min is not None:
             return (e_i.t + tau_min, e_i.i, side_min)
+
+    def _filter_roots(self, roots):
+        # filter out possible complex-conjugate pairs of roots:
+        mask = self._mask; mask[:] = True
+        while len(roots) > 0:
+            i, z = next(((i, z) for i, z in enumerate(roots)
+                         if abs(z.imag) > PoolPhysics._IMAG_TOLERANCE),
+                        (None, None))
+            if z is not None:
+                j = next((j for j, z_conj in enumerate(roots[i+1:])
+                          if  abs(z.real - z_conj.real) < PoolPhysics._ZERO_TOLERANCE
+                          and abs(z.imag + z_conj.imag) < PoolPhysics._ZERO_TOLERANCE),
+                         None)
+                if j is not None:
+                    mask[i] = mask[i+j+1] = False
+                    roots = roots[mask[:len(roots)]]
+                else:
+                    break
+            else:
+                break
+        return roots
 
     def _update_occlusion(self, ball_positions=None):
         if ball_positions is None:
