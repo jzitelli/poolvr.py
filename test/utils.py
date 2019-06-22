@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from poolvr.table import PoolTable
 from poolvr.physics.events import (CueStrikeEvent, BallSlidingEvent, BallRollingEvent, BallRestEvent,
                                    BallCollisionEvent, MarlowBallCollisionEvent, SimpleBallCollisionEvent,
-                                   RailCollisionEvent)
+                                   RailCollisionEvent, CornerCollisionEvent)
 
 
 _logger = logging.getLogger(__name__)
@@ -20,7 +20,8 @@ EVENT_COLORS = {CueStrikeEvent: 'green',
                 BallCollisionEvent: 'blue',
                 MarlowBallCollisionEvent: 'blue',
                 SimpleBallCollisionEvent: 'blue',
-                RailCollisionEvent: 'green'}
+                RailCollisionEvent: 'green',
+                CornerCollisionEvent: 'blue'}
 BALL_COLORS = {0: 'white',
                1: 'yellow',
                2: 'blue',
@@ -122,7 +123,7 @@ def plot_ball_motion(i, physics,
 
 def plot_motion_timelapse(physics, table=None,
                           title=None,
-                          nt=100,
+                          nt=200,
                           t_0=None, t_1=None,
                           filename=None,
                           show=False,
