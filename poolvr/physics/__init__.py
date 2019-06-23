@@ -59,7 +59,7 @@ class PoolPhysics(object):
                  ball_collision_model_kwargs=None,
                  table=None,
                  enable_sanity_check=False,
-                 enable_occlusion=False,
+                 enable_occlusion=True,
                  collision_search_time_limit=None,
                  collision_search_time_forward=None,
                  use_quartic_solver=True,
@@ -298,12 +298,6 @@ class PoolPhysics(object):
                 T -= t - lt; lt = t
         num_added_events = len(self.events) - num_events
         return self.events[-num_added_events:]
-
-    @property
-    def next_turn_time(self):
-        """The time at which all balls have come to rest."""
-        return self.events[-1].t \
-            if self.events and isinstance(self.events[-1], BallRestEvent) else 0.0
 
     def step(self, dt):
         if self._realtime:

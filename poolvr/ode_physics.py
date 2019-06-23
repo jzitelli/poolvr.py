@@ -197,9 +197,6 @@ class ODEPoolPhysics(object):
             out[ii] = self.ball_bodies[i].getAngularVel()
         return out
 
-    def next_turn_time(self):
-        return self._t_last_strike + 0.04
-
     @property
     def cushion_meshes(self):
         if self._cushion_meshes is None:

@@ -31,9 +31,9 @@ def parse_args():
                         metavar='<name of collision model>',
                         help="set the ball-to-ball collision model to use (this parameter only applies to the event-based physics engine)",
                         default='simple')
-    parser.add_argument('-q', '--use-quartic-solver',
-                        help="solve for collision times using the internal quartic solver instead of numpy.roots",
-                        action='store_true')
+    # parser.add_argument('-q', '--use-quartic-solver',
+    #                     help="solve for collision times using the internal quartic solver instead of numpy.roots",
+    #                     action='store_true')
     parser.add_argument('-s', '--sound-device',
                         metavar='<device ID>',
                         help="enable sound using the specified device",
@@ -108,7 +108,8 @@ def main():
                     glyphs=args.glyphs,
                     balls_on_table=args.balls_on_table,
                     render_method=args.render_method,
-                    use_quartic_solver=args.use_quartic_solver,
+                    # use_quartic_solver=args.use_quartic_solver,
+                    use_quartic_solver=True,
                     collision_search_time_forward=args.collision_search_time_forward,
                     collision_search_time_limit=args.collision_search_time_limit,
                     fullscreen=args.fullscreen,
