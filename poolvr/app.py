@@ -66,6 +66,7 @@ def main(window_size=(800,600),
     if not novr and OpenVRRenderer is not None:
         try:
             renderer = OpenVRRenderer(window_size=window_size, multisample=multisample)
+            renderer.init_gl()
             global _window_renderer
             _window_renderer = renderer
         except Exception as err:
@@ -229,7 +230,7 @@ def main(window_size=(800,600),
             glyph_meshes = []
         with renderer.render(meshes=meshes+glyph_meshes) as frame_data:
             if isinstance(renderer, OpenVRRenderer) and frame_data:
-                renderer.process_input(button_press_callbacks=button_press_callbacks,
+                renderer.process_input(dt, button_press_callbacks=button_press_callbacks,
                                        axis_callbacks=axis_callbacks)
                 hmd_pose = frame_data['hmd_pose']
                 camera_position[:] = hmd_pose[:, 3]
@@ -237,7 +238,7 @@ def main(window_size=(800,600),
                 if len(controller_poses) > 0:
                     if len(controller_poses) == 2:
                         pose_0, pose_1 = controller_poses
-                    elif len(controller_poses) == 1:
+                    else:
                         controller_indices = frame_data['controller_indices']
                         if controller_indices[0] == 0:
                             pose_0 = controller_poses[0]
