@@ -149,21 +149,28 @@ def plot_motion_timelapse(physics, table=None,
         figure = plt.figure()
     plt.title(title, fontsize='xx-small')
     plt.xticks([]); plt.yticks([])
+    ball_colors = dict(BALL_COLORS)
+    ball_colors[0] = 'white'
     ts = np.linspace(t_0, t_1, nt)
-    #ax = plt.subplot(111, facecolor='green')
-    plt.gca().set_xlim(-0.5*table.W, 0.5*table.W)
-    plt.gca().set_ylim(-0.5*table.L, 0.5*table.L)
-    #[-0.5*table.width, 0.5*table.width,
-    # -0.5*table.length, 0.5*table.length])
+    positions_ts = np.array([physics.eval_positions(t) for t in ts])
+    bot = np.array(list(physics.balls_on_table), dtype=np.int32)
+    xlim = -0.5*table.W, 0.5*table.W
+    ylim = -0.5*table.L, 0.5*table.L
+    if positions_ts.size:
+        positions_ts[:,bot,2] *= -1
+        xlim = min(xlim[0], *positions_ts[:,bot,0].ravel()), max(xlim[1], *positions_ts[:,bot,0].ravel())
+        ylim = min(ylim[0], *positions_ts[:,bot,2].ravel()), max(ylim[1], *positions_ts[:,bot,2].ravel())
+    plt.gca().set_xlim(*xlim)
+    plt.gca().set_ylim(*ylim)
     plt.gca().set_aspect('equal')
+    plt.gca().add_patch(plt.Rectangle((xlim[0], ylim[0]),
+                                      xlim[1]-xlim[0], ylim[1]-ylim[0],
+                                      color='#141414'))
     plt.gca().add_patch(plt.Rectangle((-0.5*table.W, -0.5*table.L),
                                       table.W, table.L,
                                       color='#013216'))
-    ball_colors = dict(BALL_COLORS)
-    ball_colors[0] = 'white'
-    for t in ts:
-        positions = physics.eval_positions(t)
-        positions[:,2] *= -1
+    for i_t, t in enumerate(ts):
+        positions = positions_ts[i_t]
         for i in physics.balls_on_table:
             plt.gca().add_patch(plt.Circle(positions[i,::2], physics.ball_radius,
                                            color=ball_colors[i],
@@ -214,10 +221,6 @@ def plot_motion_timelapse(physics, table=None,
                                            linestyle='solid',
                                            linewidth=0.18,
                                            antialiased=True))
-    #plt.xlim(-0.5*table.width, 0.5*table.width)
-    #plt.ylim(-0.5*table.length, 0.5*table.length)
-    # plt.xticks(np.linspace(-0.5*table.length, 0.5*table.length, 8))
-    # plt.yticks(np.linspace(-0.5*table.width, 0.5*table.width, 8))
     if filename:
         dirname = os.path.dirname(filename)
         if not os.path.exists(dirname):

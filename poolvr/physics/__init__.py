@@ -299,6 +299,13 @@ class PoolPhysics(object):
         num_added_events = len(self.events) - num_events
         return self.events[-num_added_events:]
 
+    @property
+    def balls_at_rest_time(self):
+        """The time at which all balls have come to rest."""
+        return self.events[-1].t \
+            if self.events and isinstance(self.events[-1], BallRestEvent) \
+            else None
+
     def step(self, dt):
         if self._realtime:
             self._step_realtime(dt)
@@ -496,6 +503,8 @@ class PoolPhysics(object):
                 r_ij_mag[i,F] = r_ij_mag[F,i] = np.linalg.norm(r_ij[i,F], axis=1)
         for child_event in event.child_events:
             self._add_event(child_event)
+        if self._enable_occlusion and not self.balls_in_motion:
+            self._update_occlusion({i: event._r_0})
         if self._enable_sanity_check and isinstance(event, BallCollisionEvent):
             self._sanity_check(event)
 
@@ -525,24 +534,25 @@ class PoolPhysics(object):
             if i not in self._collisions:
                 self._collisions[i] = {}
             collisions = self._collisions[i]
-            for j in sorted((j for j in self.balls_on_table if not (j <= i and j in self.balls_in_motion)),
+            for j in sorted((j for j in self.balls_on_table
+                             if j > i or j not in self.balls_in_motion),
                             key=lambda j: r_ij_mag[i,j]):
                 e_j = ball_events[j][-1]
                 t0 = max(e_i.t, e_j.t)
                 if t_min <= t0:
                     continue
                 if j not in collisions:
-                    t1 = min(e_i.t + e_i.T, e_j.t + e_j.T)
-                    if t1 <= t0:
-                        collisions[j] = None
-                        continue
-                    # if self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j]:
-                    #     collisions[j] = None
-                    #     continue
                     # if self._enable_occlusion and nballs_in_motion == 1 and self._occ_ij[i,j]:
                     #     collisions[j] = None
                     #     continue
+                    if self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j]:
+                        collisions[j] = None
+                        continue
                     if e_j.parent_event and e_i.parent_event and e_j.parent_event is e_i.parent_event:
+                        collisions[j] = None
+                        continue
+                    t1 = min(e_i.t + e_i.T, e_j.t + e_j.T)
+                    if t1 <= t0:
                         collisions[j] = None
                         continue
                     if self._too_far_for_collision(e_i, e_j, t0, t1):

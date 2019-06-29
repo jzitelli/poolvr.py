@@ -51,7 +51,7 @@ def pool_physics(pool_table, request):
     return PoolPhysics(initial_positions=pool_table.calc_racked_positions(),
                        ball_collision_model='simple',
                        enable_sanity_check=enable_sanity_check,
-                       enable_occlusion=False)
+                       enable_occlusion=True)
 
 
 @pytest.fixture
@@ -61,7 +61,7 @@ def pool_physics_realtime(pool_table, request):
     return PoolPhysics(initial_positions=pool_table.calc_racked_positions(),
                        ball_collision_model='simple',
                        enable_sanity_check=enable_sanity_check,
-                       enable_occlusion=False,
+                       enable_occlusion=True,
                        realtime=True)
 
 

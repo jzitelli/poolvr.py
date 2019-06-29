@@ -1,3 +1,4 @@
+import pytest
 import os
 import logging
 _logger = logging.getLogger(__name__)
@@ -5,7 +6,12 @@ import numpy as np
 
 
 from utils import gen_filename, git_head_hash
-from poolvr.physics.events import PhysicsEvent, CueStrikeEvent, BallSlidingEvent, BallRollingEvent, BallRestEvent#, BallCollisionEvent
+from poolvr.physics.events import (PhysicsEvent,
+                                   CueStrikeEvent,
+                                   BallSlidingEvent,
+                                   BallRollingEvent,
+                                   BallRestEvent,
+                                   CornerCollisionEvent)
 
 
 _here = os.path.dirname(__file__)
@@ -201,7 +207,7 @@ def test_break_and_following_shot(pool_physics,
     _logger.info('strike #1 on %d resulted in %d events', 0, len(events))
     # _logger.debug('strike #1 on %d resulted in %d events:\n\n%s\n',
     #               0, len(events), PhysicsEvent.events_str(events))
-    ntt = physics.next_turn_time
+    ntt = physics.balls_at_rest_time
     ball_positions = physics.eval_positions(ntt)
     r_02 = ball_positions[2] - ball_positions[0]
     r_02_mag = np.sqrt(np.dot(r_02, r_02))
@@ -256,6 +262,33 @@ def test_strike_ball_less_english(pool_physics,
     _logger.info('strike on %d resulted in %d events', 0, len(events))
     # _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
     #               PhysicsEvent.events_str(events))
+
+
+@pytest.mark.parametrize("side,i_c", [(s, i) for s in range(4) for i in range(2)])
+def test_corner_collision(pool_physics,
+                          gl_rendering,
+                          plot_motion_timelapse,
+                          plot_energy,
+                          side, i_c):
+    physics = pool_physics
+    ball_positions = physics.eval_positions(0.0)
+    ball_positions[0,::2] = 0
+    physics.reset(balls_on_table=[0],
+                  ball_positions=ball_positions)
+    R = physics.ball_radius
+    r_c = physics._r_cp[side,i_c]
+    r_i = r_c + R * np.array([np.sign(r_c[0])*np.cos(10*DEG2RAD),
+                              0.0,
+                              np.sign(r_c[2])*np.sin(10*DEG2RAD)])
+    r_0i = r_i - ball_positions[0]
+    v_0 = 3.0 * r_0i / np.sqrt(np.dot(r_0i, r_0i))
+    start_event = BallSlidingEvent(0, 0,
+                                   r_0=ball_positions[0],
+                                   v_0=v_0,
+                                   omega_0=np.zeros(3, dtype=np.float64))
+    events = physics.add_event_sequence(start_event)
+    assert any(isinstance(e, CornerCollisionEvent) for e in events)
+    _logger.debug('%d events added:\n\n%s\n', len(events), PhysicsEvent.events_str(events=events))
 
 
 def test_corner_00_collision(pool_physics,
