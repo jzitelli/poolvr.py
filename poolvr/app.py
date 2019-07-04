@@ -54,11 +54,11 @@ def main(window_size=(800,600),
     """
     The main routine.
 
-    Performs initializations, setups, kicks off the render loop.
+    Performs initializations/setups; starts the render loop; performs shutdowns on exit.
     """
-    _logger.debug('''configuration:
-%s''', '\n'.join('%s: %s' % item for item in
-                 {k: v for k, v in chain(dict(locals()).items(), kwargs.items())}.items()))
+    _logger.debug('configuration:\n%s',
+                  '\n'.join('%s: %s' % it for it in
+                            chain(dict(locals()).items(), kwargs.items())))
     window, fallback_renderer = setup_glfw(window_size=window_size,
                                            double_buffered=novr,
                                            multisample=multisample,
@@ -213,12 +213,15 @@ def main(window_size=(800,600),
 
     _logger.info('entering render loop...')
     sys.stdout.flush()
+    import gc
+    gc.collect()
 
     last_contact_t = float('-inf')
     contact_last_frame = False
     nframes = 0
     max_frame_time = 0.0
     lt = glfw.GetTime()
+    glyph_meshes = []
     while not glfw.WindowShouldClose(window):
         t = glfw.GetTime()
         dt = t - lt
@@ -226,8 +229,6 @@ def main(window_size=(800,600),
         process_input(dt)
         if glyphs:
             glyph_meshes = physics.glyph_meshes(game.t)
-        else:
-            glyph_meshes = []
         with renderer.render(meshes=meshes+glyph_meshes) as frame_data:
             if isinstance(renderer, OpenVRRenderer) and frame_data:
                 renderer.process_input(dt, button_press_callbacks=button_press_callbacks,
@@ -272,8 +273,6 @@ def main(window_size=(800,600),
             # sdf_text.set_text("%9.3f" % dt)
             # sdf_text.update_gl()
 
-        game.step(speed*dt)
-
         if not contact_last_frame:
             if game.t - last_contact_t >= 2:
                 for i, position in cue.aabb_check(game.ball_positions[:1], physics.ball_radius):
@@ -296,6 +295,8 @@ def main(window_size=(800,600),
         else:
             contact_last_frame = False
 
+        game.step(speed*dt)
+
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:
             st = glfw.GetTime()
@@ -306,8 +307,8 @@ def main(window_size=(800,600),
         _logger.info('...exited render loop: average FPS: %f, maximum frame time: %f, average frame time: %f',
                      (nframes - 1) / (t - st), max_frame_time, (t - st) / (nframes - 1))
 
-    # from .physics.events import PhysicsEvent
-    # _logger.debug(PhysicsEvent.events_str(physics.events))
+    from .physics.events import PhysicsEvent
+    _logger.debug(PhysicsEvent.events_str(physics.events))
 
     renderer.shutdown()
     _logger.info('...shut down renderer')

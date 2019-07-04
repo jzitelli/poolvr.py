@@ -189,6 +189,7 @@ class PoolPhysics(object):
         self.events = list(chain.from_iterable(self.ball_events.values()))
         self._balls_at_rest = set(self.balls_on_table)
         self._ball_motion_events = {}
+        self._next_motion_event = None
         self._collisions = {}
         self._rail_collisions = {}
         self._a_ij[:] = 0
@@ -263,11 +264,9 @@ class PoolPhysics(object):
     def add_event_sequence(self, event):
         num_events = len(self.events)
         self._add_event(event)
-        #_logger.debug('added event %s', event)
-        while self.balls_in_motion:
+        while self._next_motion_event is not None:
             event = self._determine_next_event()
             self._add_event(event)
-            #_logger.debug('added event %s', event)
         num_added_events = len(self.events) - num_events
         return self.events[-num_added_events:]
 
@@ -457,30 +456,35 @@ class PoolPhysics(object):
         self.events.append(event)
         if isinstance(event, (RailCollisionEvent, CornerCollisionEvent)):
             event.e_i.T = event.t - event.e_i.t
+            if self._next_motion_event is event.e_i:
+                self._next_motion_event = None
         elif isinstance(event, BallCollisionEvent):
             event.e_i.T_orig = event.e_i.T
             event.e_j.T_orig = event.e_j.T
             event.e_i.T = event.t - event.e_i.t
             event.e_j.T = event.t - event.e_j.t
+            if self._next_motion_event is event.e_i or self._next_motion_event is event.e_j:
+                self._next_motion_event = None
         if isinstance(event, BallEvent):
             i = event.i
+            ball_events = self.ball_events[i]
+            last_ball_event = None
+            if ball_events:
+                last_ball_event = ball_events[-1]
+                if event.t < last_ball_event.t + last_ball_event.T:
+                    last_ball_event.T = event.t - last_ball_event.t
+            ball_events.append(event)
             self._rail_collisions.pop(i, None)
             self._collisions.pop(i, None)
             for k, v in self._collisions.items():
                 v.pop(i, None)
-            if self.ball_events[i]:
-                last_ball_event = self.ball_events[i][-1]
-                if event.t < last_ball_event.t + last_ball_event.T:
-                    last_ball_event.T = event.t - last_ball_event.t
-            self.ball_events[i].append(event)
             F = self._F
             bot = self.balls_on_table
             nballs = len(bot)
             F[:nballs] = bot
             a_ij, a_ij_mag = self._a_ij, self._a_ij_mag
             if isinstance(event, BallStationaryEvent):
-                if i in self._ball_motion_events:
-                    self._ball_motion_events.pop(i)
+                self._ball_motion_events.pop(i, None)
                 self._balls_at_rest.add(i)
                 a_ij[i] = 0
                 a_ij_mag[i,F] = a_ij_mag[F,i] = a_ij_mag[F,F]
@@ -495,23 +499,28 @@ class PoolPhysics(object):
                 a_ij_mag[i,i] = np.sqrt(np.dot(accel, accel))
                 if i in self._balls_at_rest:
                     self._balls_at_rest.remove(i)
-            if not isinstance(event, (CueStrikeEvent, RailCollisionEvent, CornerCollisionEvent)):
+            if isinstance(event, (BallStationaryEvent, BallMotionEvent)):
                 r_ij, r_ij_mag = self._r_ij, self._r_ij_mag
                 r_ij[i,F] = r_ij[F,F] - event._r_0
                 r_ij[F,i] = -r_ij[i,F]
                 r_ij[i,i] = event._r_0
                 r_ij_mag[i,F] = r_ij_mag[F,i] = np.linalg.norm(r_ij[i,F], axis=1)
+            if self._next_motion_event is None:
+                self._next_motion_event = event.next_motion_event
+            elif self._next_motion_event is event:
+                self._next_motion_event = min((e.next_motion_event
+                                               for e in self._ball_motion_events.values()
+                                               if e.next_motion_event is not None), default=None)
+                if isinstance(event, BallSpinningEvent) \
+                   and (self._next_motion_event is None or event.next_motion_event < self._next_motion_event):
+                    self._next_motion_event = event.next_motion_event
         for child_event in event.child_events:
             self._add_event(child_event)
-        if self._enable_occlusion and not self.balls_in_motion:
-            self._update_occlusion({i: event._r_0})
         if self._enable_sanity_check and isinstance(event, BallCollisionEvent):
             self._sanity_check(event)
 
     def _determine_next_event(self):
-        next_motion_event = min(e.next_motion_event
-                                for e in self._ball_motion_events.values()
-                                if e.next_motion_event is not None)
+        next_motion_event = self._next_motion_event
         if next_motion_event:
             t_min = next_motion_event.t
         else:
@@ -520,7 +529,6 @@ class PoolPhysics(object):
         next_rail_collision = None
         r_ij_mag = self._r_ij_mag
         ball_events = self.ball_events
-        #nballs_in_motion = len(self.balls_in_motion)
         for i in self.balls_in_motion:
             e_i = ball_events[i][-1]
             if e_i.t >= t_min:
@@ -568,16 +576,11 @@ class PoolPhysics(object):
         if next_rail_collision is not None:
             if type(next_rail_collision[-1]) is tuple:
                 t, i, (side, i_c) = next_rail_collision
-                # _logger.debug('t = %s,  i = %s,  side = %s,  i_c = %d',
-                #               t, i, side, i_c)
                 return CornerCollisionEvent(t=t, e_i=ball_events[i][-1],
                                             side=side, i_c=i_c,
                                             r_c=self._r_cp[side,i_c])
-
             else:
                 t, i, side = next_rail_collision
-                # _logger.debug('t = %s, i = %s, side = %d',
-                #               t, i, side)
                 return RailCollisionEvent(t=t, e_i=ball_events[i][-1],
                                           side=side)
         elif next_collision is not None:
@@ -653,33 +656,30 @@ class PoolPhysics(object):
                     tau_p = (-a[1,j] + pn) / (2*a[2,j])
                     tau_n = (-a[1,j] - pn) / (2*a[2,j])
                     if 0 < tau_n < tau_min and 0 < tau_p < tau_min:
-                        check_corners = True
-                        tau_a, tau_b = min(tau_n, tau_p), max(tau_n, tau_p)
+                        tau_a = min(tau_n, tau_p)
                         r = e_i.eval_position(tau_a)
                         if abs(r[k]) < bnd:
                             tau_min = tau_a
                             side_min = side
                             cp_min = None
                         else:
-                            r = e_i.eval_position(tau_b)
-                            if abs(r[k]) < bnd:
-                                tau_min = tau_b
-                                side_min = side
-                                cp_min = None
+                            check_corners = True
                     elif 0 < tau_n < tau_min:
-                        check_corners = True
                         r = e_i.eval_position(tau_n)
                         if abs(r[k]) < bnd:
                             tau_min = tau_n
                             side_min = side
                             cp_min = None
+                        else:
+                            check_corners = True
                     elif 0 < tau_p < tau_min:
-                        check_corners = True
                         r = e_i.eval_position(tau_p)
                         if abs(r[k]) < bnd:
                             tau_min = tau_p
                             side_min = side
                             cp_min = None
+                        else:
+                            check_corners = True
             if check_corners:
                 check_corners = False
                 tau_cp, i_c_min = self._find_corner_collision_time(e_i, side, tau_min)
@@ -687,7 +687,6 @@ class PoolPhysics(object):
                     tau_min = tau_cp
                     side_min = side
                     cp_min = i_c_min
-                    # _logger.debug('tau_cp = tau_min = %s', tau_cp, tau_min)
         if cp_min is not None:
             return (e_i.t + tau_min, e_i.i, (side_min, cp_min))
         elif side_min is not None:
@@ -766,11 +765,11 @@ class PoolPhysics(object):
         psi_ij = self._psi_ij
         occ_ij = self._occ_ij
         F = self._F
-        U = F[:nballs] = balls # U: ball no.s corresponding to the input ball_positions, respectively - these balls must be at rest.
-        R = [i                 # R: ball no.s of all other balls at rest.
-             for i in self.balls_at_rest if i not in U]
-        R = F[nballs:nballs+len(R)] = R
-        F = F[:nballs+len(R)]
+        # U: ball no.s corresponding to the input ball_positions, respectively - these balls must be at rest.
+        U = F[:nballs] = balls
+        # R: ball no.s of all other balls at rest.
+        R = F[nballs:nballs+len(R)] = [i for i in self.balls_at_rest if i not in U]
+        F = F[:len(U)+len(R)]
         U.sort()
         R.sort()
         M = np.array(self.balls_in_motion, dtype=np.int)
