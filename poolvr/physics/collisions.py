@@ -35,7 +35,6 @@ def collide_balls(r_c,
     z_loc = _k
     y_loc = r_ij / r_ij_mag
     x_loc = np.cross(y_loc, z_loc)
-    v_ij = v_j - v_i
     u_iR = v_i + R * np.cross(_k, omega_i)
     u_iR_mag = np.sqrt(np.dot(u_iR, u_iR))
     u_jR = v_j + R * np.cross(_k, omega_j)
@@ -47,14 +46,16 @@ def collide_balls(r_c,
     u_iC = v_i - np.cross(r_ic, omega_i)
     u_jC = v_j - np.cross(r_jc, omega_j)
     u_ijC = u_jC - u_iC
-    u_ijC_x = np.dot(u_ijC, x_loc)
-    u_ijC_z = np.dot(u_ijC, z_loc)
-    u_ijC_xz_mag = np.sqrt(u_ijC_x**2 + u_ijC_z**2)
-    v_ix, v_iy = v_i[:2]
-    v_jx, v_jy = v_j[:2]
-    omega_ix, omega_iy, omega_iz = omega_i
-    omega_jx, omega_jy, omega_jz = omega_j
-    deltaP = (1 + e) * M * np.abs(np.dot(v_ij, y_loc)) / nP
+    u_ijC_xz = u_ijC - np.dot(u_ijC, y_loc) * y_loc
+    u_ijC_x = np.dot(u_ijC_xz, x_loc)
+    u_ijC_z = np.dot(u_ijC_xz, z_loc)
+    u_ijC_xz_mag = np.sqrt(np.dot(u_ijC_xz, u_ijC_xz))
+    v_ix, v_iy = np.dot(v_i, x_loc), np.dot(v_i, y_loc)
+    v_jx, v_jy = np.dot(v_j, x_loc), np.dot(v_j, y_loc)
+    omega_ix, omega_iy, omega_iz = np.dot(omega_i, x_loc), np.dot(omega_i, y_loc), np.dot(omega_i, z_loc)
+    omega_jx, omega_jy, omega_jz = np.dot(omega_j, x_loc), np.dot(omega_j, y_loc), np.dot(omega_j, z_loc)
+    v_ij = v_j - v_i
+    deltaP = 0.5 * (1 + e) * M * np.abs(np.dot(v_ij, y_loc)) / nP
     v_ijy = np.dot(v_ij, y_loc)
     W_f = float('inf')
     W_c = None
@@ -62,70 +63,42 @@ def collide_balls(r_c,
     niters = 0
 
     while v_ijy < 0 or W < W_f:
-        _logger.debug('''
-
-v_ijy = %s
-W = %s
-W_f = %s
-
-        ''', v_ijy, W, W_f)
         if u_ijC_xz_mag < 1e-9:
             _logger.debug('no slip at ball-ball contact')
             deltaP_1 = deltaP_2 = 0
+            deltaP_ix = deltaP_iy = deltaP_jx = deltaP_jy = 0
         else:
             _logger.debug('slip at ball-ball contact: %s', u_ijC_xz_mag)
             deltaP_1 = -mu_b * deltaP * u_ijC_x / u_ijC_xz_mag
             deltaP_2 = -mu_b * deltaP * u_ijC_z / u_ijC_xz_mag
-
-        if u_iR_mag < 1e-9:
-            _logger.debug('no slip at i-table contact')
-            deltaP_ix = deltaP_iy = 0
-        else:
-            _logger.debug('slip at i-table contact: %s', u_iR_mag)
-            deltaP_ix = -mu_b * mu_s * deltaP * (u_ijC_z / u_ijC_xz_mag) * (u_iR_x / u_iR_mag)
-            deltaP_iy = -mu_b * mu_s * deltaP * (u_ijC_z / u_ijC_xz_mag) * (u_iR_y / u_iR_mag)
-        if u_jR_mag < 1e-9:
-            _logger.debug('no slip at j-table contact')
-            deltaP_jx = deltaP_jy = 0
-        else:
-            _logger.debug('slip at j-table contact: %s', u_jR_mag)
-            deltaP_jx = -mu_b * mu_s * deltaP * (u_ijC_z / u_ijC_xz_mag) * (u_jR_x / u_jR_mag)
-            deltaP_jy = -mu_b * mu_s * deltaP * (u_ijC_z / u_ijC_xz_mag) * (u_jR_y / u_jR_mag)
+            if u_iR_mag < 1e-9:
+                _logger.debug('no slip at i-table contact')
+                deltaP_ix = deltaP_iy = 0
+            else:
+                _logger.debug('slip at i-table contact: %s', u_iR_mag)
+                deltaP_ix = -mu_b * mu_s * deltaP * (u_ijC_z / u_ijC_xz_mag) * (u_iR_x / u_iR_mag)
+                deltaP_iy = -mu_b * mu_s * deltaP * (u_ijC_z / u_ijC_xz_mag) * (u_iR_y / u_iR_mag)
+            if u_jR_mag < 1e-9:
+                _logger.debug('no slip at j-table contact')
+                deltaP_jx = deltaP_jy = 0
+            else:
+                _logger.debug('slip at j-table contact: %s', u_jR_mag)
+                deltaP_jx = -mu_b * mu_s * deltaP * (u_ijC_z / u_ijC_xz_mag) * (u_jR_x / u_jR_mag)
+                deltaP_jy = -mu_b * mu_s * deltaP * (u_ijC_z / u_ijC_xz_mag) * (u_jR_y / u_jR_mag)
 
         deltaV_ix = (deltaP_1 + deltaP_ix) / M
         deltaV_iy = (-deltaP + deltaP_iy) / M
         v_ix0, v_iy0 = v_ix, v_iy
         v_ix = v_ix0 + deltaV_ix
         v_iy = v_iy0 + deltaV_iy
-
         deltaV_jx = (-deltaP_1 + deltaP_jx) / M
         deltaV_jy = (deltaP + deltaP_jy) / M
         v_jx0, v_jy0 = v_jx, v_jy
         v_jx = v_jx0 + deltaV_jx
         v_jy = v_jy0 + deltaV_jy
-
         deltaV_ijy = (v_jy - v_iy) - (v_jy0 - v_iy0)
         v_ijy0 = v_ijy
         v_ijy = v_ijy0 + deltaV_ijy
-
-
-        deltaW = 0.5 * deltaP * deltaV_ijy
-        W += deltaW
-
-        if W_c is None and v_ijy > 0:
-            W_c = W
-            W_f = (1 - e**2) * W_c
-            W = 0
-            _logger.debug('''
-
-end of compression phase
-
-W_c = %s
-W_f = %s
-niters = %s
-
-''',
-                          W_c, W_f, niters)
 
         deltaOm_ix = 5/(2*M*R) * (deltaP_2 + deltaP_iy)
         deltaOm_iy = 5/(2*M*R) * (-deltaP_ix)
@@ -147,46 +120,46 @@ niters = %s
         omega_jz0 = omega_jz
         omega_jz = omega_jz0 + deltaOm_jz
 
-        v_i = np.array([v_ix, v_iy, 0])
-        omega_i = np.array([omega_ix, omega_iy, omega_iz])
-
-        v_j = np.array([v_jx, v_jy, 0])
-        omega_j = np.array([omega_jx, omega_jy, omega_jz])
-
+        v_i = v_ix*x_loc + v_iy*y_loc
+        v_j = v_jx*x_loc + v_jy*y_loc
+        omega_i = omega_ix*x_loc + omega_iy*y_loc + omega_iz*z_loc
+        omega_j = omega_jx*x_loc + omega_jy*y_loc + omega_jz*z_loc
+        # ball-ball friction:
         u_iC = v_i - np.cross(r_ic, omega_i)
         u_jC = v_j - np.cross(r_jc, omega_j)
         u_ijC = u_jC - u_iC
         u_ijC_x = np.dot(u_ijC, x_loc)
         u_ijC_z = np.dot(u_ijC, z_loc)
         u_ijC_xz_mag = np.sqrt(u_ijC_x**2 + u_ijC_z**2)
-
+        # ball-table friction:
         u_iR = v_i + R * np.cross(_k, omega_i)
         u_iR_mag = np.sqrt(np.dot(u_iR, u_iR))
-        u_jR = v_j + R * np.cross(_k, omega_j)
-        u_jR_mag = np.sqrt(np.dot(u_jR, u_jR))
         u_iR_x = np.dot(u_iR, x_loc)
         u_iR_y = np.dot(u_iR, y_loc)
+        u_jR = v_j + R * np.cross(_k, omega_j)
+        u_jR_mag = np.sqrt(np.dot(u_jR, u_jR))
         u_jR_x = np.dot(u_jR, x_loc)
         u_jR_y = np.dot(u_jR, y_loc)
+        deltaW = 0.5 * deltaP * deltaV_ijy
+        W += deltaW
         niters += 1
-#         _logger.debug('''
-# deltaP = %s
-# deltaP_1 = %s
-# deltaP_2 = %s
-# deltaP_ix = %s
-# deltaP_iy = %s
-# deltaP_jx = %s
-# deltaP_jy = %s
-# deltaV_ijy = %s
-# v_ijy = %s
-# ''',
-#                       deltaP, deltaP_1, deltaP_2,
-#                       deltaP_ix, deltaP_iy, deltaP_jx, deltaP_jy,
-#                       deltaV_ijy, v_ijy)
+        _logger.debug('''
+        u_iR_mag = %s
+        u_jR_mag = %s
+        ''', u_iR_mag, u_jR_mag)
 
+        if W_c is None and v_ijy > 0:
+            W_c = W
+            W_f = (1 + e**2) * W_c
+            _logger.debug('''
+            end of compression phase
+            W_c = %s
+            W_f = %s
+            niters = %s
+            ''', W_c, W_f, niters)
     _logger.debug('''
-end of restitution phase
+    end of restitution phase
+    niters = %s
+    ''', niters)
 
-niters = %s
-''',
-                  niters)
+    return v_i, omega_i, v_j, omega_j
