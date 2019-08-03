@@ -513,7 +513,6 @@ class SimpleBallCollisionEvent(BallCollisionEvent):
                     (self._r_i, self._v_i_1, self._omega_i_1, self.e_i),
                     (self._r_j, self._v_j_1, self._omega_j_1, self.e_j)
             ):
-                # v1v1 = np.dot(v_1, v_1)
                 if np.dot(v_1, v_1) < self._ZERO_VELOCITY_CLIP_SQRD:
                     if abs(omega_1[1]) < self._ZERO_ANGULAR_VELOCITY_CLIP:
                         e_1 = BallRestEvent(self.t, e.i,

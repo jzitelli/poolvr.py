@@ -481,8 +481,8 @@ class PoolPhysics(object):
                 a_ij[i] = 0
                 a_ij_mag[i,F] = a_ij_mag[F,i] = a_ij_mag[F,F]
                 a_ij_mag[i,i] = 0
-                if self._enable_occlusion and not self.balls_in_motion:
-                    self._update_occlusion({i: event._r_0})
+                # if self._enable_occlusion and not self.balls_in_motion:
+                #     self._update_occlusion({i: event._r_0})
             elif isinstance(event, BallMotionEvent):
                 accel = event.acceleration
                 self._ball_motion_events[i] = event
@@ -538,9 +538,9 @@ class PoolPhysics(object):
                     # if self._enable_occlusion and nballs_in_motion == 1 and self._occ_ij[i,j]:
                     #     collisions[j] = None
                     #     continue
-                    if self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j]:
-                        collisions[j] = None
-                        continue
+                    # if self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j]:
+                    #     collisions[j] = None
+                    #     continue
                     if e_j.parent_event and e_i.parent_event and e_j.parent_event is e_i.parent_event:
                         collisions[j] = None
                         continue
