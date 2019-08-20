@@ -247,14 +247,14 @@ class BallMotionEvent(BallEvent):
         else:
             out[1] = min(0, out[1])
         return out
-    def eval_slip_velocity(self, tau, v=None, omega=None, out=None):
+    def eval_surface_velocity(self, tau, rd, v=None, omega=None, out=None):
         if v is None:
             v = self.eval_velocity(tau)
         if omega is None:
             omega = self.eval_angular_velocity(tau)
         if out is None:
             out = np.empty(3, dtype=np.float64)
-        out[:] = v + self.ball_radius * np.cross(_k, omega)
+        out[:] = v - self.ball_radius / np.sqrt(np.dot(rd, rd)) * np.cross(rd, omega)
         return out
     def eval_position_and_velocity(self, tau, out=None):
         if out is None:

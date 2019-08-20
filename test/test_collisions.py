@@ -8,6 +8,7 @@ from poolvr.physics.collisions import collide_balls
 
 _k = np.array([0.0, 0.0, 1.0])
 DEG2RAD = np.pi/180
+RAD2DEG = 180/np.pi
 
 
 def test_collide_balls():
@@ -16,7 +17,7 @@ def test_collide_balls():
     mu_b = 0.06
     M = 0.1406
     R = 1.125 * 0.0254
-    r_i = np.array([0.0, 0.0, 0.0])
+    r_i = np.zeros(3)
     rd = np.array([0.0, 1.0, 0.0])
     r_j = r_i + 2 * R * rd
     r_ij = r_j - r_i
@@ -25,48 +26,65 @@ def test_collide_balls():
     z_loc = _k
     x_loc = np.cross(y_loc, z_loc)
     r_c = r_i + R * y_loc
-    # v_i = 3 * rd
-    v_i = 2 * (0.5*np.sqrt(3)*rd + 0.5*x_loc)
     v_j = np.zeros(3, dtype=np.float64)
-    omega_i = -np.dot(v_i, y_loc) / R * x_loc
-    omega_i[2] = abs(3/R)
     omega_j = np.zeros(3, dtype=np.float64)
-    v_i1, omega_i1, v_j1, omega_j1 = collide_balls(r_c,
-                                                   r_i, v_i, omega_i,
-                                                   r_j, v_j, omega_j,
-                                                   e, mu_s, mu_b,
-                                                   M, R,
-                                                   9.81,
-                                                   4000)
-    v_ijy = np.dot(v_j, y_loc) - np.dot(v_i, y_loc)
-    v_ijy1 = np.dot(v_j1, y_loc) - np.dot(v_i1, y_loc)
-    v_il = np.array([np.dot(v_i, x_loc), np.dot(v_i, y_loc), 0])
-    v_jl = np.array([np.dot(v_j, x_loc), np.dot(v_j, y_loc), 0])
-    v_i1l = np.array([np.dot(v_i1, x_loc), np.dot(v_i1, y_loc), 0])
-    v_j1l = np.array([np.dot(v_j1, x_loc), np.dot(v_j1, y_loc), 0])
-    _logger.info('''
-v_i  = %s
-v_i1 = %s
-v_j  = %s
-v_j1 = %s
+    for cue_ball_velocity, topspin, cut_angle in [
+        (1.539, 58.63, 33.83),
+        (1.032, 39.31, 26.36),
+        (1.364, 51.96, 40.52),
+        (1.731, 65.94, 46.5),
+        (0.942, 35.89, 18.05)
+    ]:
+        c, s = np.cos(cut_angle*DEG2RAD), np.sin(cut_angle*DEG2RAD)
+        v_i = np.array([cue_ball_velocity*s, cue_ball_velocity*c, 0.0])
+        omega_i = np.array([-topspin*DEG2RAD, 0.0, 0.0])
+        v_i1, omega_i1, v_j1, omega_j1 = collide_balls(r_c,
+                                                       r_i, v_i, omega_i,
+                                                       r_j, v_j, omega_j,
+                                                       e, mu_s, mu_b,
+                                                       M, R,
+                                                       9.81,
+                                                       4000)
+        # convert back to local frame:
+        v_i  = np.array([np.dot( v_i, x_loc), np.dot( v_i, y_loc),  v_i[2]])
+        v_il = np.array([np.dot(v_i1, x_loc), np.dot(v_i1, y_loc), v_i1[2]])
+        v_j  = np.array([np.dot( v_j, x_loc), np.dot( v_j, y_loc),  v_j[2]])
+        v_jl = np.array([np.dot(v_j1, x_loc), np.dot(v_j1, y_loc), v_j1[2]])
+        omega_i1 = np.array([np.dot(omega_i1, x_loc), np.dot(omega_i1, y_loc), omega_i1[2]])
+        omega_j1 = np.array([np.dot(omega_j1, x_loc), np.dot(omega_j1, y_loc), omega_j1[2]])
+        from poolvr.physics.events import PhysicsEvent, BallSlidingEvent
+        PhysicsEvent.ball_radius = R
+        PhysicsEvent.ball_diameter = 2*R
+        PhysicsEvent.ball_mass = M
+        PhysicsEvent.ball_I = 2.0/5 * PhysicsEvent.ball_mass * PhysicsEvent.ball_radius**2
+        PhysicsEvent.mu_s = mu_s
+        PhysicsEvent.mu_b = mu_b
+        e_i, e_j = BallSlidingEvent(0.0, 0, r_i, v_i1, omega_i1), BallSlidingEvent(0.0, 1, r_j, v_j1, omega_j1)
+        v_is = e_i.next_motion_event.eval_velocity(0.0)
+        v_js = e_j.next_motion_event.eval_velocity(0.0)
+        _logger.info('''
+        v_is = %s
+        v_js = %s
+        |v_is| = %s
+        |v_js| = %s
+        arctan2(*v_is[::-2]) = %s
+        arctan2(*v_js[::-2]) = %s
+        ''',
+                     v_is, v_js,
+                     np.sqrt(np.dot(v_is, v_is)), np.sqrt(np.dot(v_js, v_js)),
+                     np.arctan2(*v_is[:2])*RAD2DEG, np.arctan2(*v_js[:2])*RAD2DEG)
+        _logger.info('''
+        v_i  = %s
+        v_i1 = %s
+        v_j  = %s
+        v_j1 = %s
+        |v_i1| = %s
+        |v_j1| = %s
+        ''',
+                     v_i, v_i1, v_j, v_j1,
+                     np.sqrt(np.dot(v_i1, v_i1)), np.sqrt(np.dot(v_j1, v_j1)))
 
-(local frame):
-v_i  = %s
-v_i1 = %s
-v_j  = %s
-v_j1 = %s
 
-v_ijy  = %s
-v_ijy1 = %s
-
-     |v_ijy1 / v_ijy|  = %s
-sqrt(|v_ijy1 / v_ijy|) = %s
-''',
-                  v_i, v_i1, v_j, v_j1,
-                  v_il, v_i1l, v_jl, v_j1l,
-                  v_ijy, v_ijy1,
-                  v_ijy1 / v_ijy,
-                  np.sqrt(-v_ijy1 / v_ijy))
 
 
 def test_half_ball_shot():
@@ -96,12 +114,12 @@ def test_half_ball_shot():
                                                    M, R,
                                                    9.81,
                                                    4000)
-    v_ijy = np.dot(v_j, y_loc) - np.dot(v_i, y_loc)
-    v_ijy1 = np.dot(v_j1, y_loc) - np.dot(v_i1, y_loc)
     v_il = np.array([np.dot(v_i, x_loc), np.dot(v_i, y_loc), 0])
     v_jl = np.array([np.dot(v_j, x_loc), np.dot(v_j, y_loc), 0])
     v_i1l = np.array([np.dot(v_i1, x_loc), np.dot(v_i1, y_loc), 0])
     v_j1l = np.array([np.dot(v_j1, x_loc), np.dot(v_j1, y_loc), 0])
+    v_ijy = np.dot(v_j, y_loc) - np.dot(v_i, y_loc)
+    v_ijy1 = np.dot(v_j1, y_loc) - np.dot(v_i1, y_loc)
     _logger.info('''
 v_i  = %s
 v_i1 = %s
