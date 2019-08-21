@@ -16,16 +16,11 @@ def test_collide_balls():
     mu_s = 0.21
     mu_b = 0.06
     M = 0.1406
-    R = 1.125 * 0.0254
+    R = 0.02625
     r_i = np.zeros(3)
-    rd = np.array([0.0, 1.0, 0.0])
+    rd = np.array([1.0, 0.0, 0.0])
+    r_c = np.array([R, 0.0, 0.0])
     r_j = r_i + 2 * R * rd
-    r_ij = r_j - r_i
-    r_ij_mag = np.sqrt(np.dot(r_ij, r_ij))
-    y_loc = r_ij / r_ij_mag
-    z_loc = _k
-    x_loc = np.cross(y_loc, z_loc)
-    r_c = r_i + R * y_loc
     v_j = np.zeros(3, dtype=np.float64)
     omega_j = np.zeros(3, dtype=np.float64)
     for cue_ball_velocity, topspin, cut_angle in [
@@ -36,8 +31,8 @@ def test_collide_balls():
         (0.942, 35.89, 18.05)
     ]:
         c, s = np.cos(cut_angle*DEG2RAD), np.sin(cut_angle*DEG2RAD)
-        v_i = np.array([cue_ball_velocity*s, cue_ball_velocity*c, 0.0])
-        omega_i = np.array([-topspin*DEG2RAD, 0.0, 0.0])
+        v_i = np.array([cue_ball_velocity*c, 0.0, cue_ball_velocity*s])
+        omega_i = np.array([topspin*s, 0.0, -topspin*c])
         v_i1, omega_i1, v_j1, omega_j1 = collide_balls(r_c,
                                                        r_i, v_i, omega_i,
                                                        r_j, v_j, omega_j,
@@ -45,13 +40,6 @@ def test_collide_balls():
                                                        M, R,
                                                        9.81,
                                                        4000)
-        # convert back to local frame:
-        v_i  = np.array([np.dot( v_i, x_loc), np.dot( v_i, y_loc),  v_i[2]])
-        v_il = np.array([np.dot(v_i1, x_loc), np.dot(v_i1, y_loc), v_i1[2]])
-        v_j  = np.array([np.dot( v_j, x_loc), np.dot( v_j, y_loc),  v_j[2]])
-        v_jl = np.array([np.dot(v_j1, x_loc), np.dot(v_j1, y_loc), v_j1[2]])
-        omega_i1 = np.array([np.dot(omega_i1, x_loc), np.dot(omega_i1, y_loc), omega_i1[2]])
-        omega_j1 = np.array([np.dot(omega_j1, x_loc), np.dot(omega_j1, y_loc), omega_j1[2]])
         from poolvr.physics.events import PhysicsEvent, BallSlidingEvent
         PhysicsEvent.ball_radius = R
         PhysicsEvent.ball_diameter = 2*R
@@ -63,6 +51,8 @@ def test_collide_balls():
         v_is = e_i.next_motion_event.eval_velocity(0.0)
         v_js = e_j.next_motion_event.eval_velocity(0.0)
         _logger.info('''
+        |v_i| = %s
+        topspin = %s
         v_is = %s
         v_js = %s
         |v_is| = %s
@@ -70,20 +60,10 @@ def test_collide_balls():
         arctan2(*v_is[::-2]) = %s
         arctan2(*v_js[::-2]) = %s
         ''',
+                     np.sqrt(np.dot(v_i, v_i)), topspin,
                      v_is, v_js,
                      np.sqrt(np.dot(v_is, v_is)), np.sqrt(np.dot(v_js, v_js)),
-                     np.arctan2(*v_is[:2])*RAD2DEG, np.arctan2(*v_js[:2])*RAD2DEG)
-        _logger.info('''
-        v_i  = %s
-        v_i1 = %s
-        v_j  = %s
-        v_j1 = %s
-        |v_i1| = %s
-        |v_j1| = %s
-        ''',
-                     v_i, v_i1, v_j, v_j1,
-                     np.sqrt(np.dot(v_i1, v_i1)), np.sqrt(np.dot(v_j1, v_j1)))
-
+                     np.arctan2(*v_is[::-2])*RAD2DEG, np.arctan2(*v_js[::-2])*RAD2DEG)
 
 
 
