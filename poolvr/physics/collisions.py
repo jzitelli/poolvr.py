@@ -28,7 +28,8 @@ def collide_balls(r_c,
                   M,
                   R,
                   g=9.81,
-                  nP=4000):
+                  nP=4000,
+                  return_all=False):
     r_ij = r_j - r_i
     r_ij_mag_sqrd = dot(r_ij, r_ij)
     assert  abs(r_ij_mag_sqrd - 4 * R**2)  <  1e-11 * R**2, "r_ij_mag_sqrd - 4 * R**2 = %s" % (r_ij_mag_sqrd - 4 * R**2)
@@ -128,11 +129,12 @@ def collide_balls(r_c,
         # increment work:
         deltaW = 0.5 * deltaP * abs(v_ijy0 + v_ij[1])
         W += deltaW
-        v_is.append(v_i)
-        v_js.append(v_j)
-        omega_is.append(omega_i)
-        omega_js.append(omega_j)
         niters += 1
+        if return_all:
+            v_is.append(v_i)
+            v_js.append(v_j)
+            omega_is.append(omega_i)
+            omega_js.append(omega_j)
         if W_c is None and v_ij[1] > 0:
             W_c = W
             W_f = (1 + e**2) * W_c
@@ -147,31 +149,16 @@ def collide_balls(r_c,
     END OF RESTITUTION PHASE
     niters_r = %s
     ''', niters - niters_c)
-
+    if return_all:
+        v_is = np.array(v_is)
+        v_js = np.array(v_js)
+        omega_is = np.array(omega_is)
+        omega_js = np.array(omega_js)
+        for i in range(len(v_is)):
+            dot(G.T, v_is[i], out=v_is[i])
+            dot(G.T, v_js[i], out=v_js[i])
+            dot(G.T, omega_is[i], out=omega_is[i])
+            dot(G.T, omega_js[i], out=omega_js[i])
+        deltaPs = np.arange(len(v_is)) * deltaP
+        return v_is, omega_is, v_js, omega_js, deltaPs
     return dot(G.T, v_i), dot(G.T, omega_i), dot(G.T, v_j), dot(G.T, omega_j)
-    # import matplotlib.pyplot as plt
-    # deltaPs = deltaP*np.arange(niters+1)
-
-    # plt.figure()
-    # plt.plot(deltaPs, np.array(v_is)[:,1], label='ball i')
-    # plt.plot(deltaPs, np.array(v_js)[:,1], label='ball j')
-    # plt.xlabel('cumulative impulse along y-axis')
-    # plt.ylabel('velocity along y-axis')
-    # plt.legend()
-    # plt.show()
-
-    # plt.figure()
-    # plt.plot(deltaPs, np.array(omega_is)[:,0], label='ball i')
-    # plt.plot(deltaPs, np.array(omega_js)[:,0], label='ball j')
-    # plt.xlabel('cumulative impulse along y-axis')
-    # plt.ylabel('angular velocity along x-axis')
-    # plt.legend()
-    # plt.show()
-
-    # plt.figure()
-    # plt.plot(deltaPs, np.array(omega_is)[:,2], label='ball i')
-    # plt.plot(deltaPs, np.array(omega_js)[:,2], label='ball j')
-    # plt.xlabel('cumulative impulse along y-axis')
-    # plt.ylabel('angular velocity along z-axis')
-    # plt.legend()
-    # plt.show()
