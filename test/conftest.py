@@ -33,7 +33,7 @@ def pytest_addoption(parser):
                      action='store_true')
     parser.addoption('--sanity-check', help='enable physics sanity check',
                      action='store_true')
-    parser.addoption('--render-method',
+    parser.addoption('--render-method', metavar='<method name>',
                      help='OpenGL rendering method/style to use, one of: "ega", "lambert", "billboards", "raycast"',
                      default='lambert')
 
