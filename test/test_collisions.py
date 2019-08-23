@@ -67,6 +67,10 @@ def test_collide_balls():
         c, s = np.cos(cut_angle*DEG2RAD), np.sin(cut_angle*DEG2RAD)
         v_i, omega_i = np.array(((cue_ball_velocity*c, 0.0, cue_ball_velocity*s),
                                  (          topspin*s, 0.0,          -topspin*c)))
+        v_i[1:] = v_i[:0:-1]
+        v_j[1:] = v_j[:0:-1]
+        omega_i[1:] = omega_i[:0:-1]
+        omega_j[1:] = omega_j[:0:-1]
         v_is, omega_is, v_js, omega_js, deltaPs = collide_balls(r_c,
                                                                 r_i, v_i, omega_i,
                                                                 r_j, v_j, omega_j,
@@ -74,6 +78,10 @@ def test_collide_balls():
                                                                 M, R,
                                                                 9.81,
                                                                 4000, return_all=True)
+        v_is[:,1:] = v_is[:,:0:-1]
+        v_js[:,1:] = v_js[:,:0:-1]
+        omega_is[:,1:] = omega_is[:,:0:-1]
+        omega_js[:,1:] = omega_js[:,:0:-1]
         v_i1 = v_is[-1]; omega_i1 = omega_is[-1]
         v_j1 = v_js[-1]; omega_j1 = omega_js[-1]
         from poolvr.physics.events import PhysicsEvent, BallSlidingEvent
@@ -89,34 +97,35 @@ def test_collide_balls():
         v_jS = e_j.next_motion_event.eval_velocity(0.0)
         v_iS_mag = np.sqrt(np.dot(v_iS, v_iS))
         v_jS_mag = np.sqrt(np.dot(v_jS, v_jS))
-        theta_i  = np.arctan2(*v_i1[::-2])*RAD2DEG
-        theta_j  = np.arctan2(*v_j1[::-2])*RAD2DEG
-        lambda_i = np.arctan2(*v_iS[::-2])*RAD2DEG
-        lambda_j = np.arctan2(*v_jS[::-2])*RAD2DEG
-        psi_i = theta_i - lambda_i
-        psi_j = theta_j - lambda_j + cut_angle
+        lambda_i = np.arctan(v_iS[2]/v_iS[0])*RAD2DEG
+        lambda_j = np.arctan(-v_jS[2]/v_jS[0])*RAD2DEG
+        theta_i = abs(lambda_i - cut_angle)
+        theta_j = abs(lambda_j - cut_angle)
+        v_iS_mag_ex, v_jS_mag_ex, theta_i_ex, theta_j_ex = expected[i_cond]
         v_0 = np.sqrt(np.dot(v_i, v_i))
         _logger.info('''
     |v_0|: %s
     topspin: %s
     cut_angle: %s
 
-        v_iS = %s
-        v_jS = %s
-        |v_iS| = %s
-        |v_jS| = %s
+                 |v_iS| = %s
+        expected |v_iS| = %s
+                 |v_jS| = %s
+        expected |v_jS| = %s
         abs(|v_iS| - expected) / |expected| = %s
         abs(|v_jS| - expected) / |expected| = %s
 
-        exit angle i = %s
-        exit angle j = %s
-        abs(exit angle i - expected) / |expected| = %s
-        abs(exit angle j - expected) / |expected| = %s
+                 theta_i = %s
+        expected theta_i = %s
+                 theta_j = %s
+        expected theta_j = %s
+        abs(theta_i - expected) / |expected| = %s
+        abs(theta_j - expected) / |expected| = %s
         ''',
                      v_0, topspin, cut_angle,
-                     v_iS, v_jS, v_iS_mag, v_jS_mag,
-                     abs(v_iS_mag - expected[i_cond][0])/abs(expected[i_cond][0]),
-                     abs(v_jS_mag - expected[i_cond][1])/abs(expected[i_cond][1]),
-                     psi_i, psi_j,
-                     abs(expected[i_cond][2] - psi_i)/abs(expected[i_cond][2]),
-                     abs(expected[i_cond][3] - psi_j)/abs(expected[i_cond][3]))
+                     v_iS_mag, v_iS_mag_ex, abs(v_iS_mag - v_iS_mag_ex)/abs(v_iS_mag_ex),
+                     v_jS_mag, v_jS_mag_ex, abs(v_jS_mag - v_jS_mag_ex)/abs(v_jS_mag_ex),
+                     theta_i, theta_i_ex,
+                     theta_j, theta_j_ex,
+                     abs(theta_i - theta_i_ex)/abs(theta_i_ex),
+                     abs(theta_j - theta_j_ex)/abs(theta_j_ex))
