@@ -5,7 +5,7 @@ VR pool simulator written in Python (using [pyopenvr](https://github.com/cmbruns
 ![screenshot](https://jzitelli.github.io/poolvr.py/images/screenshots/vrscreenshot.png)
 
 
-## REQUIREMENTS:
+### REQUIREMENTS:
 
 - Python 3.5 or higher
 - [cyglfw3](https://github.com/adamlwgriffiths/cyglfw3)
@@ -13,95 +13,86 @@ VR pool simulator written in Python (using [pyopenvr](https://github.com/cmbruns
 - [numpy](http://www.numpy.org)
 - [pillow](https://python-pillow.org)
 
-### Optional dependencies:
+#### Optional dependencies:
 
-- [pyopenvr](https://github.com/cmbruns/pyopenvr) for VR
-- [sounddevice](https://pypi.org/project/sounddevice) and [soundfile](https://github.com/bastibe/SoundFile) for sound
-- [pytest](https://www.pytest.org) and [matplotlib](https://matplotlib.org) for running the tests
+- [pyopenvr](https://github.com/cmbruns/pyopenvr)
+  for VR
+- [ode](https://ode):
+  Python-bindings to the [Open Dynamics Engine](https://ode)
+  which provides a time-stepped pool physics simulation
+  (rather than the internal event-based simulation)
+- [sounddevice](https://pypi.org/project/sounddevice)
+  and [soundfile](https://github.com/bastibe/SoundFile)
+  for sound
 
-Time-stepped physics using the [Open Dynamics Engine](https://ode)
-is also supported if the ODE library with Python bindings is installed.
+#### Developer dependencies:
 
-You can probably install most of the required packages listed above using `pip`, e.g.
+- [pytest](https://www.pytest.org)
+  and [matplotlib](https://matplotlib.org)
+
+
+
+### INSTALLING poolvr.py:
+
+1. Install the required dependencies.
+   You can probably install most of the required packages via `pip`
+   with the following exceptions:
+
+   `cyflw3`: If `pip install cyglfw3` fails,
+   you may try building the package yourself::
+   
+     1. Build or download the `glfw` library binary for your platform:
+     The easiest way is to download pre-compiled binaries
+     from the official `glfw` site:
+     [http://www.glfw.org/download.html]
+
+     2. Clone and build the cyglfw3 package:
+     ```
+     git clone https://github.com/jzitelli/cyglfw3.git
+     cd cyglfw3
+     python setup.py build_py build_ext \
+     --include-dirs=<path to glfw include dir> --library-dirs=<path to glfw dll dir>
+     python setup.py install
+     ```
+
+   `ode`: If `pip install ode` fails,
+   you may try building the package yourself::
+
+     1. Clone and generate a Visual Studio solution (`.sln`)
+     for building the library:
+     ```
+     git clone https://github.com/jzitelli/ode.git
+     cd ode/build
+     premake4.exe --only-shared --only-double --platform=x64 vs2010
+     ```
+     
+     2. Open the generated solution in Visual Studio
+     and follow any upgrade suggestions that your version
+     of Visual Studio makes.
+
+     3. Compile a Release build for your target architecture
+	   (I believe this should match your version of Python, e.g. x64 or x86).
+
+     4. Copy the built library `ode.dll` to a location in your PATH.
+
+     5. Build the Python bindings by running from 
+     the Visual Studio Native Tools command-line:
+     ```
+     cd <ode root directory>/bindings/python
+     python setup.py build_ext install
+     ```
+
+2. Build and install the `poolvr` package:
 ```
-pip install pillow
-```
-I was not able to install `cyglfw3`, 'pyopenvr', or `ode` using `pip`,
-so I built them from source following the steps below:
-
-
-### 1. INSTALLING `cyglfw3`:
-
-First, you need to build or download the `glfw` library binary for your platform
-- the easiest way is to [download pre-compiled binaries
-from the official `glfw` site: http://www.glfw.org/download.html ](http://www.glfw.org/download.html)
-
-Then build the cyglfw3 package:
-```
-git clone https://github.com/jzitelli/cyglfw3.git
-cd cyglfw3
-python setup.py build_py build_ext --include-dirs="{path to glfw include dir}" --library-dirs="{path to glfw dll dir}"
+cd <poolvr.py root dir>
 python setup.py install
 ```
 
 
-### 2. INSTALLING `pyopenvr`:
 
-At the moment I am using my own fork of [https://github.com/cmbruns/pyopenvr](https://github.com/cmbruns/pyopenvr).
-To clone and install:
-```
-git clone https://github.com/jzitelli/pyopenvr.git
-cd pyopenvr
-python setup.py install
-```
+### STARTING `poolvr.py`:
 
-
-### 3. INSTALLING `ode`:
-
-`ode` is the Python package of bindings for the Open Dynamics Engine.
-This is my own fork of
-The library and bindings are built from the same source repository.
-To clone the repo and generate a Visual Studio solution (`.sln`)
-for building the library:
-```
-git clone https://github.com/jzitelli/ode.git
-cd ode
-cd build
-premake4.exe --only-shared --only-double --platform=x64 vs2010
-```
-Then open the generated solution in Visual Studio
-(probably ok to upgrade the solution to your version of VS if it asks you - I tested successfully with 2015 and 2017).
-Compile a Release build for your target architecture (I believe this should match your version of Python, e.g. x64 or x86).
-It should output a library `ode\lib\Release\ode.dll`.  You should add this location to your PATH environment variable or copy the file to a directory in your PATH.
-
-To build the Python bindings, run from the Visual Studio Native Tools Command Line:
-```
-cd {directory where you cloned the repo}
-cd bindings
-cd python
-python setup.py build_ext install
-```
-If installed successfully, from the Python interpreter you should be able to import the `ode` package, e.g.
-```
-import ode
-print(ode.__file__) # <-- assuming Python 3 here
-```
-and see something like `...\Anaconda3\lib\site-packages\ode.cp36-win_amd64.pyd`.
-
-
-## HOW TO INSTALL poolvr.py:
-
-```
-git clone https://github.com/jzitelli/poolvr.py.git
-cd poolvr.py
-python setup.py develop
-```
-
-
-## HOW TO START:
-
-Installation will place an executable `poolvr` into your Python environment's path.
-From a command-line, just enter:
+To start `poolvr` in VR-mode, run from command-line:
 ```
 poolvr
 ```
@@ -111,15 +102,21 @@ To run without VR:
 poolvr --novr
 ```
 
-For information on available command-line options and other help:
+To see all available command-line options:
 ```
 poolvr -h
 ```
 
-## HOW TO RUN TESTS:
 
-From your cloned `poolvr.py` repository root directory:
+
+### RUNNING THE TESTS:
+
 ```
-cd test
-pytest --render
+cd <poolvr.py root dir>/test
+pytest
+```
+
+To see all available test command-line options:
+```
+pytest -h
 ```
