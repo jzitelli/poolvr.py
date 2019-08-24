@@ -123,8 +123,10 @@ def test_collide_balls():
         abs(theta_j - expected) / |expected| = %s
         ''',
                      v_0, topspin, cut_angle,
-                     v_iS_mag, v_iS_mag_ex, abs(v_iS_mag - v_iS_mag_ex)/abs(v_iS_mag_ex),
-                     v_jS_mag, v_jS_mag_ex, abs(v_jS_mag - v_jS_mag_ex)/abs(v_jS_mag_ex),
+                     v_iS_mag, v_iS_mag_ex,
+                     v_jS_mag, v_jS_mag_ex,
+                     abs(v_iS_mag - v_iS_mag_ex)/abs(v_iS_mag_ex),
+                     abs(v_jS_mag - v_jS_mag_ex)/abs(v_jS_mag_ex),
                      theta_i, theta_i_ex,
                      theta_j, theta_j_ex,
                      abs(theta_i - theta_i_ex)/abs(theta_i_ex),
