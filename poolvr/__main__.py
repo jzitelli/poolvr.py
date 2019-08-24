@@ -14,11 +14,10 @@ def parse_args():
     parser.add_argument("--novr",
                         help="non-VR mode",
                         action="store_true")
-    parser.add_argument("-a", "--msaa",
-                        metavar='<multisample level>', type=int,
+    parser.add_argument("-a", "--msaa", metavar='<multisample level>', type=int,
                         help='enable multi-sampled anti-aliasing at specified level (must be a non-negative power of 2); default is 4',
                         default=4)
-    parser.add_argument('--resolution',
+    parser.add_argument('--resolution', metavar='<width>x<height>',
                         help='OpenGL viewport resolution, e.g. 960x680',
                         default='960x680')
     parser.add_argument('--fullscreen',
@@ -27,15 +26,13 @@ def parse_args():
     parser.add_argument('-o', "--ode",
                         help="use ODE for physics simulation instead of the default event-based physics engine",
                         action="store_true")
-    parser.add_argument("-c", "--collision-model",
-                        metavar='<name of collision model>',
+    parser.add_argument("-c", "--collision-model", metavar='<name of collision model>',
                         help="set the ball-to-ball collision model to use (this parameter only applies to the event-based physics engine)",
                         default='simple')
     # parser.add_argument('-q', '--use-quartic-solver',
     #                     help="solve for collision times using the internal quartic solver instead of numpy.roots",
     #                     action='store_true')
-    parser.add_argument('-s', '--sound-device',
-                        metavar='<device ID>',
+    parser.add_argument('-s', '--sound-device', metavar='<device ID>',
                         help="enable sound using the specified device",
                         default=None)
     parser.add_argument('-l', '--list-sound-devices',
@@ -47,22 +44,22 @@ def parse_args():
     parser.add_argument('--glyphs',
                         help='render velocity and angular velocity glyphs',
                         action='store_true')
-    parser.add_argument('--speed',
-                        metavar='<factor>',
+    parser.add_argument('--speed', metavar='<factor>',
                         help='time speed-up/slow-down factor (default is 1.0, normal speed)',
                         default=1.0, type=float)
     parser.add_argument('-r', '--realtime',
                         action='store_true',
                         help='enable the realtime version (intended for interactive usage) of the event-based physics engine')
-    parser.add_argument('--collision-search-time-forward',
+    parser.add_argument('--collision-search-time-forward', metavar='<time duration>',
                         help='''time into the future in seconds to calculate events for
                         before yielding to render a new frame - using this option enables the realtime engine''')
-    parser.add_argument('--collision-search-time-limit',
-                        help='maximum time in seconds to spend calculating events before yielding to render a new frame - using this option enables the realtime engine')
-    parser.add_argument('--balls-on-table',
+    parser.add_argument('--collision-search-time-limit', metavar='<time duration>',
+                        help='''maximum time in seconds to spend calculating events
+                        before yielding to render a new frame - using this option enables the realtime engine''')
+    parser.add_argument('--balls-on-table', metavar='<list of ball numbers>',
                         help='comma-separated list of balls on table',
                         default=','.join(str(n) for n in range(16)))
-    parser.add_argument('--render-method',
+    parser.add_argument('--render-method', metavar='<render method name>',
                         help='OpenGL rendering method/style to use, one of: "ega", "lambert", "billboards", "raycast"',
                         default='lambert')
     args = parser.parse_args()
