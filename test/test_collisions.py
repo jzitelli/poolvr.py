@@ -36,8 +36,9 @@ def plot_collision(deltaPs, v_is, v_js, omega_is, omega_js):
     plt.show()
 
 
-def test_collide_balls():
+def test_collide_balls(request):
     """Reproduce results of Mathavan et al, 2014 - Table 1"""
+    show_plots = request.config.getoption('--show-plots')
     e = 0.89
     mu_s = 0.21
     mu_b = 0.05
@@ -71,13 +72,17 @@ def test_collide_balls():
         v_j[1:] = v_j[:0:-1]
         omega_i[1:] = omega_i[:0:-1]
         omega_j[1:] = omega_j[:0:-1]
-        v_is, omega_is, v_js, omega_js, deltaPs = collide_balls(r_c,
-                                                                r_i, v_i, omega_i,
-                                                                r_j, v_j, omega_j,
-                                                                e, mu_s, mu_b,
-                                                                M, R,
-                                                                9.81,
-                                                                4000, return_all=True)
+        deltaP = (1 + e) * M * cue_ball_velocity / 8000
+        v_is, omega_is, v_js, omega_js = collide_balls(r_c,
+                                                       r_i, v_i, omega_i,
+                                                       r_j, v_j, omega_j,
+                                                       e, mu_s, mu_b,
+                                                       M, R,
+                                                       9.81,
+                                                       deltaP=deltaP,
+                                                       return_all=True)
+        if show_plots:
+            plot_collision(deltaP*np.arange(len(v_is)), v_is, v_js, omega_is, omega_js)
         v_is[:,1:] = v_is[:,:0:-1]
         v_js[:,1:] = v_js[:,:0:-1]
         omega_is[:,1:] = omega_is[:,:0:-1]

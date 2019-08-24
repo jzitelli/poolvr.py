@@ -9,8 +9,8 @@ This module implements the ball-ball collision model described in: ::
   2014
 
 """
-import logging
-_logger = logging.getLogger(__name__)
+from logging import getLogger
+_logger = getLogger(__name__)
 import numpy as np
 from numpy import dot, sqrt, cross
 
@@ -28,7 +28,7 @@ def collide_balls(r_c,
                   M,
                   R,
                   g=9.81,
-                  nP=4000,
+                  deltaP=None,
                   return_all=False):
     r_ij = r_j - r_i
     r_ij_mag_sqrd = dot(r_ij, r_ij)
@@ -55,7 +55,8 @@ def collide_balls(r_c,
     # u_ijC = u_iC - u_jC
     u_ijC_xz = u_ijC[::2]
     u_ijC_xz_mag = sqrt(dot(u_ijC_xz, u_ijC_xz))
-    deltaP = 0.5 * (1 + e) * M * abs(v_ij[1]) / nP
+    if deltaP is None:
+        deltaP = 0.5 * (1 + e) * M * abs(v_ij[1]) / 4000
     W_f = float('inf')
     W_c = None
     W = 0
@@ -159,6 +160,5 @@ def collide_balls(r_c,
             dot(G.T, v_js[i], out=v_js[i])
             dot(G.T, omega_is[i], out=omega_is[i])
             dot(G.T, omega_js[i], out=omega_js[i])
-        deltaPs = np.arange(len(v_is)) * deltaP
-        return v_is, omega_is, v_js, omega_js, deltaPs
+        return v_is, omega_is, v_js, omega_js
     return dot(G.T, v_i), dot(G.T, omega_i), dot(G.T, v_j), dot(G.T, omega_j)
