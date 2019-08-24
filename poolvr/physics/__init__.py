@@ -59,7 +59,7 @@ class PoolPhysics(object):
                  ball_collision_model_kwargs=None,
                  table=None,
                  enable_sanity_check=False,
-                 enable_occlusion=True,
+                 enable_occlusion=False,
                  collision_search_time_limit=None,
                  collision_search_time_forward=None,
                  use_quartic_solver=True,
@@ -204,12 +204,12 @@ class PoolPhysics(object):
             r_ij[i,i] = ball_positions[ii]
             r_ij_mag[i,F] = r_ij_mag[F,i] = np.linalg.norm(r_ij[i,F], axis=1)
         # update occlusion buffers:
-        self._occ_ij[:] = False
-        self._occ_ij[F, F] = True
-        self._psi_ij[:] = 0
-        self._theta_ij[:] = 0
-        if self._enable_occlusion:
-            self._update_occlusion({e.i: e._r_0 for e in self._BALL_REST_EVENTS})
+        # self._occ_ij[:] = False
+        # self._occ_ij[F, F] = True
+        # self._psi_ij[:] = 0
+        # self._theta_ij[:] = 0
+        # if self._enable_occlusion:
+        #     self._update_occlusion({e.i: e._r_0 for e in self._BALL_REST_EVENTS})
 
     @property
     def ball_collision_model(self):
@@ -747,75 +747,75 @@ class PoolPhysics(object):
                 break
         return roots
 
-    def _update_occlusion(self, ball_positions=None):
-        if ball_positions is None:
-            ball_positions = {}
-        balls, ball_positions = zip(*ball_positions.items())
-        balls = list(balls)
-        nballs = len(balls)
-        r_ij = self._r_ij
-        r_ij_mag = self._r_ij_mag
-        thetas_ij = self._theta_ij
-        psi_ij = self._psi_ij
-        occ_ij = self._occ_ij
-        F = self._F
-        # U: ball no.s corresponding to the input ball_positions, respectively - these balls must be at rest.
-        U = F[:nballs] = balls
-        # R: ball no.s of all other balls at rest.
-        R = F[nballs:nballs+len(R)] = [i for i in self.balls_at_rest if i not in U]
-        F = F[:len(U)+len(R)]
-        U.sort()
-        R.sort()
-        M = np.array(self.balls_in_motion, dtype=np.int)
-        occ_ij[M,:] = occ_ij[:,M] = False
-        occ_ij[M,M] = True
-        for ii, i in enumerate(U):
-            F_i = F[ii+1:]
-            if len(F_i) == 0:
-                continue
-            thetas_ij[i,F_i] = np.arctan2(r_ij[i,F_i,2], r_ij[i,F_i,0])
-            thetas_ij[F_i,i] = thetas_ij[i,F_i] + np.pi
-            psi_ij[i,F_i] = psi_ij[F_i,i] = np.arcsin(self.ball_diameter / r_ij_mag[i,F_i])
-        for ii, i in enumerate(U):
-            F_i = F[:-1].copy()
-            if len(F_i) == 0:
-                continue
-            F_i[ii:] = F[ii+1:]
-            jj_sorted = r_ij_mag[i,F_i].argsort()
-            j_sorted = F_i[jj_sorted]
-            theta_i = thetas_ij[i,j_sorted]
-            psi_i = psi_ij[i,j_sorted]
-            theta_i_a = theta_i - psi_i
-            theta_i_b = theta_i + psi_i
-            theta_i_occ_bnds = []
-            for j, theta_ij_a, theta_ij, theta_ij_b in zip(j_sorted,
-                                                           theta_i_a, theta_i, theta_i_b):
-                if j == i:
-                    continue
-                if theta_ij_a < -np.pi:
-                    thetas  = [(theta_ij_a,      theta_ij,      theta_ij_b),
-                               (theta_ij_a+PIx2, theta_ij+PIx2, theta_ij_b+PIx2)]
-                elif theta_ij_b >= np.pi:
-                    thetas = [(theta_ij_a,      theta_ij,      theta_ij_b),
-                              (theta_ij_a-PIx2, theta_ij-PIx2, theta_ij_b-PIx2)]
-                else:
-                    thetas = [(theta_ij_a, theta_ij, theta_ij_b)]
-                for theta_a, theta, theta_b in thetas:
-                    jj_a, jj, jj_b = (bisect(theta_i_occ_bnds, theta_a),
-                                      bisect(theta_i_occ_bnds, theta),
-                                      bisect(theta_i_occ_bnds, theta_b))
-                    center_occluded, a_occluded, b_occluded = jj % 2 == 1, jj_a % 2 == 1, jj_b % 2 == 1
-                    if center_occluded and jj_a == jj == jj_b:
-                        occ_ij[i,j] = True
-                        break
-                    if a_occluded and b_occluded:
-                        theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + theta_i_occ_bnds[jj_b:]
-                    elif a_occluded:
-                        theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + [theta_b] + theta_i_occ_bnds[jj_b:]
-                    elif b_occluded:
-                        theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + [theta_a] + theta_i_occ_bnds[jj_b:]
-                    else:
-                        theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + [theta_a, theta_b] + theta_i_occ_bnds[jj_b:]
+    # def _update_occlusion(self, ball_positions=None):
+    #     if ball_positions is None:
+    #         ball_positions = {}
+    #     balls, ball_positions = zip(*ball_positions.items())
+    #     balls = list(balls)
+    #     nballs = len(balls)
+    #     r_ij = self._r_ij
+    #     r_ij_mag = self._r_ij_mag
+    #     thetas_ij = self._theta_ij
+    #     psi_ij = self._psi_ij
+    #     occ_ij = self._occ_ij
+    #     F = self._F
+    #     # U: ball no.s corresponding to the input ball_positions, respectively - these balls must be at rest.
+    #     U = F[:nballs] = balls
+    #     # R: ball no.s of all other balls at rest.
+    #     R = F[nballs:nballs+len(R)] = [i for i in self.balls_at_rest if i not in U]
+    #     F = F[:len(U)+len(R)]
+    #     U.sort()
+    #     R.sort()
+    #     M = np.array(self.balls_in_motion, dtype=np.int)
+    #     occ_ij[M,:] = occ_ij[:,M] = False
+    #     occ_ij[M,M] = True
+    #     for ii, i in enumerate(U):
+    #         F_i = F[ii+1:]
+    #         if len(F_i) == 0:
+    #             continue
+    #         thetas_ij[i,F_i] = np.arctan2(r_ij[i,F_i,2], r_ij[i,F_i,0])
+    #         thetas_ij[F_i,i] = thetas_ij[i,F_i] + np.pi
+    #         psi_ij[i,F_i] = psi_ij[F_i,i] = np.arcsin(self.ball_diameter / r_ij_mag[i,F_i])
+    #     for ii, i in enumerate(U):
+    #         F_i = F[:-1].copy()
+    #         if len(F_i) == 0:
+    #             continue
+    #         F_i[ii:] = F[ii+1:]
+    #         jj_sorted = r_ij_mag[i,F_i].argsort()
+    #         j_sorted = F_i[jj_sorted]
+    #         theta_i = thetas_ij[i,j_sorted]
+    #         psi_i = psi_ij[i,j_sorted]
+    #         theta_i_a = theta_i - psi_i
+    #         theta_i_b = theta_i + psi_i
+    #         theta_i_occ_bnds = []
+    #         for j, theta_ij_a, theta_ij, theta_ij_b in zip(j_sorted,
+    #                                                        theta_i_a, theta_i, theta_i_b):
+    #             if j == i:
+    #                 continue
+    #             if theta_ij_a < -np.pi:
+    #                 thetas  = [(theta_ij_a,      theta_ij,      theta_ij_b),
+    #                            (theta_ij_a+PIx2, theta_ij+PIx2, theta_ij_b+PIx2)]
+    #             elif theta_ij_b >= np.pi:
+    #                 thetas = [(theta_ij_a,      theta_ij,      theta_ij_b),
+    #                           (theta_ij_a-PIx2, theta_ij-PIx2, theta_ij_b-PIx2)]
+    #             else:
+    #                 thetas = [(theta_ij_a, theta_ij, theta_ij_b)]
+    #             for theta_a, theta, theta_b in thetas:
+    #                 jj_a, jj, jj_b = (bisect(theta_i_occ_bnds, theta_a),
+    #                                   bisect(theta_i_occ_bnds, theta),
+    #                                   bisect(theta_i_occ_bnds, theta_b))
+    #                 center_occluded, a_occluded, b_occluded = jj % 2 == 1, jj_a % 2 == 1, jj_b % 2 == 1
+    #                 if center_occluded and jj_a == jj == jj_b:
+    #                     occ_ij[i,j] = True
+    #                     break
+    #                 if a_occluded and b_occluded:
+    #                     theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + theta_i_occ_bnds[jj_b:]
+    #                 elif a_occluded:
+    #                     theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + [theta_b] + theta_i_occ_bnds[jj_b:]
+    #                 elif b_occluded:
+    #                     theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + [theta_a] + theta_i_occ_bnds[jj_b:]
+    #                 else:
+    #                     theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + [theta_a, theta_b] + theta_i_occ_bnds[jj_b:]
 
     def _sanity_check(self, event):
         import pickle
