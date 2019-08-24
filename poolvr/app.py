@@ -12,6 +12,7 @@ _logger = logging.getLogger('poolvr')
 from .glfw_app import setup_glfw
 from .gl_rendering import OpenGLRenderer, set_quaternion_from_matrix, set_matrix_from_quaternion
 from .gl_techniques import LAMBERT_TECHNIQUE
+# from .gl_text import TexturedText
 try:
     from .pyopenvr_renderer import openvr, OpenVRRenderer
 except ImportError as err:
@@ -23,13 +24,10 @@ from .table import PoolTable
 from .cue import PoolCue
 from .game import PoolGame
 from .keyboard_controls import (init_keyboard, set_on_keydown_callback, key_state,
-                                KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN,
-                                KEY_W, KEY_S, KEY_A, KEY_D, KEY_Q, KEY_Z,
-                                KEY_R, KEY_ESCAPE)
+                                KEY_LEFT, KEY_RIGHT, KEY_W, KEY_S, KEY_A, KEY_D, KEY_Q, KEY_Z)
 from .mouse_controls import init_mouse
 from .sound import init_sound
 from .room import floor_mesh
-# from .gl_text import TexturedText
 
 
 KB_TURN_SPEED = 0.5
@@ -111,11 +109,13 @@ def main(window_size=(800,600),
                                                 use_bb_particles=render_method == 'billboards')
     # textured_text = TexturedText()
     # if use_bb_particles:
+
     if render_method == 'billboards':
         billboard_particles = ball_meshes[0]
         ball_mesh_positions = billboard_particles.primitive.attributes['translate']
         ball_mesh_rotations = np.array(game.num_balls * [np.eye(3)])
         meshes = [floor_mesh, table_mesh] + ball_meshes + [cue.shadow_mesh, cue]
+
     elif render_method == 'raycast':
         ball_mesh_positions = np.zeros((game.num_balls, 3), dtype=np.float32)
         ball_quaternions = np.zeros((game.num_balls, 4), dtype=np.float32)
@@ -141,6 +141,7 @@ def main(window_size=(800,600),
         fragbox.material.values['cue_length'] = cue.length
         fragbox.material.values['cue_radius'] = cue.radius
         meshes = [table_mesh, fragbox]
+
     else:
         ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
         ball_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_meshes]
@@ -150,6 +151,7 @@ def main(window_size=(800,600),
         if cube_map:
             from .room import skybox_mesh
             meshes.insert(0, skybox_mesh)
+
     for mesh in meshes:
         mesh.init_gl()
     cue.shadow_mesh.update(c=table.H+0.001)

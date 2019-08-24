@@ -1,18 +1,13 @@
 import itertools
-import logging
+from logging import getLogger
+_logger = getLogger(__name__)
 import numpy as np
 import OpenGL.GL as gl
 
-try:
-    import ode
-except Exception:
-    import poolvr.fake_ode as ode
 
-
-from .gl_rendering import Primitive, Mesh
-
-
-_logger = logging.getLogger(__name__)
+from .gl_rendering import Primitive, Mesh, Material, CubeTexture
+from .gl_techniques import SKYBOX_TECHNIQUE
+from .fake_ode import ode_or_fake_it
 
 
 def triangulate_quad(quad_face, flip_normals=False):
@@ -20,6 +15,15 @@ def triangulate_quad(quad_face, flip_normals=False):
         return [[quad_face[0], quad_face[2], quad_face[1]], [quad_face[0], quad_face[3], quad_face[2]]]
     else:
         return [[quad_face[0], quad_face[1], quad_face[2]], [quad_face[0], quad_face[2], quad_face[3]]]
+
+
+class SingleMaterialMesh(Mesh):
+    def __init__(self, material, primitives, *args, **kwargs):
+        Mesh.__init__(self, {material: primitives}, *args, **kwargs)
+        self.material = material
+    def alias(self, attribute_name, alias):
+        for prim in self.primitives[self.material]:
+            prim.alias(attribute_name, alias)
 
 
 class HexaPrimitive(Primitive):
@@ -64,28 +68,31 @@ class BoxPrimitive(HexaPrimitive):
                              [-0.5*w,  0.5*h, -0.5*l]], dtype=np.float32)
         HexaPrimitive.__init__(self, vertices=vertices)
 
+    @ode_or_fake_it
     def create_ode_mass(self, total_mass):
         mass = ode.Mass()
         mass.setSphereTotal(total_mass, self.width, self.height, self.length)
         return mass
 
+    @ode_or_fake_it
     def create_ode_geom(self, space):
         return ode.GeomBox(space=space, lengths=self.lengths)
 
 
-class HexaMesh(Mesh):
+class HexaMesh(SingleMaterialMesh):
     def __init__(self, material, *args, **kwargs):
-        self.primitive = HexaPrimitive(*args, **kwargs)
-        self.primitives = [self.primitive]
-        Mesh.__init__(self, {material: self.primitives})
+        primitive = HexaPrimitive(*args, **kwargs)
+        super().__init__(material, [primitive])
+        self.primitive = primitive
 
 
-class BoxMesh(Mesh):
+class BoxMesh(SingleMaterialMesh):
     def __init__(self, material, *args, **kwargs):
-        self.primitive = BoxPrimitive(*args, **kwargs)
-        self.primitives = [self.primitive]
-        Mesh.__init__(self, {material: self.primitives})
+        primitive = BoxPrimitive(*args, **kwargs)
+        super().__init__(material, [primitive])
+        self.primitive = primitive
 
+    @ode_or_fake_it
     def create_ode_body(self, world, space, total_mass):
         body = ode.Body(world)
         body.setMass(self.primitive.create_ode_mass(total_mass))
@@ -120,17 +127,19 @@ class CylinderPrimitive(Primitive):
                                   np.array([(len(vertices)-1, 2*num_radial-1, 1)], dtype=np.uint16).reshape(-1)])
         Primitive.__init__(self, gl.GL_TRIANGLES, indices, vertices=vertices, normals=normals)
 
+    @ode_or_fake_it
     def create_ode_mass(self, total_mass, direction=3):
         mass = ode.Mass()
         mass.setCylinderTotal(total_mass, direction, self.radius, self.height)
         return mass
 
+    @ode_or_fake_it
     def create_ode_geom(self, space):
         return ode.GeomCylinder(space=space, radius=self.radius, length=self.height)
 
 
-class CylinderMesh(Mesh):
-    def __init__(self, material=None, radius=0.5, height=1.0, num_radial=12,
+class CylinderMesh(SingleMaterialMesh):
+    def __init__(self, material, radius=0.5, height=1.0, num_radial=12,
                  bottom_closed=True, top_closed=True):
         primitives = [CylinderPrimitive(radius=radius, height=height, num_radial=num_radial)]
         if bottom_closed:
@@ -142,7 +151,7 @@ class CylinderMesh(Mesh):
             circle = CirclePrimitive(radius=radius, num_radial=num_radial)
             circle.attributes['vertices'][:,1] += 0.5*height
             primitives.append(circle)
-        Mesh.__init__(self, {material: primitives})
+        super().__init__(material, primitives)
 
 
 class CirclePrimitive(Primitive):
@@ -174,13 +183,13 @@ class ConePrimitive(Primitive):
         Primitive.__init__(self, gl.GL_TRIANGLE_FAN, indices, vertices=vertices)
 
 
-class ConeMesh(Mesh):
+class ConeMesh(SingleMaterialMesh):
     def __init__(self, material, radius=0.5, height=1.0, num_radial=12, closed=True):
         primitives = [ConePrimitive(radius=radius, height=height, num_radial=num_radial)]
         if closed:
             basis = np.eye(3); basis[1,1] *= -1; basis[2,2] *= -1
             primitives.append(CirclePrimitive(radius=radius, num_radial=num_radial, basis=basis))
-        Mesh.__init__(self, {material: primitives})
+        super().__init__(material, primitives)
 
 
 class QuadPrimitive(Primitive):
@@ -223,6 +232,13 @@ class PlanePrimitive(QuadPrimitive):
                              [0.5*width, 0.5*height, -0.5*depth],
                              [-0.5*width, 0.5*height, -0.5*depth]], dtype=np.float32)
         QuadPrimitive.__init__(self, vertices, **attributes)
+
+
+class PlaneMesh(SingleMaterialMesh):
+    def __init__(self, material, *args, **kwargs):
+        primitive = PlanePrimitive(*args, **kwargs)
+        super().__init__(material, [primitive])
+        self.primitive = primitive
 
 
 class SpherePrimitive(Primitive):
@@ -281,21 +297,24 @@ class SpherePrimitive(Primitive):
         Primitive.__init__(self, gl.GL_TRIANGLE_STRIP, indices,
                            vertices=vertices, uvs=uvs)
 
+    @ode_or_fake_it
     def create_ode_mass(self, total_mass):
         mass = ode.Mass()
         mass.setSphereTotal(total_mass, self.radius)
         return mass
 
+    @ode_or_fake_it
     def create_ode_geom(self, space):
         return ode.GeomSphere(space=space, radius=self.radius)
 
 
-class SphereMesh(Mesh):
+class SphereMesh(SingleMaterialMesh):
     def __init__(self, material, *args, **kwargs):
-        self.primitive = SpherePrimitive(*args, **kwargs)
-        self.primitives = [self.primitive]
-        Mesh.__init__(self, {material: self.primitives})
+        primitive = SpherePrimitive(*args, **kwargs)
+        super().__init__(material, [primitive])
+        self.primitive = primitive
 
+    @ode_or_fake_it
     def create_ode_body(self, world, space, total_mass):
         body = ode.Body(world)
         body.setMass(self.primitive.create_ode_mass(total_mass))
@@ -306,25 +325,14 @@ class SphereMesh(Mesh):
         return body
 
 
-class RoundedRectanglePrimitive(Primitive):
-    def __init__(self, width, height, radius=None):
-        if radius is None:
-            radius = 0.15 * min(width, height)
-        self.width = width
-        self.height = height
-        self.radius = radius
-
-
-class ProjectedMesh(Mesh):
+class ProjectedMesh(SingleMaterialMesh):
     def __init__(self, mesh, material, primitives=None,
                  normal=(0.0, 1.0, 0.0), c=1.02*0.77,
                  light_position=(0.0, 100.2, 0.0, 0.1)):
-        self.mesh = mesh
-        self.material = material
         if primitives is None:
-            primitives = itertools.chain.from_iterable(mesh.primitives.values())
-        self.primitives = list(primitives)
-        Mesh.__init__(self, {material: self.primitives})
+            primitives = list(itertools.chain.from_iterable(mesh.primitives.values()))
+        super().__init__(material, primitives)
+        self.mesh = mesh
         self.normal = np.array(normal)
         self.c = c
         self._plane = np.array(list(self.normal[:]) + [-self.c])
@@ -349,13 +357,20 @@ class ProjectedMesh(Mesh):
         self.mesh.world_matrix.dot(shadow_matrix, out=self.world_matrix)
 
 
-class ArrowMesh(Mesh):
+class ArrowMesh(SingleMaterialMesh):
     def __init__(self, material=None, head_radius=0.05, tail_radius=0.02,
                  head_length=0.1, tail_length=1, num_radial=12):
-        head = ConeMesh(material=material, radius=head_radius, height=head_length, num_radial=num_radial)
-        tail = CylinderMesh(material=material, radius=tail_radius, height=tail_length, num_radial=num_radial,
-                            top_closed=False)
-        for prim in tail.primitives[material]:
-            prim.attributes['vertices'][:,1] -= 0.5*tail_length
-        Mesh.__init__(self, {material: head.primitives[material] + tail.primitives[material]})
-        self.material = material
+        head = ConePrimitive(radius=head_radius, height=head_length, num_radial=num_radial)
+        tail = CylinderPrimitive(radius=tail_radius, height=tail_length, num_radial=num_radial,
+                                 top_closed=False)
+        tail.attributes['vertices'][:,1] -= 0.5*tail_length
+        super().__init__(material, [head, tail])
+
+
+class SkyBoxMesh(SingleMaterialMesh):
+    def __init__(self, cube_map_image_paths):
+        primitive = BoxPrimitive(400,400,400)
+        primitive.alias('vertices', 'a_position')
+        super().__init__(Material(SKYBOX_TECHNIQUE, textures={'u_map': CubeTexture(cube_map_image_paths)}),
+                         [primitive])
+        self.primitive = primitive
