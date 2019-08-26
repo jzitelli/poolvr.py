@@ -29,7 +29,7 @@ from .events import (CueStrikeEvent,
                      SimpleBallCollisionEvent,
                      RailCollisionEvent,
                      CornerCollisionEvent)
-from .poly_solvers import quartic_solve
+from .poly_solvers import quartic_solve, find_min_quartic_root_in_interval
 
 
 PIx2 = np.pi*2
@@ -596,18 +596,13 @@ class PoolPhysics(object):
         b_x, b_y = a_ji[1, ::2]
         c_x, c_y = a_ji[0, ::2]
         p = self._p
-        p[0] = a_x**2 + a_y**2
-        p[1] = 2 * (a_x*b_x + a_y*b_y)
+        p[4] = a_x**2 + a_y**2
+        p[3] = 2 * (a_x*b_x + a_y*b_y)
         p[2] = b_x**2 + 2*a_x*c_x + 2*a_y*c_y + b_y**2
-        p[3] = 2 * b_x*c_x + 2 * b_y*c_y
-        p[4] = c_x**2 + c_y**2 - 4 * self.ball_radius**2
+        p[1] = 2 * b_x*c_x + 2 * b_y*c_y
+        p[0] = c_x**2 + c_y**2 - 4 * self.ball_radius**2
         t0, t1 = max(e_i.t, e_j.t), min(e_i.t + e_i.T, e_j.t + e_j.T)
-        return min((t.real for t in self._filter_roots(quartic_solve(p[::-1], only_real=True)
-                                                       if self._use_quartic_solver else
-                                                       np.roots(p))
-                    if t0 < t.real < t1
-                    and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
-                    default=None)
+        return find_min_quartic_root_in_interval(p, t0, t1)
 
     def _find_rail_collision(self, e_i):
         """

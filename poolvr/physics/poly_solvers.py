@@ -1,12 +1,15 @@
-import logging
-_logger = logging.getLogger(__name__)
+import ctypes
+import os.path
 from math import fsum
+from logging import getLogger
+_logger = getLogger(__name__)
 import numpy as np
+from numpy.ctypeslib import ndpointer
 
 
 PIx2 = np.pi*2
-CUBE_ROOTS_OF_1_ANGLES = PIx2/3 * np.arange(3)
-CUBE_ROOTS_OF_1 = np.exp(1j*CUBE_ROOTS_OF_1_ANGLES)
+CUBE_ROOTS_OF_1 = np.exp(1j*PIx2/3 * np.arange(3))
+
 
 _ZERO_TOLERANCE = 1e-15
 _ZERO_TOLERANCE_SQRD = _ZERO_TOLERANCE**2
@@ -14,7 +17,31 @@ _IMAG_TOLERANCE = 1e-8
 _IMAG_TOLERANCE_SQRD = _IMAG_TOLERANCE**2
 
 
+_lib = ctypes.cdll.LoadLibrary(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                            'poly_solvers.dll'))
+_lib.quartic_solve.argtypes = (ndpointer(np.float64, ndim=1, shape=(5,)),
+                               ndpointer(np.complex128, ndim=1, shape=(4,)))
+_lib.find_min_quartic_root_in_interval.argtypes = (ndpointer(np.float64, ndim=1, shape=(5,)),
+                                                  ctypes.c_double, ctypes.c_double)
+_lib.find_min_quartic_root_in_interval.restype = ctypes.c_double
+
+
+
+def find_min_quartic_root_in_interval(p, t0, t1):
+    t = _lib.find_min_quartic_root_in_interval(p, t0, t1)
+    if t < t1:
+        return t
+
+
+def quartic_solve_b(p):
+    _lib.quartic_solve(p, quartic_solve_b.out)
+    return quartic_solve_b.out
+quartic_solve_b.out = np.zeros(4, dtype=np.complex128)
+
+
 def quartic_solve(p, only_real=False):
+    return quartic_solve_b(p)
+
     if abs(p[-1]) / max(abs(p[:-1])) < _ZERO_TOLERANCE:
         # _logger.debug('using cubic solver...')
         return cubic_solve(p[:-1])
