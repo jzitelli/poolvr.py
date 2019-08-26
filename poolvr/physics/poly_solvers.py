@@ -26,22 +26,19 @@ _lib.find_min_quartic_root_in_interval.argtypes = (ndpointer(np.float64, ndim=1,
 _lib.find_min_quartic_root_in_interval.restype = ctypes.c_double
 
 
-
 def find_min_quartic_root_in_interval(p, t0, t1):
     t = _lib.find_min_quartic_root_in_interval(p, t0, t1)
-    if t < t1:
+    if not np.isnan(t):
         return t
 
 
-def quartic_solve_b(p):
-    _lib.quartic_solve(p, quartic_solve_b.out)
-    return quartic_solve_b.out
-quartic_solve_b.out = np.zeros(4, dtype=np.complex128)
+def c_quartic_solve(p):
+    _lib.quartic_solve(p, c_quartic_solve.out)
+    return c_quartic_solve.out
+c_quartic_solve.out = np.zeros(4, dtype=np.complex128)
 
 
 def quartic_solve(p, only_real=False):
-    return quartic_solve_b(p)
-
     if abs(p[-1]) / max(abs(p[:-1])) < _ZERO_TOLERANCE:
         # _logger.debug('using cubic solver...')
         return cubic_solve(p[:-1])
@@ -108,10 +105,6 @@ def quartic_solve(p, only_real=False):
         -0.25*b + S + 0.5*sqrtm,
         -0.25*b + S - 0.5*sqrtm,
     ))
-
-
-def printit(zs):
-    return ',  '.join(str(z) for z in zs)
 
 
 def cubic_solve(p):

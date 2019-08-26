@@ -88,12 +88,13 @@ double find_min_quartic_root_in_interval(double* P, double t0, double t1) {
       }
     }
   }
-  double min_root = t1;
+  double min_root = NAN;
   for (int i = 2*npairs; i < 4; i++) {
     double complex r = roots[i];
-    if (t0 < creal(r) && creal(r) < min_root &&
-	cimag(r)*cimag(r) / (creal(r)*creal(r) + cimag(r)*cimag(r)) < IMAG_TOLERANCE_SQRD) {
-      min_root = creal(r);
+    if (t0 < creal(r) && creal(r) < t1 &&
+	cimag(r)*cimag(r) / (creal(r)*creal(r) + cimag(r)*cimag(r))
+	< IMAG_TOLERANCE_SQRD) {
+      min_root = t1 = creal(r);
     }
   }
   return min_root;
