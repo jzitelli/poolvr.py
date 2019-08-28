@@ -98,6 +98,12 @@ class BallStationaryEvent(BallEvent):
             self._a_global = a = np.zeros((3,3), dtype=np.float64)
             a[0] = self._r_0
         return self._a_global, None
+    @property
+    def global_linear_motion_coeffs(self):
+        if self._a_global is None:
+            self._a_global = a = np.zeros((3,3), dtype=np.float64)
+            a[0] = self._r_0
+        return self._a_global
     def calc_shifted_motion_coeffs(self, t0):
         return self.global_motion_coeffs
     def eval_position(self, tau, out=None):
@@ -188,6 +194,7 @@ class BallMotionEvent(BallEvent):
         self._v_0 = a[1]
         self._omega_0 = b[0]
         self._ab_global = None
+        self._a_global = None
         self._next_motion_event = None
     @property
     def acceleration(self):
@@ -200,6 +207,27 @@ class BallMotionEvent(BallEvent):
         if self._ab_global is None:
             self._ab_global = self.calc_global_motion_coeffs(self.t, self._a, self._b)
         return self._ab_global[:3], self._ab_global[3:]
+    @property
+    def global_linear_motion_coeffs(self):
+        if self._a_global is None:
+            self._a_global = self.calc_global_linear_motion_coeffs(self.t, self._a)
+        return self._a_global
+    @staticmethod
+    def calc_global_linear_motion_coeffs(t, a, out=None):
+        """
+        Calculates the coefficients of the global-time linear equations of motion.
+
+        :param t: the global time of the start of the motion
+        :param a: the local-time (0 at the start of the motion) linear motion coefficients
+        """
+        if out is None:
+            out = a.copy()
+        else:
+            out[:] = a
+        out[0] += -t * a[1] + t**2 * a[2]
+        out[1] += -2 * t * a[2]
+        return out
+
     def calc_shifted_motion_coeffs(self, t0):
         ab_global = self.calc_global_motion_coeffs(self.t - t0, self._a, self._b)
         return ab_global[:3], ab_global[3:]

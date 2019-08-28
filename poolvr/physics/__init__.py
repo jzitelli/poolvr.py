@@ -535,12 +535,6 @@ class PoolPhysics(object):
                 if t_min <= t0:
                     continue
                 if j not in collisions:
-                    # if self._enable_occlusion and nballs_in_motion == 1 and self._occ_ij[i,j]:
-                    #     collisions[j] = None
-                    #     continue
-                    # if self._enable_occlusion and isinstance(e_j, BallStationaryEvent) and self._occ_ij[i,j]:
-                    #     collisions[j] = None
-                    #     continue
                     if e_j.parent_event and e_i.parent_event and e_j.parent_event is e_i.parent_event:
                         collisions[j] = None
                         continue
@@ -548,9 +542,6 @@ class PoolPhysics(object):
                     if t1 <= t0:
                         collisions[j] = None
                         continue
-                    # if self._too_far_for_collision(e_i, e_j, t0, t1):
-                    #     collisions[j] = None
-                    #     continue
                     t_c = self._find_collision_time(e_i, e_j)
                     collisions[j] = t_c
                 t_c = collisions[j]
@@ -589,8 +580,8 @@ class PoolPhysics(object):
              < sqrt(dot(r_ij_0, r_ij_0)) - self.ball_diameter
 
     def _find_collision_time(self, e_i, e_j):
-        a_i, _ = e_i.global_motion_coeffs
-        a_j, _ = e_j.global_motion_coeffs
+        a_i = e_i.global_linear_motion_coeffs
+        a_j = e_j.global_linear_motion_coeffs
         t0, t1 = max(e_i.t, e_j.t), min(e_i.t + e_i.T, e_j.t + e_j.T)
         return find_collision_time(a_i, a_j, self.ball_radius, t0, t1)
 
