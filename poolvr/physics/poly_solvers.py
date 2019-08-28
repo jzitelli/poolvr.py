@@ -1,6 +1,7 @@
 import ctypes
+from ctypes import c_double
 import os.path
-from math import fsum
+from math import fsum, isnan
 from logging import getLogger
 _logger = getLogger(__name__)
 import numpy as np
@@ -19,20 +20,39 @@ _IMAG_TOLERANCE_SQRD = _IMAG_TOLERANCE**2
 
 _lib = ctypes.cdll.LoadLibrary(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                             'poly_solvers.dll'))
+
 _lib.quartic_solve.argtypes = (ndpointer(np.float64, ndim=1, shape=(5,)),
                                ndpointer(np.complex128, ndim=1, shape=(4,)))
+
 _lib.find_min_quartic_root_in_interval.argtypes = (ndpointer(np.float64, ndim=1, shape=(5,)),
-                                                  ctypes.c_double, ctypes.c_double)
-_lib.find_min_quartic_root_in_interval.restype = ctypes.c_double
+                                                   c_double, c_double)
+_lib.find_min_quartic_root_in_interval.restype = c_double
+
+_lib.find_collision_time.argtypes = (ndpointer(np.float64, ndim=2, shape=(3,3)),
+                                     ndpointer(np.float64, ndim=2, shape=(3,3)),
+                                     c_double, c_double, c_double)
+_lib.find_collision_time.restype = c_double
+
+
+
+def find_collision_time(a_i, a_j, R, t0, t1):
+    global _lib
+    t = _lib.find_collision_time(a_i,
+                                 a_j,
+                                 R, t0, t1)
+    if not isnan(t):
+        return t
 
 
 def find_min_quartic_root_in_interval(p, t0, t1):
+    global _lib
     t = _lib.find_min_quartic_root_in_interval(p, t0, t1)
-    if not np.isnan(t):
+    if not isnan(t):
         return t
 
 
 def c_quartic_solve(p):
+    global _lib
     _lib.quartic_solve(p, c_quartic_solve.out)
     return c_quartic_solve.out
 c_quartic_solve.out = np.zeros(4, dtype=np.complex128)

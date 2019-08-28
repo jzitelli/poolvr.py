@@ -12,9 +12,11 @@ This package implements an event-based pool physics simulator based on the paper
 from itertools import chain
 from bisect import bisect
 from time import perf_counter
-import numpy as np
+from math import sqrt
 import logging
 _logger = logging.getLogger(__name__)
+import numpy as np
+from numpy import dot
 
 
 from ..table import PoolTable
@@ -29,11 +31,11 @@ from .events import (CueStrikeEvent,
                      SimpleBallCollisionEvent,
                      RailCollisionEvent,
                      CornerCollisionEvent)
-from .poly_solvers import quartic_solve, find_min_quartic_root_in_interval
+from .poly_solvers import quartic_solve, find_min_quartic_root_in_interval, find_collision_time
 
 
 PIx2 = np.pi*2
-SQRT2 = np.sqrt(2.0)
+SQRT2 = sqrt(2.0)
 RAD2DEG = 180/np.pi
 INCH2METER = 0.0254
 INF = float('inf')
@@ -488,7 +490,7 @@ class PoolPhysics(object):
                 self._ball_motion_events[i] = event
                 a_ij[i] = accel
                 a_ij_mag[i,F] = a_ij_mag[F,i] = np.linalg.norm(a_ij[F] - accel, axis=1)
-                a_ij_mag[i,i] = np.sqrt(np.dot(accel, accel))
+                a_ij_mag[i,i] = sqrt(dot(accel, accel))
                 if i in self._balls_at_rest:
                     self._balls_at_rest.remove(i)
             if isinstance(event, (BallStationaryEvent, BallMotionEvent)):
@@ -512,10 +514,8 @@ class PoolPhysics(object):
             t_min = INF
         next_collision = None
         next_rail_collision = None
-        r_ij_mag = self._r_ij_mag
         ball_events = self.ball_events
-        for i in self.balls_in_motion:
-            e_i = ball_events[i][-1]
+        for i, e_i in self._ball_motion_events.items():
             if e_i.t >= t_min:
                 continue
             if i not in self._rail_collisions:
@@ -527,9 +527,9 @@ class PoolPhysics(object):
             if i not in self._collisions:
                 self._collisions[i] = {}
             collisions = self._collisions[i]
-            for j in sorted((j for j in self.balls_on_table
-                             if j > i or j not in self.balls_in_motion),
-                            key=lambda j: r_ij_mag[i,j]):
+            for j in self.balls_on_table:
+                if j in self._ball_motion_events and j <= i:
+                    continue
                 e_j = ball_events[j][-1]
                 t0 = max(e_i.t, e_j.t)
                 if t_min <= t0:
@@ -548,9 +548,9 @@ class PoolPhysics(object):
                     if t1 <= t0:
                         collisions[j] = None
                         continue
-                    if self._too_far_for_collision(e_i, e_j, t0, t1):
-                        collisions[j] = None
-                        continue
+                    # if self._too_far_for_collision(e_i, e_j, t0, t1):
+                    #     collisions[j] = None
+                    #     continue
                     t_c = self._find_collision_time(e_i, e_j)
                     collisions[j] = t_c
                 t_c = collisions[j]
@@ -585,24 +585,14 @@ class PoolPhysics(object):
             tau_i_0, tau_j_0 = t0 - e_i.t, t0 - e_j.t
             v_ij_0 = e_i.eval_velocity(tau_i_0) - e_j.eval_velocity(tau_j_0)
             r_ij_0 = e_i.eval_position(tau_i_0) - e_j.eval_position(tau_j_0)
-        return np.sqrt(np.dot(v_ij_0, v_ij_0))*(t1-t0) + 0.5*a_ij_mag*(t1-t0)**2 \
-             < np.sqrt(np.dot(r_ij_0, r_ij_0)) - self.ball_diameter
+        return sqrt(dot(v_ij_0, v_ij_0))*(t1-t0) + 0.5*a_ij_mag*(t1-t0)**2 \
+             < sqrt(dot(r_ij_0, r_ij_0)) - self.ball_diameter
 
     def _find_collision_time(self, e_i, e_j):
         a_i, _ = e_i.global_motion_coeffs
         a_j, _ = e_j.global_motion_coeffs
-        a_ji = a_i - a_j
-        a_x, a_y = a_ji[2, ::2]
-        b_x, b_y = a_ji[1, ::2]
-        c_x, c_y = a_ji[0, ::2]
-        p = self._p
-        p[4] = a_x**2 + a_y**2
-        p[3] = 2 * (a_x*b_x + a_y*b_y)
-        p[2] = b_x**2 + 2*a_x*c_x + 2*a_y*c_y + b_y**2
-        p[1] = 2 * b_x*c_x + 2 * b_y*c_y
-        p[0] = c_x**2 + c_y**2 - 4 * self.ball_radius**2
         t0, t1 = max(e_i.t, e_j.t), min(e_i.t + e_i.T, e_j.t + e_j.T)
-        return find_min_quartic_root_in_interval(p, t0, t1)
+        return find_collision_time(a_i, a_j, self.ball_radius, t0, t1)
 
     def _find_rail_collision(self, e_i):
         """
@@ -641,7 +631,7 @@ class PoolPhysics(object):
             else:
                 d = a[1,j]**2 - 4*a[2,j]*(a[0,j] - rhs)
                 if d > 1e-15:
-                    pn = np.sqrt(d)
+                    pn = sqrt(d)
                     tau_p = (-a[1,j] + pn) / (2*a[2,j])
                     tau_n = (-a[1,j] - pn) / (2*a[2,j])
                     if 0 < tau_n < tau_min and 0 < tau_p < tau_min:
@@ -686,24 +676,24 @@ class PoolPhysics(object):
         if tau_min <= 0:
             return None, None
         a0, a1, a2 = e_i._a
-        a0a0 = np.dot(a0, a0)
-        a1a1 = np.dot(a1, a1)
-        a0a1 = np.dot(a0, a1)
-        a0a2 = np.dot(a0, a2)
+        a0a0 = dot(a0, a0)
+        a1a1 = dot(a1, a1)
+        a0a1 = dot(a0, a1)
+        a0a2 = dot(a0, a2)
         R_sqrd = self.ball_radius**2
         p = self._p
-        p[4] = np.dot(a2, a2)
-        p[3] = 2*np.dot(a1, a2)
+        p[4] = dot(a2, a2)
+        p[3] = 2*dot(a1, a2)
         i_c_min = None
         r_cs, r_cs_mag_sqrd = self._r_cp[side], self._r_cp_len_sqrd[side]
         for i_c, (r_c, r_c_mag_sqrd) in enumerate([(r_cs[0], r_cs_mag_sqrd[0]),
                                                    (r_cs[1], r_cs_mag_sqrd[1])]):
             p[0] = r_c_mag_sqrd \
-                - 2*np.dot(a0, r_c) \
+                - 2*dot(a0, r_c) \
                 + a0a0 \
                 - R_sqrd
-            p[1] = 2*(a0a1 - np.dot(a1, r_c))
-            p[2] = 2*(a0a2 - np.dot(a2, r_c)) + a1a1
+            p[1] = 2*(a0a1 - dot(a1, r_c))
+            p[2] = 2*(a0a2 - dot(a2, r_c)) + a1a1
             tau_cp = min((t.real for t in self._filter_roots(quartic_solve(p, only_real=True)
                                                              if self._use_quartic_solver else
                                                              np.roots(p[::-1]))
@@ -712,7 +702,7 @@ class PoolPhysics(object):
                        default=None)
             if tau_cp is not None:
                 # r = e_i.eval_position(tau_cp)
-                # if np.dot(r, r) <= r_c_mag_sqrd:
+                # if dot(r, r) <= r_c_mag_sqrd:
                 #     tau_min = tau_cp
                 #     i_c_min = i_c
                 tau_min = tau_cp
@@ -868,8 +858,8 @@ event %d: %s
                 r = event.eval_position(tau)
                 v = event.eval_velocity(tau)
                 omega = event.eval_angular_velocity(tau)
-                for (vec, vec_mag, vec_meshes) in ((v, np.sqrt(np.dot(v, v)), self._velocity_meshes),
-                                                   (omega, np.sqrt(np.dot(omega, omega)), self._angular_velocity_meshes)):
+                for (vec, vec_mag, vec_meshes) in ((v, sqrt(dot(v, v)), self._velocity_meshes),
+                                                   (omega, sqrt(dot(omega, omega)), self._angular_velocity_meshes)):
                     if vec > self._ZERO_TOLERANCE:
                         y = vec / vec_mag
                         mesh = vec_meshes[event.i]
@@ -880,11 +870,11 @@ event %d: %s
                         ydotx, ydotz = y.dot(x), y.dot(z)
                         if abs(ydotx) >= abs(ydotz):
                             mesh.world_matrix[2,:3] -= ydotz * y
-                            mesh.world_matrix[2,:3] /= np.sqrt(mesh.world_matrix[2,:3].dot(mesh.world_matrix[2,:3]))
+                            mesh.world_matrix[2,:3] /= sqrt(mesh.world_matrix[2,:3].dot(mesh.world_matrix[2,:3]))
                             mesh.world_matrix[0,:3] = np.cross(mesh.world_matrix[1,:3], mesh.world_matrix[2,:3])
                         else:
                             mesh.world_matrix[0,:3] -= ydotx * y
-                            mesh.world_matrix[0,:3] /= np.sqrt(mesh.world_matrix[0,:3].dot(mesh.world_matrix[0,:3]))
+                            mesh.world_matrix[0,:3] /= sqrt(mesh.world_matrix[0,:3].dot(mesh.world_matrix[0,:3]))
                             mesh.world_matrix[2,:3] = np.cross(mesh.world_matrix[0,:3], mesh.world_matrix[1,:3])
                         mesh.world_matrix[3,:3] = r + (2*self.ball_radius)*y
                         meshes.append(mesh)

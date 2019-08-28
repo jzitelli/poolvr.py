@@ -99,3 +99,29 @@ double find_min_quartic_root_in_interval(double* P, double t0, double t1) {
   }
   return min_root;
 }
+
+double find_collision_time(double a_i[3][3], double a_j[3][3],
+			   double R, double t0, double t1) {
+  double a_ji[3][3] = {{a_i[0][0] - a_j[0][0],
+			a_i[0][1] - a_j[0][1],
+			a_i[0][2] - a_j[0][2]},
+		       {a_i[1][0] - a_j[1][0],
+			a_i[1][1] - a_j[1][1],
+			a_i[1][2] - a_j[1][2]},
+		       {a_i[2][0] - a_j[2][0],
+			a_i[2][1] - a_j[2][1],
+			a_i[2][2] - a_j[2][2]}};
+  double a_x = a_ji[2][0];
+  double a_y = a_ji[2][2];
+  double b_x = a_ji[1][0];
+  double b_y = a_ji[1][2];
+  double c_x = a_ji[0][0];
+  double c_y = a_ji[0][2];
+  double p[5];
+  p[4] = a_x*a_x + a_y*a_y;
+  p[3] = 2 * (a_x*b_x + a_y*b_y);
+  p[2] = b_x*b_x + b_y*b_y + 2 * (a_x*c_x + a_y*c_y);
+  p[1] = 2 * (b_x*c_x + b_y*c_y);
+  p[0] = c_x*c_x + c_y*c_y - 4 * R*R;
+  return find_min_quartic_root_in_interval(p, t0, t1);
+}
