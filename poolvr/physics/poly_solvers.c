@@ -3,15 +3,15 @@
 
 
 #define PIx2 (M_PI * 2.0)
-#define ZERO_TOLERANCE 0.000000001
-#define IMAG_TOLERANCE 0.00000001
+#define ZERO_TOLERANCE 0.0000000001
+#define IMAG_TOLERANCE 0.000000001
 #define IMAG_TOLERANCE_SQRD (IMAG_TOLERANCE * IMAG_TOLERANCE)
 
 
 double complex CUBE_ROOTS_OF_1[] = {1.0, cexp(I*PIx2/3), cexp(I*2*PIx2/3)};
 
 
-void quartic_solve(double* P, double complex* out) {
+void quartic_solve(double P[5], double complex out[4]) {
   double e = P[0] / P[4];
   double d = P[1] / P[4];
   double c = P[2] / P[4];
@@ -66,15 +66,15 @@ void quartic_solve(double* P, double complex* out) {
 }
 
 
-double find_min_quartic_root_in_interval(double* P, double t0, double t1) {
-  double complex roots[4];
-  quartic_solve(P, roots);
+int sort_complex_conjugate_pairs(double complex roots[4]) {
   int npairs = 0;
+  double complex r;
+  double complex r_conj;
   for (int i = 0; i < 3; i++) {
-    double complex r = roots[i];
+    r = roots[i];
     if (fabs(cimag(r)) > IMAG_TOLERANCE) {
       for (int j = 1; j + i < 4; j++) {
-	double complex r_conj = roots[i+j];
+	r_conj = roots[i+j];
 	if (fabs(creal(r) - creal(r_conj)) < ZERO_TOLERANCE
 	    && fabs(cimag(r) + cimag(r_conj)) < ZERO_TOLERANCE) {
 	  roots[i] = roots[2*npairs];
@@ -88,6 +88,14 @@ double find_min_quartic_root_in_interval(double* P, double t0, double t1) {
       }
     }
   }
+  return npairs;
+}
+
+
+double find_min_quartic_root_in_real_interval(double P[5], double t0, double t1) {
+  double complex roots[4];
+  quartic_solve(P, roots);
+  int npairs = sort_complex_conjugate_pairs(roots);
   double min_root = NAN;
   for (int i = 2*npairs; i < 4; i++) {
     double complex r = roots[i];
@@ -99,6 +107,7 @@ double find_min_quartic_root_in_interval(double* P, double t0, double t1) {
   }
   return min_root;
 }
+
 
 double find_collision_time(double a_i[3][3], double a_j[3][3],
 			   double R, double t0, double t1) {
@@ -123,5 +132,5 @@ double find_collision_time(double a_i[3][3], double a_j[3][3],
   p[2] = b_x*b_x + b_y*b_y + 2 * (a_x*c_x + a_y*c_y);
   p[1] = 2 * (b_x*c_x + b_y*c_y);
   p[0] = c_x*c_x + c_y*c_y - 4 * R*R;
-  return find_min_quartic_root_in_interval(p, t0, t1);
+  return find_min_quartic_root_in_real_interval(p, t0, t1);
 }

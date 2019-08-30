@@ -1,6 +1,6 @@
 import ctypes
 from ctypes import c_double
-import os.path as path
+import os.path
 from math import fsum, isnan
 from logging import getLogger
 _logger = getLogger(__name__)
@@ -18,50 +18,32 @@ _IMAG_TOLERANCE = 1e-8
 _IMAG_TOLERANCE_SQRD = _IMAG_TOLERANCE**2
 
 
-try:
-    libpath = path.join(path.dirname(path.abspath(__file__)),
-                        'poly_solvers.dll')
-    _lib = ctypes.cdll.LoadLibrary(libpath)
-    try:
-        _lib.quartic_solve.argtypes = (ndpointer(np.float64, ndim=1, shape=(5,)),
-                                       ndpointer(np.complex128, ndim=1, shape=(4,)))
+_lib = ctypes.cdll.LoadLibrary(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                            'poly_solvers.dll'))
 
-        _lib.find_min_quartic_root_in_interval.restype = c_double
-        _lib.find_min_quartic_root_in_interval.argtypes = (ndpointer(np.float64, ndim=1, shape=(5,)),
-                                                           c_double, c_double)
+_lib.quartic_solve.argtypes = (ndpointer(np.float64, ndim=1, shape=(5,)),
+                               ndpointer(np.complex128, ndim=1, shape=(4,)))
 
-        _lib.find_collision_time.restype = c_double
-        _lib.find_collision_time.argtypes = (ndpointer(np.float64, ndim=2, shape=(3,3)),
-                                             ndpointer(np.float64, ndim=2, shape=(3,3)),
-                                             c_double, c_double, c_double)
-    except Exception as err:
-        _logger.error('could bind functions:\n%s', err)
-        _lib = None
-except Exception as err:
-    _logger.error('could not load shared library "%s":\n%s', libpath, err)
-    _lib = None
-if _lib is None:
-    _logger.warning('''
+_lib.find_min_quartic_root_in_real_interval.argtypes = (ndpointer(np.float64, ndim=1, shape=(5,)),
+                                                   c_double, c_double)
+_lib.find_min_quartic_root_in_real_interval.restype = c_double
 
-
-native C poly solvers are not available!
-
-
-''')
+_lib.find_collision_time.argtypes = (ndpointer(np.float64, ndim=2, shape=(3,3)),
+                                     ndpointer(np.float64, ndim=2, shape=(3,3)),
+                                     c_double, c_double, c_double)
+_lib.find_collision_time.restype = c_double
 
 
 def find_collision_time(a_i, a_j, R, t0, t1):
     global _lib
-    t = _lib.find_collision_time(a_i,
-                                 a_j,
-                                 R, t0, t1)
+    t = _lib.find_collision_time(a_i, a_j, R, t0, t1)
     if not isnan(t):
         return t
 
 
-def find_min_quartic_root_in_interval(p, t0, t1):
+def find_min_quartic_root_in_real_interval(p, t0, t1):
     global _lib
-    t = _lib.find_min_quartic_root_in_interval(p, t0, t1)
+    t = _lib.find_min_quartic_root_in_real_interval(p, t0, t1)
     if not isnan(t):
         return t
 

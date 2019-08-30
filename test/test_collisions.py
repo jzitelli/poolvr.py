@@ -68,10 +68,10 @@ def test_collide_balls(request):
         c, s = np.cos(cut_angle*DEG2RAD), np.sin(cut_angle*DEG2RAD)
         v_i, omega_i = np.array(((cue_ball_velocity*c, 0.0, cue_ball_velocity*s),
                                  (          topspin*s, 0.0,          -topspin*c)))
-        v_i[1:] = v_i[:0:-1]
-        v_j[1:] = v_j[:0:-1]
-        omega_i[1:] = omega_i[:0:-1]
-        omega_j[1:] = omega_j[:0:-1]
+        # v_i[1:] = v_i[:0:-1]
+        # v_j[1:] = v_j[:0:-1]
+        # omega_i[1:] = omega_i[:0:-1]
+        # omega_j[1:] = omega_j[:0:-1]
         deltaP = (1 + e) * M * cue_ball_velocity / 8000
         v_is, omega_is, v_js, omega_js = collide_balls(r_c,
                                                        r_i, v_i, omega_i,
@@ -83,10 +83,10 @@ def test_collide_balls(request):
                                                        return_all=True)
         if show_plots:
             plot_collision(deltaP*np.arange(len(v_is)), v_is, v_js, omega_is, omega_js)
-        v_is[:,1:] = v_is[:,:0:-1]
-        v_js[:,1:] = v_js[:,:0:-1]
-        omega_is[:,1:] = omega_is[:,:0:-1]
-        omega_js[:,1:] = omega_js[:,:0:-1]
+        # v_is[:,1:] = v_is[:,:0:-1]
+        # v_js[:,1:] = v_js[:,:0:-1]
+        # omega_is[:,1:] = omega_is[:,:0:-1]
+        # omega_js[:,1:] = omega_js[:,:0:-1]
         v_i1 = v_is[-1]; omega_i1 = omega_is[-1]
         v_j1 = v_js[-1]; omega_j1 = omega_js[-1]
         from poolvr.physics.events import PhysicsEvent, BallSlidingEvent

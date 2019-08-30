@@ -16,23 +16,24 @@ from numpy import dot, sqrt, cross
 
 
 INCH2METER = 0.0254
-_k = np.array([0, 0, 1], dtype=np.float64)
+_k = np.array([0, 1, 0], dtype=np.float64)
 
 
 def collide_balls(r_c,
                   r_i, v_i, omega_i,
                   r_j, v_j, omega_j,
-                  e,
-                  mu_s,
-                  mu_b,
-                  M,
-                  R,
+                  e=0.89,
+                  mu_s=0.21,
+                  mu_b=0.05,
+                  M=0.1406,
+                  R=0.02625,
                   g=9.81,
                   deltaP=None,
                   return_all=False):
     r_ij = r_j - r_i
     r_ij_mag_sqrd = dot(r_ij, r_ij)
-    assert  abs(r_ij_mag_sqrd - 4 * R**2)  <  1e-11 * R**2, "r_ij_mag_sqrd - 4 * R**2 = %s" % (r_ij_mag_sqrd - 4 * R**2)
+    # D = 2*R
+    #assert  abs(r_ij_mag_sqrd - D**2) / D**2  <  1e-4, "abs(r_ij_mag_sqrd - D**2) / D**2 = %s" % (abs(r_ij_mag_sqrd - D**2) / D**2)
     r_ij_mag = sqrt(r_ij_mag_sqrd)
     z_loc = _k
     y_loc = r_ij / r_ij_mag
@@ -44,6 +45,8 @@ def collide_balls(r_c,
     omega_j = dot(G, omega_j)
     r_ic = np.array([0.0,  R, 0.0])
     r_jc = np.array([0.0, -R, 0.0])
+    # r_ic = np.array([0.0, 0.0,  R])
+    # r_jc = np.array([0.0, 0.0, -R])
     v_ij = v_j - v_i
     u_iR = v_i + R * cross(_k, omega_i)
     u_iR_mag = sqrt(dot(u_iR, u_iR))
@@ -51,12 +54,12 @@ def collide_balls(r_c,
     u_jR_mag = sqrt(dot(u_jR, u_jR))
     u_iC = v_i - cross(r_ic, omega_i)
     u_jC = v_j - cross(r_jc, omega_j)
-    u_ijC = u_jC - u_iC
-    # u_ijC = u_iC - u_jC
+    # u_ijC = u_jC - u_iC
+    u_ijC = u_iC - u_jC
     u_ijC_xz = u_ijC[::2]
     u_ijC_xz_mag = sqrt(dot(u_ijC_xz, u_ijC_xz))
     if deltaP is None:
-        deltaP = 0.5 * (1 + e) * M * abs(v_ij[1]) / 4000
+        deltaP = 0.5 * (1 + e) * M * abs(v_ij[1]) / 1000
     W_f = float('inf')
     W_c = None
     W = 0
@@ -123,8 +126,8 @@ def collide_balls(r_c,
         # update ball-ball slip:
         u_iC = v_i - cross(r_ic, omega_i)
         u_jC = v_j - cross(r_jc, omega_j)
-        u_ijC = u_jC - u_iC
-        # u_ijC = u_iC - u_jC
+        # u_ijC = u_jC - u_iC
+        u_ijC = u_iC - u_jC
         u_ijC_xz = u_ijC[::2]
         u_ijC_xz_mag = sqrt(dot(u_ijC_xz, u_ijC_xz))
         # increment work:

@@ -29,9 +29,10 @@ from .events import (CueStrikeEvent,
                      BallCollisionEvent,
                      MarlowBallCollisionEvent,
                      SimpleBallCollisionEvent,
+                     SimulatedBallCollisionEvent,
                      RailCollisionEvent,
                      CornerCollisionEvent)
-from .poly_solvers import quartic_solve, find_min_quartic_root_in_interval, find_collision_time
+from .poly_solvers import quartic_solve, find_collision_time
 
 
 PIx2 = np.pi*2
@@ -81,6 +82,8 @@ class PoolPhysics(object):
             self._ball_collision_event_class = SimpleBallCollisionEvent
         elif ball_collision_model == 'marlow':
             self._ball_collision_event_class = MarlowBallCollisionEvent
+        elif ball_collision_model == 'simulated':
+            self._ball_collision_event_class = SimulatedBallCollisionEvent
         else:
             raise Exception('dont know that collision model!')
         self.num_balls = num_balls
@@ -568,12 +571,12 @@ class PoolPhysics(object):
 
     def _too_far_for_collision(self, e_i, e_j, t0, t1):
         a_ij_mag = self._a_ij_mag[e_i.i, e_j.i]
-        tau_i_0 = t0 - e_i.t
         if isinstance(e_j, BallStationaryEvent):
+            tau_i_0 = t0 - e_i.t
             v_ij_0 = e_i.eval_velocity(tau_i_0)
             r_ij_0 = e_i.eval_position(tau_i_0) - e_j._r_0
         else:
-            tau_j_0 = t0 - e_j.t
+            tau_i_0, tau_j_0 = t0 - e_i.t, t0 - e_j.t
             v_ij_0 = e_i.eval_velocity(tau_i_0) - e_j.eval_velocity(tau_j_0)
             r_ij_0 = e_i.eval_position(tau_i_0) - e_j.eval_position(tau_j_0)
         return sqrt(dot(v_ij_0, v_ij_0))*(t1-t0) + 0.5*a_ij_mag*(t1-t0)**2 \
@@ -703,23 +706,25 @@ class PoolPhysics(object):
         return tau_min, i_c_min
 
     def _filter_roots(self, roots):
-        "filter out any complex-conjugate pairs of roots"
-        npairs = 0
-        i = 0
-        while i < len(roots):
-            r = roots[i]
-            if abs(r.imag) > self._IMAG_TOLERANCE:
-                for j, r_conj in enumerate(roots[i:]):
-                    if abs(r.real - r_conj.real) < self._ZERO_TOLERANCE \
-                       and abs(r.imag + r_conj.imag) < self._ZERO_TOLERANCE:
-                        roots[i] = roots[2*npairs]
-                        roots[i+j] = roots[2*npairs+1]
-                        roots[2*npairs] = r
-                        roots[2*npairs+1] = r_conj
-                        npairs += 1
-                        i += 1
-            i += 1
-        return roots[2*npairs:]
+        # filter out possible complex-conjugate pairs of roots:
+        mask = self._mask; mask[:] = True
+        while len(roots) > 0:
+            i, z = next(((i, z) for i, z in enumerate(roots)
+                         if abs(z.imag) > PoolPhysics._IMAG_TOLERANCE),
+                        (None, None))
+            if z is not None:
+                j = next((j for j, z_conj in enumerate(roots[i+1:])
+                          if  abs(z.real - z_conj.real) < PoolPhysics._ZERO_TOLERANCE
+                          and abs(z.imag + z_conj.imag) < PoolPhysics._ZERO_TOLERANCE),
+                         None)
+                if j is not None:
+                    mask[i] = mask[i+j+1] = False
+                    roots = roots[mask[:len(roots)]]
+                else:
+                    break
+            else:
+                break
+        return roots
 
     # def _update_occlusion(self, ball_positions=None):
     #     if ball_positions is None:

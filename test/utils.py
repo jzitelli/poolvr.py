@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 
 from poolvr.table import PoolTable
 from poolvr.physics.events import (CueStrikeEvent, BallSlidingEvent, BallRollingEvent, BallRestEvent,
-                                   BallCollisionEvent, MarlowBallCollisionEvent, SimpleBallCollisionEvent,
-                                   RailCollisionEvent, CornerCollisionEvent)
+                                   RailCollisionEvent, CornerCollisionEvent, BallCollisionEvent,
+                                   MarlowBallCollisionEvent, SimpleBallCollisionEvent, SimulatedBallCollisionEvent)
 
 
 _logger = logging.getLogger(__name__)
@@ -20,6 +20,7 @@ EVENT_COLORS = {CueStrikeEvent: 'green',
                 BallCollisionEvent: 'blue',
                 MarlowBallCollisionEvent: 'blue',
                 SimpleBallCollisionEvent: 'blue',
+                SimulatedBallCollisionEvent: 'blue',
                 RailCollisionEvent: 'green',
                 CornerCollisionEvent: 'blue'}
 BALL_COLORS = {0: 'white',

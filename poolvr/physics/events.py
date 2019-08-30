@@ -1,6 +1,8 @@
 import logging
 _logger = logging.getLogger(__name__)
+from math import sqrt
 import numpy as np
+from numpy import dot, cross
 
 
 INCH2METER = 0.0254
@@ -282,14 +284,14 @@ class BallMotionEvent(BallEvent):
             omega = self.eval_angular_velocity(tau)
         if out is None:
             out = np.empty(3, dtype=np.float64)
-        out[:] = v - self.ball_radius / np.sqrt(np.dot(rd, rd)) * np.cross(rd, omega)
+        out[:] = v - self.ball_radius / sqrt(dot(rd, rd)) * cross(rd, omega)
         return out
     def eval_position_and_velocity(self, tau, out=None):
         if out is None:
             out = np.empty((2,3), dtype=np.float64)
         taus = np.array((1.0, tau, tau**2))
         a = self._a
-        np.dot(taus, a, out=out[0])
+        dot(taus, a, out=out[0])
         out[1] = a[1] + 2*tau*a[2]
         return out
     def __str__(self):
@@ -299,7 +301,7 @@ class BallMotionEvent(BallEvent):
 class BallRollingEvent(BallMotionEvent):
     def __init__(self, t, i, r_0, v_0, omega_0_y=0.0, **kwargs):
         R = self.ball_radius
-        v_0_mag = np.sqrt(np.dot(v_0, v_0))
+        v_0_mag = sqrt(dot(v_0, v_0))
         T = v_0_mag / (self.mu_r * self.g)
         omega_0 = np.array((v_0[2]/R, omega_0_y, -v_0[0]/R), dtype=np.float64)
         super().__init__(t, i, T=T, r_0=r_0, v_0=v_0, omega_0=omega_0, **kwargs)
@@ -330,15 +332,15 @@ class BallRollingEvent(BallMotionEvent):
 class BallSlidingEvent(BallMotionEvent):
     def __init__(self, t, i, r_0, v_0, omega_0, **kwargs):
         R = self.ball_radius
-        u_0 = v_0 + R * np.cross(_k, omega_0)
-        u_0_mag = np.sqrt(np.dot(u_0, u_0))
+        u_0 = v_0 + R * cross(_k, omega_0)
+        u_0_mag = sqrt(dot(u_0, u_0))
         T = 2 * u_0_mag / (7 * self.mu_s * self.g)
         super().__init__(t, i, T=T, r_0=r_0, v_0=v_0, omega_0=omega_0, **kwargs)
         self._u_0 = u_0
         self._u_0_mag = u_0_mag
         self._a[2] = -0.5 * self.mu_s * self.g * u_0 / u_0_mag
         self._b[0] = omega_0
-        self._b[1,::2] = 5 * self.mu_s * self.g / (2 * R) * np.cross(_k, u_0 / u_0_mag)[::2]
+        self._b[1,::2] = 5 * self.mu_s * self.g / (2 * R) * cross(_k, u_0 / u_0_mag)[::2]
         self._b[1,1] = -np.sign(omega_0[1]) * 5 * self.mu_sp * self.g / (2 * R)
         self._next_motion_event = None
     @property
@@ -369,12 +371,12 @@ class CueStrikeEvent(BallEvent):
         self.V = V
         self.M = M
         self.Q = Q = r_c - r_i
-        _j = -V; _j[1] = 0; _j /= np.sqrt(np.dot(_j, _j))
-        _i = np.cross(_j, _k)
-        a, b = np.dot(Q, _i), Q[1]
-        c = np.sqrt(R**2 - a**2 - b**2)
-        sin, cos = b/R, np.sqrt(R**2 - b**2)/R
-        V_mag = np.sqrt(np.dot(V, V))
+        _j = -V; _j[1] = 0; _j /= sqrt(dot(_j, _j))
+        _i = cross(_j, _k)
+        a, b = dot(Q, _i), Q[1]
+        c = sqrt(R**2 - a**2 - b**2)
+        sin, cos = b/R, sqrt(R**2 - b**2)/R
+        V_mag = sqrt(dot(V, V))
         F_mag = 2*m*V_mag / (
             1 + m/M + 5/(2*R**2)*(a**2 + b**2*cos**2 + c**2*sin**2 - 2*b*c*cos*sin)
         )
@@ -427,7 +429,7 @@ class RailCollisionEvent(BallEvent):
             omega_1[j_var] *= 0.8
             omega_1[i_var] = -np.sign(omega_1[i_var]) * abs(v_1[j_var]) / R
             if isinstance(e_i, BallSlidingEvent) \
-               and abs(np.dot(v_1, self._J_LOC[side])) / R <= abs(np.dot(omega_1, self._I_LOC[side])):
+               and abs(dot(v_1, self._J_LOC[side])) / R <= abs(dot(omega_1, self._I_LOC[side])):
                 self._child_events = (BallSlidingEvent(self.t, e_i.i,
                                                        r_0=e_i.eval_position(tau),
                                                        v_0=v_1,
@@ -456,16 +458,16 @@ class CornerCollisionEvent(BallEvent):
         v_0 = self.v_0 = e_i.eval_velocity(tau)
         j_loc = self.r_c - r_i
         j_loc[1] = 0
-        j_loc /= -np.sqrt(np.dot(j_loc, j_loc))
+        j_loc /= -sqrt(dot(j_loc, j_loc))
         self.j_loc = j_loc
-        i_loc = np.cross(j_loc, _k)
+        i_loc = cross(j_loc, _k)
         self.i_loc = i_loc
         v_1 = v_0
         omega_1 = self.omega_0 = e_i.eval_angular_velocity(tau)
-        v_1x,  v_1y  =  np.dot(v_1, i_loc),  -self.kappa * np.dot(v_1, j_loc)
+        v_1x,  v_1y  =  dot(v_1, i_loc),  -self.kappa * dot(v_1, j_loc)
         self.v_1 = v_1 = v_1x * i_loc \
                        + v_1y * j_loc
-        self.omega_1 = np.dot(omega_1, j_loc) * j_loc \
+        self.omega_1 = dot(omega_1, j_loc) * j_loc \
                      + omega_1[1] * _k \
                      - v_1y / self.ball_radius * i_loc
         self._child_events = None
@@ -473,9 +475,9 @@ class CornerCollisionEvent(BallEvent):
     def child_events(self):
         if self._child_events is None:
             R = self.ball_radius
-            u_1 = self.v_1 + R * np.cross(_k, self.omega_1)
+            u_1 = self.v_1 + R * cross(_k, self.omega_1)
             if isinstance(self.e_i, BallSlidingEvent) \
-               and np.dot(u_1, u_1) > self._ZERO_VELOCITY_CLIP_SQRD:
+               and dot(u_1, u_1) > self._ZERO_VELOCITY_CLIP_SQRD:
                 self._child_events = (BallSlidingEvent(self.t, self.e_i.i,
                                                        r_0=self.r_i,
                                                        v_0=self.v_1,
@@ -519,10 +521,10 @@ class SimpleBallCollisionEvent(BallCollisionEvent):
         super().__init__(t, e_i, e_j)
         r_i, r_j = self._r_i, self._r_j
         r_ij = r_i - r_j
-        self._i = _i = r_ij / np.sqrt(np.dot(r_ij, r_ij))
+        self._i = _i = r_ij / sqrt(dot(r_ij, r_ij))
         v_i, v_j = self._v_i, self._v_j
-        v_ix = np.dot(v_i, _i) * _i
-        v_jx = np.dot(v_j, _i) * _i
+        v_ix = dot(v_i, _i) * _i
+        v_jx = dot(v_j, _i) * _i
         v_iy = v_i - v_ix
         v_jy = v_j - v_jx
         v_ix_1 = 0.5 * ((1 - v_factor) * v_ix + (1 + v_factor) * v_jx)
@@ -541,7 +543,7 @@ class SimpleBallCollisionEvent(BallCollisionEvent):
                     (self._r_i, self._v_i_1, self._omega_i_1, self.e_i),
                     (self._r_j, self._v_j_1, self._omega_j_1, self.e_j)
             ):
-                if np.dot(v_1, v_1) < self._ZERO_VELOCITY_CLIP_SQRD:
+                if dot(v_1, v_1) < self._ZERO_VELOCITY_CLIP_SQRD:
                     if abs(omega_1[1]) < self._ZERO_ANGULAR_VELOCITY_CLIP:
                         e_1 = BallRestEvent(self.t, e.i,
                                             r_0=r,
@@ -552,7 +554,7 @@ class SimpleBallCollisionEvent(BallCollisionEvent):
                                                 omega_0_y=omega_1[1],
                                                 parent_event=self)
                 elif isinstance(e, BallSlidingEvent) \
-                     and abs(np.dot(v_1, self._i) / self.ball_radius) > abs(np.dot(omega_1, np.cross(_k, self._i))):
+                     and abs(dot(v_1, self._i) / self.ball_radius) > abs(dot(omega_1, cross(_k, self._i))):
                     e_1 = BallSlidingEvent(self.t, e.i,
                                            r_0=r,
                                            v_0=v_1,
@@ -565,8 +567,8 @@ class SimpleBallCollisionEvent(BallCollisionEvent):
                                            omega_0_y=omega_1[1],
                                            parent_event=self)
                 # else:
-                #     u_1 = v_1 + self.ball_radius * np.cross(_k, omega_1)
-                #     if np.dot(u_1, u_1) < self._ZERO_VELOCITY_CLIP_SQRD:
+                #     u_1 = v_1 + self.ball_radius * cross(_k, omega_1)
+                #     if dot(u_1, u_1) < self._ZERO_VELOCITY_CLIP_SQRD:
                 #         e_1 = BallRollingEvent(self.t, e.i,
                 #                                r_0=r,
                 #                                v_0=v_1,
@@ -578,6 +580,59 @@ class SimpleBallCollisionEvent(BallCollisionEvent):
                 #                                v_0=v_1,
                 #                                omega_0=omega_1,
                 #                                parent_event=self)
+                child_events.append(e_1)
+            self._child_events = tuple(child_events)
+        return self._child_events
+
+
+class SimulatedBallCollisionEvent(BallCollisionEvent):
+    def __init__(self, t, e_i, e_j, e=0.89, ):
+        super().__init__(t, e_i, e_j)
+        r_i, r_j = self._r_i, self._r_j
+        v_i, v_j = self._v_i, self._v_j
+        omega_i, omega_j = self._omega_i, self._omega_j
+        from .collisions import collide_balls
+        v_i1, omega_i1, v_j1, omega_j1 = collide_balls(
+            0.5*(r_i + r_j), r_i, v_i, omega_i, r_j, v_j, omega_j,
+            M=self.ball_mass, R=self.ball_radius
+        )
+        self._v_i_1 = v_i1
+        self._v_j_1 = v_j1
+        self._omega_i_1 = omega_i1
+        self._omega_j_1 = omega_j1
+        self._child_events = None
+    @property
+    def child_events(self):
+        if self._child_events is None:
+            child_events = []
+            for (r, v_1, omega_1, e) in (
+                    (self._r_i, self._v_i_1, self._omega_i_1, self.e_i),
+                    (self._r_j, self._v_j_1, self._omega_j_1, self.e_j)
+            ):
+                if dot(v_1, v_1) < self._ZERO_VELOCITY_CLIP_SQRD:
+                    if abs(omega_1[1]) < self._ZERO_ANGULAR_VELOCITY_CLIP:
+                        e_1 = BallRestEvent(self.t, e.i,
+                                            r_0=r,
+                                            parent_event=self)
+                    else:
+                        e_1 = BallSpinningEvent(self.t, e.i,
+                                                r_0=r,
+                                                omega_0_y=omega_1[1],
+                                                parent_event=self)
+                else:
+                    u_1 = v_1 + self.ball_radius * cross(_k, omega_1)
+                    if dot(u_1, u_1) < self._ZERO_VELOCITY_CLIP_SQRD:
+                        e_1 = BallRollingEvent(self.t, e.i,
+                                               r_0=r,
+                                               v_0=v_1,
+                                               omega_0_y=omega_1[1],
+                                               parent_event=self)
+                    else:
+                        e_1 = BallSlidingEvent(self.t, e.i,
+                                               r_0=r,
+                                               v_0=v_1,
+                                               omega_0=omega_1,
+                                               parent_event=self)
                 child_events.append(e_1)
             self._child_events = tuple(child_events)
         return self._child_events
@@ -599,7 +654,7 @@ class MarlowBallCollisionEvent(BallCollisionEvent):
         r_ij = r_j - r_i
         self._i = _i = r_ij / np.linalg.norm(r_ij)
         J = max(0.5 * F_max * delta_t,
-                abs(self.ball_mass * np.dot(v_ij, _i))) # missing 2 factor?
+                abs(self.ball_mass * dot(v_ij, _i))) # missing 2 factor?
         v_i_1 = v_i - (J / self.ball_mass) * _i
         v_j_1 = v_j + (J / self.ball_mass) * _i
         self._v_i_1, self._v_j_1 = v_i_1, v_j_1

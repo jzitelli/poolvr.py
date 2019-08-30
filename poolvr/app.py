@@ -104,8 +104,14 @@ def main(window_size=(800,600),
     cue = PoolCue()
     game.physics.add_cue(cue)
     game.reset(balls_on_table=balls_on_table)
-    table_mesh = game.table.export_mesh(surface_technique=LAMBERT_TECHNIQUE, cushion_technique=LAMBERT_TECHNIQUE)
-    ball_meshes = game.table.export_ball_meshes(technique=LAMBERT_TECHNIQUE,
+    if render_method == 'lambert':
+        technique = LAMBERT_TECHNIQUE
+    elif render_method == 'ega':
+        technique = EGA_TECHNIQUE
+    table_mesh = game.table.export_mesh(surface_technique=technique,
+                                        cushion_technique=technique,
+                                        rail_technique=technique)
+    ball_meshes = game.table.export_ball_meshes(technique=technique,
                                                 use_bb_particles=render_method == 'billboards')
     # textured_text = TexturedText()
     # if use_bb_particles:
