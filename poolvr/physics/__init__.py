@@ -40,6 +40,9 @@ SQRT2 = sqrt(2.0)
 RAD2DEG = 180/np.pi
 INCH2METER = 0.0254
 INF = float('inf')
+BALL_COLLISION_MODELS = {'simple': SimpleBallCollisionEvent,
+                         'marlow': MarlowBallCollisionEvent,
+                         'simulated': SimulatedBallCollisionEvent}
 
 
 class PoolPhysics(object):
@@ -78,14 +81,10 @@ class PoolPhysics(object):
         :param E_Y_b: :math:`{E_Y}_b`,  ball material's Young's modulus
         :param g:     :math:`g`,        downward acceleration due to gravity
         """
-        if ball_collision_model == 'simple':
-            self._ball_collision_event_class = SimpleBallCollisionEvent
-        elif ball_collision_model == 'marlow':
-            self._ball_collision_event_class = MarlowBallCollisionEvent
-        elif ball_collision_model == 'simulated':
-            self._ball_collision_event_class = SimulatedBallCollisionEvent
-        else:
+        if ball_collision_model not in BALL_COLLISION_MODELS:
             raise Exception('dont know that collision model!')
+        self._ball_collision_model = ball_collision_model
+        self._ball_collision_event_class = BALL_COLLISION_MODELS[ball_collision_model]
         self.num_balls = num_balls
         # allocate for lower-level memory management:
         self._BALL_REST_EVENTS = [BallRestEvent(0.0, i, r=np.zeros(3, dtype=np.float64))
@@ -194,6 +193,7 @@ class PoolPhysics(object):
         self.events = list(chain.from_iterable(self.ball_events.values()))
         self._balls_at_rest = set(self.balls_on_table)
         self._ball_motion_events = {}
+        self._ball_spinning_events = {}
         self._collisions = {}
         self._rail_collisions = {}
         self._a_ij[:] = 0
@@ -218,13 +218,7 @@ class PoolPhysics(object):
 
     @property
     def ball_collision_model(self):
-        return 'marlow' if self._ball_collision_event_class is MarlowBallCollisionEvent else 'simple'
-    @ball_collision_model.setter
-    def ball_collision_model(self, model='simple'):
-        if model == 'marlow':
-            self._ball_collision_event_class = MarlowBallCollisionEvent
-        else:
-            self._ball_collision_event_class = SimpleBallCollisionEvent
+        return self._ball_collision_model
 
     @property
     def balls_on_table(self):
@@ -268,7 +262,7 @@ class PoolPhysics(object):
     def add_event_sequence(self, event):
         num_events = len(self.events)
         self._add_event(event)
-        while self.balls_in_motion:
+        while self.balls_in_motion or self._ball_spinning_events:
             event = self._determine_next_event()
             self._add_event(event)
         num_added_events = len(self.events) - num_events
@@ -280,13 +274,13 @@ class PoolPhysics(object):
         T, T_f = self._collision_search_time_limit, self._collision_search_time_forward
         lt = perf_counter()
         if T is None or np.isinf(T):
-            while self.balls_in_motion:
+            while self.balls_in_motion or self._ball_spinning_events:
                 event = self._determine_next_event()
                 self._add_event(event)
                 if event.t - self.t > T_f:
                     break
         elif T_f is not None and not np.isinf(T_f):
-            while T > 0 and self.balls_in_motion:
+            while T > 0 and self.balls_in_motion or self._ball_spinning_events:
                 event = self._determine_next_event()
                 self._add_event(event)
                 if event.t - self.t > T_f:
@@ -294,7 +288,7 @@ class PoolPhysics(object):
                 t = perf_counter()
                 T -= t - lt; lt = t
         else:
-            while T > 0 and self.balls_in_motion:
+            while T > 0 and self.balls_in_motion or self._ball_spinning_events:
                 event = self._determine_next_event()
                 self._add_event(event)
                 t = perf_counter()
@@ -317,7 +311,7 @@ class PoolPhysics(object):
 
     def _step_realtime(self, dt):
         self.t += dt
-        if not self.balls_in_motion:
+        if not self.balls_in_motion and not self._ball_spinning_events:
             return
         T, T_f = self._collision_search_time_limit, self._collision_search_time_forward
         if T_f is None:
@@ -325,7 +319,7 @@ class PoolPhysics(object):
         else:
             t_max = self.t + T_f
         if T is None or np.isinf(T):
-            while self.balls_in_motion:
+            while self.balls_in_motion or self._ball_spinning_events:
                 event = self._determine_next_event()
                 if event:
                     self._add_event(event)
@@ -334,7 +328,7 @@ class PoolPhysics(object):
             return
         else:
             lt = perf_counter()
-            while T > 0 and self.balls_in_motion:
+            while T > 0 and self.balls_in_motion or self._ball_spinning_events:
                 event = self._determine_next_event()
                 if event:
                     self._add_event(event)
@@ -481,11 +475,20 @@ class PoolPhysics(object):
             F[:nballs] = bot
             a_ij, a_ij_mag = self._a_ij, self._a_ij_mag
             if isinstance(event, BallStationaryEvent):
-                self._ball_motion_events.pop(i, None)
                 self._balls_at_rest.add(i)
-                a_ij[i] = 0
-                a_ij_mag[i,F] = a_ij_mag[F,i] = a_ij_mag[F,F]
-                a_ij_mag[i,i] = 0
+                self._ball_motion_events.pop(i, None)
+                if isinstance(event, BallSpinningEvent):
+                    self._ball_spinning_events[i] = event
+                    a_ij[i] = 0
+                    a_ij_mag[i,F] = a_ij_mag[F,i] = a_ij_mag[F,F]
+                    a_ij_mag[i,i] = 0
+                else:
+                    if i in self._ball_spinning_events:
+                        self._ball_spinning_events.pop(i)
+                    else:
+                        a_ij[i] = 0
+                        a_ij_mag[i,F] = a_ij_mag[F,i] = a_ij_mag[F,F]
+                        a_ij_mag[i,i] = 0
                 # if self._enable_occlusion and not self.balls_in_motion:
                 #     self._update_occlusion({i: event._r_0})
             elif isinstance(event, BallMotionEvent):
@@ -509,7 +512,8 @@ class PoolPhysics(object):
 
     def _determine_next_event(self):
         next_motion_event = min(e.next_motion_event
-                                for e in self._ball_motion_events.values()
+                                for e in chain(self._ball_motion_events.values(),
+                                               self._ball_spinning_events.values())
                                 if e.next_motion_event is not None)
         if next_motion_event:
             t_min = next_motion_event.t

@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 
 from poolvr.table import PoolTable
 from poolvr.physics.events import (CueStrikeEvent, BallSlidingEvent, BallRollingEvent, BallRestEvent,
+                                   BallSpinningEvent,
                                    RailCollisionEvent, CornerCollisionEvent, BallCollisionEvent,
                                    MarlowBallCollisionEvent, SimpleBallCollisionEvent, SimulatedBallCollisionEvent)
 
@@ -14,15 +15,16 @@ _logger = logging.getLogger(__name__)
 
 
 EVENT_COLORS = {CueStrikeEvent: 'green',
-                BallSlidingEvent: 'yellow',
-                BallRollingEvent: 'orange',
+                # BallSlidingEvent: 'yellow',
+                # BallRollingEvent: 'orange',
+                # BallSpinningEvent: 'red',
                 BallRestEvent: 'red',
-                BallCollisionEvent: 'blue',
+                # BallCollisionEvent: 'blue',
                 MarlowBallCollisionEvent: 'blue',
                 SimpleBallCollisionEvent: 'blue',
                 SimulatedBallCollisionEvent: 'blue',
                 RailCollisionEvent: 'green',
-                CornerCollisionEvent: 'blue'}
+                CornerCollisionEvent: 'orange'}
 BALL_COLORS = {0: 'white',
                1: 'yellow',
                2: 'blue',
@@ -254,13 +256,14 @@ def plot_energy(physics, title=None, nt=1000,
     labeled = set()
     for e in events:
         typee = e.__class__.__name__
-        plt.axvline(e.t, color=EVENT_COLORS[type(e)],
-                    label=typee if typee not in labeled else None)
-        labeled.add(typee)
+        if type(e) in EVENT_COLORS:
+            plt.axvline(e.t, color=EVENT_COLORS[type(e)],
+                        label=typee if typee not in labeled else None)
+            labeled.add(typee)
     ts = np.linspace(t_0, t_1, nt)
     ts = np.concatenate([[a.t] + list(ts[(ts >= a.t) & (ts < b.t)]) + [b.t]
                          for a, b in zip(events[:-1], events[1:])])
-    plt.plot(ts, [physics.eval_energy(t) for t in ts], color='green')
+    plt.plot(ts, [physics.eval_energy(t) for t in ts], color='black')
     plt.legend()
     if filename:
         dirname = os.path.dirname(filename)

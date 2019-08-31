@@ -36,6 +36,9 @@ def pytest_addoption(parser):
     parser.addoption('--render-method', metavar='<method name>',
                      help='OpenGL rendering method/style to use, one of: "ega", "lambert", "billboards", "raycast"',
                      default='lambert')
+    parser.addoption('--collision-model', metavar='<name of collision model>',
+                     help="set the ball-to-ball collision model",
+                     default='simple')
 
 
 @pytest.fixture
@@ -47,20 +50,18 @@ def pool_table():
 @pytest.fixture
 def pool_physics(pool_table, request):
     from poolvr.physics import PoolPhysics
-    enable_sanity_check = request.config.getoption('--sanity-check')
     return PoolPhysics(initial_positions=pool_table.calc_racked_positions(),
-                       ball_collision_model='simple',
-                       enable_sanity_check=enable_sanity_check,
+                       ball_collision_model=request.config.getoption('--collision-model'),
+                       enable_sanity_check=request.config.getoption('--sanity-check'),
                        enable_occlusion=False)
 
 
 @pytest.fixture
 def pool_physics_realtime(pool_table, request):
     from poolvr.physics import PoolPhysics
-    enable_sanity_check = request.config.getoption('--sanity-check')
     return PoolPhysics(initial_positions=pool_table.calc_racked_positions(),
-                       ball_collision_model='simple',
-                       enable_sanity_check=enable_sanity_check,
+                       ball_collision_model=request.config.getoption('--collision-model'),
+                       enable_sanity_check=request.config.getoption('--sanity-check'),
                        enable_occlusion=False,
                        realtime=True)
 

@@ -592,9 +592,11 @@ class SimulatedBallCollisionEvent(BallCollisionEvent):
         v_i, v_j = self._v_i, self._v_j
         omega_i, omega_j = self._omega_i, self._omega_j
         from .collisions import collide_balls
+        v_ij = v_j - v_i
         v_i1, omega_i1, v_j1, omega_j1 = collide_balls(
             0.5*(r_i + r_j), r_i, v_i, omega_i, r_j, v_j, omega_j,
-            M=self.ball_mass, R=self.ball_radius
+            M=self.ball_mass, R=self.ball_radius,
+            deltaP=self.ball_mass*sqrt(dot(v_ij, v_ij))/800
         )
         self._v_i_1 = v_i1
         self._v_j_1 = v_j1

@@ -16,6 +16,7 @@ from numpy import dot, sqrt, cross
 
 
 INCH2METER = 0.0254
+INF = float('inf')
 _k = np.array([0, 1, 0], dtype=np.float64)
 
 

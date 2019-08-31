@@ -1,3 +1,5 @@
+import os.path as path
+from os import makedirs
 import logging
 _logger = logging.getLogger(__name__)
 import numpy as np
@@ -9,36 +11,64 @@ from poolvr.physics.collisions import collide_balls
 _k = np.array([0.0, 0.0, 1.0])
 DEG2RAD = np.pi/180
 RAD2DEG = 180/np.pi
+PLOTS_DIR = path.join(path.dirname(__file__), 'plots')
 
 
-def plot_collision(deltaPs, v_is, v_js, omega_is, omega_js):
+def plot_collision_velocities(deltaPs, v_is, v_js,
+                              title='velocities along axis of impulse',
+                              show=True, filename=None):
     import matplotlib.pyplot as plt
     plt.figure()
-    plt.plot(deltaPs, np.array(v_is)[:,1], label='ball i')
-    plt.plot(deltaPs, np.array(v_js)[:,1], label='ball j')
+    plt.plot(deltaPs, np.array(v_is)[:,0], label='ball i')
+    plt.plot(deltaPs, np.array(v_js)[:,0], label='ball j')
     plt.xlabel('$P_I$: cumulative impulse along y-axis')
-    plt.ylabel('$v_y$: velocity along y-axis')
+    plt.ylabel('$v$: velocity along axis of impulse')
+    plt.title(title)
     plt.legend()
-    plt.show()
+    if filename:
+        dirname = path.dirname(filename)
+        if not path.exists(dirname):
+            makedirs(dirname, exist_ok=True)
+        try:
+            plt.savefig(filename, dpi=800)
+            _logger.info('...saved figure to %s', filename)
+        except Exception as err:
+            _logger.warning('error saving figure:\n%s', err)
+    if show:
+        plt.show()
+    plt.close()
+
+
+def plot_collision_angular_velocities(deltaPs, omega_is, omega_js,
+                                      title='angular velocities within horizontal plane',
+                                      show=True, filename=None):
+    import matplotlib.pyplot as plt
     plt.figure()
-    plt.plot(deltaPs, np.array(omega_is)[:,0], label='ball i')
-    plt.plot(deltaPs, np.array(omega_js)[:,0], label='ball j')
-    plt.xlabel('$P_I$: cumulative impulse along y-axis')
-    plt.ylabel('$\omega_x$: angular velocity along x-axis')
+    plt.plot(deltaPs, np.array(omega_is)[:,0], label='ball i (axis of impulse)')
+    plt.plot(deltaPs, np.array(omega_js)[:,0], label='ball j (axis of impulse)')
+    plt.plot(deltaPs, np.array(omega_is)[:,2], '--', label='ball i (perpendicular axis)')
+    plt.plot(deltaPs, np.array(omega_js)[:,2], '--', label='ball j (perpendicular axis)')
+    plt.xlabel('$P_I$: cumulative impulse')
+    plt.ylabel(r'$\omega$: angular velocity within horizontal plane')
+    plt.title(title)
     plt.legend()
-    plt.show()
-    plt.figure()
-    plt.plot(deltaPs, np.array(omega_is)[:,2], label='ball i')
-    plt.plot(deltaPs, np.array(omega_js)[:,2], label='ball j')
-    plt.xlabel('$P_I$: cumulative impulse along y-axis')
-    plt.ylabel('angular velocity along z-axis')
-    plt.legend()
-    plt.show()
+    if filename:
+        dirname = path.dirname(filename)
+        if not path.exists(dirname):
+            makedirs(dirname, exist_ok=True)
+        try:
+            plt.savefig(filename, dpi=800)
+            _logger.info('...saved figure to %s', filename)
+        except Exception as err:
+            _logger.warning('error saving figure:\n%s', err)
+    if show:
+        plt.show()
+    plt.close()
 
 
 def test_collide_balls(request):
     """Reproduce results of Mathavan et al, 2014 - Table 1"""
-    show_plots = request.config.getoption('--show-plots')
+    show_plots, save_plots = request.config.getoption('--show-plots'), request.config.getoption('--save-plots')
     e = 0.89
     mu_s = 0.21
     mu_b = 0.05
@@ -68,10 +98,6 @@ def test_collide_balls(request):
         c, s = np.cos(cut_angle*DEG2RAD), np.sin(cut_angle*DEG2RAD)
         v_i, omega_i = np.array(((cue_ball_velocity*c, 0.0, cue_ball_velocity*s),
                                  (          topspin*s, 0.0,          -topspin*c)))
-        # v_i[1:] = v_i[:0:-1]
-        # v_j[1:] = v_j[:0:-1]
-        # omega_i[1:] = omega_i[:0:-1]
-        # omega_j[1:] = omega_j[:0:-1]
         deltaP = (1 + e) * M * cue_ball_velocity / 8000
         v_is, omega_is, v_js, omega_js = collide_balls(r_c,
                                                        r_i, v_i, omega_i,
@@ -80,15 +106,17 @@ def test_collide_balls(request):
                                                        M, R,
                                                        9.81,
                                                        deltaP=deltaP,
-                                                       return_all=True)
-        if show_plots:
-            plot_collision(deltaP*np.arange(len(v_is)), v_is, v_js, omega_is, omega_js)
-        # v_is[:,1:] = v_is[:,:0:-1]
-        # v_js[:,1:] = v_js[:,:0:-1]
-        # omega_is[:,1:] = omega_is[:,:0:-1]
-        # omega_js[:,1:] = omega_js[:,:0:-1]
-        v_i1 = v_is[-1]; omega_i1 = omega_is[-1]
-        v_j1 = v_js[-1]; omega_j1 = omega_js[-1]
+                                                       return_all=show_plots or save_plots)
+        if show_plots or save_plots:
+            test_name = request.function.__name__
+            deltaPs = deltaP*np.arange(len(v_is))
+            plot_collision_velocities(deltaPs, v_is, v_js, show=show_plots,
+                                      filename=path.join(PLOTS_DIR, test_name + '-velocities.png') if save_plots else None)
+            plot_collision_angular_velocities(deltaPs, omega_is, omega_js, show=show_plots,
+                                              filename=path.join(PLOTS_DIR, test_name + '-angular-velocities.png') if save_plots else None)
+            v_i1, omega_i1, v_j1, omega_j1 = v_is[-1], omega_is[-1], v_js[-1], omega_js[-1]
+        else:
+            v_i1, omega_i1, v_j1, omega_j1 = v_is, omega_is, v_js, omega_js
         from poolvr.physics.events import PhysicsEvent, BallSlidingEvent
         PhysicsEvent.ball_radius = R
         PhysicsEvent.ball_diameter = 2*R
