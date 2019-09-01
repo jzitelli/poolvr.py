@@ -131,7 +131,7 @@ def test_collide_balls(request):
         v_iS_mag = np.sqrt(np.dot(v_iS, v_iS))
         v_jS_mag = np.sqrt(np.dot(v_jS, v_jS))
         lambda_i = np.arctan(v_iS[2]/v_iS[0])*RAD2DEG
-        lambda_j = np.arctan(-v_jS[2]/v_jS[0])*RAD2DEG
+        lambda_j = np.arctan(v_jS[2]/v_jS[0])*RAD2DEG
         theta_i = abs(lambda_i - cut_angle)
         theta_j = abs(lambda_j - cut_angle)
         v_iS_mag_ex, v_jS_mag_ex, theta_i_ex, theta_j_ex = expected[i_cond]

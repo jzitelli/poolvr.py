@@ -11,8 +11,9 @@ This module implements the ball-ball collision model described in: ::
 """
 from logging import getLogger
 _logger = getLogger(__name__)
+from math import sqrt
 import numpy as np
-from numpy import dot, sqrt, cross
+from numpy import dot, cross
 
 
 INCH2METER = 0.0254
@@ -46,74 +47,69 @@ def collide_balls(r_c,
     omega_j = dot(G, omega_j)
     r_ic = np.array([0.0,  R, 0.0])
     r_jc = np.array([0.0, -R, 0.0])
-    # r_ic = np.array([0.0, 0.0,  R])
-    # r_jc = np.array([0.0, 0.0, -R])
-    v_ij = v_j - v_i
     u_iR = v_i + R * cross(_k, omega_i)
     u_iR_mag = sqrt(dot(u_iR, u_iR))
     u_jR = v_j + R * cross(_k, omega_j)
     u_jR_mag = sqrt(dot(u_jR, u_jR))
     u_iC = v_i - cross(r_ic, omega_i)
     u_jC = v_j - cross(r_jc, omega_j)
-    # u_ijC = u_jC - u_iC
     u_ijC = u_iC - u_jC
     u_ijC_xz = u_ijC[::2]
     u_ijC_xz_mag = sqrt(dot(u_ijC_xz, u_ijC_xz))
+    v_ij = v_j - v_i
     if deltaP is None:
         deltaP = 0.5 * (1 + e) * M * abs(v_ij[1]) / 1000
-    W_f = float('inf')
+    W_f = INF
     W_c = None
     W = 0
     niters = 0
-    v_is = [v_i]
-    v_js = [v_j]
-    omega_is = [omega_i]
-    omega_js = [omega_j]
+    if return_all:
+        v_is = [v_i]
+        v_js = [v_j]
+        omega_is = [omega_i]
+        omega_js = [omega_j]
     while v_ij[1] < 0 or W < W_f:
-        if u_ijC_xz_mag < 1e-12:
-            _logger.debug('no slip at ball-ball contact')
+        if u_ijC_xz_mag < 1e-16:
             deltaP_1 = deltaP_2 = 0
             deltaP_ix = deltaP_iy = deltaP_jx = deltaP_jy = 0
         else:
-            _logger.debug('slip at ball-ball contact: %s', u_ijC_xz_mag)
             deltaP_1 = -mu_b * deltaP * u_ijC[0] / u_ijC_xz_mag
-            deltaP_2 = -mu_b * deltaP * u_ijC[2] / u_ijC_xz_mag
-            if deltaP_2 > 0:
-                # i.e. u_ijC_z < 0
-                deltaP_ix = deltaP_iy = 0
-                if u_jR_mag < 1e-12:
-                    _logger.debug('no slip at j-table contact')
-                    deltaP_jx = deltaP_jy = 0
-                else:
-                    deltaP_jx = -mu_s * (u_jR[0] / u_jR_mag) * deltaP_2
-                    deltaP_jy = -mu_s * (u_jR[1] / u_jR_mag) * deltaP_2
+            if abs(u_ijC[2]) < 1e-16:
+                deltaP_2 = 0
+                deltaP_ix = deltaP_iy = deltaP_jx = deltaP_jy = 0
             else:
-                deltaP_jx = deltaP_jy = 0
-                if u_iR_mag < 1e-12:
-                    _logger.debug('no slip at i-table contact')
+                deltaP_2 = -mu_b * deltaP * u_ijC[2] / u_ijC_xz_mag
+                if deltaP_2 > 0:
                     deltaP_ix = deltaP_iy = 0
+                    if u_jR_mag == 0:
+                        deltaP_jx = deltaP_jy = 0
+                    else:
+                        deltaP_jx = -mu_s * (u_jR[0] / u_jR_mag) * deltaP_2
+                        deltaP_jy = -mu_s * (u_jR[1] / u_jR_mag) * deltaP_2
                 else:
-                    deltaP_ix = mu_s * (u_iR[0] / u_iR_mag) * deltaP_2
-                    deltaP_iy = mu_s * (u_iR[1] / u_iR_mag) * deltaP_2
+                    deltaP_jx = deltaP_jy = 0
+                    if u_iR_mag == 0:
+                        deltaP_ix = deltaP_iy = 0
+                    else:
+                        deltaP_ix = mu_s * (u_iR[0] / u_iR_mag) * deltaP_2
+                        deltaP_iy = mu_s * (u_iR[1] / u_iR_mag) * deltaP_2
         # velocity changes:
-        deltaV_ix = (deltaP_1 + deltaP_ix) / M
-        deltaV_iy = (-deltaP + deltaP_iy) / M
+        deltaV_ix = (deltaP_1  + deltaP_ix) / M
+        deltaV_iy = (-deltaP   + deltaP_iy) / M
         deltaV_jx = (-deltaP_1 + deltaP_jx) / M
-        deltaV_jy = (deltaP + deltaP_jy) / M
+        deltaV_jy = (deltaP    + deltaP_jy) / M
         # angular velocity changes (due to frictional forces):
-        deltaOm_i = 5/(2*M*R) * np.array([(deltaP_2 + deltaP_iy),
+        deltaOm_i = 5/(2*M*R) * np.array([( deltaP_2 + deltaP_iy),
                                           (-deltaP_ix),
                                           (-deltaP_1)])
-        deltaOm_j = 5/(2*M*R) * np.array([(-deltaP_2 + deltaP_jy),
+        deltaOm_j = 5/(2*M*R) * np.array([( deltaP_2 + deltaP_jy),
                                           (-deltaP_jx),
-                                          (deltaP_1)])
+                                          (-deltaP_1)])
         # update velocities:
         v_i0 = v_i
         v_i = v_i0 + np.array([deltaV_ix, deltaV_iy, 0])
         v_j0 = v_j
         v_j = v_j0 + np.array([deltaV_jx, deltaV_jy, 0])
-        v_ijy0 = v_ij[1]
-        v_ij = v_j - v_i
         # update angular velocities:
         omega_i0 = omega_i
         omega_i = omega_i0 + deltaOm_i
@@ -127,11 +123,12 @@ def collide_balls(r_c,
         # update ball-ball slip:
         u_iC = v_i - cross(r_ic, omega_i)
         u_jC = v_j - cross(r_jc, omega_j)
-        # u_ijC = u_jC - u_iC
         u_ijC = u_iC - u_jC
         u_ijC_xz = u_ijC[::2]
         u_ijC_xz_mag = sqrt(dot(u_ijC_xz, u_ijC_xz))
         # increment work:
+        v_ijy0 = v_ij[1]
+        v_ij = v_j - v_i
         deltaW = 0.5 * deltaP * abs(v_ijy0 + v_ij[1])
         W += deltaW
         niters += 1
@@ -143,17 +140,17 @@ def collide_balls(r_c,
         if W_c is None and v_ij[1] > 0:
             W_c = W
             W_f = (1 + e**2) * W_c
-            niters_c = niters
-            _logger.debug('''
-            END OF COMPRESSION PHASE
-            W_c = %s
-            W_f = %s
-            niters_c = %s
-            ''', W_c, W_f, niters_c)
-    _logger.debug('''
-    END OF RESTITUTION PHASE
-    niters_r = %s
-    ''', niters - niters_c)
+            # niters_c = niters
+            # _logger.debug('''
+            # END OF COMPRESSION PHASE
+            # W_c = %s
+            # W_f = %s
+            # niters_c = %s
+            # ''', W_c, W_f, niters_c)
+    # _logger.debug('''
+    # END OF RESTITUTION PHASE
+    # niters_r = %s
+    # ''', niters - niters_c)
     if return_all:
         v_is = np.array(v_is)
         v_js = np.array(v_js)

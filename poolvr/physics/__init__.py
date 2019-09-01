@@ -710,25 +710,23 @@ class PoolPhysics(object):
         return tau_min, i_c_min
 
     def _filter_roots(self, roots):
-        # filter out possible complex-conjugate pairs of roots:
-        mask = self._mask; mask[:] = True
-        while len(roots) > 0:
-            i, z = next(((i, z) for i, z in enumerate(roots)
-                         if abs(z.imag) > PoolPhysics._IMAG_TOLERANCE),
-                        (None, None))
-            if z is not None:
-                j = next((j for j, z_conj in enumerate(roots[i+1:])
-                          if  abs(z.real - z_conj.real) < PoolPhysics._ZERO_TOLERANCE
-                          and abs(z.imag + z_conj.imag) < PoolPhysics._ZERO_TOLERANCE),
-                         None)
-                if j is not None:
-                    mask[i] = mask[i+j+1] = False
-                    roots = roots[mask[:len(roots)]]
-                else:
-                    break
-            else:
-                break
-        return roots
+        "filter out any complex-conjugate pairs of roots"
+        npairs = 0
+        i = 0
+        while i < len(roots):
+            r = roots[i]
+            if abs(r.imag) > self._IMAG_TOLERANCE:
+                for j, r_conj in enumerate(roots[i:]):
+                    if abs(r.real - r_conj.real) < self._ZERO_TOLERANCE \
+                       and abs(r.imag + r_conj.imag) < self._ZERO_TOLERANCE:
+                        roots[i] = roots[2*npairs]
+                        roots[i+j] = roots[2*npairs+1]
+                        roots[2*npairs] = r
+                        roots[2*npairs+1] = r_conj
+                        npairs += 1
+                        i += 1
+            i += 1
+        return roots[2*npairs:]
 
     # def _update_occlusion(self, ball_positions=None):
     #     if ball_positions is None:
