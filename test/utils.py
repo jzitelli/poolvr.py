@@ -115,7 +115,7 @@ def plot_ball_motion(i, physics,
             if not os.path.exists(dirname):
                 os.makedirs(dirname, exist_ok=True)
             try:
-                plt.savefig(filename, dpi=400)
+                plt.savefig(filename, dpi=300)
                 _logger.info('...saved figure to %s', filename)
             except Exception as err:
                 _logger.warning('error saving figure:\n%s', err)
@@ -270,7 +270,7 @@ def plot_energy(physics, title=None, nt=1000,
         if not os.path.exists(dirname):
             os.makedirs(dirname, exist_ok=True)
         try:
-            plt.savefig(filename, dpi=400)
+            plt.savefig(filename, dpi=300)
             _logger.info('...saved figure to %s', filename)
         except Exception as err:
             _logger.warning('error saving figure:\n%s', err)
