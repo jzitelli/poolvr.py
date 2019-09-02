@@ -1,6 +1,7 @@
 import ctypes
 from ctypes import c_double
-import os.path
+import os.path as path
+
 from math import fsum, isnan
 from logging import getLogger
 _logger = getLogger(__name__)

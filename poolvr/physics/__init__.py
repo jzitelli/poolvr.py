@@ -807,14 +807,13 @@ class PoolPhysics(object):
                 super().__init__(*args, **kwargs)
         if isinstance(event, BallCollisionEvent):
             e_i, e_j = event.child_events
-            for t in np.linspace(event.t, event.t + min(e_i.T, e_j.T), 100):
-                if e_i.t + e_i.T >= t or e_j.t + e_j.T >= t:
-                    r_i, r_j = self.eval_positions(t, balls=[event.i, event.j])
-                    d_ij = np.linalg.norm(r_i - r_j)
-                    if d_ij - 2*self.ball_radius < -1e-6:
-                        class BallsPenetratedInsanity(Insanity):
-                            pass
-                        raise BallsPenetratedInsanity(self, '''
+            for t in np.linspace(event.t, event.t + min(e_i.T, e_j.T), 1000):
+                r_i, r_j = self.eval_positions(t, balls=[event.i, event.j])
+                d_ij = np.linalg.norm(r_i - r_j)
+                if d_ij - 2*self.ball_radius < -1e-6*self.ball_radius:
+                    class BallsPenetratedInsanity(Insanity):
+                        pass
+                    raise BallsPenetratedInsanity(self, '''
 ball_diameter = %s
          d_ij = %s
           r_i = %s
