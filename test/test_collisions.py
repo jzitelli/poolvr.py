@@ -5,7 +5,7 @@ _logger = logging.getLogger(__name__)
 import numpy as np
 
 
-from poolvr.physics.collisions import collide_balls
+from poolvr.physics.collisions import collide_balls, c_collide_balls
 
 
 _k = np.array([0.0, 0.0, 1.0])
@@ -21,8 +21,8 @@ def plot_collision_velocities(deltaPs, v_is, v_js,
     plt.figure()
     plt.plot(deltaPs, np.array(v_is)[:,0], label='ball i')
     plt.plot(deltaPs, np.array(v_js)[:,0], label='ball j')
-    plt.xlabel('$P_I$: cumulative impulse along y-axis')
-    plt.ylabel('$v$: velocity along axis of impulse')
+    plt.xlabel(r'$P_I$: cumulative impulse along axis of impulse')
+    plt.ylabel(r'$v_y$: velocity along axis of impulse')
     plt.title(title)
     plt.legend()
     if filename:
@@ -30,7 +30,7 @@ def plot_collision_velocities(deltaPs, v_is, v_js,
         if not path.exists(dirname):
             makedirs(dirname, exist_ok=True)
         try:
-            plt.savefig(filename, dpi=800)
+            plt.savefig(filename, dpi=200)
             _logger.info('...saved figure to %s', filename)
         except Exception as err:
             _logger.warning('error saving figure:\n%s', err)
@@ -49,7 +49,7 @@ def plot_collision_angular_velocities(deltaPs, omega_is, omega_js,
     plt.plot(deltaPs, np.array(omega_is)[:,2], '--', label='ball i (perpendicular axis)')
     plt.plot(deltaPs, np.array(omega_js)[:,2], '--', label='ball j (perpendicular axis)')
     plt.xlabel('$P_I$: cumulative impulse')
-    plt.ylabel(r'$\omega$: angular velocity within horizontal plane')
+    plt.ylabel(r'$\omega_{xy}$: angular velocity within horizontal plane')
     plt.title(title)
     plt.legend()
     if filename:
@@ -57,7 +57,7 @@ def plot_collision_angular_velocities(deltaPs, omega_is, omega_js,
         if not path.exists(dirname):
             makedirs(dirname, exist_ok=True)
         try:
-            plt.savefig(filename, dpi=800)
+            plt.savefig(filename, dpi=200)
             _logger.info('...saved figure to %s', filename)
         except Exception as err:
             _logger.warning('error saving figure:\n%s', err)
@@ -170,3 +170,44 @@ def test_collide_balls(request):
         assert abs(v_jS_mag - v_jS_mag_ex)/abs(v_jS_mag_ex) < 1e-2
         assert abs(theta_i - theta_i_ex)/abs(theta_i_ex) < 1e-2
         assert abs(theta_j - theta_j_ex)/abs(theta_j_ex) < 1e-2
+
+
+def test_c_collide_balls(request):
+    show_plots, save_plots = request.config.getoption('--show-plots'), request.config.getoption('--save-plots')
+    e = 0.89
+    mu_s = 0.21
+    mu_b = 0.05
+    M = 0.1406
+    R = 0.02625
+    r_i = np.zeros(3)
+    rd = np.array([1.0, 0.0, 0.0])
+    r_c = np.array([R, 0.0, 0.0])
+    r_j = r_i + 2 * R * rd
+    v_j = np.zeros(3, dtype=np.float64)
+    omega_j = np.zeros(3, dtype=np.float64)
+    expected = [
+        # Table 1       # Table 2
+        (0.914, 0.831,  31.93, 32.20),
+        (0.520, 0.599,  32.45, 25.07),
+        (0.917, 0.676,  29.91, 38.62),
+        (1.28,  0.780,  27.32, 44.38),
+        (0.383, 0.579,  29.47, 17.15)
+    ]
+    for i_cond, (cue_ball_velocity, topspin, cut_angle) in enumerate([
+        (1.539, 58.63, 33.83),
+        (1.032, 39.31, 26.36),
+        (1.364, 51.96, 40.52),
+        (1.731, 65.94, 46.5),
+        (0.942, 35.89, 18.05)
+    ]):
+        c, s = np.cos(cut_angle*DEG2RAD), np.sin(cut_angle*DEG2RAD)
+        v_i, omega_i = np.array(((cue_ball_velocity*c, 0.0, cue_ball_velocity*s),
+                                 (          topspin*s, 0.0,          -topspin*c)))
+        deltaP = (1 + e) * M * cue_ball_velocity / 8000
+        v_is, omega_is, v_js, omega_js = c_collide_balls(r_c,
+                                                         r_i, v_i, omega_i,
+                                                         r_j, v_j, omega_j,
+                                                         e, mu_s, mu_b,
+                                                         M, R,
+                                                         9.81,
+                                                         deltaP=deltaP)

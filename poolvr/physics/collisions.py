@@ -12,13 +12,45 @@ This module implements the ball-ball collision model described in: ::
 from logging import getLogger
 _logger = getLogger(__name__)
 from math import sqrt
+import ctypes
+import os.path as path
 import numpy as np
 from numpy import dot, array
+from numpy.ctypeslib import ndpointer
 
 
 INCH2METER = 0.0254
 INF = float('inf')
 _k = array([0, 1, 0], dtype=np.float64)
+
+
+_lib = ctypes.cdll.LoadLibrary(path.join(path.dirname(path.abspath(__file__)),
+                                         'collisions.dll'))
+_lib.collide_balls.argtypes = (ndpointer(np.float64, ndim=1, shape=(3,)),
+                               ndpointer(np.float64, ndim=1, shape=(3,)),
+                               ndpointer(np.float64, ndim=1, shape=(3,)),
+                               ndpointer(np.float64, ndim=1, shape=(3,)),
+                               ndpointer(np.float64, ndim=1, shape=(3,)),
+                               ndpointer(np.float64, ndim=1, shape=(3,)),
+                               ndpointer(np.float64, ndim=1, shape=(3,)),
+                               ndpointer(np.float64, ndim=1, shape=(3,)))
+
+
+def c_collide_balls(r_c,
+                    r_i, v_i, omega_i,
+                    r_j, v_j, omega_j,
+                    e=0.89,
+                    mu_s=0.21,
+                    mu_b=0.05,
+                    M=0.1406,
+                    R=0.02625,
+                    g=9.81,
+                    deltaP=None):
+    v_i1, omega_i1, v_j1, omega_j1 = c_collide_balls.out
+    _lib.collide_balls(v_i, omega_i, v_j, omega_j,
+                       v_i1, omega_i1, v_j1, omega_j1)
+    return c_collide_balls.out
+c_collide_balls.out = np.zeros((4,3))
 
 
 def collide_balls(r_c,
@@ -66,6 +98,7 @@ def collide_balls(r_c,
         omega_is = [array((omega_ix, omega_iy, omega_iz))]
         omega_js = [array((omega_jx, omega_jy, omega_jz))]
     while v_ijy < 0 or W < W_f:
+        # determine impulse deltas:
         if u_ijC_xz_mag < 1e-16:
             deltaP_1 = deltaP_2 = 0
             deltaP_ix = deltaP_iy = deltaP_jx = deltaP_jy = 0
@@ -90,12 +123,12 @@ def collide_balls(r_c,
                     else:
                         deltaP_ix = mu_s * (u_iR_x / u_iR_xy_mag) * deltaP_2
                         deltaP_iy = mu_s * (u_iR_y / u_iR_xy_mag) * deltaP_2
-        # velocity changes:
+        # calc velocity changes:
         deltaV_ix = (deltaP_1  + deltaP_ix) / M
         deltaV_iy = (-deltaP   + deltaP_iy) / M
         deltaV_jx = (-deltaP_1 + deltaP_jx) / M
         deltaV_jy = (deltaP    + deltaP_jy) / M
-        # angular velocity changes (due to frictional forces):
+        # calc angular velocity changes:
         _ = 5/(2*M*R)
         deltaOm_ix = _ * ( deltaP_2 + deltaP_iy)
         deltaOm_iy = _ * (-deltaP_ix)

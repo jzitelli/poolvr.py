@@ -50,6 +50,9 @@ class PoolPhysics(object):
     _ZERO_TOLERANCE_SQRD = _ZERO_TOLERANCE**2
     _IMAG_TOLERANCE = 1e-8
     _IMAG_TOLERANCE_SQRD = _IMAG_TOLERANCE**2
+    _BALL_COLLISION_MODELS = {'simple': SimpleBallCollisionEvent,
+                              'simulated': SimulatedBallCollisionEvent,
+                              'marlow': MarlowBallCollisionEvent}
     def __init__(self,
                  num_balls=16,
                  ball_mass=0.17,
