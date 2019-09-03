@@ -19,16 +19,13 @@ _IMAG_TOLERANCE = 1e-8
 _IMAG_TOLERANCE_SQRD = _IMAG_TOLERANCE**2
 
 
-_lib = ctypes.cdll.LoadLibrary(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                            'poly_solvers.dll'))
-
+_lib = ctypes.cdll.LoadLibrary(path.join(path.dirname(path.abspath(__file__)),
+                                         'poly_solvers.dll'))
 _lib.quartic_solve.argtypes = (ndpointer(np.float64, ndim=1, shape=(5,)),
                                ndpointer(np.complex128, ndim=1, shape=(4,)))
-
 _lib.find_min_quartic_root_in_real_interval.argtypes = (ndpointer(np.float64, ndim=1, shape=(5,)),
                                                    c_double, c_double)
 _lib.find_min_quartic_root_in_real_interval.restype = c_double
-
 _lib.find_collision_time.argtypes = (ndpointer(np.float64, ndim=2, shape=(3,3)),
                                      ndpointer(np.float64, ndim=2, shape=(3,3)),
                                      c_double, c_double, c_double)

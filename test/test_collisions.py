@@ -145,6 +145,7 @@ def test_collide_balls(request):
         expected |v_iS| = %s
                  |v_jS| = %s
         expected |v_jS| = %s
+        ----------------------------------------
         abs(|v_iS| - expected) / |expected| = %s
         abs(|v_jS| - expected) / |expected| = %s
 
@@ -152,6 +153,7 @@ def test_collide_balls(request):
         expected theta_i = %s
                  theta_j = %s
         expected theta_j = %s
+        -----------------------------------------
         abs(theta_i - expected) / |expected| = %s
         abs(theta_j - expected) / |expected| = %s
         ''',
@@ -164,3 +166,7 @@ def test_collide_balls(request):
                      theta_j, theta_j_ex,
                      abs(theta_i - theta_i_ex)/abs(theta_i_ex),
                      abs(theta_j - theta_j_ex)/abs(theta_j_ex))
+        assert abs(v_iS_mag - v_iS_mag_ex)/abs(v_iS_mag_ex) < 1e-2
+        assert abs(v_jS_mag - v_jS_mag_ex)/abs(v_jS_mag_ex) < 1e-2
+        assert abs(theta_i - theta_i_ex)/abs(theta_i_ex) < 1e-2
+        assert abs(theta_j - theta_j_ex)/abs(theta_j_ex) < 1e-2
