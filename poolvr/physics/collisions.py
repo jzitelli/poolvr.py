@@ -26,7 +26,11 @@ _k = array([0, 1, 0], dtype=np.float64)
 
 _lib = ctypes.cdll.LoadLibrary(path.join(path.dirname(path.abspath(__file__)),
                                          'collisions.dll'))
-_lib.collide_balls.argtypes = (ndpointer(np.float64, ndim=1, shape=(3,)),
+_lib.collide_balls.argtypes = (ctypes.c_double, # deltaP
+                               ctypes.c_double, # R
+                               ndpointer(np.float64, ndim=1, shape=(3,)), # r_i
+                               ndpointer(np.float64, ndim=1, shape=(3,)), # v_i
+                               ndpointer(np.float64, ndim=1, shape=(3,)), # omega_i
                                ndpointer(np.float64, ndim=1, shape=(3,)),
                                ndpointer(np.float64, ndim=1, shape=(3,)),
                                ndpointer(np.float64, ndim=1, shape=(3,)),
@@ -35,33 +39,33 @@ _lib.collide_balls.argtypes = (ndpointer(np.float64, ndim=1, shape=(3,)),
                                ndpointer(np.float64, ndim=1, shape=(3,)),
                                ndpointer(np.float64, ndim=1, shape=(3,)))
 
-
-def c_collide_balls(r_c,
-                    r_i, v_i, omega_i,
-                    r_j, v_j, omega_j,
-                    e=0.89,
-                    mu_s=0.21,
-                    mu_b=0.05,
-                    M=0.1406,
-                    R=0.02625,
-                    g=9.81,
-                    deltaP=None):
-    v_i1, omega_i1, v_j1, omega_j1 = c_collide_balls.out
-    _lib.collide_balls(v_i, omega_i, v_j, omega_j,
+def collide_balls_f90(r_i, v_i, omega_i,
+                      r_j, v_j, omega_j,
+                      e=0.89,
+                      mu_s=0.21,
+                      mu_b=0.05,
+                      M=0.1406,
+                      R=0.02625,
+                      deltaP=None):
+    v_i1, omega_i1, v_j1, omega_j1 = collide_balls_f90.out
+    _lib.collide_balls(deltaP, R,
+                       r_i, v_i, omega_i,
+                       r_j, v_j, omega_j,
                        v_i1, omega_i1, v_j1, omega_j1)
-    return c_collide_balls.out
-c_collide_balls.out = np.zeros((4,3))
+    return collide_balls_f90.out
+collide_balls_f90.out = (np.zeros(3, dtype=np.float64),
+                         np.zeros(3, dtype=np.float64),
+                         np.zeros(3, dtype=np.float64),
+                         np.zeros(3, dtype=np.float64))
 
 
-def collide_balls(r_c,
-                  r_i, v_i, omega_i,
+def collide_balls(r_i, v_i, omega_i,
                   r_j, v_j, omega_j,
                   e=0.89,
                   mu_s=0.21,
                   mu_b=0.05,
                   M=0.1406,
                   R=0.02625,
-                  g=9.81,
                   deltaP=None,
                   return_all=False):
     r_ij = r_j - r_i
@@ -168,7 +172,7 @@ def collide_balls(r_c,
             v_js.append(array((v_jx, v_jy, 0)))
             omega_is.append(array((omega_ix, omega_iy, omega_iz)))
             omega_js.append(array((omega_jx, omega_jy, omega_jz)))
-        if W_c is None and v_jy - v_iy > 0:
+        if W_c is None and v_ijy > 0:
             W_c = W
             W_f = (1 + e**2) * W_c
             # niters_c = niters
