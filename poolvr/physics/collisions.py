@@ -19,6 +19,8 @@ from numpy import dot, array
 from numpy.ctypeslib import ndpointer
 
 
+c_int_p = ctypes.POINTER(ctypes.c_int)
+
 INCH2METER = 0.0254
 INF = float('inf')
 _k = array([0, 1, 0], dtype=np.float64)
@@ -26,18 +28,19 @@ _k = array([0, 1, 0], dtype=np.float64)
 
 _lib = ctypes.cdll.LoadLibrary(path.join(path.dirname(path.abspath(__file__)),
                                          'collisions.dll'))
-_lib.collide_balls.argtypes = (ctypes.c_double, # deltaP
-                               ctypes.c_double, # R
+_lib.collide_balls.argtypes = (ctypes.c_double,                           # deltaP
+                               ctypes.c_int,                              # maxiters
                                ndpointer(np.float64, ndim=1, shape=(3,)), # r_i
                                ndpointer(np.float64, ndim=1, shape=(3,)), # v_i
                                ndpointer(np.float64, ndim=1, shape=(3,)), # omega_i
                                ndpointer(np.float64, ndim=1, shape=(3,)),
                                ndpointer(np.float64, ndim=1, shape=(3,)),
                                ndpointer(np.float64, ndim=1, shape=(3,)),
-                               ndpointer(np.float64, ndim=1, shape=(3,)),
-                               ndpointer(np.float64, ndim=1, shape=(3,)),
-                               ndpointer(np.float64, ndim=1, shape=(3,)),
-                               ndpointer(np.float64, ndim=1, shape=(3,)))
+                               ndpointer(np.float64),
+                               ndpointer(np.float64),
+                               ndpointer(np.float64),
+                               ndpointer(np.float64),
+                               c_int_p)
 
 def collide_balls_f90(r_i, v_i, omega_i,
                       r_j, v_j, omega_j,
@@ -47,16 +50,17 @@ def collide_balls_f90(r_i, v_i, omega_i,
                       M=0.1406,
                       R=0.02625,
                       deltaP=None):
-    v_i1, omega_i1, v_j1, omega_j1 = collide_balls_f90.out
-    _lib.collide_balls(deltaP, R,
+    v_i1, omega_i1, v_j1, omega_j1, niters = collide_balls_f90.out
+    _lib.collide_balls(deltaP, 8000,
                        r_i, v_i, omega_i,
                        r_j, v_j, omega_j,
-                       v_i1, omega_i1, v_j1, omega_j1)
+                       v_i1, omega_i1, v_j1, omega_j1, niters)
     return collide_balls_f90.out
-collide_balls_f90.out = (np.zeros(3, dtype=np.float64),
-                         np.zeros(3, dtype=np.float64),
-                         np.zeros(3, dtype=np.float64),
-                         np.zeros(3, dtype=np.float64))
+collide_balls_f90.out = (np.zeros((8000,3), dtype=np.float64),
+                         np.zeros((8000,3), dtype=np.float64),
+                         np.zeros((8000,3), dtype=np.float64),
+                         np.zeros((8000,3), dtype=np.float64),
+                         ctypes.c_int(0))
 
 
 def collide_balls(r_i, v_i, omega_i,
@@ -128,10 +132,10 @@ def collide_balls(r_i, v_i, omega_i,
                         deltaP_ix = mu_s * (u_iR_x / u_iR_xy_mag) * deltaP_2
                         deltaP_iy = mu_s * (u_iR_y / u_iR_xy_mag) * deltaP_2
         # calc velocity changes:
-        deltaV_ix = (deltaP_1  + deltaP_ix) / M
+        deltaV_ix = ( deltaP_1 + deltaP_ix) / M
         deltaV_iy = (-deltaP   + deltaP_iy) / M
         deltaV_jx = (-deltaP_1 + deltaP_jx) / M
-        deltaV_jy = (deltaP    + deltaP_jy) / M
+        deltaV_jy = ( deltaP   + deltaP_jy) / M
         # calc angular velocity changes:
         _ = 5/(2*M*R)
         deltaOm_ix = _ * ( deltaP_2 + deltaP_iy)

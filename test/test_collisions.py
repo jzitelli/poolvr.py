@@ -170,6 +170,7 @@ def test_collide_balls(request):
 
 
 def test_collide_balls_f90(request):
+    show_plots, save_plots = request.config.getoption('--show-plots'), request.config.getoption('--save-plots')
     from poolvr.physics.collisions import collide_balls_f90
     e = 0.89
     mu_s = 0.21
@@ -200,12 +201,25 @@ def test_collide_balls_f90(request):
         v_i, omega_i = np.array(((cue_ball_velocity*c, 0.0, cue_ball_velocity*s),
                                  (          topspin*s, 0.0,          -topspin*c)))
         deltaP = (1 + e) * M * cue_ball_velocity / 8000
-        v_is, omega_is, v_js, omega_js = collide_balls_f90(r_i, v_i, omega_i,
-                                                           r_j, v_j, omega_j,
-                                                           e=e, mu_s=mu_s, mu_b=mu_b,
-                                                           M=M, R=R,
-                                                           deltaP=deltaP)
-        v_i1, omega_i1, v_j1, omega_j1 = v_is, omega_is, v_js, omega_js
+        v_i1, omega_i1, v_j1, omega_j1, niters = collide_balls_f90(r_i, v_i, omega_i,
+                                                                   r_j, v_j, omega_j,
+                                                                   e=e, mu_s=mu_s, mu_b=mu_b,
+                                                                   M=M, R=R,
+                                                                   deltaP=deltaP)
+        niters = niters.value
+        v_i1 = v_i1[:niters]
+        v_j1 = v_j1[:niters]
+        omega_i1 = omega_i1[:niters]
+        omega_j1 = omega_j1[:niters]
+        if show_plots or save_plots:
+            test_name = request.function.__name__
+            deltaPs = deltaP*np.arange(niters)
+            plot_collision_velocities(deltaPs, v_i1, v_j1, show=show_plots,
+                                      filename=path.join(PLOTS_DIR, test_name + '-velocities.png') if save_plots else None)
+            plot_collision_angular_velocities(deltaPs, omega_i1, omega_j1, show=show_plots,
+                                              filename=path.join(PLOTS_DIR, test_name + '-angular-velocities.png') if save_plots else None)
+        _logger.info('len(v_i1) = %s', len(v_i1))
+        v_i1, omega_i1, v_j1, omega_j1 = v_i1[-1], omega_i1[-1], v_j1[-1], omega_j1[-1]
         from poolvr.physics.events import PhysicsEvent, BallSlidingEvent
         PhysicsEvent.ball_radius = R
         PhysicsEvent.ball_diameter = 2*R
