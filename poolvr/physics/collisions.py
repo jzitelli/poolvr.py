@@ -19,8 +19,6 @@ from numpy import dot, array
 from numpy.ctypeslib import ndpointer
 
 
-c_int_p = ctypes.POINTER(ctypes.c_int)
-
 INCH2METER = 0.0254
 INF = float('inf')
 _k = array([0, 1, 0], dtype=np.float64)
@@ -29,7 +27,6 @@ _k = array([0, 1, 0], dtype=np.float64)
 _lib = ctypes.cdll.LoadLibrary(path.join(path.dirname(path.abspath(__file__)),
                                          'collisions.dll'))
 _lib.collide_balls.argtypes = (ctypes.c_double,                           # deltaP
-                               ctypes.c_int,                              # maxiters
                                ndpointer(np.float64, ndim=1, shape=(3,)), # r_i
                                ndpointer(np.float64, ndim=1, shape=(3,)), # v_i
                                ndpointer(np.float64, ndim=1, shape=(3,)), # omega_i
@@ -39,8 +36,7 @@ _lib.collide_balls.argtypes = (ctypes.c_double,                           # delt
                                ndpointer(np.float64),
                                ndpointer(np.float64),
                                ndpointer(np.float64),
-                               ndpointer(np.float64),
-                               c_int_p)
+                               ndpointer(np.float64))
 
 def collide_balls_f90(r_i, v_i, omega_i,
                       r_j, v_j, omega_j,
@@ -50,17 +46,16 @@ def collide_balls_f90(r_i, v_i, omega_i,
                       M=0.1406,
                       R=0.02625,
                       deltaP=None):
-    v_i1, omega_i1, v_j1, omega_j1, niters = collide_balls_f90.out
-    _lib.collide_balls(deltaP, 8000,
+    v_i1, omega_i1, v_j1, omega_j1 = collide_balls_f90.out
+    _lib.collide_balls(deltaP,
                        r_i, v_i, omega_i,
                        r_j, v_j, omega_j,
-                       v_i1, omega_i1, v_j1, omega_j1, niters)
+                       v_i1, omega_i1, v_j1, omega_j1)
     return collide_balls_f90.out
-collide_balls_f90.out = (np.zeros((8000,3), dtype=np.float64),
-                         np.zeros((8000,3), dtype=np.float64),
-                         np.zeros((8000,3), dtype=np.float64),
-                         np.zeros((8000,3), dtype=np.float64),
-                         ctypes.c_int(0))
+collide_balls_f90.out = (np.zeros(3, dtype=np.float64),
+                         np.zeros(3, dtype=np.float64),
+                         np.zeros(3, dtype=np.float64),
+                         np.zeros(3, dtype=np.float64))
 
 
 def collide_balls(r_i, v_i, omega_i,

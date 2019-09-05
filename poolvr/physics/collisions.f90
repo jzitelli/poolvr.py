@@ -9,19 +9,18 @@ MODULE collisions
   double precision, dimension(3), parameter :: z_loc = (/ 0.d0, 1.d0, 0.d0 /)
 CONTAINS
 
-  SUBROUTINE collide_balls (deltaP, maxiters, &
+  SUBROUTINE collide_balls (deltaP,            &
                             r_i, v_i, omega_i, &
                             r_j, v_j, omega_j, &
-                            v_i1, omega_i1, v_j1, omega_j1, niters) BIND(C)
-    USE, INTRINSIC :: ISO_C_BINDING
+                            v_i1, omega_i1, v_j1, omega_j1) BIND(C)
+    use, intrinsic :: iso_c_binding
     implicit none
     double precision, VALUE, intent(in) :: deltaP
-    integer, VALUE, intent(in):: maxiters
     double precision, dimension(3), intent(in) :: r_i, r_j
     double precision, dimension(3), intent(in) :: v_i, v_j
     double precision, dimension(3), intent(in) :: omega_i, omega_j
-    double precision, dimension(3,maxiters), intent(out) :: v_i1, v_j1
-    double precision, dimension(3,maxiters), intent(out) :: omega_i1, omega_j1
+    double precision, dimension(3), intent(out) :: v_i1, v_j1
+    double precision, dimension(3), intent(out) :: omega_i1, omega_j1
     double precision, dimension(3) :: r_ij
     double precision :: r_ij_mag_sqrd, r_ij_mag, v_ix, v_iy, v_jx, v_jy
     double precision :: omega_ix, omega_iy, omega_iz, omega_jx, omega_jy, omega_jz
@@ -35,12 +34,6 @@ CONTAINS
     double precision :: W_f
     double precision :: W_c
     double precision, dimension(3,3) :: G, G_T
-    integer :: n
-    integer, intent(out) :: niters
-    W = 0
-    W_f = huge(1.d0)
-    W_c = huge(1.d0)
-    niters = 1
     r_ij = r_j - r_i
     r_ij_mag_sqrd = sum(r_ij**2)
     r_ij_mag = sqrt(r_ij_mag_sqrd)
@@ -72,11 +65,12 @@ CONTAINS
     u_ijC_z =               R*(omega_ix + omega_jx)
     u_ijC_xz_mag = sqrt(u_ijC_x**2 + u_ijC_z**2)
     v_ijy = v_jy - v_iy
-    v_i1(:,1) = (/ v_ix, v_iy, 0.d0 /)
-    v_j1(:,1) = (/ v_jx, v_jy, 0.d0 /)
-    omega_i1(:,1) = (/ omega_ix, omega_iy, omega_iz /)
-    omega_j1(:,1) = (/ omega_jx, omega_jy, omega_jz /)
-    do while (niters < maxiters .and. (W < W_c .or. W < W_f))
+    omega_i1 = (/ omega_ix, omega_iy, omega_iz /)
+    omega_j1 = (/ omega_jx, omega_jy, omega_jz /)
+    W = 0
+    W_f = huge(1.d0)
+    W_c = huge(1.d0)
+    do while (W < W_c .or. W < W_f)
        ! determine impulse deltas:
        if (u_ijC_xz_mag < 1.d-16) then
           deltaP_1 = 0
@@ -135,37 +129,32 @@ CONTAINS
        v_jx = v_jx + deltaV_jx
        v_iy = v_iy + deltaV_iy
        v_jy = v_jy + deltaV_jy
+       omega_i1 = omega_i1 + deltaOm_i
+       omega_j1 = omega_j1 + deltaOm_j
        ! update ball-table slips:
-       u_iR_x = v_ix + R*omega_i1(2,niters)
-       u_iR_y = v_iy - R*omega_i1(1,niters)
-       u_jR_x = v_jx + R*omega_j1(2,niters)
-       u_jR_y = v_jy - R*omega_j1(1,niters)
+       u_iR_x = v_ix + R*omega_i1(2)
+       u_iR_y = v_iy - R*omega_i1(1)
+       u_jR_x = v_jx + R*omega_j1(2)
+       u_jR_y = v_jy - R*omega_j1(1)
        u_iR_xy_mag = sqrt(u_iR_x**2 + u_iR_y**2)
        u_jR_xy_mag = sqrt(u_jR_x**2 + u_jR_y**2)
        ! update ball-ball slip:
-       u_ijC_x = v_ix - v_jx - R*(omega_i1(3,niters) + omega_j1(3,niters))
-       u_ijC_z = R*(omega_i1(1,niters) + omega_j1(1,niters))
+       u_ijC_x = v_ix - v_jx - R*(omega_i1(3) + omega_j1(3))
+       u_ijC_z = R*(omega_i1(1) + omega_j1(1))
        u_ijC_xz_mag = sqrt(u_ijC_x**2 + u_ijC_z**2)
        ! increment work:
        v_ijy0 = v_ijy
        v_ijy = v_jy - v_iy
        deltaW = 0.5 * deltaP * abs(v_ijy0 + v_ijy)
        W = W + deltaW
-       niters = niters + 1
-       v_i1(:,niters) = (/ v_ix, v_iy, 0.d0 /)
-       v_j1(:,niters) = (/ v_jx, v_jy, 0.d0 /)
-       omega_i1(:,niters) = omega_i1(:,niters-1) + deltaOm_i
-       omega_j1(:,niters) = omega_j1(:,niters-1) + deltaOm_j
        if (W_c == huge(1.d0) .and. v_ijy > 0) then
           W_c = W
           W_f = (1 + e**2) * W_c
        end if
     end do
-    do n = 1, niters
-       v_i1(:,n) = MATMUL(G_T, v_i1(:,n))
-       v_j1(:,n) = MATMUL(G_T, v_j1(:,n))
-       omega_i1(:,n) = MATMUL(G_T, omega_i1(:,n))
-       omega_j1(:,n) = MATMUL(G_T, omega_j1(:,n))
-    end do
+    v_i1 = MATMUL(G_T, (/ v_ix, v_iy, 0.d0 /))
+    v_j1 = MATMUL(G_T, (/ v_jx, v_jy, 0.d0 /))
+    omega_i1 = MATMUL(G_T, omega_i1)
+    omega_j1 = MATMUL(G_T, omega_j1)
   END SUBROUTINE collide_balls
 END MODULE COLLISIONS
