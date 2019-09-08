@@ -1,11 +1,11 @@
 MODULE collisions
-  USE iso_c_binding
+  USE iso_c_binding, only: c_double
   IMPLICIT NONE
-  double precision, parameter :: R = 0.02625
-  double precision, parameter :: M = 0.1406
-  double precision, parameter :: mu_s = 0.21
-  double precision, parameter :: mu_b = 0.05
-  double precision, parameter :: e = 0.89
+  real(c_double), bind(C, name="R") :: R = 0.02625
+  real(c_double), bind(C, name="M") :: M = 0.1406
+  real(c_double), bind(C) :: mu_s = 0.21
+  real(c_double), bind(C) :: mu_b = 0.05
+  real(c_double), bind(C) :: e = 0.89
   double precision, dimension(3), parameter :: z_loc = (/ 0.d0, 1.d0, 0.d0 /)
 CONTAINS
 
@@ -13,7 +13,6 @@ CONTAINS
                             r_i, v_i, omega_i, &
                             r_j, v_j, omega_j, &
                             v_i1, omega_i1, v_j1, omega_j1) BIND(C)
-    use, intrinsic :: iso_c_binding
     implicit none
     double precision, VALUE, intent(in) :: deltaP
     double precision, dimension(3), intent(in) :: r_i, r_j
@@ -65,8 +64,10 @@ CONTAINS
     u_ijC_z =               R*(omega_ix + omega_jx)
     u_ijC_xz_mag = sqrt(u_ijC_x**2 + u_ijC_z**2)
     v_ijy = v_jy - v_iy
-    omega_i1 = (/ omega_ix, omega_iy, omega_iz /)
-    omega_j1 = (/ omega_jx, omega_jy, omega_jz /)
+    ! omega_i1 = (/ omega_ix, omega_iy, omega_iz /)
+    ! omega_j1 = (/ omega_jx, omega_jy, omega_jz /)
+    omega_i1 = matmul(G, omega_i)
+    omega_j1 = matmul(G, omega_j)
     W = 0
     W_f = huge(1.d0)
     W_c = huge(1.d0)
@@ -112,25 +113,25 @@ CONTAINS
              end if
           end if
        endif
-       ! calc velocity deltas:
-       deltaV_ix = ( deltaP_1 + deltaP_ix) / M
-       deltaV_iy = (-deltaP   + deltaP_iy) / M
-       deltaV_jx = (-deltaP_1 + deltaP_jx) / M
-       deltaV_jy = ( deltaP   + deltaP_jy) / M
-       ! calc angular velocity deltas:
+       ! update velocities / angular velocities:
+       v_ix = v_ix + ( deltaP_1 + deltaP_ix) / M
+       v_iy = v_iy + (-deltaP   + deltaP_iy) / M
+       v_jx = v_jx + (-deltaP_1 + deltaP_jx) / M
+       v_jy = v_jy + ( deltaP   + deltaP_jy) / M
        deltaOm_i = 5.d0/(2*M*R) * (/ ( deltaP_2 + deltaP_iy), &
                                      (-deltaP_ix), &
                                      (-deltaP_1) /)
        deltaOm_j = 5.d0/(2*M*R) * (/ ( deltaP_2 + deltaP_jy), &
                                      (-deltaP_jx), &
                                      (-deltaP_1) /)
-       !
-       v_ix = v_ix + deltaV_ix
-       v_jx = v_jx + deltaV_jx
-       v_iy = v_iy + deltaV_iy
-       v_jy = v_jy + deltaV_jy
        omega_i1 = omega_i1 + deltaOm_i
        omega_j1 = omega_j1 + deltaOm_j
+       omega_ix = omega_i1(1)
+       omega_iy = omega_i1(2)
+       omega_iz = omega_i1(3)
+       omega_jx = omega_j1(1)
+       omega_jy = omega_j1(2)
+       omega_jz = omega_j1(3)
        ! update ball-table slips:
        u_iR_x = v_ix + R*omega_i1(2)
        u_iR_y = v_iy - R*omega_i1(1)

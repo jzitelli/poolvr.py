@@ -1,14 +1,20 @@
 import logging
 import os
+from os import makedirs
+import os.path as path
 import numpy as np
 import matplotlib.pyplot as plt
 
 
 from poolvr.table import PoolTable
-from poolvr.physics.events import (CueStrikeEvent, BallSlidingEvent, BallRollingEvent, BallRestEvent,
-                                   BallSpinningEvent,
+from poolvr.physics.events import (CueStrikeEvent,
+                                   #BallSlidingEvent,
+                                   #BallRollingEvent,
+                                   #BallSpinningEvent,
+                                   BallRestEvent,
                                    RailCollisionEvent, CornerCollisionEvent, BallCollisionEvent,
-                                   MarlowBallCollisionEvent, SimpleBallCollisionEvent, SimulatedBallCollisionEvent)
+                                   MarlowBallCollisionEvent, SimpleBallCollisionEvent,
+                                   SimulatedBallCollisionEvent, FSimulatedBallCollisionEvent)
 
 
 _logger = logging.getLogger(__name__)
@@ -23,6 +29,7 @@ EVENT_COLORS = {CueStrikeEvent: 'green',
                 MarlowBallCollisionEvent: 'blue',
                 SimpleBallCollisionEvent: 'blue',
                 SimulatedBallCollisionEvent: 'blue',
+                FSimulatedBallCollisionEvent: 'blue',
                 RailCollisionEvent: 'green',
                 CornerCollisionEvent: 'orange'}
 BALL_COLORS = {0: 'white',
@@ -276,6 +283,110 @@ def plot_energy(physics, title=None, nt=1000,
             _logger.warning('error saving figure:\n%s', err)
     if show:
         plt.show()
+    plt.close()
+
+
+def plot_collision_velocities(deltaPs, v_is, v_js,
+                              title='velocities along axis of impulse',
+                              show=True, filename=None):
+    import matplotlib.pyplot as plt
+    plt.figure()
+    plt.plot(deltaPs, np.array(v_is)[:,0], label='ball i')
+    plt.plot(deltaPs, np.array(v_js)[:,0], label='ball j')
+    plt.xlabel(r'$P_I$: cumulative impulse along axis of impulse')
+    plt.ylabel(r'$v_y$: velocity along axis of impulse')
+    plt.title(title)
+    plt.legend()
+    if filename:
+        dirname = path.dirname(filename)
+        if not path.exists(dirname):
+            makedirs(dirname, exist_ok=True)
+        try:
+            plt.savefig(filename, dpi=200)
+            _logger.info('...saved figure to %s', filename)
+        except Exception as err:
+            _logger.warning('error saving figure:\n%s', err)
+    if show:
+        plt.show()
+    plt.close()
+
+
+def plot_collision_angular_velocities(deltaPs, omega_is, omega_js,
+                                      title='angular velocities within horizontal plane',
+                                      show=True, filename=None):
+    import matplotlib.pyplot as plt
+    plt.figure()
+    plt.plot(deltaPs, np.array(omega_is)[:,0], label='ball i (axis of impulse)')
+    plt.plot(deltaPs, np.array(omega_js)[:,0], label='ball j (axis of impulse)')
+    plt.plot(deltaPs, np.array(omega_is)[:,2], '--', label='ball i (perpendicular axis)')
+    plt.plot(deltaPs, np.array(omega_js)[:,2], '--', label='ball j (perpendicular axis)')
+    plt.xlabel('$P_I$: cumulative impulse')
+    plt.ylabel(r'$\omega_{xy}$: angular velocity within horizontal plane')
+    plt.title(title)
+    plt.legend()
+    if filename:
+        dirname = path.dirname(filename)
+        if not path.exists(dirname):
+            makedirs(dirname, exist_ok=True)
+        try:
+            plt.savefig(filename, dpi=200)
+            _logger.info('...saved figure to %s', filename)
+        except Exception as err:
+            _logger.warning('error saving figure:\n%s', err)
+    if show:
+        plt.show()
+    plt.close()
+
+
+def plot_collision_maps(v_i1s, omega_i1s,
+                        v_j1s, omega_j1s,
+                        show=True, filename=None):
+    import matplotlib.pyplot as plt
+    minvx = min(v_i1s[...,0].min(), v_j1s[...,0].min())
+    minvz = min(v_i1s[...,2].min(), v_j1s[...,2].min())
+    maxvx = max(v_i1s[...,0].max(), v_j1s[...,0].max())
+    maxvz = max(v_i1s[...,2].max(), v_j1s[...,2].max())
+    minomegax = min(omega_i1s[...,0].min(), omega_j1s[...,0].min())
+    minomegaz = min(omega_i1s[...,2].min(), omega_j1s[...,2].min())
+    maxomegax = max(omega_i1s[...,0].max(), omega_j1s[...,0].max())
+    maxomegaz = max(omega_i1s[...,2].max(), omega_j1s[...,2].max())
+    plt.subplots(constrained_layout=True)
+    plt.figure()
+    for ii, (v_1, vmin, vmax) in enumerate(zip([v_i1s[::-1,:,0], v_i1s[::-1,:,2],
+                                                v_j1s[::-1,:,0], v_j1s[::-1,:,2]],
+                                               [minvx, minvz, minvx, minvz],
+                                               [maxvx, maxvz, maxvx, maxvz])):
+        plt.subplot(420 + ii+1, ymargin=4.0)
+        plt.imshow(v_1, vmin=vmin, vmax=vmax)
+        plt.ylabel('initial velocity', fontsize='x-small')
+        plt.yticks((-0.5, v_i1s.shape[1] - 0.5)[::-1], ['0 m/s', '50 m/s'], fontsize='x-small')
+        plt.xlabel('cut angle', fontsize='x-small')
+        plt.xticks((-0.5, v_i1s.shape[0] - 0.5), ['0 degrees', '90 degrees'], fontsize='x-small')
+        cbar = plt.colorbar()
+        cbar.ax.set_ylabel(r'$\vec{v_{i1}}$ (axis of impact)', fontsize='x-small')
+    for ii, (omega_1, vmin, vmax) in enumerate(zip([omega_i1s[::-1,:,0], omega_i1s[::-1,:,2],
+                                                    omega_j1s[::-1,:,0], omega_j1s[::-1,:,2]],
+                                                   [minomegax, minomegaz, minomegax, minomegaz],
+                                                   [maxomegax, maxomegaz, maxomegax, maxomegaz])):
+        plt.subplot(420 + ii+5, ymargin=4.0)
+        plt.imshow(omega_1, vmin=vmin, vmax=vmax)
+        plt.ylabel('initial velocity', fontsize='x-small')
+        plt.yticks((-0.5, v_i1s.shape[1] - 0.5)[::-1], ['0 m/s', '50 m/s'], fontsize='x-small')
+        plt.xlabel('cut angle', fontsize='x-small')
+        plt.xticks((-0.5, v_i1s.shape[0] - 0.5), ['0 degrees', '90 degrees'], fontsize='x-small')
+        cbar = plt.colorbar()
+        cbar.ax.set_ylabel(r'$\vec{omega_{i1}}$ (axis of impact)', fontsize='x-small')
+    if show:
+        plt.show()
+    if filename:
+        dirname = path.dirname(filename)
+        if not path.exists(dirname):
+            makedirs(dirname, exist_ok=True)
+        try:
+            plt.savefig(filename, dpi=200)
+            _logger.info('...saved figure to %s', filename)
+        except Exception as err:
+            _logger.warning('error saving figure:\n%s', err)
     plt.close()
 
 

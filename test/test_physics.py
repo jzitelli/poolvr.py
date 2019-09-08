@@ -1,5 +1,6 @@
 import pytest
 import os
+from cProfile import Profile
 import logging
 _logger = logging.getLogger(__name__)
 import numpy as np
@@ -45,7 +46,8 @@ def test_ball_collision(pool_physics,
                         gl_rendering):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
-    ball_positions[1] = ball_positions[0]; ball_positions[1,2] -= 8 * physics.ball_radius
+    ball_positions[1] = ball_positions[0]
+    ball_positions[1,2] -= 8 * physics.ball_radius
     physics.reset(balls_on_table=[0, 1],
                   ball_positions=ball_positions)
     start_event = BallSlidingEvent(0, 0, r_0=ball_positions[0],
@@ -97,7 +99,8 @@ def test_sliding_ball_collision(pool_physics,
                                 gl_rendering):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
-    ball_positions[1] = ball_positions[0]; ball_positions[1,2] -= 8 * physics.ball_radius
+    ball_positions[1] = ball_positions[0]
+    ball_positions[1,2] -= 8 * physics.ball_radius
     physics.reset(balls_on_table=[0, 1],
                   ball_positions=ball_positions)
     start_event = BallSlidingEvent(0, 0, r_0=ball_positions[0],
@@ -124,11 +127,11 @@ def test_break(pool_physics,
     r_c[2] += physics.ball_radius
     V = np.array((-0.01, 0.0, -1.6), dtype=np.float64)
     M = 0.54
-    outname = gen_filename('test_break.%s' % git_head_hash(), 'pstats',
+    outname = gen_filename('test_break.%s.%s' % (physics.ball_collision_model, git_head_hash()),
+                           'pstats',
                            directory=os.path.join(_here, 'pstats'))
     from time import perf_counter
-    import cProfile
-    pr = cProfile.Profile()
+    pr = Profile()
     pr.enable()
     t0 = perf_counter()
     events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
@@ -152,7 +155,8 @@ def test_break_hard(pool_physics,
     r_c[1] += 0.5 * np.sqrt(2.0) * physics.ball_radius
     V = np.array((-0.006, 0.0, -3.4), dtype=np.float64)
     M = 0.54
-    outname = gen_filename('test_break_hard.%s' % git_head_hash(), 'pstats',
+    outname = gen_filename('test_break_hard.%s.%s' % (physics.ball_collision_model, git_head_hash()),
+                           'pstats',
                            directory=os.path.join(_here, 'pstats'))
     from time import perf_counter
     import cProfile
@@ -180,7 +184,8 @@ def test_break_hard_realtime(pool_physics_realtime,
     r_c[1] += 0.5 * np.sqrt(2.0) * physics.ball_radius
     V = np.array((-0.006, 0.0, -3.4), dtype=np.float64)
     M = 0.54
-    outname = gen_filename('test_break_hard_realtime.%s' % git_head_hash(), 'pstats',
+    outname = gen_filename('test_break_hard_realtime.%s.%s' % (physics.ball_collision_model, git_head_hash()),
+                           'pstats',
                            directory=os.path.join(_here, 'pstats'))
     from time import perf_counter
     import cProfile

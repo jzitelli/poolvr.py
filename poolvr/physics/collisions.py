@@ -37,6 +37,12 @@ _lib.collide_balls.argtypes = (ctypes.c_double,                           # delt
                                ndpointer(np.float64),
                                ndpointer(np.float64),
                                ndpointer(np.float64))
+M = ctypes.c_double.in_dll(_lib, 'M')
+R = ctypes.c_double.in_dll(_lib, 'R')
+mu_s = ctypes.c_double.in_dll(_lib, 'mu_s')
+mu_b = ctypes.c_double.in_dll(_lib, 'mu_b')
+e = ctypes.c_double.in_dll(_lib, 'e')
+
 
 def collide_balls_f90(r_i, v_i, omega_i,
                       r_j, v_j, omega_j,
@@ -45,7 +51,8 @@ def collide_balls_f90(r_i, v_i, omega_i,
                       mu_b=0.05,
                       M=0.1406,
                       R=0.02625,
-                      deltaP=None):
+                      deltaP=None,
+                      return_all=False):
     v_i1, omega_i1, v_j1, omega_j1 = collide_balls_f90.out
     _lib.collide_balls(deltaP,
                        r_i, v_i, omega_i,

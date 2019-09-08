@@ -30,6 +30,7 @@ from .events import (CueStrikeEvent,
                      MarlowBallCollisionEvent,
                      SimpleBallCollisionEvent,
                      SimulatedBallCollisionEvent,
+                     FSimulatedBallCollisionEvent,
                      RailCollisionEvent,
                      CornerCollisionEvent)
 from .poly_solvers import quartic_solve, find_collision_time
@@ -40,9 +41,12 @@ SQRT2 = sqrt(2.0)
 RAD2DEG = 180/np.pi
 INCH2METER = 0.0254
 INF = float('inf')
-BALL_COLLISION_MODELS = {'simple': SimpleBallCollisionEvent,
-                         'marlow': MarlowBallCollisionEvent,
-                         'simulated': SimulatedBallCollisionEvent}
+BALL_COLLISION_MODELS = {
+    'simple': SimpleBallCollisionEvent,
+    'marlow': MarlowBallCollisionEvent,
+    'simulated': SimulatedBallCollisionEvent,
+    'fsimulated': FSimulatedBallCollisionEvent
+}
 
 
 class PoolPhysics(object):
@@ -50,9 +54,6 @@ class PoolPhysics(object):
     _ZERO_TOLERANCE_SQRD = _ZERO_TOLERANCE**2
     _IMAG_TOLERANCE = 1e-8
     _IMAG_TOLERANCE_SQRD = _IMAG_TOLERANCE**2
-    _BALL_COLLISION_MODELS = {'simple': SimpleBallCollisionEvent,
-                              'simulated': SimulatedBallCollisionEvent,
-                              'marlow': MarlowBallCollisionEvent}
     def __init__(self,
                  num_balls=16,
                  ball_mass=0.17,
@@ -85,7 +86,7 @@ class PoolPhysics(object):
         :param g:     :math:`g`,        downward acceleration due to gravity
         """
         if ball_collision_model not in BALL_COLLISION_MODELS:
-            raise Exception('dont know that collision model!')
+            raise Exception('%s: dont know that collision model!' % ball_collision_model)
         self._ball_collision_model = ball_collision_model
         self._ball_collision_event_class = BALL_COLLISION_MODELS[ball_collision_model]
         self.num_balls = num_balls
@@ -810,22 +811,26 @@ class PoolPhysics(object):
                 super().__init__(*args, **kwargs)
         if isinstance(event, BallCollisionEvent):
             e_i, e_j = event.child_events
+            R = self.ball_radius
             for t in np.linspace(event.t, event.t + min(e_i.T, e_j.T), 1000):
                 r_i, r_j = self.eval_positions(t, balls=[event.i, event.j])
                 d_ij = np.linalg.norm(r_i - r_j)
-                if d_ij - 2*self.ball_radius < -1e-6*self.ball_radius:
+                if d_ij - 2*R < -1e-4*R:
                     class BallsPenetratedInsanity(Insanity):
                         pass
                     raise BallsPenetratedInsanity(self, '''
-ball_diameter = %s
-         d_ij = %s
-          r_i = %s
-          r_j = %s
-            t = %s
+
+t = %s
+
+(ball_diameter - d_ij) / ball_diameter = %s
+ ball_diameter = %s
+          d_ij = %s
+
 event %d: %s
   e_i: %s
   e_j: %s
-''' % (2*self.ball_radius, d_ij, r_i, r_j, t, len(self.events)-1, event, e_i, e_j))
+
+''' % (t, (2*R-d_ij) / (2*R), 2*R, d_ij, r_i, r_j, t, len(self.events)-1, event, e_i, e_j))
 
     def glyph_meshes(self, t):
         if self._velocity_meshes is None:

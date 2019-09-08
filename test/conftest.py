@@ -38,7 +38,19 @@ def pytest_addoption(parser):
                      default='lambert')
     parser.addoption('--collision-model', metavar='<name of collision model>',
                      help="set the ball-to-ball collision model",
-                     default='simple')
+                     default=None)
+
+
+def pytest_generate_tests(metafunc):
+    if "pool_physics" in metafunc.fixturenames or "pool_physics_realtime" in metafunc.fixturenames:
+        if metafunc.config.getoption("--collision-model"):
+            _logger.info('metafunc.config.getoption("--collision-model") = %s',
+                         metafunc.config.getoption("--collision-model"))
+            metafunc.parametrize('ball_collision_model',
+                                 [metafunc.config.getoption("--collision-model")])
+        else:
+            metafunc.parametrize('ball_collision_model',
+                                 ['simple', 'simulated', 'fsimulated'])
 
 
 @pytest.fixture
@@ -47,20 +59,21 @@ def pool_table():
     return PoolTable()
 
 
+@pytest.mark.parametrize("ball_collision_model", ['simple', 'simulated', 'fsimulated'])
 @pytest.fixture
-def pool_physics(pool_table, request):
+def pool_physics(pool_table, request, ball_collision_model):
     from poolvr.physics import PoolPhysics
     return PoolPhysics(initial_positions=pool_table.calc_racked_positions(),
-                       ball_collision_model=request.config.getoption('--collision-model'),
+                       ball_collision_model=ball_collision_model,
                        enable_sanity_check=request.config.getoption('--sanity-check'),
                        enable_occlusion=False)
 
 
 @pytest.fixture
-def pool_physics_realtime(pool_table, request):
+def pool_physics_realtime(pool_table, request, ball_collision_model):
     from poolvr.physics import PoolPhysics
     return PoolPhysics(initial_positions=pool_table.calc_racked_positions(),
-                       ball_collision_model=request.config.getoption('--collision-model'),
+                       ball_collision_model=ball_collision_model,
                        enable_sanity_check=request.config.getoption('--sanity-check'),
                        enable_occlusion=False,
                        realtime=True)
@@ -218,13 +231,14 @@ def meshes():
 
 @pytest.fixture
 def gl_rendering(pool_physics, pool_table, request, meshes):
-    should_render = request.config.getoption('--render')
+    should_render = request.config.getoption('--render') or request.config.getoption('--vr')
     should_screenshot = request.config.getoption('--screenshot')
     if not (should_render or should_screenshot):
         yield
         return
     xres, yres = [int(n) for n in request.config.getoption('--resolution').split('x')]
     msaa = request.config.getoption('--msaa')
+    vr = request.config.getoption('--vr')
     glyphs = request.config.getoption('--glyphs')
     speed = float(request.config.getoption('--speed'))
     keep_render_window = request.config.getoption('--keep-render-window')
@@ -253,12 +267,16 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
     table = pool_table
     game = PoolGame(physics=pool_physics, table=table)
     title = '_'.join([request.function.__name__, pool_physics.ball_collision_model])
-    window, renderer = setup_glfw(window_size=[xres, yres], double_buffered=True,
+    window, renderer = setup_glfw(window_size=[xres, yres], double_buffered=not vr,
                                   multisample=int(msaa), title=title)
     camera_world_matrix = renderer.camera_matrix
+    if vr:
+        from poolvr.pyopenvr_renderer import OpenVRRenderer
+        renderer = OpenVRRenderer(multisample=int(msaa), window_size=[xres, yres])
+        renderer.init_gl()
     camera_position = camera_world_matrix[3,:3]
     camera_position[1] = table.H + 0.6
-    camera_position[2] = table.L - 0.1
+    camera_position[2] = table.L + 0.05
     table_mesh = table.export_mesh(surface_technique=technique, cushion_technique=technique, rail_technique=technique)
     ball_meshes = table.export_ball_meshes(technique=technique)
     ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
@@ -293,15 +311,15 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
     def process_input(dt):
         glfw.PollEvents()
         process_keyboard_input(dt, camera_world_matrix)
+    if should_render:
+        t_end = physics.events[-1].t if physics.events else 5.0
+    else:
+        t_end = game.t
     _logger.info('entering render loop...')
     stdout.flush()
     nframes = 0
     max_frame_time = 0.0
     lt = glfw.GetTime()
-    if should_render:
-        t_end = physics.events[-1].t if physics.events else 5.0
-    else:
-        t_end = game.t
     while not glfw.WindowShouldClose(window) and (keep_render_window or game.t < t_end):
         t = glfw.GetTime()
         dt = t - lt
