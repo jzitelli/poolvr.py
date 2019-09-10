@@ -7,7 +7,8 @@ import numpy as np
 import pytest
 
 
-from utils import (plot_collision_velocities, plot_collision_angular_velocities, plot_collision_maps,
+from utils import (plot_collision_velocities, plot_collision_angular_velocities,
+                   plot_collision_velocity_maps, plot_collision_angular_velocity_maps,
                    gen_filename, git_head_hash)
 from poolvr.physics.collisions import collide_balls, collide_balls_f90
 
@@ -116,7 +117,7 @@ def test_collision_map(request):
     v_j = np.zeros(3, dtype=np.float64)
     omega_j = np.zeros(3, dtype=np.float64)
     velocities = np.linspace(1e-5, 50.0, 64)
-    angles = np.linspace(0.0, 89.9, 64) * DEG2RAD
+    angles = np.linspace(0.01, 89.99, 64) * DEG2RAD
     cs = np.cos(angles)
     ss = np.sin(angles)
     v_i = np.zeros(3, dtype=np.float64)
@@ -125,10 +126,6 @@ def test_collision_map(request):
     v_j1s = np.zeros((len(velocities), len(angles), 3), dtype=np.float64)
     omega_i1s = np.zeros((len(velocities), len(angles), 3), dtype=np.float64)
     omega_j1s = np.zeros((len(velocities), len(angles), 3), dtype=np.float64)
-    outname = gen_filename('test_collision_map.%s' % git_head_hash(), 'pstats',
-                           directory=path.join(path.dirname(__file__), 'pstats'))
-    pr = Profile(timer=perf_counter)
-    pr.enable()
     t0 = perf_counter()
     for ii, velocity in enumerate(velocities):
         for jj, (c, s) in enumerate(zip(cs, ss)):
@@ -143,23 +140,18 @@ def test_collision_map(request):
                                                                    e=e, mu_s=mu_s, mu_b=mu_b,
                                                                    M=M, R=R,
                                                                    deltaP=deltaP)
-    # v_i1ss = np.zeros(v_i1s.shape)
-    # v_j1ss = np.zeros(v_j1s.shape)
-    # omega_i1ss = np.zeros(omega_i1s.shape)
-    # omega_j1ss = np.zeros(omega_j1s.shape)
-    # for ii, v_ix in enumerate(np.linspace(1e-5, 50.0, 64)):
-    #     for jj, v_iy in enumerate(np.linspace(1e-5, 50.0, 64)):
-    #         omega_i1ss[
-    #         if np.sqrt(v_ix**2 + v_iy**2) > 50.0:
     t1 = perf_counter()
-    pr.dump_stats(outname)
-    _logger.info('...dumped stats to "%s"', outname)
     _logger.info('evaluation time: %s', t1-t0)
     if show_plots or save_plots:
         test_name = request.function.__name__
-        plot_collision_maps(v_i1s, omega_i1s, v_j1s, omega_j1s,
-                            filename=path.join(PLOTS_DIR, test_name + '.png') if save_plots else None,
-                            show=show_plots)
+        plot_collision_velocity_maps(v_i1s, v_j1s,
+                                     filename=path.join(PLOTS_DIR, test_name + '.velocities.png')
+                                     if save_plots else None,
+                                     show=show_plots)
+        plot_collision_angular_velocity_maps(omega_i1s, omega_j1s,
+                                             filename=path.join(PLOTS_DIR, test_name + '.angular_velocities.png')
+                                             if save_plots else None,
+                                             show=show_plots)
 
 
 def _calc_errors(actual, expected, header=''):

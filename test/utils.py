@@ -4,6 +4,7 @@ from os import makedirs
 import os.path as path
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
 
 
 from poolvr.table import PoolTable
@@ -289,7 +290,6 @@ def plot_energy(physics, title=None, nt=1000,
 def plot_collision_velocities(deltaPs, v_is, v_js,
                               title='velocities along axis of impulse',
                               show=True, filename=None):
-    import matplotlib.pyplot as plt
     plt.figure()
     plt.plot(deltaPs, np.array(v_is)[:,0], label='ball i')
     plt.plot(deltaPs, np.array(v_js)[:,0], label='ball j')
@@ -314,7 +314,6 @@ def plot_collision_velocities(deltaPs, v_is, v_js,
 def plot_collision_angular_velocities(deltaPs, omega_is, omega_js,
                                       title='angular velocities within horizontal plane',
                                       show=True, filename=None):
-    import matplotlib.pyplot as plt
     plt.figure()
     plt.plot(deltaPs, np.array(omega_is)[:,0], label='ball i (axis of impulse)')
     plt.plot(deltaPs, np.array(omega_js)[:,0], label='ball j (axis of impulse)')
@@ -338,44 +337,54 @@ def plot_collision_angular_velocities(deltaPs, omega_is, omega_js,
     plt.close()
 
 
-def plot_collision_maps(v_i1s, omega_i1s,
-                        v_j1s, omega_j1s,
-                        show=True, filename=None):
-    import matplotlib.pyplot as plt
-    minvx = min(v_i1s[...,0].min(), v_j1s[...,0].min())
-    minvz = min(v_i1s[...,2].min(), v_j1s[...,2].min())
-    maxvx = max(v_i1s[...,0].max(), v_j1s[...,0].max())
-    maxvz = max(v_i1s[...,2].max(), v_j1s[...,2].max())
-    minomegax = min(omega_i1s[...,0].min(), omega_j1s[...,0].min())
-    minomegaz = min(omega_i1s[...,2].min(), omega_j1s[...,2].min())
-    maxomegax = max(omega_i1s[...,0].max(), omega_j1s[...,0].max())
-    maxomegaz = max(omega_i1s[...,2].max(), omega_j1s[...,2].max())
-    plt.subplots(constrained_layout=True)
-    plt.figure()
-    for ii, (v_1, vmin, vmax) in enumerate(zip([v_i1s[::-1,:,0], v_i1s[::-1,:,2],
-                                                v_j1s[::-1,:,0], v_j1s[::-1,:,2]],
-                                               [minvx, minvz, minvx, minvz],
-                                               [maxvx, maxvz, maxvx, maxvz])):
-        plt.subplot(420 + ii+1, ymargin=4.0)
-        plt.imshow(v_1, vmin=vmin, vmax=vmax)
-        plt.ylabel('initial velocity', fontsize='x-small')
-        plt.yticks((-0.5, v_i1s.shape[1] - 0.5)[::-1], ['0 m/s', '50 m/s'], fontsize='x-small')
-        plt.xlabel('cut angle', fontsize='x-small')
-        plt.xticks((-0.5, v_i1s.shape[0] - 0.5), ['0 degrees', '90 degrees'], fontsize='x-small')
-        cbar = plt.colorbar()
-        cbar.ax.set_ylabel(r'$\vec{v_{i1}}$ (axis of impact)', fontsize='x-small')
-    for ii, (omega_1, vmin, vmax) in enumerate(zip([omega_i1s[::-1,:,0], omega_i1s[::-1,:,2],
-                                                    omega_j1s[::-1,:,0], omega_j1s[::-1,:,2]],
-                                                   [minomegax, minomegaz, minomegax, minomegaz],
-                                                   [maxomegax, maxomegaz, maxomegax, maxomegaz])):
-        plt.subplot(420 + ii+5, ymargin=4.0)
-        plt.imshow(omega_1, vmin=vmin, vmax=vmax)
-        plt.ylabel('initial velocity', fontsize='x-small')
-        plt.yticks((-0.5, v_i1s.shape[1] - 0.5)[::-1], ['0 m/s', '50 m/s'], fontsize='x-small')
-        plt.xlabel('cut angle', fontsize='x-small')
-        plt.xticks((-0.5, v_i1s.shape[0] - 0.5), ['0 degrees', '90 degrees'], fontsize='x-small')
-        cbar = plt.colorbar()
-        cbar.ax.set_ylabel(r'$\vec{omega_{i1}}$ (axis of impact)', fontsize='x-small')
+def plot_collision_velocity_maps(v_i1s, v_j1s, show=True, filename=None):
+    fig = plt.figure()
+    axes = fig.subplots(nrows=2, ncols=2, sharex=True, sharey=True)
+    # axes = fig.subplots(nrows=2, ncols=2, sharex=True, sharey=True, subplot_kw=dict(polar=True))
+    vmax = max(v_i1s.max(), v_j1s.max())
+    for ax, v_1, label in zip(axes.ravel(),
+                              [v_i1s[::-1,:,0], v_i1s[::-1,:,2], v_j1s[::-1,:,0], v_j1s[::-1,:,2]],
+                              [r'$v_{iy}$', r'$v_{ix}$', r'$v_{jy}$', r'$v_{jx}$']):
+        im = ax.imshow(v_1, norm=colors.LogNorm(vmin=0.001, vmax=vmax))
+        #ax.pcolormesh(theta, V, v_1)
+        cbar = plt.colorbar(im, ax=ax)
+        cbar.ax.set_ylabel(label, fontsize='small')
+        ax.set_xlabel(r'$\theta$', fontsize='x-small')
+        ax.set_xticks((-0.5, v_1.shape[0] - 0.5))
+        ax.set_xticklabels(['0 deg.', '90 deg.'], fontsize='x-small')
+        ax.set_ylabel(r'$V_0$', fontsize='x-small')
+        ax.set_yticks((-0.5, v_1.shape[1] - 0.5)[::-1])
+        ax.set_yticklabels(['0 m/s', '50 m/s'], fontsize='x-small')
+    if show:
+        plt.show()
+    if filename:
+        dirname = path.dirname(filename)
+        if not path.exists(dirname):
+            makedirs(dirname, exist_ok=True)
+        try:
+            plt.savefig(filename, dpi=200)
+            _logger.info('...saved figure to %s', filename)
+        except Exception as err:
+            _logger.warning('error saving figure:\n%s', err)
+    plt.close()
+
+
+def plot_collision_angular_velocity_maps(omega_i1s, omega_j1s, show=True, filename=None):
+    fig = plt.figure()
+    axes = fig.subplots(nrows=2, ncols=2, sharex=True, sharey=True)
+    vmax = max(omega_i1s.max(), omega_j1s.max())
+    for ax, omega_1, label in zip(axes.ravel(),
+                                  [omega_i1s[::-1,:,0], omega_i1s[::-1,:,2], omega_j1s[::-1,:,0], omega_j1s[::-1,:,2]],
+                                  [r'$\omega_{iy}$', r'$\omega_{ix}$', r'$\omega_{jy}$', r'$\omega_{jx}$']):
+        im = ax.imshow(omega_1, norm=colors.LogNorm(vmin=0.001, vmax=vmax))
+        cbar = plt.colorbar(im, ax=ax)
+        cbar.ax.set_ylabel(label, fontsize='small')
+        ax.set_xlabel(r'$\theta$', fontsize='x-small')
+        ax.set_xticks((-0.5, omega_1.shape[0] - 0.5))
+        ax.set_xticklabels(['0 deg.', '90 deg.'], fontsize='x-small')
+        ax.set_ylabel(r'$V_0$', fontsize='x-small')
+        ax.set_yticks((-0.5, omega_1.shape[1] - 0.5)[::-1])
+        ax.set_yticklabels(['0 m/s', '50 m/s'], fontsize='x-small')
     if show:
         plt.show()
     if filename:
