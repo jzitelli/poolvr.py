@@ -116,8 +116,9 @@ def test_collision_map(request):
     r_j = r_i + 2 * R * rd
     v_j = np.zeros(3, dtype=np.float64)
     omega_j = np.zeros(3, dtype=np.float64)
-    velocities = np.linspace(1e-5, 50.0, 64)
-    angles = np.linspace(0.01, 89.99, 64) * DEG2RAD
+    velocities = np.linspace(1e-3, 40.0, 64)
+    thetas = np.linspace(0.01, 89.99, 64)
+    angles = thetas * DEG2RAD
     cs = np.cos(angles)
     ss = np.sin(angles)
     v_i = np.zeros(3, dtype=np.float64)
@@ -145,10 +146,14 @@ def test_collision_map(request):
     if show_plots or save_plots:
         test_name = request.function.__name__
         plot_collision_velocity_maps(v_i1s, v_j1s,
+                                     V_min=velocities[0], V_max=velocities[-1],
+                                     theta_min=thetas[0], theta_max=thetas[-1],
                                      filename=path.join(PLOTS_DIR, test_name + '.velocities.png')
                                      if save_plots else None,
                                      show=show_plots)
         plot_collision_angular_velocity_maps(omega_i1s, omega_j1s,
+                                             V_min=velocities[0], V_max=velocities[-1],
+                                             theta_min=thetas[0], theta_max=thetas[-1],
                                              filename=path.join(PLOTS_DIR, test_name + '.angular_velocities.png')
                                              if save_plots else None,
                                              show=show_plots)
