@@ -25,25 +25,23 @@ mu_s = 0.21
 mu_b = 0.05
 M = 0.1406
 R = 0.02625
-MATHAVAN_INITIAL_CONDITIONS = [
+
+
+@pytest.mark.parametrize("collide_func", [collide_balls, collide_balls_f90])
+@pytest.mark.parametrize("initial_conditions,expected", zip([
     (1.539, 58.63, 33.83),
     (1.032, 39.31, 26.36),
     (1.364, 51.96, 40.52),
     (1.731, 65.94, 46.5),
     (0.942, 35.89, 18.05)
-]
-MATHAVAN_EXPECTED_VALUES = [
+], [
     # Table 1       # Table 2
     (0.914, 0.831,  31.93, 32.20),
     (0.520, 0.599,  32.45, 25.07),
     (0.917, 0.676,  29.91, 38.62),
     (1.28,  0.780,  27.32, 44.38),
     (0.383, 0.579,  29.47, 17.15)
-]
-
-
-@pytest.mark.parametrize("collide_func", [collide_balls, collide_balls_f90])
-@pytest.mark.parametrize("initial_conditions,expected", zip(MATHAVAN_INITIAL_CONDITIONS, MATHAVAN_EXPECTED_VALUES))
+]))
 def test_collide_balls(request, initial_conditions, expected, collide_func):
     """Reproduce results of Mathavan et al, 2014 - Table 1"""
     show_plots, save_plots = request.config.getoption('--show-plots'), request.config.getoption('--save-plots')
