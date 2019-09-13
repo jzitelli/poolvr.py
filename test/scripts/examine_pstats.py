@@ -22,20 +22,16 @@ MONTH_NOS = {'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr':  4, 'May':  5, 'Jun':  6,
 
 
 def plot_profiles(files, function=None,
-                  filename_rex=re.compile(r".*"),
                   field='cumtime'):
     vals = []
     plotted_files = []
     for fil in files:
-        if not filename_rex.match(fil):
-            continue
         out = StringIO()
         stats = Stats(fil, stream=out)
         stats.print_stats(function)
         lines = [ln.strip() for ln in out.getvalue().split('\n')]
         dtime = None
         for ln in lines:
-            _logger.info(ln)
             if dtime is None:
                 m = TIME_REX.match(ln)
                 if m:
@@ -60,18 +56,16 @@ def plot_profiles(files, function=None,
                                        (w+2)).format(dt=dt, filename=fil, val=val)
                                       for fil, (dt, val) in zip(plotted_files, vals))))
         ts = np.array([(dt-dtime0).total_seconds() for dt, v in vals])
-        ts, vals = zip(*[(t, vals[i])
-                             for i, t in enumerate(ts)
-                             if i == 0 or (t - ts[i-1]) > 400])
         plt.figure()
         plt.title('%s: %s' % (function, field))
         plt.plot(ts, np.array([ct for dt, ct in vals]), 'x')
-        plt.xticks(ts, [str(dt) for dt, v in vals], fontsize='x-small', rotation=75)
+        # plt.xticks(ts, [str(dt) for dt, v in vals], fontsize='x-small', rotation=75)
+        plt.xticks(ts, plotted_files, fontsize='x-small', rotation=75)
         plt.ylabel(field)
         plt.show()
 
 
-if __name__ == "__main__":
+def main():
     from argparse import ArgumentParser
     parser = ArgumentParser()
     parser.add_argument('-d', '--dir', metavar="<directory>",
@@ -94,8 +88,11 @@ if __name__ == "__main__":
         logging.basicConfig(format=_LOGGING_FORMAT, level=logging.INFO)
     if args.dir is None:
         args.dir = pstats_dir
+    filename_rex = re.compile(args.rex.strip())
     files = [os.path.join(args.dir, f)
-             for f in listdir(args.dir) if f.endswith('.pstats')]
-    plot_profiles(files, args.function,
-                  filename_rex=re.compile(args.rex),
-                  field=args.field)
+             for f in listdir(args.dir) if f.endswith('.pstats') and filename_rex.match(f)]
+    plot_profiles(files, args.function, field=args.field)
+
+
+if __name__ == "__main__":
+    main()
