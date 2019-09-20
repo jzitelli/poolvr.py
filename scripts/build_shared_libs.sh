@@ -28,3 +28,5 @@ building poly_solvers_dbg.dll...
 '
 gcc -v -shared -static -g -o $project_root"/poolvr/physics/poly_solvers_dbg.dll" \
     $project_root"/poolvr/physics/poly_solvers.c"
+
+rm collisions.mod
