@@ -62,8 +62,6 @@ def test_collide_balls(request, initial_conditions, expected, collide_func):
     t0 = perf_counter()
     v_is, omega_is, v_js, omega_js = collide_func(r_i, v_i, omega_i,
                                                   r_j, v_j, omega_j,
-                                                  e, mu_s, mu_b,
-                                                  M, R,
                                                   deltaP=deltaP,
                                                   return_all=show_plots or save_plots)
     t1 = perf_counter()
@@ -136,8 +134,6 @@ def test_collision_map(request):
             v_i1s[ii,jj], omega_i1s[ii,jj], \
                 v_j1s[ii,jj], omega_j1s[ii,jj] = collide_balls_f90(r_i, v_i, omega_i,
                                                                    r_j, v_j, omega_j,
-                                                                   e=e, mu_s=mu_s, mu_b=mu_b,
-                                                                   M=M, R=R,
                                                                    deltaP=deltaP)
     t1 = perf_counter()
     _logger.info('evaluation time: %s', t1-t0)

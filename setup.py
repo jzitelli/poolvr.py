@@ -1,7 +1,9 @@
 #!/bin/env python
-from setuptools import setup
+from setuptools import setup, Extension
 from codecs import open
 from os import path, listdir
+from Cython.Build import cythonize
+from sys import exec_prefix
 
 here = path.dirname(path.abspath(__file__))
 
@@ -38,5 +40,12 @@ setup(
         'console_scripts': [
             'poolvr = poolvr.__main__:main'
         ]
-    }
+    },
+    # ext_modules=cythonize([Extension('poolvr.physics.coll', [path.join('poolvr', 'physics', 'coll.pyx')],
+    #                                  include_dirs=[path.join(exec_prefix, 'lib', 'site-packages', 'numpy', 'core', 'include'), '.'],
+    #                                  libraries=['collisions'],
+    #                                  library_dirs=[path.join(here, 'poolvr', 'physics')])],
+    #                                  # extra_compile_args=["-Zi", "/O2"],
+    #                                  # extra_link_args=["-debug"])],
+    #                        language_level=3)
 )

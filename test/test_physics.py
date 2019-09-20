@@ -144,6 +144,7 @@ def test_break(pool_physics,
     #               PhysicsEvent.events_str(events))
 
 
+@pytest.mark.skip
 def test_break_hard(pool_physics,
                     plot_motion_timelapse,
                     plot_energy,
@@ -173,6 +174,7 @@ def test_break_hard(pool_physics,
     #               PhysicsEvent.events_str(events))
 
 
+@pytest.mark.skip
 def test_break_hard_realtime(pool_physics_realtime,
                              plot_motion_timelapse,
                              plot_energy,
@@ -200,6 +202,7 @@ def test_break_hard_realtime(pool_physics_realtime,
     _logger.info('strike on %d resulted in %d events', 0, len(events))
 
 
+@pytest.mark.skip
 def test_break_and_following_shot(pool_physics,
                                   gl_rendering):
     physics = pool_physics

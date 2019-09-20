@@ -15,13 +15,18 @@ _k = array([0, 1, 0],        # upward-pointing basis vector :math:`\hat{k}`
 
 
 class PhysicsEvent(object):
-    ball_radius = 1.125 * INCH2METER
-    ball_mass = 0.17
+    # ball_radius = 1.125 * INCH2METER
+    # ball_mass = 0.17
+    # mu_s = 0.2 # coefficient of sliding friction between ball and table
+    # mu_b = 0.06 # coefficient of friction between ball and cushions
+    ball_radius = 0.02625
+    ball_mass = 0.1406
+    mu_s = 0.21
+    mu_b = 0.05
+    e = 0.89
     ball_I = 2/5 * ball_mass * ball_radius**2
     mu_r = 0.016 # coefficient of rolling friction between ball and table
     mu_sp = 0.044 # coefficient of spinning friction between ball and table
-    mu_s = 0.2 # coefficient of sliding friction between ball and table
-    mu_b = 0.06 # coefficient of friction between ball and cushions
     g = 9.81 # magnitude of acceleration due to gravity
     _ZERO_TOLERANCE = 1e-8
     _ZERO_TOLERANCE_SQRD = _ZERO_TOLERANCE**2
@@ -617,12 +622,12 @@ class SimulatedBallCollisionEvent(BallCollisionEvent):
         r_i, r_j = self._r_i, self._r_j
         v_i, v_j = self._v_i, self._v_j
         omega_i, omega_j = self._omega_i, self._omega_j
-        v_ij = v_j - v_i
+        r_ij = r_j - r_i
+        y_loc = r_ij / sqrt(dot(r_ij, r_ij))
         self._v_i_1, self._omega_i_1, \
             self._v_j_1, self._omega_j_1 = collide_balls(
                 r_i, v_i, omega_i, r_j, v_j, omega_j,
-                M=self.ball_mass, R=self.ball_radius,
-                deltaP=self.ball_mass*sqrt(dot(v_ij, v_ij))/800
+                deltaP=self.ball_mass*sqrt(abs(dot(v_j - v_i, y_loc)))/800
             )
         self._child_events = None
     @property
@@ -663,38 +668,21 @@ class SimulatedBallCollisionEvent(BallCollisionEvent):
 
 
 class FSimulatedBallCollisionEvent(BallCollisionEvent):
-    _R = None
-    _M = None
-    _e = None
-    _mu_s = None
-    _mu_b = None
     def __init__(self, t, e_i, e_j,
                  R=PhysicsEvent.ball_radius,
                  M=PhysicsEvent.ball_mass,
                  e=0.89,
                  mu_s=PhysicsEvent.mu_s,
                  mu_b=PhysicsEvent.mu_b):
-        if FSimulatedBallCollisionEvent._R is None:
-            FSimulatedBallCollisionEvent._R = R
-            FSimulatedBallCollisionEvent._M = M
-            FSimulatedBallCollisionEvent._e = e
-            FSimulatedBallCollisionEvent._mu_s = mu_s
-            FSimulatedBallCollisionEvent._mu_b = mu_b
-            collisions.R.value = R
-            collisions.M.value = M
-            collisions.e.value = e
-            collisions.mu_s.value = mu_s
-            collisions.mu_b.value = mu_b
         super().__init__(t, e_i, e_j)
         r_i, r_j = self._r_i, self._r_j
         v_i, v_j = self._v_i, self._v_j
         omega_i, omega_j = self._omega_i, self._omega_j
         r_ij = r_j - r_i
         y_loc = r_ij / sqrt(dot(r_ij, r_ij))
-        self._v_i_1, self._omega_i_1, \
-            self._v_j_1, self._omega_j_1 = collide_balls_f90(
+        self._v_i_1, self._omega_i_1, self._v_j_1, self._omega_j_1 = \
+            collide_balls_f90(
                 r_i, v_i, omega_i, r_j, v_j, omega_j,
-                M=self.ball_mass, R=self.ball_radius,
                 deltaP=self.ball_mass*sqrt(abs(dot(v_j - v_i, y_loc)))/800
             )
         self._child_events = None

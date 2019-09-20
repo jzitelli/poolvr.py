@@ -68,20 +68,21 @@ def quartic_solve(p, only_real=False):
     Delta = fsum((-27*dddd, -128*cc*ee, 256*eee, 16*cccc*e, 144*c*dd*e, -4*ccc*dd))
     # _logger.debug('Delta = %s', Delta)
     D = 64*e - 16*cc
+    _logger.info('Delta = %s, p = %s, D = %s, r = %s', Delta, p, D, r)
     if only_real and Delta > 0 and (p > 0 or D > 0):
-        # _logger.debug('all roots are complex and distinct')
+        _logger.debug('all roots are complex and distinct')
         return np.empty(0)
     Delta_0 = cc + 12*e
     if Delta == 0 and D == 0:
         if only_real and p > 0 and r == 0:
-            # _logger.debug('two complex-conjugate double roots')
+            _logger.debug('two complex-conjugate double roots')
             return np.empty(0)
         elif Delta_0 == 0:
-            # _logger.debug('all roots are equal to -b / 4a')
+            _logger.debug('all roots are equal to -b / 4a')
             return np.array([-0.25*b])
     Delta_1 = 2*ccc + 27*dd - 72*c*e
     if Delta > 0 and p < 0 and D < 0:
-        # _logger.debug('all roots are real and distinct')
+        _logger.debug('all roots are real and distinct')
         phi = np.arccos(Delta_1 / (2*np.sqrt(Delta_0**3)))
         S = 0.5 * (np.sqrt(-2*p/3 + 2*np.sqrt(Delta_0)*np.cos(phi/3)/3))
         SSx4 = 4*S**2
@@ -92,24 +93,24 @@ def quartic_solve(p, only_real=False):
         Q = (QQQ + 0j)**(1.0/3)
         SSx4 = -2.0*p/3 + (Q*CUBE_ROOTS_OF_1 + Delta_0/(Q*CUBE_ROOTS_OF_1)) / 3.0
         if Delta != 0:
-            # if Delta > 0:
-            #     _logger.debug('all roots are complex and distinct')
-            # else:
-            #     _logger.debug('two distinct real roots and a complex-conjugate pair of roots')
+            if Delta > 0:
+                _logger.debug('all roots are complex and distinct')
+            else:
+                _logger.debug('two distinct real roots and a complex-conjugate pair of roots')
             S = 0.5*np.sqrt(SSx4 + 0j)
             argsort = np.argsort(abs(S))
             S = S[argsort[-1]]
             SSx4 = SSx4[argsort[-1]]
         else:
             S = 0.5*np.sqrt(SSx4[0] + 0j)
-            # if D > 0 or (p > 0 and (D != 0 or r != 0)):
-            #     _logger.debug('one real double root and a complex-conjugate pair of roots')
-            # elif p < 0 and D < 0 and Delta_0 != 0:
-            #     _logger.debug('one real double root and two other real roots')
-            # elif Delta_0 == 0 and D != 0:
-            #     _logger.debug('one real triple root and one other real root')
-            # elif D == 0 and p < 0:
-            #     _logger.debug('two real double roots')
+            if D > 0 or (p > 0 and (D != 0 or r != 0)):
+                _logger.debug('one real double root and a complex-conjugate pair of roots')
+            elif p < 0 and D < 0 and Delta_0 != 0:
+                _logger.debug('one real double root and two other real roots')
+            elif Delta_0 == 0 and D != 0:
+                _logger.debug('one real triple root and one other real root')
+            elif D == 0 and p < 0:
+                _logger.debug('two real double roots')
     sqrp = -SSx4 - 2*p + q/S
     sqrm = -SSx4 - 2*p - q/S
     sqrtp = np.sqrt(sqrp if sqrp >= 0 else sqrp + 0j)

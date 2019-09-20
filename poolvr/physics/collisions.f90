@@ -1,8 +1,8 @@
 MODULE collisions
   USE iso_c_binding, only: c_double
   IMPLICIT NONE
-  real(c_double), bind(C, name="R") :: R = 0.02625
   real(c_double), bind(C, name="M") :: M = 0.1406
+  real(c_double), bind(C, name="R") :: R = 0.02625
   real(c_double), bind(C) :: mu_s = 0.21
   real(c_double), bind(C) :: mu_b = 0.05
   real(c_double), bind(C) :: e = 0.89
@@ -20,19 +20,15 @@ CONTAINS
     double precision, dimension(3), intent(in) :: omega_i, omega_j
     double precision, dimension(3), intent(out) :: v_i1, v_j1
     double precision, dimension(3), intent(out) :: omega_i1, omega_j1
-    double precision, dimension(3) :: r_ij
+    double precision, dimension(3,3) :: G, G_T
+    double precision, dimension(3) :: r_ij, deltaOm_i, deltaOm_j, y_loc, x_loc
     double precision :: r_ij_mag_sqrd, r_ij_mag, v_ix, v_iy, v_jx, v_jy
     double precision :: omega_ix, omega_iy, omega_iz, omega_jx, omega_jy, omega_jz
     double precision :: u_iR_x, u_iR_y, u_jR_x, u_jR_y, u_iR_xy_mag, u_jR_xy_mag
     double precision :: u_ijC_x, u_ijC_z, u_ijC_xz_mag, v_ijy, v_ijy0
     double precision :: deltaP_ix, deltaP_iy, deltaP_jx, deltaP_jy, deltaP_1, deltaP_2
     double precision :: deltaV_ix, deltaV_iy, deltaV_jx, deltaV_jy
-    double precision, dimension(3) :: deltaOm_i, deltaOm_j
-    double precision, dimension(3) :: y_loc, x_loc
-    double precision :: W, deltaW
-    double precision :: W_f
-    double precision :: W_c
-    double precision, dimension(3,3) :: G, G_T
+    double precision :: W, deltaW, W_f, W_c
     r_ij = r_j - r_i
     r_ij_mag_sqrd = sum(r_ij**2)
     r_ij_mag = sqrt(r_ij_mag_sqrd)
@@ -119,10 +115,10 @@ CONTAINS
        v_jx = v_jx + (-deltaP_1 + deltaP_jx) / M
        v_jy = v_jy + ( deltaP   + deltaP_jy) / M
        deltaOm_i = 5.d0/(2*M*R) * (/ ( deltaP_2 + deltaP_iy), &
-                                     (-deltaP_ix), &
+                                     (-deltaP_ix),            &
                                      (-deltaP_1) /)
        deltaOm_j = 5.d0/(2*M*R) * (/ ( deltaP_2 + deltaP_jy), &
-                                     (-deltaP_jx), &
+                                     (-deltaP_jx),            &
                                      (-deltaP_1) /)
        omega_i1 = omega_i1 + deltaOm_i
        omega_j1 = omega_j1 + deltaOm_j
@@ -158,4 +154,11 @@ CONTAINS
     omega_i1 = MATMUL(G_T, omega_i1)
     omega_j1 = MATMUL(G_T, omega_j1)
   END SUBROUTINE collide_balls
+
+  SUBROUTINE print_params () BIND(C)
+    WRITE(*,*)
+    WRITE(*, FMT=1) M,R,e,mu_b,mu_s
+    1 FORMAT("M=",E10.5, "  R=",E10.5, "  e=",E10.5, "  mu_b=",E10.5, "  mu_s=",E10.5)
+  END SUBROUTINE PRINT_PARAMS
+
 END MODULE COLLISIONS

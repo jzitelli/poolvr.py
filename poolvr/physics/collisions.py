@@ -11,6 +11,7 @@ This module implements the ball-ball collision model described in: ::
 """
 from logging import getLogger
 _logger = getLogger(__name__)
+import sys
 from math import sqrt
 import ctypes
 import os.path as path
@@ -37,22 +38,32 @@ _lib.collide_balls.argtypes = (ctypes.c_double,                           # delt
                                ndpointer(np.float64),
                                ndpointer(np.float64),
                                ndpointer(np.float64))
-M = ctypes.c_double.in_dll(_lib, 'M')
-R = ctypes.c_double.in_dll(_lib, 'R')
-mu_s = ctypes.c_double.in_dll(_lib, 'mu_s')
-mu_b = ctypes.c_double.in_dll(_lib, 'mu_b')
-e = ctypes.c_double.in_dll(_lib, 'e')
+_lib.print_params.argtypes = []
+_module_vars = ('M', 'R', 'mu_s', 'mu_b', 'e')
+_M, _R, _mu_s, _mu_b, _e = [ctypes.c_double.in_dll(_lib, p)
+                            for p in _module_vars]
+M = _M.value
+R = _R.value
+mu_s = _mu_s.value
+mu_b = _mu_b.value
+e = _e.value
+
+
+def set_params(**params):
+    for k, v in ((k, v) for k, v in params.items()
+                 if k in _module_vars):
+        setattr(sys.modules[__name__], k, v)
+        getattr(sys.modules[__name__], '_'+k).value = v
+    print_params()
+
+
+def print_params():
+    _lib.print_params()
 
 
 def collide_balls_f90(r_i, v_i, omega_i,
                       r_j, v_j, omega_j,
-                      e=0.89,
-                      mu_s=0.21,
-                      mu_b=0.05,
-                      M=0.1406,
-                      R=0.02625,
-                      deltaP=None,
-                      return_all=False):
+                      deltaP, return_all=False):
     v_i1, omega_i1, v_j1, omega_j1 = collide_balls_f90.out
     _lib.collide_balls(deltaP,
                        r_i, v_i, omega_i,
@@ -67,11 +78,6 @@ collide_balls_f90.out = (np.zeros(3, dtype=np.float64),
 
 def collide_balls(r_i, v_i, omega_i,
                   r_j, v_j, omega_j,
-                  e=0.89,
-                  mu_s=0.21,
-                  mu_b=0.05,
-                  M=0.1406,
-                  R=0.02625,
                   deltaP=None,
                   return_all=False):
     r_ij = r_j - r_i

@@ -56,7 +56,8 @@ def pytest_generate_tests(metafunc):
 @pytest.fixture
 def pool_table():
     from poolvr.table import PoolTable
-    return PoolTable()
+    from poolvr.physics.events import PhysicsEvent
+    return PoolTable(ball_radius=PhysicsEvent.ball_radius)
 
 
 @pytest.mark.parametrize("ball_collision_model", ['simple', 'simulated', 'fsimulated'])

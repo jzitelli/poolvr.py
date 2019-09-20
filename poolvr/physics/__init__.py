@@ -34,6 +34,7 @@ from .events import (CueStrikeEvent,
                      RailCollisionEvent,
                      CornerCollisionEvent)
 from .poly_solvers import quartic_solve, find_collision_time
+from . import collisions
 
 
 PIx2 = np.pi*2
@@ -56,12 +57,13 @@ class PoolPhysics(object):
     _IMAG_TOLERANCE_SQRD = _IMAG_TOLERANCE**2
     def __init__(self,
                  num_balls=16,
-                 ball_mass=0.17,
-                 ball_radius=1.125*INCH2METER,
+                 ball_mass=0.1406,
+                 ball_radius=0.02625,
                  mu_r=0.016,
                  mu_sp=0.044,
-                 mu_s=0.2,
-                 mu_b=0.06,
+                 mu_s=0.21,
+                 mu_b=0.05,
+                 e=0.89,
                  g=9.81,
                  balls_on_table=None,
                  ball_positions=None,
@@ -98,14 +100,13 @@ class PoolPhysics(object):
         self.table = table
         if balls_on_table is None:
             balls_on_table = range(self.num_balls)
-        self.ball_mass = ball_mass
-        self.ball_radius = ball_radius
+        self.set_params(M=ball_mass, R=ball_radius,
+                        mu_s=mu_s, mu_b=mu_b, e=e)
+        collisions.print_params()
         self.ball_diameter = 2*ball_radius
         self.ball_I = 2/5 * ball_mass * ball_radius**2 # moment of inertia
         self.mu_r = mu_r
         self.mu_sp = mu_sp
-        self.mu_s = mu_s
-        self.mu_b = mu_b
         self.g = g
         self.t = 0.0
         self._balls_on_table = balls_on_table
@@ -174,6 +175,21 @@ class PoolPhysics(object):
         self._b = np.zeros((num_balls, 2, 3), dtype=np.float64)
         self._F = np.zeros(num_balls, dtype=np.int)
         self.reset(ball_positions=ball_positions, balls_on_table=balls_on_table)
+
+    @classmethod
+    def set_params(cls,
+                   M=0.1406,
+                   R=0.02625,
+                   mu_s=0.21,
+                   mu_b=0.05,
+                   e=0.89,
+                   **params):
+        cls.ball_mass = M
+        cls.ball_radius = R
+        cls.mu_s = mu_s
+        cls.mu_b = mu_b
+        cls.e = e
+        collisions.set_params(M=M, R=R, mu_s=mu_s, mu_b=mu_b, e=e)
 
     def reset(self, ball_positions=None, balls_on_table=None):
         """
@@ -546,9 +562,9 @@ class PoolPhysics(object):
                 if t_min <= t0:
                     continue
                 if j not in collisions:
-                    if e_j.parent_event and e_i.parent_event and e_j.parent_event is e_i.parent_event:
-                        collisions[j] = None
-                        continue
+                    # if e_j.parent_event and e_i.parent_event and e_j.parent_event is e_i.parent_event:
+                    #     collisions[j] = None
+                    #     continue
                     t1 = min(e_i.t + e_i.T, e_j.t + e_j.T)
                     if t1 <= t0:
                         collisions[j] = None
@@ -806,31 +822,54 @@ class PoolPhysics(object):
         import pickle
         class Insanity(Exception):
             def __init__(self, physics, *args, **kwargs):
-                with open('%s.pickle.dump' % self.__class__.__name__, 'wb') as f:
+                with open('%s.%s.pickle.dump' % (self.__class__.__name__, physics.ball_collision_model),
+                          'wb') as f:
                     pickle.dump(physics, f)
                 super().__init__(*args, **kwargs)
         if isinstance(event, BallCollisionEvent):
             e_i, e_j = event.child_events
             R = self.ball_radius
+            r_i = e_i.eval_position(event.t - e_i.t)
+            r_j = e_j.eval_position(event.t - e_j.t)
+            r_ij = r_j - r_i
+            d_ij = np.sqrt(np.dot(r_ij, r_ij))
+            insanity = None
             for t in np.linspace(event.t, event.t + min(e_i.T, e_j.T), 1000):
-                r_i, r_j = self.eval_positions(t, balls=[event.i, event.j])
-                d_ij = np.linalg.norm(r_i - r_j)
-                if d_ij - 2*R < -1e-4*R:
+                r_i = e_i.eval_position(t - e_i.t)
+                r_j = e_j.eval_position(t - e_j.t)
+                r_ij = r_j - r_i
+                d_ij = np.sqrt(np.dot(r_ij, r_ij))
+                if d_ij < 2*R*(1 - 1e-4):
                     class BallsPenetratedInsanity(Insanity):
                         pass
-                    raise BallsPenetratedInsanity(self, '''
+                    insanity = BallsPenetratedInsanity
+                    break
+                elif t == event.t and d_ij > 2*R*(1 + 1e-4):
+                    class BallsHadNoContactInsanity(Insanity):
+                        pass
+                    insanity = BallsHadNoContactInsanity
+                    break
+            if insanity is not None:
+                raise insanity(self, '''
+    t = {t}
 
-t = %s
+    (ball_diameter - d_ij) / ball_diameter = {relerr}
+     ball_diameter = {ball_diameter}
+              d_ij = {d_ij}
 
-(ball_diameter - d_ij) / ball_diameter = %s
- ball_diameter = %s
-          d_ij = %s
+    event {eventno}: {event}
 
-event %d: %s
-  e_i: %s
-  e_j: %s
+    preceding events:
+      e_i: {e_i}
+      e_j: {e_j}
+    '''.format(t=event.t,
+               relerr=(d_ij - 2*R) / (2*R),
+               ball_diameter=2*R,
+               d_ij=d_ij,
+               eventno=len(self.events)-1,
+               event=event,
+               e_i=e_i, e_j=e_j))
 
-''' % (t, (2*R-d_ij) / (2*R), 2*R, d_ij, r_i, r_j, t, len(self.events)-1, event, e_i, e_j))
 
     def glyph_meshes(self, t):
         if self._velocity_meshes is None:

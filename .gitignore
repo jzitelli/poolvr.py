@@ -1,3 +1,6 @@
+poolvr/physics/coll.c
+*.pickle.dump
+
 _*
 _*/
 env*/
