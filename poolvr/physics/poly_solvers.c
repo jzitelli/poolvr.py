@@ -1,7 +1,5 @@
 #include <math.h>
 #include <complex.h>
-#include <stdio.h>
-
 
 #define PIx2 (M_PI * 2.0)
 #define ZERO_TOLERANCE 1e-15
@@ -133,24 +131,5 @@ double find_collision_time(double a_i[3][3], double a_j[3][3],
   p[2] = b_x*b_x + b_y*b_y + 2 * (a_x*c_x + a_y*c_y);
   p[1] = 2 * (b_x*c_x + b_y*c_y);
   p[0] = c_x*c_x + c_y*c_y - 4 * R*R;
-  double t_c = find_min_quartic_root_in_real_interval(p, t0, t1);
-  if (!isnan(t_c)) {
-    double r_ix = a_i[0][0] + t_c * a_i[1][0] + t_c*t_c * a_i[2][0];
-    double r_iy = a_i[0][1] + t_c * a_i[1][1] + t_c*t_c * a_i[2][1];
-    double r_iz = a_i[0][2] + t_c * a_i[1][2] + t_c*t_c * a_i[2][2];
-    double r_jx = a_j[0][0] + t_c * a_j[1][0] + t_c*t_c * a_j[2][0];
-    double r_jy = a_j[0][1] + t_c * a_j[1][1] + t_c*t_c * a_j[2][1];
-    double r_jz = a_j[0][2] + t_c * a_j[1][2] + t_c*t_c * a_j[2][2];
-    double r_ijx = r_jx - r_ix;
-    double r_ijy = r_jy - r_iy;
-    double r_ijz = r_jz - r_iz;
-    double d_ij = sqrt(r_ijx*r_ijx + r_ijy*r_ijy + r_ijz*r_ijz);
-    printf("d_ij = %5.10f\n", d_ij);
-    if (d_ij < 2*0.02625*(1.0 - 1e-4)) {
-      return NAN;
-    } else {
-      return t_c;
-    }
-  }
-  return t_c;
+  return find_min_quartic_root_in_real_interval(p, t0, t1);
 }

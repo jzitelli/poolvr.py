@@ -340,7 +340,7 @@ class BallRollingEvent(BallMotionEvent):
 class BallSlidingEvent(BallMotionEvent):
     def __init__(self, t, i, r_0, v_0, omega_0, **kwargs):
         R = self.ball_radius
-        u_0 = v_0 + R * cross(_k, omega_0)
+        u_0 = v_0 + R * array((omega_0[2], 0.0, -omega_0[0]), dtype=np.float64)
         u_0_mag = sqrt(dot(u_0, u_0))
         T = 2 * u_0_mag / (7 * self.mu_s * self.g)
         super().__init__(t, i, T=T, r_0=r_0, v_0=v_0, omega_0=omega_0, **kwargs)
@@ -348,7 +348,7 @@ class BallSlidingEvent(BallMotionEvent):
         self._u_0_mag = u_0_mag
         self._a[2] = -0.5 * self.mu_s * self.g * u_0 / u_0_mag
         self._b[0] = omega_0
-        self._b[1,::2] = 5 * self.mu_s * self.g / (2 * R) * cross(_k, u_0 / u_0_mag)[::2]
+        self._b[1,::2] = 5 * self.mu_s * self.g / (2 * R) / u_0_mag * array((u_0[2], -u_0[0]), dtype=np.float64)
         self._b[1,1] = -np.sign(omega_0[1]) * 5 * self.mu_sp * self.g / (2 * R)
         self._next_motion_event = None
     @property
@@ -468,7 +468,7 @@ class CornerCollisionEvent(BallEvent):
         j_loc[1] = 0
         j_loc /= -sqrt(dot(j_loc, j_loc))
         self.j_loc = j_loc
-        i_loc = cross(j_loc, _k)
+        i_loc = array((-j_loc[2], 0.0, j_loc[0]), dtype=np.float64)
         self.i_loc = i_loc
         v_1 = v_0
         omega_1 = self.omega_0 = e_i.eval_angular_velocity(tau)
@@ -483,7 +483,7 @@ class CornerCollisionEvent(BallEvent):
     def child_events(self):
         if self._child_events is None:
             R = self.ball_radius
-            u_1 = self.v_1 + R * cross(_k, self.omega_1)
+            u_1 = self.v_1 + R * array((self.omega_1[2], 0.0, -self.omega_1[0]), dtype=np.float64)
             if isinstance(self.e_i, BallSlidingEvent) \
                and dot(u_1, u_1) > self._ZERO_VELOCITY_CLIP_SQRD:
                 self._child_events = (BallSlidingEvent(self.t, self.e_i.i,
@@ -705,7 +705,7 @@ class FSimulatedBallCollisionEvent(BallCollisionEvent):
                                                 omega_0_y=omega_1[1],
                                                 parent_event=self)
                 else:
-                    u_1 = v_1 + self.ball_radius * cross(_k, omega_1)
+                    u_1 = v_1 + self.ball_radius * array((omega_1[2], 0.0, -omega_1[0]), dtype=np.float64)
                     if dot(u_1, u_1) < self._ZERO_VELOCITY_CLIP_SQRD:
                         e_1 = BallRollingEvent(self.t, e.i,
                                                r_0=r,

@@ -611,6 +611,27 @@ class PoolPhysics(object):
         a_j = e_j.global_linear_motion_coeffs
         t0, t1 = max(e_i.t, e_j.t), min(e_i.t + e_i.T, e_j.t + e_j.T)
         return find_collision_time(a_i, a_j, self.ball_radius, t0, t1)
+        # if e_i < e_j:
+        #     t0 = e_j.t - e_i.t
+        #     t1 = min(e_i.T, t0 + e_j.T)
+        #     a_i = e_i._a
+        #     if isinstance(e_j, BallStationaryEvent):
+        #         a_j = np.zeros((3,3), dtype=np.float64)
+        #         a_j[0] = e_j._r_0
+        #     else:
+        #         a_j = e_j.calc_global_linear_motion_coeffs(t0, e_j._a)
+        # else:
+        #     t0 = e_i.t - e_j.t
+        #     t1 = min(e_j.T, t0 + e_i.T)
+        #     a_i = e_i.calc_global_linear_motion_coeffs(t0, e_i._a)
+        #     if isinstance(e_j, BallStationaryEvent):
+        #         a_j = np.zeros((3,3), dtype=np.float64)
+        #         a_j[0] = e_j._r_0
+        #     else:
+        #         a_j = e_j._a
+        # t = find_collision_time(a_i, a_j, self.ball_radius, t0, t1)
+        # if t:
+        #     return t + min(e_i.t, e_j.t)
 
     def _find_rail_collision(self, e_i):
         """

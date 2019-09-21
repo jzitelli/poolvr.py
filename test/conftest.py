@@ -44,8 +44,6 @@ def pytest_addoption(parser):
 def pytest_generate_tests(metafunc):
     if "pool_physics" in metafunc.fixturenames or "pool_physics_realtime" in metafunc.fixturenames:
         if metafunc.config.getoption("--collision-model"):
-            _logger.info('metafunc.config.getoption("--collision-model") = %s',
-                         metafunc.config.getoption("--collision-model"))
             metafunc.parametrize('ball_collision_model',
                                  [metafunc.config.getoption("--collision-model")])
         else:
