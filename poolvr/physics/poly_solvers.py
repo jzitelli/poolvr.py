@@ -32,18 +32,38 @@ _lib.find_collision_time.argtypes = (ndpointer(np.float64, ndim=2, shape=(3,3)),
 _lib.find_collision_time.restype = c_double
 
 
+_flib = ctypes.cdll.LoadLibrary(path.join(path.dirname(path.abspath(__file__)),
+                                          'fpoly_solvers.dll'))
+_flib.quartic_solve.argtypes = (ndpointer(np.float64, ndim=1, shape=(5,)),
+                                ndpointer(np.complex128, ndim=1, shape=(4,)))
+_flib.find_min_quartic_root_in_real_interval.argtypes = (ndpointer(np.float64, ndim=1, shape=(5,)),
+                                                         c_double, c_double)
+_flib.find_min_quartic_root_in_real_interval.restype = c_double
+_flib.find_collision_time.argtypes = (ndpointer(np.float64, ndim=2, shape=(3,3)),
+                                      ndpointer(np.float64, ndim=2, shape=(3,3)),
+                                      c_double, c_double, c_double)
+_flib.find_collision_time.restype = c_double
+
+
 def find_collision_time(a_i, a_j, R, t0, t1):
     global _lib
     t = _lib.find_collision_time(a_i, a_j, R, t0, t1)
-    # if not isnan(t):
-    if t < 1e15:
+    if not isnan(t):
         return t
+    # global _flib
+    # R, t0, t1 = c_double(R), c_double(t0), c_double(t1)
+    # t = _flib.find_collision_time(a_i, a_j, R, t0, t1)
+    # if t < 1e15:
+    #     return t
 
 
 def find_min_quartic_root_in_real_interval(p, t0, t1):
-    global _lib
-    t = _lib.find_min_quartic_root_in_real_interval(p, t0, t1)
+    # global _lib
+    # t = _lib.find_min_quartic_root_in_real_interval(p, t0, t1)
     # if not isnan(t):
+    #     return t
+    global _flib
+    t = _flib.find_min_quartic_root_in_real_interval(p, t0, t1)
     if t < 1e15:
         return t
 

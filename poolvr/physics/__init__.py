@@ -843,9 +843,10 @@ class PoolPhysics(object):
         import pickle
         class Insanity(Exception):
             def __init__(self, physics, *args, **kwargs):
-                with open('%s.%s.pickle.dump' % (self.__class__.__name__, physics.ball_collision_model),
-                          'wb') as f:
+                fname = '%s.%s.pickle.dump' % (self.__class__.__name__.split('.')[-1], physics.ball_collision_model)
+                with open(fname, 'wb') as f:
                     pickle.dump(physics, f)
+                _logger.info('dumped serialized physics to "%s"', fname)
                 super().__init__(*args, **kwargs)
         if isinstance(event, BallCollisionEvent):
             e_i, e_j = event.child_events

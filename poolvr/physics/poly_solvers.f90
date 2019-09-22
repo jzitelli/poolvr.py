@@ -2,14 +2,14 @@ MODULE poly_solvers
   USE iso_c_binding, only: c_double, c_double_complex, c_int
   IMPLICIT NONE
 
-  real(c_double), parameter :: ZERO_TOLERANCE = 1.d-15
-  real(c_double), parameter :: IMAG_TOLERANCE = 1.d-14
+  real(c_double), parameter :: ZERO_TOLERANCE = 1.d-8
+  real(c_double), parameter :: IMAG_TOLERANCE = 1.d-7
   real(c_double), parameter :: IMAG_TOLERANCE_SQRD = IMAG_TOLERANCE**2
   real(c_double), parameter :: PI = acos(-1.d0)
   real(c_double), parameter :: PIx2 = 2*PI
-  complex(c_double_complex), dimension(3), parameter :: CUBE_ROOTS_OF_1 = (/ cmplx(1.d0,0.d0, kind=c_double),        &
-                                                                             exp(cmplx(0.d0,PIx2/3, kind=c_double)), &
-                                                                             exp(cmplx(0.d0,2*PIx2/3, kind=c_double)) /)
+  complex(c_double_complex), dimension(3), parameter :: CUBE_ROOTS_OF_1 = (/ (1.d0, 0.d0), &
+                                                                             exp(complex(0.d0, 2.d0*acos(-1.d0)/3.d0)), &
+                                                                             exp(complex(0.d0, 4.d0*acos(-1.d0)/3.d0)) /)
 
 CONTAINS
 
@@ -26,8 +26,8 @@ CONTAINS
     c = Poly(3) / Poly(5)
     b = Poly(4) / Poly(5)
     bb = b*b
-    p = 0.125d0 * (8*c - 3*bb)
-    q = 0.125d0 * (bb*b - 4*b*c + 8*d)
+    p = 0.125 * (8*c - 3*bb)
+    q = 0.125 * (bb*b - 4*b*c + 8*d)
     r = (-3*bb*bb + 256*e - 64*b*d + 16*bb*c) / 256
     c = p
     d = q
@@ -70,9 +70,8 @@ CONTAINS
     out(4) = -0.25*b + S - 0.5*sqrtm;
   END SUBROUTINE quartic_solve
 
-  function sort_complex_conjugate_pairs(roots) BIND(C)
+  integer(c_int) function sort_complex_conjugate_pairs(roots) BIND(C)
     implicit none
-    integer(c_int) :: sort_complex_conjugate_pairs
     complex(c_double_complex), dimension(4), intent(inout) :: roots
     integer(c_int) :: npairs, i, j
     complex(c_double_complex) :: r, r_conj
@@ -83,7 +82,7 @@ CONTAINS
        if (abs(DIMAG(r)) > IMAG_TOLERANCE) then
           do j = 1, 4-i
              r_conj = roots(i+j)
-             if (       abs(DREAL(r) - DREAL(r_conj)) < ZERO_TOLERANCE &
+             if (       abs(DBLE(r) - DBLE(r_conj)) < ZERO_TOLERANCE &
                   .and. abs(DIMAG(r) + DIMAG(r_conj)) < ZERO_TOLERANCE) then
                 roots(i) = roots(2*npairs+1)
                 roots(i+j) = roots(2*npairs+2)
@@ -100,9 +99,8 @@ CONTAINS
     sort_complex_conjugate_pairs = npairs
   end function sort_complex_conjugate_pairs
 
-  function find_min_quartic_root_in_real_interval(P, t0, t1) BIND(C)
+  real(c_double) function find_min_quartic_root_in_real_interval(P, t0, t1) BIND(C)
     implicit none
-    real(c_double) :: find_min_quartic_root_in_real_interval
     real(c_double), dimension(5), intent(in) :: P
     real(c_double), value :: t0, t1
     complex(c_double_complex), dimension(4) :: roots
@@ -114,18 +112,17 @@ CONTAINS
     npairs = sort_complex_conjugate_pairs(roots)
     do i = 2*npairs+1, 4
        r = roots(i)
-       if (t0 < DREAL(r) .and. DREAL(r) < t1 &
-            .and. DIMAG(r)**2 / (DREAL(r)**2 + DIMAG(r)**2) < IMAG_TOLERANCE_SQRD) then
-          min_root = DREAL(r)
+       if (t0 < DBLE(r) .and. DBLE(r) < t1 &
+            .and. DIMAG(r)**2 / (DBLE(r)**2 + DIMAG(r)**2) < IMAG_TOLERANCE_SQRD) then
+          min_root = DBLE(r)
           t1 = min_root
        endif
     enddo
     find_min_quartic_root_in_real_interval = min_root
   end function find_min_quartic_root_in_real_interval
 
-  function find_collision_time(a_i, a_j, R, t0, t1) BIND(C)
+  real(c_double) function find_collision_time(a_i, a_j, R, t0, t1) BIND(C)
     implicit none
-    real(c_double) :: find_collision_time
     real(c_double), dimension(3,3), intent(in) :: a_i, a_j
     real(c_double), value, intent(in) :: R, t0, t1
     real(c_double), dimension(3,3) :: a_ji

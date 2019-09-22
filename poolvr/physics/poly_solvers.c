@@ -2,8 +2,8 @@
 #include <complex.h>
 
 #define PIx2 (M_PI * 2.0)
-#define ZERO_TOLERANCE 1e-15
-#define IMAG_TOLERANCE 1e-14
+#define ZERO_TOLERANCE 1e-8
+#define IMAG_TOLERANCE 1e-7
 #define IMAG_TOLERANCE_SQRD (IMAG_TOLERANCE * IMAG_TOLERANCE)
 
 

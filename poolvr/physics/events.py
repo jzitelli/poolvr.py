@@ -5,34 +5,29 @@ import numpy as np
 from numpy import dot, cross, sin, cos, zeros, array
 
 
-from . import collisions
 from .collisions import collide_balls, collide_balls_f90
 
 
 INCH2METER = 0.0254
 _k = array([0, 1, 0],        # upward-pointing basis vector :math:`\hat{k}`
-              dtype=np.float64) # of any ball-centered frame, following the convention of Marlow
+           dtype=np.float64) # of any ball-centered frame, following the convention of Marlow
 
 
 class PhysicsEvent(object):
-    # ball_radius = 1.125 * INCH2METER
-    # ball_mass = 0.17
-    # mu_s = 0.2 # coefficient of sliding friction between ball and table
-    # mu_b = 0.06 # coefficient of friction between ball and cushions
     ball_radius = 0.02625
     ball_mass = 0.1406
+    ball_I = 2/5 * ball_mass * ball_radius**2
     mu_s = 0.21
     mu_b = 0.05
     e = 0.89
-    ball_I = 2/5 * ball_mass * ball_radius**2
     mu_r = 0.016 # coefficient of rolling friction between ball and table
     mu_sp = 0.044 # coefficient of spinning friction between ball and table
     g = 9.81 # magnitude of acceleration due to gravity
     _ZERO_TOLERANCE = 1e-8
     _ZERO_TOLERANCE_SQRD = _ZERO_TOLERANCE**2
-    _ZERO_VELOCITY_CLIP = 0.001
+    _ZERO_VELOCITY_CLIP = 0.00001
     _ZERO_VELOCITY_CLIP_SQRD = _ZERO_VELOCITY_CLIP**2
-    _ZERO_ANGULAR_VELOCITY_CLIP = 0.001
+    _ZERO_ANGULAR_VELOCITY_CLIP = 0.0001
     def __init__(self, t, T=0.0, parent_event=None, **kwargs):
         """
         Base class of pool physics events.
@@ -504,9 +499,6 @@ class CornerCollisionEvent(BallEvent):
 
 
 class BallCollisionEvent(PhysicsEvent):
-    _ZERO_VELOCITY_CLIP = 0.001
-    _ZERO_VELOCITY_CLIP_SQRD = _ZERO_VELOCITY_CLIP**2
-    _ZERO_ANGULAR_VELOCITY_CLIP = 0.001
     def __init__(self, t, e_i, e_j):
         super().__init__(t)
         self.e_i, self.e_j = e_i, e_j
@@ -668,12 +660,7 @@ class SimulatedBallCollisionEvent(BallCollisionEvent):
 
 
 class FSimulatedBallCollisionEvent(BallCollisionEvent):
-    def __init__(self, t, e_i, e_j,
-                 R=PhysicsEvent.ball_radius,
-                 M=PhysicsEvent.ball_mass,
-                 e=0.89,
-                 mu_s=PhysicsEvent.mu_s,
-                 mu_b=PhysicsEvent.mu_b):
+    def __init__(self, t, e_i, e_j):
         super().__init__(t, e_i, e_j)
         r_i, r_j = self._r_i, self._r_j
         v_i, v_j = self._v_i, self._v_j

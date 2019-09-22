@@ -12,9 +12,14 @@ gfortran -v -shared -static -o $project_root"/poolvr/physics/collisions.dll" \
 echo '
 building poly_solvers.dll...
 '
-# gcc -v -shared -static -o $project_root"/poolvr/physics/poly_solvers.dll" \
-#     $project_root"/poolvr/physics/poly_solvers.c"
-gfortran -v -shared -static -o $project_root"/poolvr/physics/poly_solvers.dll" \
+gcc -v -shared -static -o $project_root"/poolvr/physics/poly_solvers.dll" \
+    $project_root"/poolvr/physics/poly_solvers.c"
+
+
+echo '
+building fpoly_solvers.dll...
+'
+gfortran -v -shared -static -o $project_root"/poolvr/physics/fpoly_solvers.dll" \
      $project_root"/poolvr/physics/poly_solvers.f90"
 
 
