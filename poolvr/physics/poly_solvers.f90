@@ -1,35 +1,33 @@
 MODULE poly_solvers
-  USE iso_c_binding, only: c_double
+  USE iso_c_binding, only: c_double, c_double_complex, c_int
   IMPLICIT NONE
 
-  real(c_double), bind(C, name="R") :: R = 0.02625
-  double precision, parameter :: ZERO_TOLERANCE = 1.d-15
-  double precision, parameter :: IMAG_TOLERANCE = 1.d-14
-  double precision, parameter :: IMAG_TOLERANCE_SQRD = IMAG_TOLERANCE**2
-  double precision, parameter :: PI = acos(-1.d0)
-  double precision, parameter :: PIx2 = 2*PI
-  double precision, dimension(3), parameter :: z_loc = (/ 0.d0, 1.d0, 0.d0 /)
-  double complex, dimension(3), parameter :: CUBE_ROOTS_OF_1 = (/ cmplx(1.d0,0.d0),        &
-                                                                  exp(cmplx(0.d0,PIx2/3)), &
-                                                                  exp(cmplx(0.d0,2*PIx2/3)) /)
+  real(c_double), parameter :: ZERO_TOLERANCE = 1.d-15
+  real(c_double), parameter :: IMAG_TOLERANCE = 1.d-14
+  real(c_double), parameter :: IMAG_TOLERANCE_SQRD = IMAG_TOLERANCE**2
+  real(c_double), parameter :: PI = acos(-1.d0)
+  real(c_double), parameter :: PIx2 = 2*PI
+  complex(c_double_complex), dimension(3), parameter :: CUBE_ROOTS_OF_1 = (/ cmplx(1.d0,0.d0, kind=c_double),        &
+                                                                             exp(cmplx(0.d0,PIx2/3, kind=c_double)), &
+                                                                             exp(cmplx(0.d0,2*PIx2/3, kind=c_double)) /)
 
 CONTAINS
 
   SUBROUTINE quartic_solve (Poly, out) BIND(C)
     implicit none
-    double precision, dimension(5), intent(in) :: Poly
-    double complex, dimension(4), intent(out) :: out
-    double precision :: e, d, c, b, bb, p, q, r, cc, dd, ee, ccc, Delta, Dee, Delta_0, Delta_1
-    double complex :: S, SSx4, phi, zQ, SSx4_max, sqrtp, sqrtm
-    double precision :: abs_SSx4_max, abs_SSx4
-    integer :: ir
+    real(c_double), dimension(5), intent(in) :: Poly
+    complex(c_double_complex), dimension(4), intent(out) :: out
+    real(c_double) :: e, d, c, b, bb, p, q, r, cc, dd, ee, ccc, Delta, Dee, Delta_0, Delta_1
+    complex(c_double_complex) :: S, SSx4, phi, zQ, SSx4_max, sqrtp, sqrtm
+    real(c_double) :: abs_SSx4_max, abs_SSx4
+    integer(c_int) :: ir
     e = Poly(1) / Poly(5)
     d = Poly(2) / Poly(5)
     c = Poly(3) / Poly(5)
     b = Poly(4) / Poly(5)
     bb = b*b
-    p = 0.125 * (8*c - 3*bb)
-    q = 0.125 * (bb*b - 4*b*c + 8*d)
+    p = 0.125d0 * (8*c - 3*bb)
+    q = 0.125d0 * (bb*b - 4*b*c + 8*d)
     r = (-3*bb*bb + 256*e - 64*b*d + 16*bb*c) / 256
     c = p
     d = q
@@ -64,8 +62,8 @@ CONTAINS
        endif
        S = 0.5*sqrt(SSx4)
     endif
-    sqrtp = sqrt(-SSx4 - 2*p + q/3)
-    sqrtm = sqrt(-SSx4 - 2*p - q/3)
+    sqrtp = sqrt(-SSx4 - 2*p + q/S)
+    sqrtm = sqrt(-SSx4 - 2*p - q/S)
     out(1) = -0.25*b - S + 0.5*sqrtp;
     out(2) = -0.25*b - S - 0.5*sqrtp;
     out(3) = -0.25*b + S + 0.5*sqrtm;
@@ -74,16 +72,16 @@ CONTAINS
 
   function sort_complex_conjugate_pairs(roots) BIND(C)
     implicit none
-    integer :: sort_complex_conjugate_pairs
-    double complex, dimension(4), intent(inout) :: roots
-    integer :: npairs = 0
-    integer :: i, j
-    double complex :: r, r_conj
+    integer(c_int) :: sort_complex_conjugate_pairs
+    complex(c_double_complex), dimension(4), intent(inout) :: roots
+    integer(c_int) :: npairs, i, j
+    complex(c_double_complex) :: r, r_conj
+    npairs = 0
     i = 1
     do while (i <= 3)
        r = roots(i)
        if (abs(DIMAG(r)) > IMAG_TOLERANCE) then
-          do j = 1, 3-i
+          do j = 1, 4-i
              r_conj = roots(i+j)
              if (       abs(DREAL(r) - DREAL(r_conj)) < ZERO_TOLERANCE &
                   .and. abs(DIMAG(r) + DIMAG(r_conj)) < ZERO_TOLERANCE) then
@@ -104,18 +102,20 @@ CONTAINS
 
   function find_min_quartic_root_in_real_interval(P, t0, t1) BIND(C)
     implicit none
-    double precision :: find_min_quartic_root_in_real_interval
-    double precision, dimension(5), intent(in) :: P
-    double precision, value :: t0, t1
-    double complex, dimension(4) :: roots
-    integer :: npairs, i
-    double precision :: min_root = huge(1.d0)
-    double complex :: r
+    real(c_double) :: find_min_quartic_root_in_real_interval
+    real(c_double), dimension(5), intent(in) :: P
+    real(c_double), value :: t0, t1
+    complex(c_double_complex), dimension(4) :: roots
+    integer(c_int) :: npairs, i
+    real(c_double) :: min_root
+    complex(c_double_complex) :: r
     call quartic_solve(P, roots)
+    min_root = huge(1.d0)
     npairs = sort_complex_conjugate_pairs(roots)
     do i = 2*npairs+1, 4
        r = roots(i)
-       if (t0 < DREAL(r) .and. DREAL(r) < t1 .and. DIMAG(r)**2 / (DREAL(r)**2 + DIMAG(r)**2) < IMAG_TOLERANCE_SQRD) then
+       if (t0 < DREAL(r) .and. DREAL(r) < t1 &
+            .and. DIMAG(r)**2 / (DREAL(r)**2 + DIMAG(r)**2) < IMAG_TOLERANCE_SQRD) then
           min_root = DREAL(r)
           t1 = min_root
        endif
@@ -125,12 +125,12 @@ CONTAINS
 
   function find_collision_time(a_i, a_j, R, t0, t1) BIND(C)
     implicit none
-    double precision :: find_collision_time
-    double precision, dimension(3,3), intent(in) :: a_i, a_j
-    double precision, value, intent(in) :: R, t0, t1
-    double precision, dimension(3,3) :: a_ji
-    double precision, dimension(5) :: P
-    double precision :: a_x, a_y, b_x, b_y, c_x, c_y
+    real(c_double) :: find_collision_time
+    real(c_double), dimension(3,3), intent(in) :: a_i, a_j
+    real(c_double), value, intent(in) :: R, t0, t1
+    real(c_double), dimension(3,3) :: a_ji
+    real(c_double), dimension(5) :: P
+    real(c_double) :: a_x, a_y, b_x, b_y, c_x, c_y
     a_ji = a_i - a_j
     a_x = a_ji(1,3)
     a_y = a_ji(3,3)
