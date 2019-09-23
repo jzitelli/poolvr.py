@@ -1,5 +1,5 @@
 import ctypes
-from ctypes import c_double
+from ctypes import c_double, c_int
 import os.path as path
 
 from math import fsum, isnan
@@ -13,16 +13,16 @@ PIx2 = np.pi*2
 CUBE_ROOTS_OF_1 = np.exp(1j*PIx2/3 * np.arange(3))
 
 
-_ZERO_TOLERANCE = 1e-15
+_ZERO_TOLERANCE = 1e-8
 _ZERO_TOLERANCE_SQRD = _ZERO_TOLERANCE**2
-_IMAG_TOLERANCE = 1e-8
+_IMAG_TOLERANCE = 1e-7
 _IMAG_TOLERANCE_SQRD = _IMAG_TOLERANCE**2
 
 
 _lib = ctypes.cdll.LoadLibrary(path.join(path.dirname(path.abspath(__file__)),
                                          'poly_solvers.dll'))
-_lib.quartic_solve.argtypes = (ndpointer(np.float64, ndim=1, shape=(5,)),
-                               ndpointer(np.complex128, ndim=1, shape=(4,)))
+_lib.quartic_solve.argtypes = (ndpointer(dtype=np.float64),
+                               ndpointer(dtype=np.complex128))
 _lib.find_min_quartic_root_in_real_interval.argtypes = (ndpointer(np.float64, ndim=1, shape=(5,)),
                                                         c_double, c_double)
 _lib.find_min_quartic_root_in_real_interval.restype = c_double
@@ -30,6 +30,8 @@ _lib.find_collision_time.argtypes = (ndpointer(np.float64, ndim=2, shape=(3,3)),
                                      ndpointer(np.float64, ndim=2, shape=(3,3)),
                                      c_double, c_double, c_double)
 _lib.find_collision_time.restype = c_double
+_lib.sort_complex_conjugate_pairs.argtypes = [ndpointer(np.complex128, ndim=1)]
+_lib.sort_complex_conjugate_pairs.restype = c_int
 
 
 _flib = ctypes.cdll.LoadLibrary(path.join(path.dirname(path.abspath(__file__)),
@@ -43,36 +45,58 @@ _flib.find_collision_time.argtypes = (ndpointer(np.float64, ndim=2, shape=(3,3))
                                       ndpointer(np.float64, ndim=2, shape=(3,3)),
                                       c_double, c_double, c_double)
 _flib.find_collision_time.restype = c_double
+_flib.sort_complex_conjugate_pairs.argtypes = [ndpointer(np.complex128, ndim=1)]
+_flib.sort_complex_conjugate_pairs.restype = c_int
 
 
-def find_collision_time(a_i, a_j, R, t0, t1):
+def c_find_collision_time(a_i, a_j, R, t0, t1):
     global _lib
     t = _lib.find_collision_time(a_i, a_j, R, t0, t1)
     if not isnan(t):
         return t
-    # global _flib
-    # R, t0, t1 = c_double(R), c_double(t0), c_double(t1)
-    # t = _flib.find_collision_time(a_i, a_j, R, t0, t1)
-    # if t < 1e15:
-    #     return t
 
 
-def find_min_quartic_root_in_real_interval(p, t0, t1):
-    # global _lib
-    # t = _lib.find_min_quartic_root_in_real_interval(p, t0, t1)
-    # if not isnan(t):
-    #     return t
-    global _flib
-    t = _flib.find_min_quartic_root_in_real_interval(p, t0, t1)
-    if t < 1e15:
+def c_find_min_quartic_root_in_real_interval(p, t0, t1):
+    global _lib
+    t = _lib.find_min_quartic_root_in_real_interval(p, t0, t1)
+    if not isnan(t):
         return t
 
 
-def c_quartic_solve(p):
+def c_quartic_solve(p, only_real=False):
     global _lib
     _lib.quartic_solve(p, c_quartic_solve.out)
     return c_quartic_solve.out
 c_quartic_solve.out = np.zeros(4, dtype=np.complex128)
+
+
+def c_sort_complex_conjugate_pairs(roots):
+    return _lib.sort_complex_conjugate_pairs(roots)
+
+
+def f_find_collision_time(a_i, a_j, R, t0, t1):
+    global _flib
+    t = _flib.find_collision_time(a_i, a_j, R, t0, t1)
+    if t < t1:
+        return t
+
+
+def f_find_min_quartic_root_in_real_interval(p, t0, t1):
+    global _flib
+    t = _flib.find_min_quartic_root_in_real_interval(p, t0, t1)
+    if t < t1:
+        return t
+
+
+def f_quartic_solve(p, only_real=False):
+    global _flib
+    _flib.quartic_solve(p, f_quartic_solve.out)
+    return f_quartic_solve.out
+f_quartic_solve.out = np.zeros(4, dtype=np.complex128)
+
+
+def f_sort_complex_conjugate_pairs(roots):
+    return _flib.sort_complex_conjugate_pairs(roots)
 
 
 def quartic_solve(p, only_real=False):
@@ -174,3 +198,24 @@ def quadratic_solve(p):
     sqrtd = np.sqrt(d if d >= 0 else d + 0j)
     return np.array(((-b + sqrtd) / (2*a),
                      (-b - sqrtd) / (2*a)))
+
+
+def sort_complex_conjugate_pairs(roots):
+    "filter out any complex-conjugate pairs of roots"
+    npairs = 0
+    i = 0
+    while i < len(roots):
+        r = roots[i]
+        if abs(r.imag) > _IMAG_TOLERANCE:
+            for j, r_conj in enumerate(roots[i+1:]):
+                if abs(r.real - r_conj.real) < _ZERO_TOLERANCE \
+                   and abs(r.imag + r_conj.imag) < _ZERO_TOLERANCE:
+                    roots[i] = roots[2*npairs]
+                    roots[i+j+1] = roots[2*npairs+1]
+                    roots[2*npairs] = r
+                    roots[2*npairs+1] = r_conj
+                    npairs += 1
+                    i += 1
+                    break
+        i += 1
+    return npairs

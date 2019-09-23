@@ -54,7 +54,7 @@ def set_params(**params):
                  if k in _module_vars):
         setattr(sys.modules[__name__], k, v)
         getattr(sys.modules[__name__], '_'+k).value = v
-    print_params()
+    # print_params()
 
 
 def print_params():

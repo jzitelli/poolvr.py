@@ -33,7 +33,8 @@ from .events import (CueStrikeEvent,
                      FSimulatedBallCollisionEvent,
                      RailCollisionEvent,
                      CornerCollisionEvent)
-from .poly_solvers import quartic_solve, find_collision_time
+#from .poly_solvers import c_find_collision_time as find_collision_time, c_quartic_solve as quartic_solve
+from .poly_solvers import f_find_collision_time as find_collision_time, f_quartic_solve as quartic_solve
 from . import collisions
 
 
@@ -102,7 +103,7 @@ class PoolPhysics(object):
             balls_on_table = range(self.num_balls)
         self.set_params(M=ball_mass, R=ball_radius,
                         mu_s=mu_s, mu_b=mu_b, e=e)
-        collisions.print_params()
+        # collisions.print_params()
         self.ball_diameter = 2*ball_radius
         self.ball_I = 2/5 * ball_mass * ball_radius**2 # moment of inertia
         self.mu_r = mu_r
@@ -569,8 +570,7 @@ class PoolPhysics(object):
                     if t1 <= t0:
                         collisions[j] = None
                         continue
-                    t_c = self._find_collision_time(e_i, e_j)
-                    collisions[j] = t_c
+                    collisions[j] = self._find_collision_time(e_i, e_j)
                 t_c = collisions[j]
                 if t_c is not None and t0 < t_c < t_min:
                     t_min = t_c
@@ -611,6 +611,23 @@ class PoolPhysics(object):
         a_j = e_j.global_linear_motion_coeffs
         t0, t1 = max(e_i.t, e_j.t), min(e_i.t + e_i.T, e_j.t + e_j.T)
         return find_collision_time(a_i, a_j, self.ball_radius, t0, t1)
+        # a_i, _ = e_i.global_motion_coeffs
+        # a_j, _ = e_j.global_motion_coeffs
+        # a_ji = a_i - a_j
+        # a_x, a_y = a_ji[2, ::2]
+        # b_x, b_y = a_ji[1, ::2]
+        # c_x, c_y = a_ji[0, ::2]
+        # p = self._p
+        # p[0] = a_x**2 + a_y**2
+        # p[1] = 2 * (a_x*b_x + a_y*b_y)
+        # p[2] = b_x**2 + 2*a_x*c_x + 2*a_y*c_y + b_y**2
+        # p[3] = 2 * b_x*c_x + 2 * b_y*c_y
+        # p[4] = c_x**2 + c_y**2 - 4 * self.ball_radius**2
+        # t0, t1 = max(e_i.t, e_j.t), min(e_i.t + e_i.T, e_j.t + e_j.T)
+        # return min((t.real for t in self._filter_roots(c_quartic_solve(p[::-1]))
+        #             if t0 < t.real < t1
+        #             and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
+        #             default=None)
         # if e_i < e_j:
         #     t0 = e_j.t - e_i.t
         #     t1 = min(e_i.T, t0 + e_j.T)
@@ -754,18 +771,19 @@ class PoolPhysics(object):
         "filter out any complex-conjugate pairs of roots"
         npairs = 0
         i = 0
-        while i < len(roots):
+        while i < len(roots) - 1:
             r = roots[i]
             if abs(r.imag) > self._IMAG_TOLERANCE:
-                for j, r_conj in enumerate(roots[i:]):
+                for j, r_conj in enumerate(roots[i+1:]):
                     if abs(r.real - r_conj.real) < self._ZERO_TOLERANCE \
                        and abs(r.imag + r_conj.imag) < self._ZERO_TOLERANCE:
                         roots[i] = roots[2*npairs]
-                        roots[i+j] = roots[2*npairs+1]
+                        roots[i+j+1] = roots[2*npairs+1]
                         roots[2*npairs] = r
                         roots[2*npairs+1] = r_conj
                         npairs += 1
                         i += 1
+                        break
             i += 1
         return roots[2*npairs:]
 

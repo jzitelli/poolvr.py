@@ -49,6 +49,28 @@ def pytest_generate_tests(metafunc):
         else:
             metafunc.parametrize('ball_collision_model',
                                  ['simple', 'simulated', 'fsimulated'])
+    if "poly_solver" in metafunc.fixturenames:
+        metafunc.parametrize('func', [
+            'quartic_solve',
+            'c_quartic_solve',
+            'f_quartic_solve'
+        ])
+
+
+@pytest.mark.parametrize("func", ['quartic_solve', 'c_quartic_solve', 'f_quartic_solve'])
+@pytest.fixture
+def poly_solver(request, func):
+    import poolvr.physics.poly_solvers as poly_solvers
+    f = getattr(poly_solvers, func)
+    if func in ('c_quartic_solve', 'f_quartic_solve'):
+        from functools import wraps
+        def reversor(func):
+            @wraps(func)
+            def wrapper(p, *args, **kwargs):
+                return func(p[::-1], *args, **kwargs)
+            return wrapper
+        # f = reversor(f)
+    return f
 
 
 @pytest.fixture

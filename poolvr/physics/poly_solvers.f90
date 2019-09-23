@@ -16,7 +16,7 @@ CONTAINS
   SUBROUTINE quartic_solve (Poly, out) BIND(C)
     implicit none
     real(c_double), dimension(5), intent(in) :: Poly
-    complex(c_double_complex), dimension(4), intent(out) :: out
+    double complex, dimension(4), intent(out) :: out
     real(c_double) :: e, d, c, b, bb, p, q, r, cc, dd, ee, ccc, Delta, Dee, Delta_0, Delta_1
     complex(c_double_complex) :: S, SSx4, phi, zQ, SSx4_max, sqrtp, sqrtm
     real(c_double) :: abs_SSx4_max, abs_SSx4
@@ -41,11 +41,11 @@ CONTAINS
     Delta_0 = cc + 12*e
     Delta_1 = 2*ccc + 27*dd - 72*c*e
     if (Delta_1 > 0 .and. p < 0 .and. Dee < 0) then
-       phi = acos(Delta_1 / (2*sqrt(Delta_0**3)))
-       S = 0.5 * sqrt((-2*p + 2*sqrt(Delta_0)*cos(phi/3))/3)
+       phi = acos(Delta_1 / (2*sqrt(complex(Delta_0**3,0.d0))))
+       S = 0.5 * sqrt((-2*p + 2*sqrt(complex(Delta_0,0.d0))*cos(phi/3))/3)
        SSx4 = 4*S*S
     else
-       zQ = (0.5*(Delta_1 + sqrt(-27*Delta)))**(1.d0/3)
+       zQ = (0.5*(Delta_1 + sqrt(complex(-27*Delta,0.d0))))**(1.d0/3)
        if (Delta .ne. 0) then
           abs_SSx4_max = 0.d0
           do ir = 1, 3
@@ -102,7 +102,7 @@ CONTAINS
   real(c_double) function find_min_quartic_root_in_real_interval(P, t0, t1) BIND(C)
     implicit none
     real(c_double), dimension(5), intent(in) :: P
-    real(c_double), value :: t0, t1
+    real(c_double), value, intent(in) :: t0, t1
     complex(c_double_complex), dimension(4) :: roots
     integer(c_int) :: npairs, i
     real(c_double) :: min_root
@@ -113,9 +113,9 @@ CONTAINS
     do i = 2*npairs+1, 4
        r = roots(i)
        if (t0 < DBLE(r) .and. DBLE(r) < t1 &
+            .and. DBLE(r) < min_root &
             .and. DIMAG(r)**2 / (DBLE(r)**2 + DIMAG(r)**2) < IMAG_TOLERANCE_SQRD) then
           min_root = DBLE(r)
-          t1 = min_root
        endif
     enddo
     find_min_quartic_root_in_real_interval = min_root
