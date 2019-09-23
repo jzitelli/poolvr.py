@@ -145,6 +145,7 @@ def plot_motion_z_position(pool_physics, request):
          show=show_plots)
 
 
+
 @pytest.fixture
 def plot_energy(pool_physics, request):
     show_plots, save_plots = request.config.getoption('--show-plots'), request.config.getoption('--save-plots')

@@ -45,6 +45,19 @@ BALL_COLORS = {0: 'white',
 BALL_COLORS.update({i: BALL_COLORS[i-8] for i in range(9, 16)})
 
 
+def catches_tcl_errors(func):
+    from tkinter import TclError
+    from functools import wraps
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except TclError as err:
+            _logger.warn(err)
+    return wrapper
+
+
+@catches_tcl_errors
 def plot_ball_motion(i, physics,
                      table=None,
                      title=None,
@@ -130,6 +143,7 @@ def plot_ball_motion(i, physics,
         plt.close()
 
 
+@catches_tcl_errors
 def plot_motion_timelapse(physics, table=None,
                           title=None,
                           nt=200,
@@ -244,6 +258,7 @@ def plot_motion_timelapse(physics, table=None,
     plt.close()
 
 
+@catches_tcl_errors
 def plot_energy(physics, title=None, nt=1000,
                 t_0=None, t_1=None, filename=None,
                 show=False, figure=None):
@@ -285,6 +300,7 @@ def plot_energy(physics, title=None, nt=1000,
     plt.close()
 
 
+@catches_tcl_errors
 def plot_collision_velocities(deltaPs, v_is, v_js,
                               title='velocities along axis of impulse',
                               show=True, filename=None):
@@ -309,6 +325,7 @@ def plot_collision_velocities(deltaPs, v_is, v_js,
     plt.close()
 
 
+@catches_tcl_errors
 def plot_collision_angular_velocities(deltaPs, omega_is, omega_js,
                                       title='angular velocities within horizontal plane',
                                       show=True, filename=None):
@@ -335,6 +352,7 @@ def plot_collision_angular_velocities(deltaPs, omega_is, omega_js,
     plt.close()
 
 
+@catches_tcl_errors
 def plot_collision_velocity_maps(v_i1s, v_j1s,
                                  V_min=0.0001, V_max=40.0,
                                  theta_min=0.01, theta_max=89.99,
@@ -373,6 +391,7 @@ def plot_collision_velocity_maps(v_i1s, v_j1s,
     plt.close()
 
 
+@catches_tcl_errors
 def plot_collision_angular_velocity_maps(omega_i1s, omega_j1s,
                                          V_min=0.001, V_max=40.0,
                                          theta_min=0.01, theta_max=89.99,
