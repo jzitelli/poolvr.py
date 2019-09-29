@@ -25,9 +25,9 @@ class PhysicsEvent(object):
     g = 9.81 # magnitude of acceleration due to gravity
     _ZERO_TOLERANCE = 1e-8
     _ZERO_TOLERANCE_SQRD = _ZERO_TOLERANCE**2
-    _ZERO_VELOCITY_CLIP = 0.00001
+    _ZERO_VELOCITY_CLIP = 0.0000001
     _ZERO_VELOCITY_CLIP_SQRD = _ZERO_VELOCITY_CLIP**2
-    _ZERO_ANGULAR_VELOCITY_CLIP = 0.0001
+    _ZERO_ANGULAR_VELOCITY_CLIP = 0.00001
     def __init__(self, t, T=0.0, parent_event=None, **kwargs):
         """
         Base class of pool physics events.
@@ -70,9 +70,9 @@ class PhysicsEvent(object):
             return self.t > other
     def __str__(self):
         if self.T == 0.0 or self.T == float('inf'):
-            return '<%16s ( %5.7f )>' % (self.__class__.__name__, self.t)
+            return '<%16s ( %5.15f )>' % (self.__class__.__name__, self.t)
         else:
-            return '<%16s ( %5.5f ,  %5.5f )>' % (self.__class__.__name__, self.t, self.t+self.T)
+            return '<%16s ( %5.15f ,  %5.15f )>' % (self.__class__.__name__, self.t, self.t+self.T)
 
 
 class BallEvent(PhysicsEvent):
@@ -667,10 +667,13 @@ class FSimulatedBallCollisionEvent(BallCollisionEvent):
         omega_i, omega_j = self._omega_i, self._omega_j
         r_ij = r_j - r_i
         y_loc = r_ij / sqrt(dot(r_ij, r_ij))
+        # v_ij = v_j - v_i
+        # if np.dot(v_ij, y_loc) >= 0:
+        #     raise Exception('balls are not colliding')
         self._v_i_1, self._omega_i_1, self._v_j_1, self._omega_j_1 = \
             collide_balls_f90(
                 r_i, v_i, omega_i, r_j, v_j, omega_j,
-                deltaP=self.ball_mass*sqrt(abs(dot(v_j - v_i, y_loc)))/800
+                deltaP=self.ball_mass*abs(dot(v_j - v_i, y_loc))/3200
             )
         self._child_events = None
     @property

@@ -238,18 +238,22 @@ def plot_motion_timelapse(physics, table=None,
                                            linestyle='dashed',
                                            linewidth=0.18,
                                            antialiased=True))
-            plt.gca().add_patch(plt.Circle(r_1[::2], physics.ball_radius,
-                                           color='black',
-                                           fill=False,
-                                           linestyle='solid',
-                                           linewidth=0.18,
-                                           antialiased=True))
+    for i in physics.balls_on_table:
+        last_event = physics.ball_events[i][-1]
+        r_1 = last_event.eval_position(t_1)
+        r_1[2] *= -1
+        plt.gca().add_patch(plt.Circle(r_1[::2], physics.ball_radius,
+                                       color='black',
+                                       fill=False,
+                                       linestyle='solid',
+                                       linewidth=0.18,
+                                       antialiased=True))
     if filename:
         dirname = os.path.dirname(filename)
         if not os.path.exists(dirname):
             os.makedirs(dirname, exist_ok=True)
         try:
-            plt.savefig(filename, dpi=800)
+            plt.savefig(filename, dpi=1200)
             _logger.info('...saved figure to %s', filename)
         except Exception as err:
             _logger.warning('error saving figure:\n%s', err)

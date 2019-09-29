@@ -33,7 +33,6 @@ from .events import (CueStrikeEvent,
                      FSimulatedBallCollisionEvent,
                      RailCollisionEvent,
                      CornerCollisionEvent)
-#from .poly_solvers import c_find_collision_time as find_collision_time, c_quartic_solve as quartic_solve
 from .poly_solvers import f_find_collision_time as find_collision_time, f_quartic_solve as quartic_solve
 from . import collisions
 
@@ -157,13 +156,6 @@ class PoolPhysics(object):
             ( 2,  1,  self._rhsz, self._bndx, self._r_cp[2], self._r_cp_len_sqrd[2] ),
             ( 0, -1, -self._rhsx, self._bndz, self._r_cp[3], self._r_cp_len_sqrd[3] )
         )
-        self._a_ij = np.zeros((self.num_balls, 3), dtype=np.float64)
-        self._a_ij_mag = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
-        self._r_ij = np.zeros((self.num_balls, self.num_balls, 3), dtype=np.float64)
-        self._r_ij_mag = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
-        self._theta_ij = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
-        self._psi_ij = np.zeros((self.num_balls, self.num_balls), dtype=np.float64)
-        self._occ_ij = np.array(self.num_balls*[self.num_balls*[False]])
         self._velocity_meshes = None
         self._angular_velocity_meshes = None
         if ball_collision_model_kwargs:
@@ -217,25 +209,6 @@ class PoolPhysics(object):
         self._ball_spinning_events = {}
         self._collisions = {}
         self._rail_collisions = {}
-        self._a_ij[:] = 0
-        self._a_ij_mag[:] = 0
-        F, r_ij, r_ij_mag = self._F, self._r_ij, self._r_ij_mag
-        bot = self.balls_on_table
-        nballs = len(bot)
-        F = F[:nballs] = bot
-        r_ij[F,F] = ball_positions
-        for ii, i in enumerate(self.balls_on_table):
-            r_ij[i,F] = r_ij[F,F] - ball_positions[ii]
-            r_ij[F,i] = -r_ij[i,F]
-            r_ij[i,i] = ball_positions[ii]
-            r_ij_mag[i,F] = r_ij_mag[F,i] = np.linalg.norm(r_ij[i,F], axis=1)
-        # update occlusion buffers:
-        # self._occ_ij[:] = False
-        # self._occ_ij[F, F] = True
-        # self._psi_ij[:] = 0
-        # self._theta_ij[:] = 0
-        # if self._enable_occlusion:
-        #     self._update_occlusion({e.i: e._r_0 for e in self._BALL_REST_EVENTS})
 
     @property
     def ball_collision_model(self):
@@ -250,10 +223,6 @@ class PoolPhysics(object):
         self._balls_on_table.sort()
         self._on_table[:] = False
         self._on_table[self._balls_on_table] = True
-
-    @property
-    def balls_in_motion(self):
-        return list(self._ball_motion_events.keys())
 
     @property
     def balls_at_rest(self):
@@ -283,7 +252,7 @@ class PoolPhysics(object):
     def add_event_sequence(self, event):
         num_events = len(self.events)
         self._add_event(event)
-        while self.balls_in_motion or self._ball_spinning_events:
+        while self._ball_motion_events or self._ball_spinning_events:
             event = self._determine_next_event()
             self._add_event(event)
         num_added_events = len(self.events) - num_events
@@ -295,13 +264,13 @@ class PoolPhysics(object):
         T, T_f = self._collision_search_time_limit, self._collision_search_time_forward
         lt = perf_counter()
         if T is None or np.isinf(T):
-            while self.balls_in_motion or self._ball_spinning_events:
+            while self._ball_motion_events or self._ball_spinning_events:
                 event = self._determine_next_event()
                 self._add_event(event)
                 if event.t - self.t > T_f:
                     break
         elif T_f is not None and not np.isinf(T_f):
-            while T > 0 and self.balls_in_motion or self._ball_spinning_events:
+            while T > 0 and (self._ball_motion_events or self._ball_spinning_events):
                 event = self._determine_next_event()
                 self._add_event(event)
                 if event.t - self.t > T_f:
@@ -309,7 +278,7 @@ class PoolPhysics(object):
                 t = perf_counter()
                 T -= t - lt; lt = t
         else:
-            while T > 0 and self.balls_in_motion or self._ball_spinning_events:
+            while T > 0 and (self._ball_motion_events or self._ball_spinning_events):
                 event = self._determine_next_event()
                 self._add_event(event)
                 t = perf_counter()
@@ -332,7 +301,7 @@ class PoolPhysics(object):
 
     def _step_realtime(self, dt):
         self.t += dt
-        if not self.balls_in_motion and not self._ball_spinning_events:
+        if not (self._ball_motion_events or self._ball_spinning_events):
             return
         T, T_f = self._collision_search_time_limit, self._collision_search_time_forward
         if T_f is None:
@@ -340,7 +309,7 @@ class PoolPhysics(object):
         else:
             t_max = self.t + T_f
         if T is None or np.isinf(T):
-            while self.balls_in_motion or self._ball_spinning_events:
+            while self._ball_motion_events or self._ball_spinning_events:
                 event = self._determine_next_event()
                 if event:
                     self._add_event(event)
@@ -349,7 +318,7 @@ class PoolPhysics(object):
             return
         else:
             lt = perf_counter()
-            while T > 0 and self.balls_in_motion or self._ball_spinning_events:
+            while T > 0 and (self._ball_motion_events or self._ball_spinning_events):
                 event = self._determine_next_event()
                 if event:
                     self._add_event(event)
@@ -474,10 +443,11 @@ class PoolPhysics(object):
     def _add_event(self, event):
         self.events.append(event)
         if isinstance(event, BallCollisionEvent):
-            event.e_i.T_orig = event.e_i.T
-            event.e_j.T_orig = event.e_j.T
-            event.e_i.T = event.t - event.e_i.t
-            event.e_j.T = event.t - event.e_j.t
+            e_i, e_j = event.e_i, event.e_j
+            e_i.T_orig = e_i.T
+            e_j.T_orig = e_j.T
+            e_i.T = event.t - e_i.t
+            e_j.T = event.t - e_j.t
         elif isinstance(event, BallEvent):
             i = event.i
             ball_events = self.ball_events[i]
@@ -490,42 +460,18 @@ class PoolPhysics(object):
             self._collisions.pop(i, None)
             for k, v in self._collisions.items():
                 v.pop(i, None)
-            F = self._F
-            bot = self.balls_on_table
-            nballs = len(bot)
-            F[:nballs] = bot
-            a_ij, a_ij_mag = self._a_ij, self._a_ij_mag
             if isinstance(event, BallStationaryEvent):
                 self._balls_at_rest.add(i)
                 self._ball_motion_events.pop(i, None)
                 if isinstance(event, BallSpinningEvent):
                     self._ball_spinning_events[i] = event
-                    a_ij[i] = 0
-                    a_ij_mag[i,F] = a_ij_mag[F,i] = a_ij_mag[F,F]
-                    a_ij_mag[i,i] = 0
                 else:
                     if i in self._ball_spinning_events:
                         self._ball_spinning_events.pop(i)
-                    else:
-                        a_ij[i] = 0
-                        a_ij_mag[i,F] = a_ij_mag[F,i] = a_ij_mag[F,F]
-                        a_ij_mag[i,i] = 0
-                # if self._enable_occlusion and not self.balls_in_motion:
-                #     self._update_occlusion({i: event._r_0})
             elif isinstance(event, BallMotionEvent):
-                accel = event.acceleration
                 self._ball_motion_events[i] = event
-                a_ij[i] = accel
-                a_ij_mag[i,F] = a_ij_mag[F,i] = np.linalg.norm(a_ij[F] - accel, axis=1)
-                a_ij_mag[i,i] = sqrt(dot(accel, accel))
                 if i in self._balls_at_rest:
                     self._balls_at_rest.remove(i)
-            if isinstance(event, (BallStationaryEvent, BallMotionEvent)):
-                r_ij, r_ij_mag = self._r_ij, self._r_ij_mag
-                r_ij[i,F] = r_ij[F,F] - event._r_0
-                r_ij[F,i] = -r_ij[i,F]
-                r_ij[i,i] = event._r_0
-                r_ij_mag[i,F] = r_ij_mag[F,i] = np.linalg.norm(r_ij[i,F], axis=1)
         for child_event in event.child_events:
             self._add_event(child_event)
         if self._enable_sanity_check and isinstance(event, BallCollisionEvent):
@@ -543,7 +489,14 @@ class PoolPhysics(object):
         next_collision = None
         next_rail_collision = None
         ball_events = self.ball_events
-        for i, e_i in self._ball_motion_events.items():
+        ball_motion_events = sorted(self._ball_motion_events.items())
+        # num_in_motion = len(ball_motion_events)
+        # other_balls = sorted(i for i in self.balls_on_table
+        #                      if i not in self._ball_motion_events)
+        # F = self._F
+        # F[:num_in_motion] = (i for i, e_i in ball_motion_events)
+        # F[num_in_motion:num_in_motion+len(other_balls)] = other_balls
+        for i, e_i in ball_motion_events:
             if e_i.t >= t_min:
                 continue
             if i not in self._rail_collisions:
@@ -555,6 +508,10 @@ class PoolPhysics(object):
             if i not in self._collisions:
                 self._collisions[i] = {}
             collisions = self._collisions[i]
+            # prev_i_coll = next((e.parent_event for e in ball_events[i][::-1]
+            #                     if isinstance(e.parent_event, BallCollisionEvent)), None)
+            # if prev_i_coll is not None:
+            #     j_prev = prev_i_coll.i if prev_i_coll.i != i else prev_i_coll.j
             for j in self.balls_on_table:
                 if j in self._ball_motion_events and j <= i:
                     continue
@@ -563,14 +520,36 @@ class PoolPhysics(object):
                 if t_min <= t0:
                     continue
                 if j not in collisions:
-                    # if e_j.parent_event and e_i.parent_event and e_j.parent_event is e_i.parent_event:
-                    #     collisions[j] = None
-                    #     continue
                     t1 = min(e_i.t + e_i.T, e_j.t + e_j.T)
                     if t1 <= t0:
                         collisions[j] = None
                         continue
-                    collisions[j] = self._find_collision_time(e_i, e_j)
+                    # t_prev = None
+                    # prev_j_coll = next((e.parent_event for e in ball_events[j][::-1]
+                    #                     if isinstance(e.parent_event, BallCollisionEvent)), None)
+                    # if prev_j_coll is not None:
+                    #     i_prev = prev_j_coll.i if prev_j_coll.i != j else prev_j_coll.j
+                    #     if i_prev == i and j_prev == j:
+                    #         t_prev = prev_j_coll.t
+                    #         _logger.debug('%d and %d, t_prev = %s', i, j, t_prev)
+                    t_c = self._find_collision_time(e_i, e_j)
+                    if t_c is not None:
+                        tau_i = t_c - e_i.t
+                        tau_j = t_c - e_j.t
+                        r_i = e_i.eval_position(tau_i)
+                        r_j = e_j.eval_position(tau_j)
+                        r_ij = r_j - r_i
+                        y_loc = r_ij / sqrt(dot(r_ij, r_ij))
+                        v_i = e_i.eval_velocity(tau_i)
+                        v_j = e_j.eval_velocity(tau_j)
+                        v_ij = v_j - v_i
+                        if np.dot(v_ij, y_loc) >= 0:
+                            t_c = None
+                    # if t_c is not None and t_prev is not None and abs(t_c - t_prev) < 1e-6:
+                    #     _logger.info('ignoring because t_c = %s, t_prev = %s', t_c, t_prev)
+                    #     collisions[j] = None
+                    #     continue
+                    collisions[j] = t_c
                 t_c = collisions[j]
                 if t_c is not None and t0 < t_c < t_min:
                     t_min = t_c
@@ -611,44 +590,6 @@ class PoolPhysics(object):
         a_j = e_j.global_linear_motion_coeffs
         t0, t1 = max(e_i.t, e_j.t), min(e_i.t + e_i.T, e_j.t + e_j.T)
         return find_collision_time(a_i, a_j, self.ball_radius, t0, t1)
-        # a_i, _ = e_i.global_motion_coeffs
-        # a_j, _ = e_j.global_motion_coeffs
-        # a_ji = a_i - a_j
-        # a_x, a_y = a_ji[2, ::2]
-        # b_x, b_y = a_ji[1, ::2]
-        # c_x, c_y = a_ji[0, ::2]
-        # p = self._p
-        # p[0] = a_x**2 + a_y**2
-        # p[1] = 2 * (a_x*b_x + a_y*b_y)
-        # p[2] = b_x**2 + 2*a_x*c_x + 2*a_y*c_y + b_y**2
-        # p[3] = 2 * b_x*c_x + 2 * b_y*c_y
-        # p[4] = c_x**2 + c_y**2 - 4 * self.ball_radius**2
-        # t0, t1 = max(e_i.t, e_j.t), min(e_i.t + e_i.T, e_j.t + e_j.T)
-        # return min((t.real for t in self._filter_roots(c_quartic_solve(p[::-1]))
-        #             if t0 < t.real < t1
-        #             and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
-        #             default=None)
-        # if e_i < e_j:
-        #     t0 = e_j.t - e_i.t
-        #     t1 = min(e_i.T, t0 + e_j.T)
-        #     a_i = e_i._a
-        #     if isinstance(e_j, BallStationaryEvent):
-        #         a_j = np.zeros((3,3), dtype=np.float64)
-        #         a_j[0] = e_j._r_0
-        #     else:
-        #         a_j = e_j.calc_global_linear_motion_coeffs(t0, e_j._a)
-        # else:
-        #     t0 = e_i.t - e_j.t
-        #     t1 = min(e_j.T, t0 + e_i.T)
-        #     a_i = e_i.calc_global_linear_motion_coeffs(t0, e_i._a)
-        #     if isinstance(e_j, BallStationaryEvent):
-        #         a_j = np.zeros((3,3), dtype=np.float64)
-        #         a_j[0] = e_j._r_0
-        #     else:
-        #         a_j = e_j._a
-        # t = find_collision_time(a_i, a_j, self.ball_radius, t0, t1)
-        # if t:
-        #     return t + min(e_i.t, e_j.t)
 
     def _find_rail_collision(self, e_i):
         """
@@ -787,76 +728,6 @@ class PoolPhysics(object):
             i += 1
         return roots[2*npairs:]
 
-    # def _update_occlusion(self, ball_positions=None):
-    #     if ball_positions is None:
-    #         ball_positions = {}
-    #     balls, ball_positions = zip(*ball_positions.items())
-    #     balls = list(balls)
-    #     nballs = len(balls)
-    #     r_ij = self._r_ij
-    #     r_ij_mag = self._r_ij_mag
-    #     thetas_ij = self._theta_ij
-    #     psi_ij = self._psi_ij
-    #     occ_ij = self._occ_ij
-    #     F = self._F
-    #     # U: ball no.s corresponding to the input ball_positions, respectively - these balls must be at rest.
-    #     U = F[:nballs] = balls
-    #     # R: ball no.s of all other balls at rest.
-    #     R = F[nballs:nballs+len(R)] = [i for i in self.balls_at_rest if i not in U]
-    #     F = F[:len(U)+len(R)]
-    #     U.sort()
-    #     R.sort()
-    #     M = np.array(self.balls_in_motion, dtype=np.int)
-    #     occ_ij[M,:] = occ_ij[:,M] = False
-    #     occ_ij[M,M] = True
-    #     for ii, i in enumerate(U):
-    #         F_i = F[ii+1:]
-    #         if len(F_i) == 0:
-    #             continue
-    #         thetas_ij[i,F_i] = np.arctan2(r_ij[i,F_i,2], r_ij[i,F_i,0])
-    #         thetas_ij[F_i,i] = thetas_ij[i,F_i] + np.pi
-    #         psi_ij[i,F_i] = psi_ij[F_i,i] = np.arcsin(self.ball_diameter / r_ij_mag[i,F_i])
-    #     for ii, i in enumerate(U):
-    #         F_i = F[:-1].copy()
-    #         if len(F_i) == 0:
-    #             continue
-    #         F_i[ii:] = F[ii+1:]
-    #         jj_sorted = r_ij_mag[i,F_i].argsort()
-    #         j_sorted = F_i[jj_sorted]
-    #         theta_i = thetas_ij[i,j_sorted]
-    #         psi_i = psi_ij[i,j_sorted]
-    #         theta_i_a = theta_i - psi_i
-    #         theta_i_b = theta_i + psi_i
-    #         theta_i_occ_bnds = []
-    #         for j, theta_ij_a, theta_ij, theta_ij_b in zip(j_sorted,
-    #                                                        theta_i_a, theta_i, theta_i_b):
-    #             if j == i:
-    #                 continue
-    #             if theta_ij_a < -np.pi:
-    #                 thetas  = [(theta_ij_a,      theta_ij,      theta_ij_b),
-    #                            (theta_ij_a+PIx2, theta_ij+PIx2, theta_ij_b+PIx2)]
-    #             elif theta_ij_b >= np.pi:
-    #                 thetas = [(theta_ij_a,      theta_ij,      theta_ij_b),
-    #                           (theta_ij_a-PIx2, theta_ij-PIx2, theta_ij_b-PIx2)]
-    #             else:
-    #                 thetas = [(theta_ij_a, theta_ij, theta_ij_b)]
-    #             for theta_a, theta, theta_b in thetas:
-    #                 jj_a, jj, jj_b = (bisect(theta_i_occ_bnds, theta_a),
-    #                                   bisect(theta_i_occ_bnds, theta),
-    #                                   bisect(theta_i_occ_bnds, theta_b))
-    #                 center_occluded, a_occluded, b_occluded = jj % 2 == 1, jj_a % 2 == 1, jj_b % 2 == 1
-    #                 if center_occluded and jj_a == jj == jj_b:
-    #                     occ_ij[i,j] = True
-    #                     break
-    #                 if a_occluded and b_occluded:
-    #                     theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + theta_i_occ_bnds[jj_b:]
-    #                 elif a_occluded:
-    #                     theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + [theta_b] + theta_i_occ_bnds[jj_b:]
-    #                 elif b_occluded:
-    #                     theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + [theta_a] + theta_i_occ_bnds[jj_b:]
-    #                 else:
-    #                     theta_i_occ_bnds = theta_i_occ_bnds[:jj_a] + [theta_a, theta_b] + theta_i_occ_bnds[jj_b:]
-
     def _sanity_check(self, event):
         import pickle
         class Insanity(Exception):
@@ -891,24 +762,33 @@ class PoolPhysics(object):
                     break
             if insanity is not None:
                 raise insanity(self, '''
-    t = {t}
+  t = {t}
 
-    (ball_diameter - d_ij) / ball_diameter = {relerr}
-     ball_diameter = {ball_diameter}
-              d_ij = {d_ij}
+  (ball_diameter - d_ij) / ball_diameter = {relerr}
+   ball_diameter = {ball_diameter}
+            d_ij = {d_ij}
 
-    event {eventno}: {event}
+  event {eventno}: {event}
 
-    preceding events:
-      e_i: {e_i}
-      e_j: {e_j}
-    '''.format(t=event.t,
-               relerr=(d_ij - 2*R) / (2*R),
-               ball_diameter=2*R,
-               d_ij=d_ij,
-               eventno=len(self.events)-1,
-               event=event,
-               e_i=e_i, e_j=e_j))
+  preceding events:
+    e_i: {e_i}
+    e_j: {e_j}
+
+  previous collisions:
+
+{prev_collisions}
+'''.format(t=event.t,
+           relerr=(d_ij - 2*R) / (2*R),
+           ball_diameter=2*R,
+           d_ij=d_ij,
+           eventno=len(self.events)-1,
+           event=event,
+           e_i=event.e_i, e_j=event.e_j,
+           prev_collisions='\n'.join(str(e) for e in self.events[::-1]
+                                     if isinstance(e, BallCollisionEvent)
+                                     and e.i in (e_i.i, e_j.i) and e.j in (e_i.i, e_j.i))))
+             #  next((e for e in chain(zip(self.ball_events[e_i.i][::-1], self.ball_events[e_j.i][::-1]))
+             # if isinstance(e, BallCollisionEvent)), '')))
 
 
     def glyph_meshes(self, t):

@@ -14,6 +14,9 @@ _logger = getLogger(__name__)
 import sys
 from math import sqrt
 import ctypes
+from ctypes import c_double, POINTER, cast
+c_double_p = POINTER(c_double)
+
 import os.path as path
 import numpy as np
 from numpy import dot, array
@@ -27,17 +30,17 @@ _k = array([0, 1, 0], dtype=np.float64)
 
 _lib = ctypes.cdll.LoadLibrary(path.join(path.dirname(path.abspath(__file__)),
                                          'collisions.dll'))
-_lib.collide_balls.argtypes = (ctypes.c_double,                           # deltaP
-                               ndpointer(np.float64, ndim=1, shape=(3,)), # r_i
-                               ndpointer(np.float64, ndim=1, shape=(3,)), # v_i
-                               ndpointer(np.float64, ndim=1, shape=(3,)), # omega_i
-                               ndpointer(np.float64, ndim=1, shape=(3,)),
-                               ndpointer(np.float64, ndim=1, shape=(3,)),
-                               ndpointer(np.float64, ndim=1, shape=(3,)),
-                               ndpointer(np.float64),
-                               ndpointer(np.float64),
-                               ndpointer(np.float64),
-                               ndpointer(np.float64))
+_lib.collide_balls.argtypes = (ctypes.c_double,
+                               c_double_p,
+                               c_double_p,
+                               c_double_p,
+                               c_double_p,
+                               c_double_p,
+                               c_double_p,
+                               c_double_p,
+                               c_double_p,
+                               c_double_p,
+                               c_double_p)
 _lib.print_params.argtypes = []
 _module_vars = ('M', 'R', 'mu_s', 'mu_b', 'e')
 _M, _R, _mu_s, _mu_b, _e = [ctypes.c_double.in_dll(_lib, p)
@@ -64,16 +67,20 @@ def print_params():
 def collide_balls_f90(r_i, v_i, omega_i,
                       r_j, v_j, omega_j,
                       deltaP, return_all=False):
-    v_i1, omega_i1, v_j1, omega_j1 = collide_balls_f90.out
     _lib.collide_balls(deltaP,
-                       r_i, v_i, omega_i,
-                       r_j, v_j, omega_j,
-                       v_i1, omega_i1, v_j1, omega_j1)
+                       cast(r_i.ctypes.data, c_double_p),
+                       cast(v_i.ctypes.data, c_double_p),
+                       cast(omega_i.ctypes.data, c_double_p),
+                       cast(r_j.ctypes.data, c_double_p),
+                       cast(v_j.ctypes.data, c_double_p),
+                       cast(omega_j.ctypes.data, c_double_p),
+                       *collide_balls_f90.outp)
     return collide_balls_f90.out
 collide_balls_f90.out = (np.zeros(3, dtype=np.float64),
                          np.zeros(3, dtype=np.float64),
                          np.zeros(3, dtype=np.float64),
                          np.zeros(3, dtype=np.float64))
+collide_balls_f90.outp = tuple(cast(v.ctypes.data, c_double_p) for v in collide_balls_f90.out)
 
 
 def collide_balls(r_i, v_i, omega_i,

@@ -280,6 +280,7 @@ def main(window_size=(800,600),
                 cue.shadow_mesh.update()
             # sdf_text.set_text("%9.3f" % dt)
             # sdf_text.update_gl()
+        glfw.SwapBuffers(window)
 
         if not contact_last_frame:
             if game.t - last_contact_t >= 2:
@@ -309,7 +310,6 @@ def main(window_size=(800,600),
         if nframes == 0:
             st = glfw.GetTime()
         nframes += 1
-        glfw.SwapBuffers(window)
 
     if nframes > 1:
         _logger.info('...exited render loop: average FPS: %f, maximum frame time: %f, average frame time: %f',

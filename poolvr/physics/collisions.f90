@@ -7,6 +7,11 @@ MODULE collisions
   real(c_double), bind(C) :: mu_b = 0.05
   real(c_double), bind(C) :: e = 0.89
   double precision, dimension(3), parameter :: z_loc = (/ 0.d0, 1.d0, 0.d0 /)
+  ! real(c_double), parameter :: ZERO_VELOCITY_CLIP = 0.0001
+  ! real(c_double), parameter :: ZERO_VELOCITY_CLIP_SQRD = 0.00000001
+  ! real(c_double), parameter :: ZERO_ANGULAR_VELOCITY_CLIP = 0.00001
+  real(c_double), parameter :: grav = 9.81
+
 CONTAINS
 
   SUBROUTINE collide_balls (deltaP,            &
@@ -29,6 +34,8 @@ CONTAINS
     double precision :: deltaP_ix, deltaP_iy, deltaP_jx, deltaP_jy, deltaP_1, deltaP_2
     double precision :: deltaV_ix, deltaV_iy, deltaV_jx, deltaV_jy
     double precision :: W, deltaW, W_f, W_c
+    real(c_double), dimension(3) :: u
+    real(c_double), dimension(3,3) :: a_i1, a_j1
     r_ij = r_j - r_i
     r_ij_mag_sqrd = sum(r_ij**2)
     r_ij_mag = sqrt(r_ij_mag_sqrd)
@@ -153,7 +160,55 @@ CONTAINS
     v_j1 = MATMUL(G_T, (/ v_jx, v_jy, 0.d0 /))
     omega_i1 = MATMUL(G_T, omega_i1)
     omega_j1 = MATMUL(G_T, omega_j1)
+    ! if (sum(v_i1**2) < ZERO_VELOCITY_CLIP_SQRD) then
+    !    if (abs(omega_i1(2)) < ZERO_ANGULAR_VELOCITY_CLIP) then
+    !       PRINT *, "i -> BallRestEvent"
+    !    else
+    !       PRINT *, "i -> BallSpinningEvent"
+    !    endif
+    ! else
+    !    u = calc_slip_velocity(v_i1, omega_i1)
+    !    if (sum(u**2) < ZERO_VELOCITY_CLIP_SQRD) then
+    !       PRINT *, "i -> BallRollingEvent"
+    !    else
+    !       a_i1 = calc_motion_coefficients(r_i, v_i, omega_i)
+    !       PRINT *, "i -> BallSlidingEvent", a_i1
+    !    endif
+    ! endif
+    ! if (sum(v_j1**2) < ZERO_VELOCITY_CLIP_SQRD) then
+    !    if (abs(omega_j1(2)) < ZERO_ANGULAR_VELOCITY_CLIP) then
+    !       PRINT *, "j -> BallRestEvent"
+    !    else
+    !       PRINT *, "j -> BallSpinningEvent"
+    !    endif
+    ! else
+    !    u = calc_slip_velocity(v_j1, omega_j1)
+    !    if (sum(u**2) < ZERO_VELOCITY_CLIP_SQRD) then
+    !       PRINT *, "j -> BallRollingEvent"
+    !    else
+    !       PRINT *, "j -> BallSlidingEvent"
+    !    endif
+    ! endif
+
   END SUBROUTINE collide_balls
+
+  function calc_slip_velocity(v, omega)
+    implicit none
+    real(c_double), dimension(3) :: calc_slip_velocity
+    real(c_double), dimension(3), intent(in) :: v, omega
+    calc_slip_velocity = v + R * (/ omega(3), 0.d0, -omega(1) /)
+  end function calc_slip_velocity
+
+  function calc_motion_coefficients(r, v, omega)
+    implicit none
+    real(c_double), dimension(3,3) :: calc_motion_coefficients
+    real(c_double), dimension(3), intent(in):: r, v, omega
+    real(c_double), dimension(3) :: u
+    u = calc_slip_velocity(v, omega)
+    calc_motion_coefficients(:,1) = r
+    calc_motion_coefficients(:,2) = v
+    calc_motion_coefficients(:,3) = -0.5 * mu_s * grav * u / sqrt(sum(u**2))
+  end function calc_motion_coefficients
 
   SUBROUTINE print_params () BIND(C)
     WRITE(*,*)

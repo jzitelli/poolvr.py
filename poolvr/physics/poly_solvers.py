@@ -1,12 +1,16 @@
 import ctypes
-from ctypes import c_double, c_int
+from ctypes import c_double, c_int, POINTER, cast, Structure
 import os.path as path
-
 from math import fsum, isnan
 from logging import getLogger
 _logger = getLogger(__name__)
 import numpy as np
 from numpy.ctypeslib import ndpointer
+class c_double_complex(Structure):
+    _fields_ = [('real', c_double),
+                ('imag', c_double)]
+c_double_p = POINTER(c_double)
+c_double_complex_p = POINTER(c_double_complex)
 
 
 PIx2 = np.pi*2
@@ -21,82 +25,89 @@ _IMAG_TOLERANCE_SQRD = _IMAG_TOLERANCE**2
 
 _lib = ctypes.cdll.LoadLibrary(path.join(path.dirname(path.abspath(__file__)),
                                          'poly_solvers.dll'))
-_lib.quartic_solve.argtypes = (ndpointer(dtype=np.float64),
-                               ndpointer(dtype=np.complex128))
-_lib.find_min_quartic_root_in_real_interval.argtypes = (ndpointer(np.float64, ndim=1, shape=(5,)),
+_lib.quartic_solve.argtypes = (c_double_p,
+                               c_double_complex_p)
+_lib.find_min_quartic_root_in_real_interval.argtypes = (c_double_p,
                                                         c_double, c_double)
 _lib.find_min_quartic_root_in_real_interval.restype = c_double
-_lib.find_collision_time.argtypes = (ndpointer(np.float64, ndim=2, shape=(3,3)),
-                                     ndpointer(np.float64, ndim=2, shape=(3,3)),
+_lib.find_collision_time.argtypes = (c_double_p,
+                                     c_double_p,
                                      c_double, c_double, c_double)
 _lib.find_collision_time.restype = c_double
-_lib.sort_complex_conjugate_pairs.argtypes = [ndpointer(np.complex128, ndim=1)]
+_lib.sort_complex_conjugate_pairs.argtypes = [c_double_complex_p]
 _lib.sort_complex_conjugate_pairs.restype = c_int
 
 
 _flib = ctypes.cdll.LoadLibrary(path.join(path.dirname(path.abspath(__file__)),
                                           'fpoly_solvers.dll'))
-_flib.quartic_solve.argtypes = (ndpointer(np.float64, ndim=1, shape=(5,)),
-                                ndpointer(np.complex128, ndim=1, shape=(4,)))
-_flib.find_min_quartic_root_in_real_interval.argtypes = (ndpointer(np.float64, ndim=1, shape=(5,)),
+_flib.quartic_solve.argtypes = (c_double_p,
+                                c_double_complex_p)
+_flib.find_min_quartic_root_in_real_interval.argtypes = (c_double_p,
                                                          c_double, c_double)
 _flib.find_min_quartic_root_in_real_interval.restype = c_double
-_flib.find_collision_time.argtypes = (ndpointer(np.float64, ndim=2, shape=(3,3)),
-                                      ndpointer(np.float64, ndim=2, shape=(3,3)),
+_flib.find_collision_time.argtypes = (c_double_p,
+                                      c_double_p,
                                       c_double, c_double, c_double)
 _flib.find_collision_time.restype = c_double
-_flib.sort_complex_conjugate_pairs.argtypes = [ndpointer(np.complex128, ndim=1)]
+_flib.sort_complex_conjugate_pairs.argtypes = [c_double_complex_p]
 _flib.sort_complex_conjugate_pairs.restype = c_int
 
 
 def c_find_collision_time(a_i, a_j, R, t0, t1):
     global _lib
-    t = _lib.find_collision_time(a_i, a_j, R, t0, t1)
+    t = _lib.find_collision_time(cast(a_i.ctypes.data, c_double_p),
+                                 cast(a_j.ctypes.data, c_double_p),
+                                 R, t0, t1)
     if not isnan(t):
         return t
 
 
 def c_find_min_quartic_root_in_real_interval(p, t0, t1):
     global _lib
-    t = _lib.find_min_quartic_root_in_real_interval(p, t0, t1)
+    t = _lib.find_min_quartic_root_in_real_interval(cast(p.ctypes.data, c_double_p), t0, t1)
     if not isnan(t):
         return t
 
 
 def c_quartic_solve(p, only_real=False):
     global _lib
-    _lib.quartic_solve(p, c_quartic_solve.out)
+    _lib.quartic_solve(cast(p.ctypelib.data, c_double_p),
+                       cast(c_quartic_solve.out.ctypes.data, c_double_complex_p))
     return c_quartic_solve.out
 c_quartic_solve.out = np.zeros(4, dtype=np.complex128)
 
 
 def c_sort_complex_conjugate_pairs(roots):
-    return _lib.sort_complex_conjugate_pairs(roots)
+    return _lib.sort_complex_conjugate_pairs(cast(roots.ctypes.data, c_double_complex_p))
 
 
 def f_find_collision_time(a_i, a_j, R, t0, t1):
     global _flib
-    t = _flib.find_collision_time(a_i, a_j, R, t0, t1)
+    t = _flib.find_collision_time(cast(a_i.ctypes.data, c_double_p),
+                                  cast(a_j.ctypes.data, c_double_p),
+                                  R, t0, t1)
     if t < t1:
         return t
 
 
 def f_find_min_quartic_root_in_real_interval(p, t0, t1):
     global _flib
-    t = _flib.find_min_quartic_root_in_real_interval(p, t0, t1)
+    t = _flib.find_min_quartic_root_in_real_interval(cast(p.ctypes.data, c_double_p), t0, t1)
     if t < t1:
         return t
 
 
 def f_quartic_solve(p, only_real=False):
     global _flib
-    _flib.quartic_solve(p, f_quartic_solve.out)
+    _flib.quartic_solve(cast(p.ctypes.data, c_double_p),
+                        f_quartic_solve.outp)
     return f_quartic_solve.out
 f_quartic_solve.out = np.zeros(4, dtype=np.complex128)
+f_quartic_solve.outp = cast(f_quartic_solve.out.ctypes.data, c_double_complex_p)
 
 
 def f_sort_complex_conjugate_pairs(roots):
-    return _flib.sort_complex_conjugate_pairs(roots)
+    return _flib.sort_complex_conjugate_pairs(cast(roots.ctypes.data, c_double_complex_p))
 
 
 def quartic_solve(p, only_real=False):
