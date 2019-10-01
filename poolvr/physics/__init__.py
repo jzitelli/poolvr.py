@@ -490,12 +490,6 @@ class PoolPhysics(object):
         next_rail_collision = None
         ball_events = self.ball_events
         ball_motion_events = sorted(self._ball_motion_events.items())
-        # num_in_motion = len(ball_motion_events)
-        # other_balls = sorted(i for i in self.balls_on_table
-        #                      if i not in self._ball_motion_events)
-        # F = self._F
-        # F[:num_in_motion] = (i for i, e_i in ball_motion_events)
-        # F[num_in_motion:num_in_motion+len(other_balls)] = other_balls
         for i, e_i in ball_motion_events:
             if e_i.t >= t_min:
                 continue
@@ -508,10 +502,6 @@ class PoolPhysics(object):
             if i not in self._collisions:
                 self._collisions[i] = {}
             collisions = self._collisions[i]
-            # prev_i_coll = next((e.parent_event for e in ball_events[i][::-1]
-            #                     if isinstance(e.parent_event, BallCollisionEvent)), None)
-            # if prev_i_coll is not None:
-            #     j_prev = prev_i_coll.i if prev_i_coll.i != i else prev_i_coll.j
             for j in self.balls_on_table:
                 if j in self._ball_motion_events and j <= i:
                     continue
@@ -520,18 +510,6 @@ class PoolPhysics(object):
                 if t_min <= t0:
                     continue
                 if j not in collisions:
-                    t1 = min(e_i.t + e_i.T, e_j.t + e_j.T)
-                    if t1 <= t0:
-                        collisions[j] = None
-                        continue
-                    # t_prev = None
-                    # prev_j_coll = next((e.parent_event for e in ball_events[j][::-1]
-                    #                     if isinstance(e.parent_event, BallCollisionEvent)), None)
-                    # if prev_j_coll is not None:
-                    #     i_prev = prev_j_coll.i if prev_j_coll.i != j else prev_j_coll.j
-                    #     if i_prev == i and j_prev == j:
-                    #         t_prev = prev_j_coll.t
-                    #         _logger.debug('%d and %d, t_prev = %s', i, j, t_prev)
                     t_c = self._find_collision_time(e_i, e_j)
                     if t_c is not None:
                         tau_i = t_c - e_i.t
@@ -545,10 +523,6 @@ class PoolPhysics(object):
                         v_ij = v_j - v_i
                         if np.dot(v_ij, y_loc) >= 0:
                             t_c = None
-                    # if t_c is not None and t_prev is not None and abs(t_c - t_prev) < 1e-6:
-                    #     _logger.info('ignoring because t_c = %s, t_prev = %s', t_c, t_prev)
-                    #     collisions[j] = None
-                    #     continue
                     collisions[j] = t_c
                 t_c = collisions[j]
                 if t_c is not None and t0 < t_c < t_min:
@@ -586,9 +560,11 @@ class PoolPhysics(object):
              < sqrt(dot(r_ij_0, r_ij_0)) - self.ball_diameter
 
     def _find_collision_time(self, e_i, e_j):
+        t0, t1 = max(e_i.t, e_j.t), min(e_i.t + e_i.T, e_j.t + e_j.T)
+        if t1 <= t0:
+            return None
         a_i = e_i.global_linear_motion_coeffs
         a_j = e_j.global_linear_motion_coeffs
-        t0, t1 = max(e_i.t, e_j.t), min(e_i.t + e_i.T, e_j.t + e_j.T)
         return find_collision_time(a_i, a_j, self.ball_radius, t0, t1)
 
     def _find_rail_collision(self, e_i):
