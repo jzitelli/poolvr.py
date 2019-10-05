@@ -465,11 +465,12 @@ class PoolPhysics(object):
                 self._ball_motion_events.pop(i, None)
                 if isinstance(event, BallSpinningEvent):
                     self._ball_spinning_events[i] = event
-                else:
-                    if i in self._ball_spinning_events:
-                        self._ball_spinning_events.pop(i)
+                elif i in self._ball_spinning_events:
+                    self._ball_spinning_events.pop(i)
             elif isinstance(event, BallMotionEvent):
                 self._ball_motion_events[i] = event
+                self._collisions[i] = {}
+                self._rail_collisions[i] = {}
                 if i in self._balls_at_rest:
                     self._balls_at_rest.remove(i)
         for child_event in event.child_events:
@@ -489,18 +490,13 @@ class PoolPhysics(object):
         next_collision = None
         next_rail_collision = None
         ball_events = self.ball_events
-        ball_motion_events = sorted(self._ball_motion_events.items())
-        for i, e_i in ball_motion_events:
+        for i, e_i in self._ball_motion_events.items():
             if e_i.t >= t_min:
                 continue
-            if i not in self._rail_collisions:
-                self._rail_collisions[i] = self._find_rail_collision(e_i)
             rail_collision = self._rail_collisions[i]
             if rail_collision and rail_collision[0] < t_min:
                 t_min = rail_collision[0]
                 next_rail_collision = rail_collision
-            if i not in self._collisions:
-                self._collisions[i] = {}
             collisions = self._collisions[i]
             for j in self.balls_on_table:
                 if j in self._ball_motion_events and j <= i:

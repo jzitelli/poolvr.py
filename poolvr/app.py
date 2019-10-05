@@ -11,7 +11,7 @@ _logger = logging.getLogger('poolvr')
 
 from .glfw_app import setup_glfw
 from .gl_rendering import OpenGLRenderer, set_quaternion_from_matrix, set_matrix_from_quaternion
-from .gl_techniques import LAMBERT_TECHNIQUE
+from .gl_techniques import LAMBERT_TECHNIQUE, EGA_TECHNIQUE
 # from .gl_text import TexturedText
 try:
     from .pyopenvr_renderer import openvr, OpenVRRenderer

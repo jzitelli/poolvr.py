@@ -184,7 +184,20 @@ def test_break_hard(pool_physics,
     pr.dump_stats(outname)
     _logger.info('evaluation time: %s', t1-t0)
     _logger.info('...dumped stats to "%s"', outname)
-    _logger.info('strike on %d resulted in %d events', 0, len(events))
+    _logger.info('\n'.join(['strike on %d resulted in %d events:',
+                            '  %d BallSlidingEvents',
+                            '  %d BallRollingEvents',
+                            '  %d BallSpinningEvents',
+                            '  %d BallRestEvents',
+                            '  %d RailCollisionEvents',
+                            '  %d BallCollisionEvents']),
+                 0, len(events),
+                 len([e for e in events if isinstance(e, BallSlidingEvent)]),
+                 len([e for e in events if isinstance(e, BallRollingEvent)]),
+                 len([e for e in events if isinstance(e, BallSpinningEvent)]),
+                 len([e for e in events if isinstance(e, BallRestEvent)]),
+                 len([e for e in events if isinstance(e, RailCollisionEvent)]),
+                 len([e for e in events if isinstance(e, BallCollisionEvent)]))
     # _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
     #               PhysicsEvent.events_str(events))
 
