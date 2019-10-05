@@ -12,7 +12,7 @@ from poolvr.physics.events import (CueStrikeEvent,
                                    #BallSlidingEvent,
                                    #BallRollingEvent,
                                    #BallSpinningEvent,
-                                   BallRestEvent,
+                                   BallMotionEvent, BallRestEvent,
                                    RailCollisionEvent, CornerCollisionEvent, BallCollisionEvent,
                                    MarlowBallCollisionEvent, SimpleBallCollisionEvent,
                                    SimulatedBallCollisionEvent, FSimulatedBallCollisionEvent)
@@ -472,10 +472,15 @@ def check_ball_distances(pool_physics, t=None, filename=None):
                 if d < 2*physics.ball_radius:
                     e_i, e_j = (e for e in physics.find_active_events(t)
                                 if e.i == i or e.i == j)
+                    if isinstance(e_i, BallMotionEvent):
+                        if isinstance(e_j, BallMotionEvent) and e_j.i < e_i.i:
+                            e_i, e_j = e_j, e_i
+                    else:
+                        e_i, e_j = e_j, e_i
                     physics.e_i = e_i
                     physics.e_j = e_j
-                    physics.i = i
-                    physics.j = j + i + 1
+                    physics.i = e_i.i
+                    physics.j = e_j.i
                     class BallsPenetratedInsanity(Exception):
                         def __init__(self, physics, *args, **kwargs):
                             fname = '%s.%s.dump' % (self.__class__.__name__.split('.')[-1],
