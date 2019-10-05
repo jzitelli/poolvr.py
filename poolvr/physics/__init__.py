@@ -784,18 +784,24 @@ class PoolPhysics(object):
             self._velocity_material = Material(LAMBERT_TECHNIQUE, values={"u_color": [1.0, 0.0, 0.0, 0.0]})
             self._angular_velocity_material = Material(LAMBERT_TECHNIQUE, values={'u_color': [0.0, 0.0, 1.0, 0.0]})
             self._slip_velocity_material = Material(EGA_TECHNIQUE, values={"u_color": [1.0, 0.75, 0.0, 0.0]})
-            self._velocity_meshes = {i: ArrowMesh(material=self._velocity_material,
-                                                  head_radius=0.2*R,
-                                                  head_length=0.5*R,
-                                                  tail_radius=0.075*R,
-                                                  tail_length=2*R)
-                                     for i in range(self.num_balls)}
+            self._velocity_meshes = {
+                i: ArrowMesh(material=self._velocity_material,
+                             head_radius=0.2*R,
+                             head_length=0.5*R,
+                             tail_radius=0.075*R,
+                             tail_length=2*R)
+                for i in range(self.num_balls)
+            }
             self._angular_velocity_meshes = {
                 i: Mesh({self._angular_velocity_material: self._velocity_meshes[i].primitives[self._velocity_material]})
                 for i in range(self.num_balls)
             }
             self._slip_velocity_meshes = {
-                i: ProjectedMesh(self._velocity_meshes[i], self._slip_velocity_material)
+                i: ProjectedMesh(ArrowMesh(material=self._velocity_material,
+                                           head_radius=0.2*R,
+                                           head_length=0.5*R,
+                                           tail_radius=0.075*R,
+                                           tail_length=2*R), self._slip_velocity_material)
                 for i in range(self.num_balls)
             }
             for mesh in chain(self._velocity_meshes.values(), self._angular_velocity_meshes.values(),
