@@ -667,13 +667,10 @@ class FSimulatedBallCollisionEvent(BallCollisionEvent):
         omega_i, omega_j = self._omega_i, self._omega_j
         r_ij = r_j - r_i
         y_loc = r_ij / sqrt(dot(r_ij, r_ij))
-        # v_ij = v_j - v_i
-        # if np.dot(v_ij, y_loc) >= 0:
-        #     raise Exception('balls are not colliding')
         self._v_i_1, self._omega_i_1, self._v_j_1, self._omega_j_1 = \
             collide_balls_f90(
                 r_i, v_i, omega_i, r_j, v_j, omega_j,
-                deltaP=self.ball_mass*abs(dot(v_j - v_i, y_loc))/3200
+                deltaP=self.ball_mass*abs(dot(v_j - v_i, y_loc))/6400
             )
         self._child_events = None
     @property

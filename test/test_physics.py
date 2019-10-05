@@ -123,7 +123,8 @@ def test_sliding_ball_collision(pool_physics,
 def test_break(pool_physics,
                plot_motion_timelapse,
                plot_energy,
-               gl_rendering):
+               gl_rendering,
+               request):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
     r_c = ball_positions[0].copy()
@@ -157,7 +158,7 @@ def test_break(pool_physics,
                  len([e for e in events if isinstance(e, RailCollisionEvent)]),
                  len([e for e in events if isinstance(e, BallCollisionEvent)]))
     from utils import check_ball_distances
-    check_ball_distances(physics)
+    check_ball_distances(physics, filename=request.node.originalname)
     # _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
     #               PhysicsEvent.events_str(events))
 
@@ -165,7 +166,8 @@ def test_break(pool_physics,
 def test_break_hard(pool_physics,
                     plot_motion_timelapse,
                     plot_energy,
-                    gl_rendering):
+                    gl_rendering,
+                    request):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
     r_c = ball_positions[0].copy()
@@ -201,7 +203,7 @@ def test_break_hard(pool_physics,
                  len([e for e in events if isinstance(e, RailCollisionEvent)]),
                  len([e for e in events if isinstance(e, BallCollisionEvent)]))
     from utils import check_ball_distances
-    check_ball_distances(physics)
+    check_ball_distances(physics, filename=request.node.originalname)
     # _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
     #               PhysicsEvent.events_str(events))
 

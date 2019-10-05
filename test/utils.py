@@ -455,7 +455,7 @@ def git_head_hash():
     return ret.stdout.decode().strip()
 
 
-def check_ball_distances(pool_physics, t=None):
+def check_ball_distances(pool_physics, t=None, filename=None):
     from numpy import sqrt, dot, linspace
     import pickle
     physics = pool_physics
@@ -478,12 +478,15 @@ def check_ball_distances(pool_physics, t=None):
                     physics.j = j + i + 1
                     class BallsPenetratedInsanity(Exception):
                         def __init__(self, physics, *args, **kwargs):
-                            fname = '%s.%s.pickle.dump' % (self.__class__.__name__.split('.')[-1], physics.ball_collision_model)
+                            fname = '%s.%s.dump' % (self.__class__.__name__.split('.')[-1],
+                                                    physics.ball_collision_model)
+                            if filename is not None:
+                                fname = '%s.%s' % (filename, fname)
                             with open(fname, 'wb') as f:
                                 pickle.dump(physics, f)
                             _logger.info('dumped serialized physics to "%s"', fname)
                             super().__init__(*args, **kwargs)
-                    raise BallsPenetratedInsanity(pool_physics, '''t = {t}
+                    raise BallsPenetratedInsanity(physics, '''t = {t}
 d = {d} < {ball_diameter}
 
 e_i: {e_i}
