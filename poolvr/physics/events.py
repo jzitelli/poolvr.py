@@ -57,7 +57,7 @@ class PhysicsEvent(object):
         return out
     @staticmethod
     def events_str(events, sep='\n\n' + 48*'-' + '\n\n'):
-        return sep.join('%3d:\n%s' % (i_e, e) for i_e, e in enumerate(events))
+        return sep.join('%3d: %s' % (i_e, e) for i_e, e in enumerate(events))
     def __lt__(self, other):
         if isinstance(other, PhysicsEvent):
             return self.t < other.t

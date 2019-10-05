@@ -156,6 +156,8 @@ def test_break(pool_physics,
                  len([e for e in events if isinstance(e, BallRestEvent)]),
                  len([e for e in events if isinstance(e, RailCollisionEvent)]),
                  len([e for e in events if isinstance(e, BallCollisionEvent)]))
+    from utils import check_ball_distances
+    check_ball_distances(physics)
     # _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
     #               PhysicsEvent.events_str(events))
 
@@ -198,10 +200,13 @@ def test_break_hard(pool_physics,
                  len([e for e in events if isinstance(e, BallRestEvent)]),
                  len([e for e in events if isinstance(e, RailCollisionEvent)]),
                  len([e for e in events if isinstance(e, BallCollisionEvent)]))
+    from utils import check_ball_distances
+    check_ball_distances(physics)
     # _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
     #               PhysicsEvent.events_str(events))
 
 
+@pytest.mark.skip
 def test_break_hard_realtime(pool_physics_realtime,
                              plot_motion_timelapse,
                              plot_energy,
@@ -229,6 +234,7 @@ def test_break_hard_realtime(pool_physics_realtime,
     _logger.info('strike on %d resulted in %d events', 0, len(events))
 
 
+@pytest.mark.skip
 def test_break_and_following_shot(pool_physics,
                                   gl_rendering):
     physics = pool_physics

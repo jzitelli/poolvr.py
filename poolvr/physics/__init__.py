@@ -13,10 +13,32 @@ from itertools import chain
 from bisect import bisect
 from time import perf_counter
 from math import sqrt
+import pickle
 import logging
 _logger = logging.getLogger(__name__)
 import numpy as np
 from numpy import dot
+
+
+class Insanity(Exception):
+    def __init__(self, physics, *args, **kwargs):
+        fname = '%s.%s.pickle.dump' % (self.__class__.__name__.split('.')[-1], physics.ball_collision_model)
+        with open(fname, 'wb') as f:
+            pickle.dump(physics, f)
+        _logger.info('dumped serialized physics to "%s"', fname)
+        super().__init__(*args, **kwargs)
+
+
+class BallsPenetratedInsanity(Insanity):
+    pass
+
+
+class BallsHadNoContactInsanity(Insanity):
+    pass
+
+
+class BallsMovingApartInsanity(Insanity):
+    pass
 
 
 from ..table import PoolTable
@@ -507,20 +529,7 @@ class PoolPhysics(object):
                 if t_min <= t0:
                     continue
                 if j not in collisions:
-                    t_c = self._find_collision_time(e_i, e_j)
-                    if t_c is not None:
-                        tau_i = t_c - e_i.t
-                        tau_j = t_c - e_j.t
-                        r_i = e_i.eval_position(tau_i)
-                        r_j = e_j.eval_position(tau_j)
-                        r_ij = r_j - r_i
-                        y_loc = r_ij / sqrt(dot(r_ij, r_ij))
-                        v_i = e_i.eval_velocity(tau_i)
-                        v_j = e_j.eval_velocity(tau_j)
-                        v_ij = v_j - v_i
-                        if np.dot(v_ij, y_loc) >= 0:
-                            t_c = None
-                    collisions[j] = t_c
+                    collisions[j] = self._find_collision_time(e_i, e_j)
                 t_c = collisions[j]
                 if t_c is not None and t0 < t_c < t_min:
                     t_min = t_c
@@ -562,7 +571,19 @@ class PoolPhysics(object):
             return None
         a_i = e_i.global_linear_motion_coeffs
         a_j = e_j.global_linear_motion_coeffs
-        return find_collision_time(a_i, a_j, self.ball_radius, t0, t1)
+        t_c = find_collision_time(a_i, a_j, self.ball_radius, t0, t1)
+        if t_c is not None:
+            tau_i = t_c - e_i.t
+            tau_j = t_c - e_j.t
+            r_i = e_i.eval_position(tau_i)
+            r_j = e_j.eval_position(tau_j)
+            r_ij = r_j - r_i
+            v_i = e_i.eval_velocity(tau_i)
+            v_j = e_j.eval_velocity(tau_j)
+            v_ij = v_j - v_i
+            if np.dot(v_ij, r_ij) >= 0:
+                return None
+        return t_c
 
     def _find_rail_collision(self, e_i):
         """
@@ -702,14 +723,6 @@ class PoolPhysics(object):
         return roots[2*npairs:]
 
     def _sanity_check(self, event):
-        import pickle
-        class Insanity(Exception):
-            def __init__(self, physics, *args, **kwargs):
-                fname = '%s.%s.pickle.dump' % (self.__class__.__name__.split('.')[-1], physics.ball_collision_model)
-                with open(fname, 'wb') as f:
-                    pickle.dump(physics, f)
-                _logger.info('dumped serialized physics to "%s"', fname)
-                super().__init__(*args, **kwargs)
         if isinstance(event, BallCollisionEvent):
             e_i, e_j = event.child_events
             R = self.ball_radius
@@ -724,13 +737,9 @@ class PoolPhysics(object):
                 r_ij = r_j - r_i
                 d_ij = np.sqrt(np.dot(r_ij, r_ij))
                 if d_ij < 2*R*(1 - 1e-4):
-                    class BallsPenetratedInsanity(Insanity):
-                        pass
                     insanity = BallsPenetratedInsanity
                     break
                 elif t == event.t and d_ij > 2*R*(1 + 1e-4):
-                    class BallsHadNoContactInsanity(Insanity):
-                        pass
                     insanity = BallsHadNoContactInsanity
                     break
             if insanity is not None:

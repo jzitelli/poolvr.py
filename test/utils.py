@@ -453,3 +453,40 @@ def git_head_hash():
     from subprocess import run
     ret = run('git reflog --format=%h -n 1'.split(), capture_output=True)
     return ret.stdout.decode().strip()
+
+
+def check_ball_distances(pool_physics, t=None):
+    from numpy import sqrt, dot, linspace
+    import pickle
+    physics = pool_physics
+    if t is None:
+        ts = linspace(physics.events[0].t, physics.events[-1].t, 1000)
+    else:
+        ts = [t]
+    for t in ts:
+        positions = physics.eval_positions(t)
+        for i, r_i in enumerate(positions):
+            for j, r_j in enumerate(positions[i+1:]):
+                r_ij = r_j - r_i
+                d = sqrt(dot(r_ij, r_ij))
+                if d < 2*physics.ball_radius:
+                    e_i, e_j = (e for e in physics.find_active_events(t)
+                                if e.i == i or e.i == j)
+                    physics.e_i = e_i
+                    physics.e_j = e_j
+                    physics.i = i
+                    physics.j = j + i + 1
+                    class BallsPenetratedInsanity(Exception):
+                        def __init__(self, physics, *args, **kwargs):
+                            fname = '%s.%s.pickle.dump' % (self.__class__.__name__.split('.')[-1], physics.ball_collision_model)
+                            with open(fname, 'wb') as f:
+                                pickle.dump(physics, f)
+                            _logger.info('dumped serialized physics to "%s"', fname)
+                            super().__init__(*args, **kwargs)
+                    raise BallsPenetratedInsanity(pool_physics, '''t = {t}
+d = {d} < {ball_diameter}
+
+e_i: {e_i}
+
+e_j: {e_j}
+'''.format(t=t, d=d, ball_diameter=2*physics.ball_radius, e_i=e_i, e_j=e_j))

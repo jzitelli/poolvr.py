@@ -5,7 +5,8 @@ from math import fsum, isnan
 from logging import getLogger
 _logger = getLogger(__name__)
 import numpy as np
-from numpy.ctypeslib import ndpointer
+
+
 class c_double_complex(Structure):
     _fields_ = [('real', c_double),
                 ('imag', c_double)]
@@ -71,7 +72,7 @@ def c_find_min_quartic_root_in_real_interval(p, t0, t1):
 
 def c_quartic_solve(p, only_real=False):
     global _lib
-    _lib.quartic_solve(cast(p.ctypelib.data, c_double_p),
+    _lib.quartic_solve(cast(p.ctypes.data, c_double_p),
                        cast(c_quartic_solve.out.ctypes.data, c_double_complex_p))
     return c_quartic_solve.out
 c_quartic_solve.out = np.zeros(4, dtype=np.complex128)
