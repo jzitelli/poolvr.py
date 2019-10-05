@@ -361,8 +361,7 @@ class ArrowMesh(SingleMaterialMesh):
     def __init__(self, material=None, head_radius=0.05, tail_radius=0.02,
                  head_length=0.1, tail_length=1, num_radial=12):
         head = ConePrimitive(radius=head_radius, height=head_length, num_radial=num_radial)
-        tail = CylinderPrimitive(radius=tail_radius, height=tail_length, num_radial=num_radial,
-                                 top_closed=False)
+        tail = CylinderPrimitive(radius=tail_radius, height=tail_length, num_radial=num_radial)
         tail.attributes['vertices'][:,1] -= 0.5*tail_length
         super().__init__(material, [head, tail])
 

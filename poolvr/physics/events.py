@@ -506,10 +506,26 @@ class BallCollisionEvent(PhysicsEvent):
         tau_i, tau_j = t - e_i.t, t - e_j.t
         self._r_i, self._r_j = e_i.eval_position(tau_i), e_j.eval_position(tau_j)
         self._v_i, self._v_j = e_i.eval_velocity(tau_i), e_j.eval_velocity(tau_j)
+        self._r_ij = r_ij = self._r_j - self._r_i
+        self._v_ij = v_ij = self._v_j - self._v_i
+        self._y_loc = y_loc = r_ij / sqrt(dot(r_ij, r_ij))
+        self._v_ij_y0 = dot(v_ij, y_loc)
         self._omega_i, self._omega_j = e_i.eval_angular_velocity(tau_i), e_j.eval_angular_velocity(tau_j)
     def __str__(self):
-        return super().__str__()[:-1] + ' i=%s j=%s\n v_i_0=%s\n v_j_0=%s\n v_i_1=%s\n v_j_1=%s\n v_ij_0=%s\n v_ij_1=%s>' % (
-            self.i, self.j, self._v_i, self._v_j, self._v_i_1, self._v_j_1, self._v_i - self._v_j, self._v_i_1 - self._v_j_1)
+        return super().__str__()[:-1] + '''
+ i,j = %s,%s
+
+ v_ij_y0 = %s
+ v_ij_y1 = %s>''' % (
+            self.i, self.j, self._v_ij_y0, self._v_ij_y1)
+    def __lt__(self, other):
+        return self.t <= other.t \
+            if not isinstance(other, BallCollisionEvent) \
+            else self.t < other.t
+    def __gt__(self, other):
+        return self.t >= other.t \
+            if not isinstance(other, BallCollisionEvent) \
+            else self.t > other.t
     @property
     def child_events(self):
         raise NotImplementedError()
@@ -532,6 +548,7 @@ class SimpleBallCollisionEvent(BallCollisionEvent):
         v_i_1 = v_iy + v_ix_1
         v_j_1 = v_jy + v_jx_1
         self._v_i_1, self._v_j_1 = v_i_1, v_j_1
+        self._v_ij_y1 = dot(v_j_1 - v_i_1, _i)
         omega_i, omega_j = self._omega_i, self._omega_j
         self._omega_i_1, self._omega_j_1 = omega_i.copy(), omega_j.copy()
         self._child_events = None
@@ -621,6 +638,7 @@ class SimulatedBallCollisionEvent(BallCollisionEvent):
                 r_i, v_i, omega_i, r_j, v_j, omega_j,
                 deltaP=self.ball_mass*sqrt(abs(dot(v_j - v_i, y_loc)))/800
             )
+        self._v_ij_y1 = dot(self._v_j_1 - self._v_i_1, y_loc)
         self._child_events = None
     @property
     def child_events(self):
@@ -672,6 +690,7 @@ class FSimulatedBallCollisionEvent(BallCollisionEvent):
                 r_i, v_i, omega_i, r_j, v_j, omega_j,
                 deltaP=self.ball_mass*abs(dot(v_j - v_i, y_loc))/6400
             )
+        self._v_ij_y1 = dot(self._v_j_1 - self._v_i_1, y_loc)
         self._child_events = None
     @property
     def child_events(self):

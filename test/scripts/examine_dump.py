@@ -16,19 +16,29 @@ with open(fname, 'rb') as f:
     physics = pickle.load(f)
 R = physics.ball_radius = 0.02625
 # check_ball_distances(physics)
-ball_events = physics.ball_events
 i, j = physics.i, physics.j
+ball_events = physics.ball_events
 i_events = ball_events[i]
 j_events = ball_events[j]
+collisions = [e for e in physics.events if isinstance(e, BallCollisionEvent)]
+i_collisions = [c for c in collisions if c.i == i or c.j == i]
+j_collisions = [c for c in collisions if c.i == j or c.j == j]
+logger.info('''
+ball i events:
+
+%s
+''', PhysicsEvent.events_str(sorted(i_events + i_collisions)))
+logger.info('''
+ball j events:
+
+%s
+''', PhysicsEvent.events_str(sorted(j_events + j_collisions)))
 for event in i_events:
     if hasattr(event, 'T_orig'):
         event.T = event.T_orig
 for event in j_events:
     if hasattr(event, 'T_orig'):
         event.T = event.T_orig
-logger.info(PhysicsEvent.events_str(i_events))
-logger.info(PhysicsEvent.events_str(j_events))
-collisions = [e for e in physics.events if isinstance(e, BallCollisionEvent)]
 
 
 c = collisions[-4]

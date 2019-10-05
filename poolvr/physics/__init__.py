@@ -48,6 +48,7 @@ from .events import (CueStrikeEvent,
                      BallSpinningEvent,
                      BallRestEvent,
                      BallMotionEvent,
+                     BallSlidingEvent,
                      BallCollisionEvent,
                      MarlowBallCollisionEvent,
                      SimpleBallCollisionEvent,
@@ -774,23 +775,31 @@ class PoolPhysics(object):
 
 
     def glyph_meshes(self, t):
+        from ..gl_primitives import ProjectedMesh
+        R = self.ball_radius
         if self._velocity_meshes is None:
             from ..gl_rendering import Material, Mesh
             from ..gl_primitives import ArrowMesh
-            from ..gl_techniques import LAMBERT_TECHNIQUE
+            from ..gl_techniques import LAMBERT_TECHNIQUE, EGA_TECHNIQUE
             self._velocity_material = Material(LAMBERT_TECHNIQUE, values={"u_color": [1.0, 0.0, 0.0, 0.0]})
             self._angular_velocity_material = Material(LAMBERT_TECHNIQUE, values={'u_color': [0.0, 0.0, 1.0, 0.0]})
+            self._slip_velocity_material = Material(EGA_TECHNIQUE, values={"u_color": [1.0, 0.75, 0.0, 0.0]})
             self._velocity_meshes = {i: ArrowMesh(material=self._velocity_material,
-                                                  head_radius=0.2*self.ball_radius,
-                                                  head_length=0.5*self.ball_radius,
-                                                  tail_radius=0.075*self.ball_radius,
-                                                  tail_length=2*self.ball_radius)
+                                                  head_radius=0.2*R,
+                                                  head_length=0.5*R,
+                                                  tail_radius=0.075*R,
+                                                  tail_length=2*R)
                                      for i in range(self.num_balls)}
             self._angular_velocity_meshes = {
                 i: Mesh({self._angular_velocity_material: self._velocity_meshes[i].primitives[self._velocity_material]})
                 for i in range(self.num_balls)
             }
-            for mesh in chain(self._velocity_meshes.values(), self._angular_velocity_meshes.values()):
+            self._slip_velocity_meshes = {
+                i: ProjectedMesh(self._velocity_meshes[i], self._slip_velocity_material)
+                for i in range(self.num_balls)
+            }
+            for mesh in chain(self._velocity_meshes.values(), self._angular_velocity_meshes.values(),
+                              self._slip_velocity_meshes.values()):
                 for prim in chain.from_iterable(mesh.primitives.values()):
                     prim.alias('vertices', 'a_position')
                 mesh.init_gl()
@@ -802,24 +811,35 @@ class PoolPhysics(object):
                 r = event.eval_position(tau)
                 v = event.eval_velocity(tau)
                 omega = event.eval_angular_velocity(tau)
-                for (vec, vec_mag, vec_meshes) in ((v, sqrt(dot(v, v)), self._velocity_meshes),
-                                                   (omega, sqrt(dot(omega, omega)), self._angular_velocity_meshes)):
-                    if vec > self._ZERO_TOLERANCE:
-                        y = vec / vec_mag
+                glyphs = [(v, sqrt(dot(v, v)), self._velocity_meshes),
+                          (omega, sqrt(dot(omega, omega)), self._angular_velocity_meshes)]
+                if isinstance(event, BallSlidingEvent):
+                    u = v + R * np.array((omega[2], 0.0, -omega[0]), dtype=np.float64)
+                    glyphs.append((u, sqrt(dot(u, u)), self._slip_velocity_meshes))
+                for (vec, vec_mag, vec_meshes) in glyphs:
+                    if vec_mag > self._ZERO_TOLERANCE:
                         mesh = vec_meshes[event.i]
-                        mesh.world_matrix[:] = 0
-                        mesh.world_matrix[0,0] = mesh.world_matrix[1,1] = mesh.world_matrix[2,2] = mesh.world_matrix[3,3] = 1
-                        mesh.world_matrix[1,:3] = y
+                        _mesh = mesh
+                        if isinstance(mesh, ProjectedMesh):
+                            mesh = mesh.mesh
+                        M = mesh.world_matrix
+                        y = vec / vec_mag
+                        M[:] = 0
+                        M[0,0] = M[1,1] = M[2,2] = M[3,3] = 1
+                        M[1,:3] = y
                         x, z = mesh.world_matrix[0,:3], mesh.world_matrix[2,:3]
                         ydotx, ydotz = y.dot(x), y.dot(z)
                         if abs(ydotx) >= abs(ydotz):
-                            mesh.world_matrix[2,:3] -= ydotz * y
-                            mesh.world_matrix[2,:3] /= sqrt(mesh.world_matrix[2,:3].dot(mesh.world_matrix[2,:3]))
-                            mesh.world_matrix[0,:3] = np.cross(mesh.world_matrix[1,:3], mesh.world_matrix[2,:3])
+                            M[2,:3] -= ydotz * y
+                            M[2,:3] /= sqrt(M[2,:3].dot(M[2,:3]))
+                            M[0,:3] = np.cross(M[1,:3], M[2,:3])
                         else:
-                            mesh.world_matrix[0,:3] -= ydotx * y
-                            mesh.world_matrix[0,:3] /= sqrt(mesh.world_matrix[0,:3].dot(mesh.world_matrix[0,:3]))
-                            mesh.world_matrix[2,:3] = np.cross(mesh.world_matrix[0,:3], mesh.world_matrix[1,:3])
-                        mesh.world_matrix[3,:3] = r + (2*self.ball_radius)*y
+                            M[0,:3] -= ydotx * y
+                            M[0,:3] /= sqrt(M[0,:3].dot(M[0,:3]))
+                            M[2,:3] = np.cross(M[0,:3], M[1,:3])
+                        M[3,:3] = r + (2*self.ball_radius)*y
+                        if isinstance(_mesh, ProjectedMesh):
+                            mesh = _mesh
+                            mesh.update(c=self.table.H+0.0012)
                         meshes.append(mesh)
         return meshes
