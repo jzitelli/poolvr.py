@@ -470,7 +470,6 @@ class PoolPhysics(object):
             elif isinstance(event, BallMotionEvent):
                 self._ball_motion_events[i] = event
                 self._collisions[i] = {}
-                self._rail_collisions[i] = {}
                 if i in self._balls_at_rest:
                     self._balls_at_rest.remove(i)
         for child_event in event.child_events:
@@ -493,6 +492,8 @@ class PoolPhysics(object):
         for i, e_i in self._ball_motion_events.items():
             if e_i.t >= t_min:
                 continue
+            if i not in self._rail_collisions:
+                self._rail_collisions[i] = self._find_rail_collision(e_i)
             rail_collision = self._rail_collisions[i]
             if rail_collision and rail_collision[0] < t_min:
                 t_min = rail_collision[0]
