@@ -464,31 +464,31 @@ def plot_distance(physics, i, j,
     events = sorted(i_events + j_events)
     ts = np.concatenate([[a.t] + list(ts[(ts > a.t) & (ts < b.t)]) + [b.t]
                          for a, b in zip(events[:-1], events[1:])])
+    fig = plt.figure()
     plt.title('distance b/t balls  %d  and  %d' % (i, j))
     plt.xlabel('t (seconds)')
     plt.ylabel('distance (meters)')
-    labeled = set()
-    for e in events:
+    for e in sorted(events, key=lambda e: (e.t, 0 if isinstance(e, BallEvent) else 1)):
+        typee = e.__class__.__name__
         if isinstance(e, BallEvent):
-            typee = e.__class__.__name__
-            if type(e) in EVENT_COLORS:
-                plt.axvline(e.t, color=EVENT_COLORS[type(e)],
-                            label=typee if typee not in labeled else None,
-                            linestyle=':')
-                labeled.add(typee)
-    for e in events:
-        if isinstance(e, BallCollisionEvent):
-            typee = e.__class__.__name__
-            if type(e) in EVENT_COLORS:
-                plt.axvline(e.t, color=EVENT_COLORS[type(e)],
-                            label=typee if typee not in labeled else None,
-                            linestyle=':')
-                labeled.add(typee)
+            plt.axvline(e.t, color=EVENT_COLORS[type(e)],
+                        label=typee + ' i=%d' % e.i,
+                        linestyle=':')
     plt.hlines(2*physics.ball_radius, ts[0], ts[-1], linestyles='--', label='ball diameter')
     positions = np.array([physics.eval_positions(t)
                           for t in ts])
     deltas = positions[:,j] - positions[:,i]
     plt.plot(ts, linalg.norm(deltas, axis=-1))
+    ticks, labels = plt.xticks()
+    ticks = np.array(list(ticks) + [c.t for c in collisions])
+    labels += ['(%d,%d)  %5.4f' % (c.i, c.j, c.t) for c in collisions]
+    argsort = ticks.argsort()
+    fig.axes[0].set_xticks(ticks[argsort])
+    fig.axes[0].set_xticklabels([labels[ii] for ii in argsort], rotation=70, fontsize='x-small')
+    plt.minorticks_on()
+    fig.axes[0].set_xticks(0.01*np.arange(np.ceil(ts[-1])), minor=True)
+    # plt.xticks([c.t for c in collisions], ['%5.4f (%d,%d)' % (c.t, c.i, c.j) for c in collisions],
+    #            rotation=70, fontsize='x-small')
     plt.legend()
     plt.show()
     plt.close()
@@ -520,12 +520,12 @@ def git_head_hash():
     return ret.stdout.decode().strip()
 
 
-def check_ball_distances(pool_physics, t=None, filename=None):
+def check_ball_distances(pool_physics, t=None, filename=None, nt=2000):
     from numpy import sqrt, dot, linspace
     import pickle
     physics = pool_physics
     if t is None:
-        ts = linspace(physics.events[0].t, physics.events[-1].t, 1000)
+        ts = linspace(physics.events[0].t, physics.events[-1].t, nt)
     else:
         ts = [t]
     for t in ts:

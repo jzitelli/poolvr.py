@@ -18,9 +18,9 @@ PIx2 = np.pi*2
 CUBE_ROOTS_OF_1 = np.exp(1j*PIx2/3 * np.arange(3))
 
 
-_ZERO_TOLERANCE = 1e-8
+_ZERO_TOLERANCE = 1e-12
 _ZERO_TOLERANCE_SQRD = _ZERO_TOLERANCE**2
-_IMAG_TOLERANCE = 1e-7
+_IMAG_TOLERANCE = 1e-12
 _IMAG_TOLERANCE_SQRD = _IMAG_TOLERANCE**2
 
 
@@ -142,7 +142,7 @@ def quartic_solve(p, only_real=False):
     if Delta > 0 and p < 0 and D < 0:
         # _logger.debug('all roots are real and distinct')
         phi = np.arccos(Delta_1 / (2*np.sqrt(Delta_0**3)))
-        S = 0.5 * (np.sqrt(-2*p/3 + 2*np.sqrt(Delta_0)*np.cos(phi/3)/3))
+        S = 0.5 * np.sqrt(-2*p/3 + 2*np.sqrt(Delta_0)*np.cos(phi/3)/3)
         SSx4 = 4*S**2
     else:
         QQQ = 0.5*(Delta_1 + np.sqrt(-27.0*Delta if Delta <= 0 else -27.0*Delta + 0j))
@@ -160,7 +160,8 @@ def quartic_solve(p, only_real=False):
             S = S[argsort[-1]]
             SSx4 = SSx4[argsort[-1]]
         else:
-            S = 0.5*np.sqrt(SSx4[0] + 0j)
+            SSx4 = SSx4[0]
+            S = 0.5*np.sqrt(SSx4 + 0j)
             # if D > 0 or (p > 0 and (D != 0 or r != 0)):
             #     _logger.debug('one real double root and a complex-conjugate pair of roots')
             # elif p < 0 and D < 0 and Delta_0 != 0:

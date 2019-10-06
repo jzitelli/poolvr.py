@@ -8,8 +8,8 @@ MODULE poly_solvers
   real(c_double), parameter :: PI = acos(-1.d0)
   real(c_double), parameter :: PIx2 = 2*PI
   complex(c_double_complex), dimension(3), parameter :: CUBE_ROOTS_OF_1 = (/ (1.d0, 0.d0), &
-                                                                             exp(complex(0.d0, 2.d0*acos(-1.d0)/3.d0)), &
-                                                                             exp(complex(0.d0, 4.d0*acos(-1.d0)/3.d0)) /)
+                                                                             exp(complex(0.d0, PIx2/3)), &
+                                                                             exp(complex(0.d0, 2*PIx2/3)) /)
 
 CONTAINS
 
@@ -18,8 +18,8 @@ CONTAINS
     real(c_double), dimension(5), intent(in) :: Poly
     double complex, dimension(4), intent(out) :: out
     real(c_double) :: e, d, c, b, bb, p, q, r, cc, dd, ee, ccc, Delta, Dee, Delta_0, Delta_1
-    complex(c_double_complex) :: S, SSx4, phi, zQ, SSx4_max, sqrtp, sqrtm
-    real(c_double) :: abs_SSx4_max, abs_SSx4
+    complex(c_double_complex) :: S, phi, zQ, SSx4, sqrtp, sqrtm
+    complex(c_double_complex), dimension(3) :: S_v, SSx4_v
     integer(c_int) :: ir
     e = Poly(1) / Poly(5)
     d = Poly(2) / Poly(5)
@@ -40,27 +40,22 @@ CONTAINS
     Dee = 64*e - 16*cc
     Delta_0 = cc + 12*e
     Delta_1 = 2*ccc + 27*dd - 72*c*e
-    if (Delta_1 > 0 .and. p < 0 .and. Dee < 0) then
+    if (Delta > 0 .and. p < 0 .and. Dee < 0) then
        phi = acos(Delta_1 / (2*sqrt(complex(Delta_0**3,0.d0))))
        S = 0.5 * sqrt((-2*p + 2*sqrt(complex(Delta_0,0.d0))*cos(phi/3))/3)
        SSx4 = 4*S*S
     else
        zQ = (0.5*(Delta_1 + sqrt(complex(-27*Delta,0.d0))))**(1.d0/3)
+       SSx4_v = (-2*p + (zQ*CUBE_ROOTS_OF_1 + Delta_0/(zQ*CUBE_ROOTS_OF_1))) / 3.d0
+       S_v = 0.5*sqrt(SSx4_v)
        if (Delta .ne. 0) then
-          abs_SSx4_max = 0.d0
-          do ir = 1, 3
-             SSx4 = (-2*p + (zQ*CUBE_ROOTS_OF_1(ir) + Delta_0/(zQ*CUBE_ROOTS_OF_1(ir)))) / 3
-             abs_SSx4 = abs(SSx4)
-             if (abs_SSx4 > abs_SSx4_max) then
-                abs_SSx4_max = abs_SSx4
-                SSx4_max = SSx4
-             endif
-          enddo
-          SSx4 = SSx4_max
+          ir = maxloc(abs(S_v), 1)
+          SSx4 = SSx4_v(ir)
+          S = S_v(ir)
        else
-          SSx4 = (-2*p + (zQ + Delta_0/zQ)) / 3
+          SSx4 = SSx4_v(1)
+          S = S_v(1)
        endif
-       S = 0.5*sqrt(SSx4)
     endif
     sqrtp = sqrt(-SSx4 - 2*p + q/S)
     sqrtm = sqrt(-SSx4 - 2*p - q/S)

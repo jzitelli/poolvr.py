@@ -32,7 +32,7 @@ void quartic_solve(double P[5], double complex out[4]) {
   double Delta_1 = 2*ccc + 27*dd - 72*c*e;
   double complex S;
   double complex SSx4;
-  if (Delta_1 > 0 && p < 0 && D < 0) {
+  if (Delta > 0 && p < 0 && D < 0) {
     double complex phi = cacos(Delta_1 / (2*csqrt(Delta_0*Delta_0*Delta_0)));
     S = 0.5 * csqrt((-2*p + 2*csqrt(Delta_0)*ccos(phi/3))/3);
     SSx4 = 4*S*S;

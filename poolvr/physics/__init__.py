@@ -451,9 +451,12 @@ class PoolPhysics(object):
         omegas = self.eval_angular_velocities(t, balls=balls)
         return 0.5 * self.ball_mass * (velocities**2).sum() + 0.5 * self.ball_I * (omegas**2).sum()
 
-    def find_active_events(self, t):
+    def find_active_events(self, t, balls=None):
         active_events = []
-        for i, events in self.ball_events.items():
+        if balls is None:
+            balls = range(self.num_balls)
+        for i in balls:
+            events = self.ball_events.get(i, [])
             for e in events[:bisect(events, t)][::-1]:
                 if t <= e.t + e.T:
                     active_events.append(e)
