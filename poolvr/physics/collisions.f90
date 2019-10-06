@@ -20,11 +20,10 @@ CONTAINS
                             v_i1, omega_i1, v_j1, omega_j1) BIND(C)
     implicit none
     double precision, VALUE, intent(in) :: deltaP
-    double precision, dimension(3), intent(in) :: r_i, r_j
-    double precision, dimension(3), intent(in) :: v_i, v_j
-    double precision, dimension(3), intent(in) :: omega_i, omega_j
-    double precision, dimension(3), intent(out) :: v_i1, v_j1
-    double precision, dimension(3), intent(out) :: omega_i1, omega_j1
+    double precision, dimension(3), intent(in) :: r_i, v_i, omega_i
+    double precision, dimension(3), intent(in) :: r_j, v_j, omega_j
+    double precision, dimension(3), intent(out) :: v_i1, omega_i1
+    double precision, dimension(3), intent(out) :: v_j1, omega_j1
     double precision, dimension(3,3) :: G, G_T
     double precision, dimension(3) :: r_ij, deltaOm_i, deltaOm_j, y_loc, x_loc
     double precision :: r_ij_mag_sqrd, r_ij_mag, v_ix, v_iy, v_jx, v_jy
@@ -76,7 +75,7 @@ CONTAINS
     W_c = huge(1.d0)
     do while (W < W_c .or. W < W_f)
        ! determine impulse deltas:
-       if (u_ijC_xz_mag < 1.d-16) then
+       if (u_ijC_xz_mag < 1.d-64) then
           deltaP_1 = 0
           deltaP_2 = 0
           deltaP_ix = 0
@@ -85,7 +84,7 @@ CONTAINS
           deltaP_jy = 0
        else
           deltaP_1 = -mu_b * deltaP * u_ijC_x / u_ijC_xz_mag
-          if (abs(u_ijC_z) < 1.d-16) then
+          if (abs(u_ijC_z) < 1.d-64) then
              deltaP_2 = 0
              deltaP_ix = 0
              deltaP_iy = 0
