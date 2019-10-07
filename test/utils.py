@@ -449,14 +449,14 @@ def plot_distance(physics, i, j,
     j_events = ball_events.get(j, [])
     if not (i_events or j_events):
         return
-    collisions = [e for e in physics.events if isinstance(e, BallCollisionEvent)
-                  and set((i,j)) & set((e.i,e.j))]
-    i_collisions = [e for e in collisions if i in (e.i, e.j)]
-    j_collisions = [e for e in collisions if j in (e.i, e.j)]
-    i_events = sorted(i_events + i_collisions)
-    j_events = sorted(j_events + j_collisions)
     if t0 is None:
         t0 = 0.0
+    collisions = [e for e in physics.events if isinstance(e, BallCollisionEvent)
+                  and set((i,j)) & set((e.i,e.j)) and e.t >= t0]
+    i_collisions = [e for e in collisions if i in (e.i, e.j)]
+    j_collisions = [e for e in collisions if j in (e.i, e.j)]
+    i_events = [e for e in sorted(i_events + i_collisions) if e.t >= t0]
+    j_events = [e for e in sorted(j_events + j_collisions) if e.t >= t0]
     if t1 is None:
         t1 = max(i_events[-1].t if i_events else t0,
                  j_events[-1].t if j_events else t0)
@@ -469,6 +469,8 @@ def plot_distance(physics, i, j,
     plt.xlabel('t (seconds)')
     plt.ylabel('distance (meters)')
     for e in sorted(events, key=lambda e: (e.t, 0 if isinstance(e, BallEvent) else 1)):
+        if e.t < t0:
+            continue
         typee = e.__class__.__name__
         if isinstance(e, BallEvent):
             plt.axvline(e.t, color=EVENT_COLORS[type(e)],
@@ -548,8 +550,9 @@ def check_ball_distances(pool_physics, t=None, filename=None, nt=2000):
                     physics.j = e_j.i
                     class BallsPenetratedInsanity(Exception):
                         def __init__(self, physics, *args, **kwargs):
-                            fname = '%s.%s.dump' % (self.__class__.__name__.split('.')[-1],
-                                                    physics.ball_collision_model)
+                            fname = '%s.%s.%s.dump' % (self.__class__.__name__.split('.')[-1],
+                                                       physics.ball_collision_model,
+                                                       git_head_hash())
                             if filename is not None:
                                 fname = '%s.%s' % (filename, fname)
                             with open(fname, 'wb') as f:

@@ -46,16 +46,16 @@ CONTAINS
     G(2,1:3) = y_loc
     G(3,1:3) = z_loc
     G_T = transpose(G)
-    v_ix = sum(v_i * x_loc)
-    v_iy = sum(v_i * y_loc)
-    v_jx = sum(v_j * x_loc)
-    v_jy = sum(v_j * y_loc)
-    omega_ix = sum(omega_i * x_loc)
-    omega_iy = sum(omega_i * y_loc)
-    omega_iz = sum(omega_i * z_loc)
-    omega_jx = sum(omega_j * x_loc)
-    omega_jy = sum(omega_j * y_loc)
-    omega_jz = sum(omega_j * z_loc)
+    v_ix = dot_product(v_i, x_loc)
+    v_iy = dot_product(v_i, y_loc)
+    v_jx = dot_product(v_j, x_loc)
+    v_jy = dot_product(v_j, y_loc)
+    omega_ix = dot_product(omega_i, x_loc)
+    omega_iy = dot_product(omega_i, y_loc)
+    omega_iz = dot_product(omega_i, z_loc)
+    omega_jx = dot_product(omega_j, x_loc)
+    omega_jy = dot_product(omega_j, y_loc)
+    omega_jz = dot_product(omega_j, z_loc)
     u_iR_x = v_ix + R*omega_iy
     u_iR_y = v_iy - R*omega_ix
     u_jR_x = v_jx + R*omega_jy
@@ -75,7 +75,7 @@ CONTAINS
     W_c = huge(1.d0)
     do while (W < W_c .or. W < W_f)
        ! determine impulse deltas:
-       if (u_ijC_xz_mag < 1.d-64) then
+       if (u_ijC_xz_mag == 0) then
           deltaP_1 = 0
           deltaP_2 = 0
           deltaP_ix = 0
@@ -84,7 +84,7 @@ CONTAINS
           deltaP_jy = 0
        else
           deltaP_1 = -mu_b * deltaP * u_ijC_x / u_ijC_xz_mag
-          if (abs(u_ijC_z) < 1.d-64) then
+          if (abs(u_ijC_z) == 0) then
              deltaP_2 = 0
              deltaP_ix = 0
              deltaP_iy = 0

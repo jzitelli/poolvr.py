@@ -25,9 +25,9 @@ class PhysicsEvent(object):
     g = 9.81 # magnitude of acceleration due to gravity
     _ZERO_TOLERANCE = 1e-8
     _ZERO_TOLERANCE_SQRD = _ZERO_TOLERANCE**2
-    _ZERO_VELOCITY_CLIP = 0.0000001
-    _ZERO_VELOCITY_CLIP_SQRD = _ZERO_VELOCITY_CLIP**2
-    _ZERO_ANGULAR_VELOCITY_CLIP = 0.00001
+    # _ZERO_VELOCITY_CLIP = 0.0000001
+    # _ZERO_VELOCITY_CLIP_SQRD = _ZERO_VELOCITY_CLIP**2
+    # _ZERO_ANGULAR_VELOCITY_CLIP = 0.00001
     def __init__(self, t, T=0.0, parent_event=None, **kwargs):
         """
         Base class of pool physics events.
@@ -480,7 +480,7 @@ class CornerCollisionEvent(BallEvent):
             R = self.ball_radius
             u_1 = self.v_1 + R * array((self.omega_1[2], 0.0, -self.omega_1[0]), dtype=float64)
             if isinstance(self.e_i, BallSlidingEvent) \
-               and dot(u_1, u_1) > self._ZERO_VELOCITY_CLIP_SQRD:
+               and dot(u_1, u_1) > 0:
                 self._child_events = (BallSlidingEvent(self.t, self.e_i.i,
                                                        r_0=self.r_i,
                                                        v_0=self.v_1,
@@ -515,9 +515,26 @@ class BallCollisionEvent(PhysicsEvent):
         return super().__str__()[:-1] + '''
  i,j = %s,%s
 
+ |v_i0| = %s
+ |v_i1| = %s
+ |v_j0| = %s
+ |v_j1| = %s
+ |omega_i0| = %s
+ |omega_i1| = %s
+ |omega_j0| = %s
+ |omega_j1| = %s
  v_ij_y0 = %s
  v_ij_y1 = %s>''' % (
-            self.i, self.j, self._v_ij_y0, self._v_ij_y1)
+            self.i, self.j,
+     np.linalg.norm(self._v_i),
+     np.linalg.norm(self._v_i_1),
+     np.linalg.norm(self._v_j),
+     np.linalg.norm(self._v_j_1),
+     np.linalg.norm(self._omega_i),
+     np.linalg.norm(self._omega_i_1),
+     np.linalg.norm(self._omega_j),
+     np.linalg.norm(self._omega_j_1),
+     self._v_ij_y0, self._v_ij_y1)
     def __lt__(self, other):
         return self.t <= other.t \
             if not isinstance(other, BallCollisionEvent) \
@@ -560,8 +577,10 @@ class SimpleBallCollisionEvent(BallCollisionEvent):
                     (self._r_i, self._v_i_1, self._omega_i_1, self.e_i),
                     (self._r_j, self._v_j_1, self._omega_j_1, self.e_j)
             ):
-                if dot(v_1, v_1) < self._ZERO_VELOCITY_CLIP_SQRD:
-                    if abs(omega_1[1]) < self._ZERO_ANGULAR_VELOCITY_CLIP:
+                # if dot(v_1, v_1) < self._ZERO_VELOCITY_CLIP_SQRD:
+                #     if abs(omega_1[1]) < self._ZERO_ANGULAR_VELOCITY_CLIP:
+                if dot(v_1, v_1) == 0:
+                    if abs(omega_1[1]) == 0:
                         e_1 = BallRestEvent(self.t, e.i,
                                             r_0=r,
                                             parent_event=self)
@@ -700,8 +719,8 @@ class FSimulatedBallCollisionEvent(BallCollisionEvent):
                     (self._r_i, self._v_i_1, self._omega_i_1, self.e_i),
                     (self._r_j, self._v_j_1, self._omega_j_1, self.e_j)
             ):
-                if dot(v_1, v_1) < self._ZERO_VELOCITY_CLIP_SQRD:
-                    if abs(omega_1[1]) < self._ZERO_ANGULAR_VELOCITY_CLIP:
+                if dot(v_1, v_1) == 0:
+                    if abs(omega_1[1]) == 0:
                         e_1 = BallRestEvent(self.t, e.i,
                                             r_0=r,
                                             parent_event=self)
@@ -712,7 +731,8 @@ class FSimulatedBallCollisionEvent(BallCollisionEvent):
                                                 parent_event=self)
                 else:
                     u_1 = v_1 + self.ball_radius * array((omega_1[2], 0.0, -omega_1[0]), dtype=float64)
-                    if dot(u_1, u_1) < self._ZERO_VELOCITY_CLIP_SQRD:
+                    # if dot(u_1, u_1) < self._ZERO_VELOCITY_CLIP_SQRD:
+                    if dot(u_1, u_1) == 0:
                         e_1 = BallRollingEvent(self.t, e.i,
                                                r_0=r,
                                                v_0=v_1,
