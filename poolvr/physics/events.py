@@ -508,7 +508,7 @@ class BallCollisionEvent(PhysicsEvent):
         self._v_i, self._v_j = e_i.eval_velocity(tau_i), e_j.eval_velocity(tau_j)
         self._r_ij = r_ij = self._r_j - self._r_i
         self._v_ij = v_ij = self._v_j - self._v_i
-        self._y_loc = y_loc = r_ij / sqrt(dot(r_ij, r_ij))
+        self._y_loc = y_loc = 0.5 * r_ij / self.ball_radius
         self._v_ij_y0 = dot(v_ij, y_loc)
         self._omega_i, self._omega_j = e_i.eval_angular_velocity(tau_i), e_j.eval_angular_velocity(tau_j)
     def __str__(self):
@@ -702,13 +702,24 @@ class FSimulatedBallCollisionEvent(BallCollisionEvent):
         r_i, r_j = self._r_i, self._r_j
         v_i, v_j = self._v_i, self._v_j
         omega_i, omega_j = self._omega_i, self._omega_j
-        r_ij = r_j - r_i
-        y_loc = r_ij / sqrt(dot(r_ij, r_ij))
-        self._v_i_1, self._omega_i_1, self._v_j_1, self._omega_j_1 = \
-            collide_balls_f90(
-                r_i, v_i, omega_i, r_j, v_j, omega_j,
-                deltaP=self.ball_mass*abs(dot(v_j - v_i, y_loc))/6400
-            )
+        y_loc = self._y_loc
+        x_loc = np.cross(y_loc, _k)
+        if abs(self._v_ij_y0) < 1e-7:
+            self._v_i_1, self._omega_i_1, self._v_j_1, self._omega_j_1 = np.zeros((4,3))
+            self._v_i_1     += dot(v_i, x_loc) * x_loc
+            self._v_j_1     += dot(v_j, x_loc) * x_loc
+            self._v_i_1     -= 0.5*dot(v_i, y_loc) * y_loc
+            self._v_j_1     -= 0.5*dot(v_j, y_loc) * y_loc
+            self._omega_i_1 += dot(omega_i, y_loc) * y_loc
+            self._omega_j_1 += dot(omega_j, y_loc) * y_loc
+            self._omega_i_1 += dot(omega_i, _k) * _k
+            self._omega_j_1 += dot(omega_j, _k) * _k
+        else:
+            self._v_i_1, self._omega_i_1, self._v_j_1, self._omega_j_1 = \
+                collide_balls_f90(
+                    r_i, v_i, omega_i, r_j, v_j, omega_j,
+                    deltaP=self.ball_mass*abs(self._v_ij_y0)/3200
+                )
         self._v_ij_y1 = dot(self._v_j_1 - self._v_i_1, y_loc)
         self._child_events = None
     @property
@@ -731,7 +742,6 @@ class FSimulatedBallCollisionEvent(BallCollisionEvent):
                                                 parent_event=self)
                 else:
                     u_1 = v_1 + self.ball_radius * array((omega_1[2], 0.0, -omega_1[0]), dtype=float64)
-                    # if dot(u_1, u_1) < self._ZERO_VELOCITY_CLIP_SQRD:
                     if dot(u_1, u_1) == 0:
                         e_1 = BallRollingEvent(self.t, e.i,
                                                r_0=r,

@@ -13,32 +13,10 @@ from itertools import chain
 from bisect import bisect
 from time import perf_counter
 from math import sqrt
-import pickle
 import logging
 _logger = logging.getLogger(__name__)
 import numpy as np
 from numpy import dot
-
-
-class Insanity(Exception):
-    def __init__(self, physics, *args, **kwargs):
-        fname = '%s.%s.pickle.dump' % (self.__class__.__name__.split('.')[-1], physics.ball_collision_model)
-        with open(fname, 'wb') as f:
-            pickle.dump(physics, f)
-        _logger.info('dumped serialized physics to "%s"', fname)
-        super().__init__(*args, **kwargs)
-
-
-class BallsPenetratedInsanity(Insanity):
-    pass
-
-
-class BallsHadNoContactInsanity(Insanity):
-    pass
-
-
-class BallsMovingApartInsanity(Insanity):
-    pass
 
 
 from ..table import PoolTable
@@ -93,7 +71,6 @@ class PoolPhysics(object):
                  ball_collision_model="simple",
                  ball_collision_model_kwargs=None,
                  table=None,
-                 enable_sanity_check=False,
                  enable_occlusion=False,
                  collision_search_time_limit=None,
                  collision_search_time_forward=None,
@@ -144,7 +121,6 @@ class PoolPhysics(object):
         else:
             self._realtime = False
         self._enable_occlusion = enable_occlusion
-        self._enable_sanity_check = enable_sanity_check
         self._use_quartic_solver = use_quartic_solver
         self._p = np.empty(5, dtype=np.float64)
         self._mask = np.array(4*[True])
@@ -500,8 +476,6 @@ class PoolPhysics(object):
                     self._balls_at_rest.remove(i)
         for child_event in event.child_events:
             self._add_event(child_event)
-        if self._enable_sanity_check and isinstance(event, BallCollisionEvent):
-            self._sanity_check(event)
 
     def _determine_next_event(self):
         next_motion_event = min(e.next_motion_event
@@ -725,56 +699,6 @@ class PoolPhysics(object):
                         break
             i += 1
         return roots[2*npairs:]
-
-    def _sanity_check(self, event):
-        if isinstance(event, BallCollisionEvent):
-            e_i, e_j = event.child_events
-            R = self.ball_radius
-            r_i = e_i.eval_position(event.t - e_i.t)
-            r_j = e_j.eval_position(event.t - e_j.t)
-            r_ij = r_j - r_i
-            d_ij = np.sqrt(np.dot(r_ij, r_ij))
-            insanity = None
-            for t in np.linspace(event.t, event.t + min(e_i.T, e_j.T), 1000):
-                r_i = e_i.eval_position(t - e_i.t)
-                r_j = e_j.eval_position(t - e_j.t)
-                r_ij = r_j - r_i
-                d_ij = np.sqrt(np.dot(r_ij, r_ij))
-                if d_ij < 2*R*(1 - 1e-4):
-                    insanity = BallsPenetratedInsanity
-                    break
-                elif t == event.t and d_ij > 2*R*(1 + 1e-4):
-                    insanity = BallsHadNoContactInsanity
-                    break
-            if insanity is not None:
-                raise insanity(self, '''
-  t = {t}
-
-  (ball_diameter - d_ij) / ball_diameter = {relerr}
-   ball_diameter = {ball_diameter}
-            d_ij = {d_ij}
-
-  event {eventno}: {event}
-
-  preceding events:
-    e_i: {e_i}
-    e_j: {e_j}
-
-  previous collisions:
-
-{prev_collisions}
-'''.format(t=event.t,
-           relerr=(d_ij - 2*R) / (2*R),
-           ball_diameter=2*R,
-           d_ij=d_ij,
-           eventno=len(self.events)-1,
-           event=event,
-           e_i=event.e_i, e_j=event.e_j,
-           prev_collisions='\n'.join(str(e) for e in self.events[::-1]
-                                     if isinstance(e, BallCollisionEvent)
-                                     and e.i in (e_i.i, e_j.i) and e.j in (e_i.i, e_j.i))))
-             #  next((e for e in chain(zip(self.ball_events[e_i.i][::-1], self.ball_events[e_j.i][::-1]))
-             # if isinstance(e, BallCollisionEvent)), '')))
 
 
     def glyph_meshes(self, t):

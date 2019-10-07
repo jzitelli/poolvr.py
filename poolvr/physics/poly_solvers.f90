@@ -123,6 +123,8 @@ CONTAINS
     real(c_double), dimension(3,3) :: a_ji
     real(c_double), dimension(5) :: P
     real(c_double) :: a_x, a_y, b_x, b_y, c_x, c_y
+    ! real(c_double) :: t, v_ijy
+    ! real(c_double), dimension(3) :: r_i, r_j, v_i, v_j, omega_i, omega_j
     a_ji = a_i - a_j
     a_x = a_ji(1,3)
     a_y = a_ji(3,3)
@@ -136,6 +138,19 @@ CONTAINS
     p(2) = 2 * (b_x*c_x + b_y*c_y)
     p(1) = c_x*c_x + c_y*c_y - 4 * R*R
     find_collision_time = find_min_quartic_root_in_real_interval(P, t0, t1)
+    ! t = find_min_quartic_root_in_real_interval(P, t0, t1)
+    ! if (t .ne. huge(1.d0)) then
+    !    r_i = a_i(:,1) + t*a_i(:,2) + t**2*a_i(:,3)
+    !    r_j = a_j(:,1) + t*a_j(:,2) + t**2*a_j(:,3)
+    !    v_i = a_i(:,2) + 2*t*a_i(:,3)
+    !    v_j = a_j(:,2) + 2*t*a_j(:,3)
+    !    v_ijy = dot_product(v_i-v_j, r_j-r_i) / (2*R)
+    !    if (v_ijy < 1.d-7) then
+    !       find_collision_time = huge(1.d0)
+    !       return
+    !    endif
+    ! endif
+    ! find_collision_time = t
   end function find_collision_time
 
 END MODULE poly_solvers
