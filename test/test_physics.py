@@ -6,7 +6,7 @@ _logger = logging.getLogger(__name__)
 import numpy as np
 
 
-from utils import gen_filename, git_head_hash
+from utils import gen_filename, git_head_hash, check_ball_distances
 from poolvr.physics.events import (PhysicsEvent,
                                    CueStrikeEvent,
                                    BallSlidingEvent,
@@ -157,7 +157,6 @@ def test_break(pool_physics,
                  len([e for e in events if isinstance(e, BallRestEvent)]),
                  len([e for e in events if isinstance(e, RailCollisionEvent)]),
                  len([e for e in events if isinstance(e, BallCollisionEvent)]))
-    from utils import check_ball_distances
     check_ball_distances(physics, filename=request.node.originalname)
     # _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
     #               PhysicsEvent.events_str(events))
@@ -202,17 +201,16 @@ def test_break_hard(pool_physics,
                  len([e for e in events if isinstance(e, BallRestEvent)]),
                  len([e for e in events if isinstance(e, RailCollisionEvent)]),
                  len([e for e in events if isinstance(e, BallCollisionEvent)]))
-    from utils import check_ball_distances
     check_ball_distances(physics, filename=request.node.originalname)
     # _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
     #               PhysicsEvent.events_str(events))
 
 
-@pytest.mark.skip
 def test_break_hard_realtime(pool_physics_realtime,
                              plot_motion_timelapse,
                              plot_energy,
-                             gl_rendering):
+                             gl_rendering,
+                             request):
     physics = pool_physics_realtime
     ball_positions = physics.eval_positions(0.0)
     r_c = ball_positions[0].copy()
@@ -228,17 +226,38 @@ def test_break_hard_realtime(pool_physics_realtime,
     pr = cProfile.Profile()
     pr.enable()
     t0 = perf_counter()
-    events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
+    physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
+    lt = perf_counter()
+    while physics._ball_motion_events or physics._ball_spinning_events:
+        t = perf_counter()
+        dt = t - lt
+        lt = t
+        physics.step(dt)
     t1 = perf_counter()
     pr.dump_stats(outname)
     _logger.info('evaluation time: %s', t1-t0)
     _logger.info('...dumped stats to "%s"', outname)
-    _logger.info('strike on %d resulted in %d events', 0, len(events))
+    events = physics.events
+    _logger.info('\n'.join(['strike on %d resulted in %d events:',
+                            '  %d BallSlidingEvents',
+                            '  %d BallRollingEvents',
+                            '  %d BallSpinningEvents',
+                            '  %d BallRestEvents',
+                            '  %d RailCollisionEvents',
+                            '  %d BallCollisionEvents']),
+                 0, len(events),
+                 len([e for e in events if isinstance(e, BallSlidingEvent)]),
+                 len([e for e in events if isinstance(e, BallRollingEvent)]),
+                 len([e for e in events if isinstance(e, BallSpinningEvent)]),
+                 len([e for e in events if isinstance(e, BallRestEvent)]),
+                 len([e for e in events if isinstance(e, RailCollisionEvent)]),
+                 len([e for e in events if isinstance(e, BallCollisionEvent)]))
+    check_ball_distances(physics, filename=request.node.originalname)
 
 
-@pytest.mark.skip
 def test_break_and_following_shot(pool_physics,
-                                  gl_rendering):
+                                  gl_rendering,
+                                  request):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
     r_c = ball_positions[0].copy()
@@ -258,13 +277,15 @@ def test_break_and_following_shot(pool_physics,
     V = 0.99 * n_02
     events = physics.strike_ball(ntt, 0, ball_positions[0], r_c, V, M)
     _logger.info('strike #2 on %d resulted in %d events', 0, len(events))
+    check_ball_distances(physics, filename=request.node.originalname)
     # _logger.debug('strike #2 on %d resulted in %d events:\n\n%s\n',
     #               0, len(events), PhysicsEvent.events_str(events))
 
 
 def test_strike_ball_english(pool_physics,
                              gl_rendering,
-                             plot_motion_timelapse):
+                             plot_motion_timelapse,
+                             request):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
     r_c = ball_positions[0].copy()
@@ -280,13 +301,15 @@ def test_strike_ball_english(pool_physics,
     M = 0.54
     events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
     _logger.info('strike on %d resulted in %d events', 0, len(events))
+    check_ball_distances(physics, filename=request.node.originalname)
     # _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
     #               PhysicsEvent.events_str(events))
 
 
 def test_strike_ball_less_english(pool_physics,
                                   gl_rendering,
-                                  plot_motion_timelapse):
+                                  plot_motion_timelapse,
+                                  request):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
     r_c = ball_positions[0].copy()
@@ -302,6 +325,7 @@ def test_strike_ball_less_english(pool_physics,
     M = 0.54
     events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
     _logger.info('strike on %d resulted in %d events', 0, len(events))
+    check_ball_distances(physics, filename=request.node.originalname)
     # _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
     #               PhysicsEvent.events_str(events))
 

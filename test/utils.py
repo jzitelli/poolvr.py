@@ -548,6 +548,7 @@ def check_ball_distances(pool_physics, t=None, filename=None, nt=2000):
                     physics.e_j = e_j
                     physics.i = e_i.i
                     physics.j = e_j.i
+                    plot_distance(pool_physics, physics.i, physics.j)
                     class BallsPenetratedInsanity(Exception):
                         def __init__(self, physics, *args, **kwargs):
                             fname = '%s.%s.%s.dump' % (self.__class__.__name__.split('.')[-1],

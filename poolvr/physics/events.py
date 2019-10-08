@@ -703,7 +703,7 @@ class FSimulatedBallCollisionEvent(BallCollisionEvent):
         v_i, v_j = self._v_i, self._v_j
         omega_i, omega_j = self._omega_i, self._omega_j
         y_loc = self._y_loc
-        x_loc = np.cross(y_loc, _k)
+        x_loc = np.array((y_loc[2], 0.0, -y_loc[0]))
         if abs(self._v_ij_y0) < 1e-7:
             self._v_i_1, self._omega_i_1, self._v_j_1, self._omega_j_1 = np.zeros((4,3))
             self._v_i_1     += dot(v_i, x_loc) * x_loc
@@ -712,8 +712,8 @@ class FSimulatedBallCollisionEvent(BallCollisionEvent):
             self._v_j_1     -= 0.5*dot(v_j, y_loc) * y_loc
             self._omega_i_1 += dot(omega_i, y_loc) * y_loc
             self._omega_j_1 += dot(omega_j, y_loc) * y_loc
-            self._omega_i_1 += dot(omega_i, _k) * _k
-            self._omega_j_1 += dot(omega_j, _k) * _k
+            self._omega_i_1[1] = omega_i[1]
+            self._omega_j_1[1] = omega_j[1]
         else:
             self._v_i_1, self._omega_i_1, self._v_j_1, self._omega_j_1 = \
                 collide_balls_f90(
