@@ -476,7 +476,12 @@ def plot_distance(physics, i, j,
             plt.axvline(e.t, color=EVENT_COLORS[type(e)],
                         label=typee + ' i=%d' % e.i,
                         linestyle=':')
+
     plt.hlines(2*physics.ball_radius, ts[0], ts[-1], linestyles='--', label='ball diameter')
+    for e in [e for e in physics.events if isinstance(e, BallCollisionEvent)]:
+        plt.text(e.t, 2*physics.ball_radius, str(e.i), color=BALL_COLORS[e.i], ha='right')
+        plt.text(e.t, 2*physics.ball_radius, '%d' % e.j, color=BALL_COLORS[e.j], ha='left')
+
     positions = np.array([physics.eval_positions(t)
                           for t in ts])
     deltas = positions[:,j] - positions[:,i]

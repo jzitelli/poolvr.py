@@ -545,185 +545,6 @@ class BallCollisionEvent(PhysicsEvent):
             else self.t > other.t
     @property
     def child_events(self):
-        raise NotImplementedError()
-
-
-class SimpleBallCollisionEvent(BallCollisionEvent):
-    def __init__(self, t, e_i, e_j, v_factor=0.98):
-        """Simple one-parameter elastic collision model with no friction between balls or any other surface."""
-        super().__init__(t, e_i, e_j)
-        r_i, r_j = self._r_i, self._r_j
-        r_ij = r_i - r_j
-        self._i = _i = r_ij / sqrt(dot(r_ij, r_ij))
-        v_i, v_j = self._v_i, self._v_j
-        v_ix = dot(v_i, _i) * _i
-        v_jx = dot(v_j, _i) * _i
-        v_iy = v_i - v_ix
-        v_jy = v_j - v_jx
-        v_ix_1 = 0.5 * ((1 - v_factor) * v_ix + (1 + v_factor) * v_jx)
-        v_jx_1 = 0.5 * ((1 - v_factor) * v_jx + (1 + v_factor) * v_ix)
-        v_i_1 = v_iy + v_ix_1
-        v_j_1 = v_jy + v_jx_1
-        self._v_i_1, self._v_j_1 = v_i_1, v_j_1
-        self._v_ij_y1 = dot(v_j_1 - v_i_1, _i)
-        omega_i, omega_j = self._omega_i, self._omega_j
-        self._omega_i_1, self._omega_j_1 = omega_i.copy(), omega_j.copy()
-        self._child_events = None
-    @property
-    def child_events(self):
-        if self._child_events is None:
-            child_events = []
-            for (r, v_1, omega_1, e) in (
-                    (self._r_i, self._v_i_1, self._omega_i_1, self.e_i),
-                    (self._r_j, self._v_j_1, self._omega_j_1, self.e_j)
-            ):
-                # if dot(v_1, v_1) < self._ZERO_VELOCITY_CLIP_SQRD:
-                #     if abs(omega_1[1]) < self._ZERO_ANGULAR_VELOCITY_CLIP:
-                if dot(v_1, v_1) == 0:
-                    if abs(omega_1[1]) == 0:
-                        e_1 = BallRestEvent(self.t, e.i,
-                                            r_0=r,
-                                            parent_event=self)
-                    else:
-                        e_1 = BallSpinningEvent(self.t, e.i,
-                                                r_0=r,
-                                                omega_0_y=omega_1[1],
-                                                parent_event=self)
-                elif isinstance(e, BallSlidingEvent) \
-                     and abs(dot(v_1, self._i) / self.ball_radius) > abs(dot(omega_1, cross(_k, self._i))):
-                    e_1 = BallSlidingEvent(self.t, e.i,
-                                           r_0=r,
-                                           v_0=v_1,
-                                           omega_0=omega_1,
-                                           parent_event=self)
-                else:
-                    e_1 = BallRollingEvent(self.t, e.i,
-                                           r_0=r,
-                                           v_0=v_1,
-                                           omega_0_y=omega_1[1],
-                                           parent_event=self)
-                # else:
-                #     u_1 = v_1 + self.ball_radius * cross(_k, omega_1)
-                #     if dot(u_1, u_1) < self._ZERO_VELOCITY_CLIP_SQRD:
-                #         e_1 = BallRollingEvent(self.t, e.i,
-                #                                r_0=r,
-                #                                v_0=v_1,
-                #                                omega_0_y=omega_1[1],
-                #                                parent_event=self)
-                #     else:
-                #         e_1 = BallSlidingEvent(self.t, e.i,
-                #                                r_0=r,
-                #                                v_0=v_1,
-                #                                omega_0=omega_1,
-                #                                parent_event=self)
-                child_events.append(e_1)
-            self._child_events = tuple(child_events)
-        return self._child_events
-
-
-class MarlowBallCollisionEvent(BallCollisionEvent):
-    c_b = 4000.0 # ball material's speed of sound
-    E_Y_b = 2.4e9 # ball material's Young's modulus of elasticity
-    def __init__(self, t, e_i, e_j):
-        """Marlow collision model"""
-        super().__init__(t, e_i, e_j)
-        v_i, v_j = self._v_i, self._v_j
-        v_ij = v_j - v_i
-        v_ij_mag = np.linalg.norm(v_ij)
-        delta_t = 284e-6 / v_ij_mag**0.294
-        s_max = 1.65765 * (v_ij_mag / self.c_b)**0.8
-        F_max = 1.48001 * self.ball_radius**2 * self.E_Y_b * s_max**1.5
-        r_i, r_j = self._r_i, self._r_j
-        r_ij = r_j - r_i
-        self._i = _i = r_ij / np.linalg.norm(r_ij)
-        J = max(0.5 * F_max * delta_t,
-                abs(self.ball_mass * dot(v_ij, _i))) # missing 2 factor?
-        v_i_1 = v_i - (J / self.ball_mass) * _i
-        v_j_1 = v_j + (J / self.ball_mass) * _i
-        self._v_i_1, self._v_j_1 = v_i_1, v_j_1
-        self._omega_i_1, self._omega_j_1 = self._omega_i, self._omega_j
-
-
-class SimulatedBallCollisionEvent(BallCollisionEvent):
-    def __init__(self, t, e_i, e_j):
-        super().__init__(t, e_i, e_j)
-        r_i, r_j = self._r_i, self._r_j
-        v_i, v_j = self._v_i, self._v_j
-        omega_i, omega_j = self._omega_i, self._omega_j
-        r_ij = r_j - r_i
-        y_loc = r_ij / sqrt(dot(r_ij, r_ij))
-        self._v_i_1, self._omega_i_1, \
-            self._v_j_1, self._omega_j_1 = collide_balls(
-                r_i, v_i, omega_i, r_j, v_j, omega_j,
-                deltaP=self.ball_mass*sqrt(abs(dot(v_j - v_i, y_loc)))/800
-            )
-        self._v_ij_y1 = dot(self._v_j_1 - self._v_i_1, y_loc)
-        self._child_events = None
-    @property
-    def child_events(self):
-        if self._child_events is None:
-            child_events = []
-            for (r, v_1, omega_1, e) in (
-                    (self._r_i, self._v_i_1, self._omega_i_1, self.e_i),
-                    (self._r_j, self._v_j_1, self._omega_j_1, self.e_j)
-            ):
-                if dot(v_1, v_1) < self._ZERO_VELOCITY_CLIP_SQRD:
-                    if abs(omega_1[1]) < self._ZERO_ANGULAR_VELOCITY_CLIP:
-                        e_1 = BallRestEvent(self.t, e.i,
-                                            r_0=r,
-                                            parent_event=self)
-                    else:
-                        e_1 = BallSpinningEvent(self.t, e.i,
-                                                r_0=r,
-                                                omega_0_y=omega_1[1],
-                                                parent_event=self)
-                else:
-                    u_1 = v_1 + self.ball_radius * cross(_k, omega_1)
-                    if dot(u_1, u_1) < self._ZERO_VELOCITY_CLIP_SQRD:
-                        e_1 = BallRollingEvent(self.t, e.i,
-                                               r_0=r,
-                                               v_0=v_1,
-                                               omega_0_y=omega_1[1],
-                                               parent_event=self)
-                    else:
-                        e_1 = BallSlidingEvent(self.t, e.i,
-                                               r_0=r,
-                                               v_0=v_1,
-                                               omega_0=omega_1,
-                                               parent_event=self)
-                child_events.append(e_1)
-            self._child_events = tuple(child_events)
-        return self._child_events
-
-
-class FSimulatedBallCollisionEvent(BallCollisionEvent):
-    def __init__(self, t, e_i, e_j):
-        super().__init__(t, e_i, e_j)
-        r_i, r_j = self._r_i, self._r_j
-        v_i, v_j = self._v_i, self._v_j
-        omega_i, omega_j = self._omega_i, self._omega_j
-        y_loc = self._y_loc
-        x_loc = np.array((y_loc[2], 0.0, -y_loc[0]))
-        if abs(self._v_ij_y0) < 1e-7:
-            self._v_i_1, self._omega_i_1, self._v_j_1, self._omega_j_1 = np.zeros((4,3))
-            self._v_i_1     += dot(v_i, x_loc) * x_loc
-            self._v_j_1     += dot(v_j, x_loc) * x_loc
-            self._v_i_1     -= 0.5*dot(v_i, y_loc) * y_loc
-            self._v_j_1     -= 0.5*dot(v_j, y_loc) * y_loc
-            self._omega_i_1 += dot(omega_i, y_loc) * y_loc
-            self._omega_j_1 += dot(omega_j, y_loc) * y_loc
-            self._omega_i_1[1] = omega_i[1]
-            self._omega_j_1[1] = omega_j[1]
-        else:
-            self._v_i_1, self._omega_i_1, self._v_j_1, self._omega_j_1 = \
-                collide_balls_f90(
-                    r_i, v_i, omega_i, r_j, v_j, omega_j,
-                    deltaP=self.ball_mass*abs(self._v_ij_y0)/3200
-                )
-        self._v_ij_y1 = dot(self._v_j_1 - self._v_i_1, y_loc)
-        self._child_events = None
-    @property
-    def child_events(self):
         if self._child_events is None:
             child_events = []
             for (r, v_1, omega_1, e) in (
@@ -757,3 +578,116 @@ class FSimulatedBallCollisionEvent(BallCollisionEvent):
                 child_events.append(e_1)
             self._child_events = tuple(child_events)
         return self._child_events
+
+
+class SimpleBallCollisionEvent(BallCollisionEvent):
+    def __init__(self, t, e_i, e_j, v_factor=0.98):
+        """Simple one-parameter elastic collision model with no friction between balls or any other surface."""
+        super().__init__(t, e_i, e_j)
+        r_i, r_j = self._r_i, self._r_j
+        r_ij = r_i - r_j
+        self._i = _i = r_ij / sqrt(dot(r_ij, r_ij))
+        v_i, v_j = self._v_i, self._v_j
+        v_ix = dot(v_i, _i) * _i
+        v_jx = dot(v_j, _i) * _i
+        v_iy = v_i - v_ix
+        v_jy = v_j - v_jx
+        v_ix_1 = 0.5 * ((1 - v_factor) * v_ix + (1 + v_factor) * v_jx)
+        v_jx_1 = 0.5 * ((1 - v_factor) * v_jx + (1 + v_factor) * v_ix)
+        v_i_1 = v_iy + v_ix_1
+        v_j_1 = v_jy + v_jx_1
+        self._v_i_1, self._v_j_1 = v_i_1, v_j_1
+        self._v_ij_y1 = dot(v_j_1 - v_i_1, _i)
+        omega_i, omega_j = self._omega_i, self._omega_j
+        self._omega_i_1, self._omega_j_1 = omega_i.copy(), omega_j.copy()
+        self._child_events = None
+    @property
+    def child_events(self):
+        if self._child_events is None:
+            child_events = []
+            for (r, v_1, omega_1, e) in (
+                    (self._r_i, self._v_i_1, self._omega_i_1, self.e_i),
+                    (self._r_j, self._v_j_1, self._omega_j_1, self.e_j)
+            ):
+                if dot(v_1, v_1) == 0:
+                    if abs(omega_1[1]) == 0:
+                        e_1 = BallRestEvent(self.t, e.i,
+                                            r_0=r,
+                                            parent_event=self)
+                    else:
+                        e_1 = BallSpinningEvent(self.t, e.i,
+                                                r_0=r,
+                                                omega_0_y=omega_1[1],
+                                                parent_event=self)
+                elif isinstance(e, BallSlidingEvent) \
+                     and abs(dot(v_1, self._i) / self.ball_radius) > abs(dot(omega_1, cross(_k, self._i))):
+                    e_1 = BallSlidingEvent(self.t, e.i,
+                                           r_0=r,
+                                           v_0=v_1,
+                                           omega_0=omega_1,
+                                           parent_event=self)
+                else:
+                    e_1 = BallRollingEvent(self.t, e.i,
+                                           r_0=r,
+                                           v_0=v_1,
+                                           omega_0_y=omega_1[1],
+                                           parent_event=self)
+                child_events.append(e_1)
+            self._child_events = tuple(child_events)
+        return self._child_events
+
+
+class MarlowBallCollisionEvent(BallCollisionEvent):
+    c_b = 4000.0 # ball material's speed of sound
+    E_Y_b = 2.4e9 # ball material's Young's modulus of elasticity
+    def __init__(self, t, e_i, e_j):
+        """Marlow collision model"""
+        super().__init__(t, e_i, e_j)
+        v_i, v_j = self._v_i, self._v_j
+        v_ij = v_j - v_i
+        v_ij_mag = np.linalg.norm(v_ij)
+        delta_t = 284e-6 / v_ij_mag**0.294
+        s_max = 1.65765 * (v_ij_mag / self.c_b)**0.8
+        F_max = 1.48001 * self.ball_radius**2 * self.E_Y_b * s_max**1.5
+        r_i, r_j = self._r_i, self._r_j
+        r_ij = r_j - r_i
+        self._i = _i = r_ij / np.linalg.norm(r_ij)
+        J = max(0.5 * F_max * delta_t,
+                abs(self.ball_mass * dot(v_ij, _i))) # missing 2 factor?
+        v_i_1 = v_i - (J / self.ball_mass) * _i
+        v_j_1 = v_j + (J / self.ball_mass) * _i
+        self._v_i_1, self._v_j_1 = v_i_1, v_j_1
+        self._omega_i_1, self._omega_j_1 = self._omega_i, self._omega_j
+
+
+class SimulatedBallCollisionEvent(BallCollisionEvent):
+    collide_balls = staticmethod(collide_balls)
+    def __init__(self, t, e_i, e_j):
+        super().__init__(t, e_i, e_j)
+        r_i, r_j = self._r_i, self._r_j
+        v_i, v_j = self._v_i, self._v_j
+        omega_i, omega_j = self._omega_i, self._omega_j
+        y_loc = self._y_loc
+        if abs(self._v_ij_y0) < 1e-8:
+            x_loc = np.array((y_loc[2], 0.0, -y_loc[0]))
+            self._v_i_1, self._omega_i_1, self._v_j_1, self._omega_j_1 = np.zeros((4,3))
+            self._v_i_1     += dot(v_i, x_loc) * x_loc
+            self._v_j_1     += dot(v_j, x_loc) * x_loc
+            self._v_i_1     -= 0.5*dot(v_i, y_loc) * y_loc
+            self._v_j_1     -= 0.5*dot(v_j, y_loc) * y_loc
+            self._omega_i_1 += dot(omega_i, y_loc) * y_loc
+            self._omega_j_1 += dot(omega_j, y_loc) * y_loc
+            self._omega_i_1[1] = omega_i[1]
+            self._omega_j_1[1] = omega_j[1]
+        else:
+            self._v_i_1, self._omega_i_1, self._v_j_1, self._omega_j_1 = \
+                self.collide_balls(
+                    r_i, v_i, omega_i, r_j, v_j, omega_j,
+                    self.ball_mass*abs(self._v_ij_y0)/6400
+                )
+        self._v_ij_y1 = dot(self._v_j_1 - self._v_i_1, y_loc)
+        self._child_events = None
+
+
+class FSimulatedBallCollisionEvent(SimulatedBallCollisionEvent):
+    collide_balls = staticmethod(collide_balls_f90)

@@ -38,7 +38,7 @@ ball j events:
 ''', PhysicsEvent.events_str(sorted(j_events + j_collisions)))
 
 
-plot_distance(physics, physics.i, physics.j, t0=0.3789)
+plot_distance(physics, physics.i, physics.j)
 
 
 def do_ij(e_i, e_j):
@@ -89,11 +89,11 @@ t_c = %s
     return np.hstack((nproots, froots, croots, roots))
 
 
-logger.info(PhysicsEvent.events_str(sorted(set(i_collisions + j_collisions))))
-logger.info(PhysicsEvent.events_str(sorted(i_collisions + i_events)[-10:]))
-logger.info(PhysicsEvent.events_str(sorted(j_collisions + j_events)[-10:]))
+# logger.info(PhysicsEvent.events_str(sorted(set(i_collisions + j_collisions))))
+# logger.info(PhysicsEvent.events_str(sorted(i_collisions + i_events)[-10:]))
+# logger.info(PhysicsEvent.events_str(sorted(j_collisions + j_events)[-10:]))
 
-t = 0.38679
+t = 0.1120
 a_events = physics.find_active_events(t, balls=[physics.i, physics.j])
 
 logger.info('''active events at
