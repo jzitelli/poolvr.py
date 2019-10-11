@@ -38,6 +38,7 @@ class PhysicsEvent(object):
         self.t = t
         self.T = T
         self._parent_event = parent_event
+        self.interval = array((t, t + T))
     @property
     def child_events(self):
         return ()
@@ -512,29 +513,11 @@ class BallCollisionEvent(PhysicsEvent):
         self._v_ij_y0 = dot(v_ij, y_loc)
         self._omega_i, self._omega_j = e_i.eval_angular_velocity(tau_i), e_j.eval_angular_velocity(tau_j)
     def __str__(self):
-        return super().__str__()[:-1] + '''
+        return '<' + super().__str__()[:-1] + '''
  i,j = %s,%s
-
- |v_i0| = %s
- |v_i1| = %s
- |v_j0| = %s
- |v_j1| = %s
- |omega_i0| = %s
- |omega_i1| = %s
- |omega_j0| = %s
- |omega_j1| = %s
  v_ij_y0 = %s
- v_ij_y1 = %s>''' % (
-            self.i, self.j,
-     np.linalg.norm(self._v_i),
-     np.linalg.norm(self._v_i_1),
-     np.linalg.norm(self._v_j),
-     np.linalg.norm(self._v_j_1),
-     np.linalg.norm(self._omega_i),
-     np.linalg.norm(self._omega_i_1),
-     np.linalg.norm(self._omega_j),
-     np.linalg.norm(self._omega_j_1),
-     self._v_ij_y0, self._v_ij_y1)
+ v_ij_y1 = %s>>''' % (self.i, self.j,
+                     self._v_ij_y0, self._v_ij_y1)
     def __lt__(self, other):
         return self.t <= other.t \
             if not isinstance(other, BallCollisionEvent) \
@@ -668,23 +651,11 @@ class SimulatedBallCollisionEvent(BallCollisionEvent):
         v_i, v_j = self._v_i, self._v_j
         omega_i, omega_j = self._omega_i, self._omega_j
         y_loc = self._y_loc
-        if abs(self._v_ij_y0) < 1e-8:
-            x_loc = np.array((y_loc[2], 0.0, -y_loc[0]))
-            self._v_i_1, self._omega_i_1, self._v_j_1, self._omega_j_1 = np.zeros((4,3))
-            self._v_i_1     += dot(v_i, x_loc) * x_loc
-            self._v_j_1     += dot(v_j, x_loc) * x_loc
-            self._v_i_1     -= 0.5*dot(v_i, y_loc) * y_loc
-            self._v_j_1     -= 0.5*dot(v_j, y_loc) * y_loc
-            self._omega_i_1 += dot(omega_i, y_loc) * y_loc
-            self._omega_j_1 += dot(omega_j, y_loc) * y_loc
-            self._omega_i_1[1] = omega_i[1]
-            self._omega_j_1[1] = omega_j[1]
-        else:
-            self._v_i_1, self._omega_i_1, self._v_j_1, self._omega_j_1 = \
-                self.collide_balls(
-                    r_i, v_i, omega_i, r_j, v_j, omega_j,
-                    self.ball_mass*abs(self._v_ij_y0)/6400
-                )
+        self._v_i_1, self._omega_i_1, self._v_j_1, self._omega_j_1 = \
+            self.collide_balls(
+                r_i, v_i, omega_i, r_j, v_j, omega_j,
+                self.ball_mass*abs(self._v_ij_y0)/6400
+            )
         self._v_ij_y1 = dot(self._v_j_1 - self._v_i_1, y_loc)
         self._child_events = None
 

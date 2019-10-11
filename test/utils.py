@@ -464,7 +464,7 @@ def plot_distance(physics, i, j,
     events = sorted(i_events + j_events)
     ts = np.concatenate([[a.t] + list(ts[(ts > a.t) & (ts < b.t)]) + [b.t]
                          for a, b in zip(events[:-1], events[1:])])
-    fig = plt.figure()
+    plt.figure()
     plt.title('distance b/t balls  %d  and  %d' % (i, j))
     plt.xlabel('t (seconds)')
     plt.ylabel('distance (meters)')
@@ -476,29 +476,16 @@ def plot_distance(physics, i, j,
             plt.axvline(e.t, color=EVENT_COLORS[type(e)],
                         label=typee + ' i=%d' % e.i,
                         linestyle=':')
-
     plt.hlines(2*physics.ball_radius, ts[0], ts[-1], linestyles='--', label='ball diameter')
-    for e in [e for e in physics.events if isinstance(e, BallCollisionEvent)]:
+    for e in collisions:
         plt.text(e.t, 2*physics.ball_radius, str(e.i), color=BALL_COLORS[e.i], ha='right')
         plt.text(e.t, 2*physics.ball_radius, '%d' % e.j, color=BALL_COLORS[e.j], ha='left')
-
-    positions = np.array([physics.eval_positions(t)
-                          for t in ts])
+    positions = np.array([physics.eval_positions(t) for t in ts])
     deltas = positions[:,j] - positions[:,i]
     plt.plot(ts, linalg.norm(deltas, axis=-1))
-    ticks, labels = plt.xticks()
-    ticks = np.array(list(ticks) + [c.t for c in collisions])
-    labels += ['(%d,%d)  %5.4f' % (c.i, c.j, c.t) for c in collisions]
-    argsort = ticks.argsort()
-    fig.axes[0].set_xticks(ticks[argsort])
-    fig.axes[0].set_xticklabels([labels[ii] for ii in argsort], rotation=70, fontsize='x-small')
-    plt.minorticks_on()
-    fig.axes[0].set_xticks(0.01*np.arange(np.ceil(ts[-1])), minor=True)
-    # plt.xticks([c.t for c in collisions], ['%5.4f (%d,%d)' % (c.t, c.i, c.j) for c in collisions],
-    #            rotation=70, fontsize='x-small')
     plt.legend()
     plt.show()
-    plt.close()
+    # plt.close()
 
 
 def gen_filename(name, ext, directory="."):
@@ -527,14 +514,16 @@ def git_head_hash():
     return ret.stdout.decode().strip()
 
 
-def check_ball_distances(pool_physics, t=None, filename=None, nt=2000):
+def check_ball_distances(pool_physics, t=None, filename=None, nt=1000):
     from numpy import sqrt, dot, linspace
     import pickle
     physics = pool_physics
     if t is None:
-        ts = linspace(physics.events[0].t, physics.events[-1].t, nt)
+        T = physics.events[-1].t - physics.events[0].t
+        ts = linspace(physics.events[0].t, physics.events[-1].t, int(np.ceil(T * nt)))
     else:
         ts = [t]
+    _logger.info('checking %s times (from %s to %s)...', len(ts), ts[0], ts[-1])
     for t in ts:
         positions = physics.eval_positions(t)
         for i, r_i in enumerate(positions):
@@ -553,6 +542,8 @@ def check_ball_distances(pool_physics, t=None, filename=None, nt=2000):
                     physics.e_j = e_j
                     physics.i = e_i.i
                     physics.j = e_j.i
+                    physics.t_penetrated = t
+                    _logger.error('balls %d, %d penetrated at t=%s', physics.i, physics.j, t)
                     plot_distance(pool_physics, physics.i, physics.j)
                     class BallsPenetratedInsanity(Exception):
                         def __init__(self, physics, *args, **kwargs):
@@ -563,12 +554,15 @@ def check_ball_distances(pool_physics, t=None, filename=None, nt=2000):
                                 fname = '%s.%s' % (filename, fname)
                             with open(fname, 'wb') as f:
                                 pickle.dump(physics, f)
-                            _logger.info('dumped serialized physics to "%s"', fname)
+                            _logger.info('''Dumped serialized physics to "{dumpfile}".
+To examine the dump:
+
+  $ ipython scripts/examine_dump.py -i --matplotlib -- {dumpfile}
+'''.format(dumpfile=fname))
                             super().__init__(*args, **kwargs)
-                    raise BallsPenetratedInsanity(physics, '''t = {t}
-d = {d} < {ball_diameter}
-
-e_i: {e_i}
-
-e_j: {e_j}
+                    raise BallsPenetratedInsanity(physics, '''
+!!!  d == {d} < {ball_diameter}  !!!
+  t: {t}
+  e_i: {e_i}
+  e_j: {e_j}
 '''.format(t=t, d=d, ball_diameter=2*physics.ball_radius, e_i=e_i, e_j=e_j))

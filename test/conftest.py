@@ -42,6 +42,9 @@ def pytest_addoption(parser):
     parser.addoption('--quartic-solver', metavar='<name of quartic solver function>',
                      help="set the function used to solve quartic polynomials",
                      default=None)
+    parser.addoption('--no-distance-check',
+                     help="disable checking that every pair of balls is separated by at least one ball diameter",
+                     action="store_true")
 
 
 def pytest_generate_tests(metafunc):

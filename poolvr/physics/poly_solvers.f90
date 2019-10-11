@@ -3,7 +3,7 @@ MODULE poly_solvers
   IMPLICIT NONE
 
   real(c_double), parameter :: ZERO_TOLERANCE = 1.d-14
-  real(c_double), parameter :: IMAG_TOLERANCE = 1.d-12
+  real(c_double), parameter :: IMAG_TOLERANCE = 1.d-11
   real(c_double), parameter :: IMAG_TOLERANCE_SQRD = IMAG_TOLERANCE**2
   real(c_double), parameter :: PI = acos(-1.d0)
   real(c_double), parameter :: PIx2 = 2*PI

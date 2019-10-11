@@ -110,7 +110,7 @@ class PoolPhysics(object):
         self.g = g
         self.t = 0.0
         self._balls_on_table = balls_on_table
-        self._balls_at_rest = set(balls_on_table)
+        # self._balls_at_rest = set(balls_on_table)
         self._on_table = np.array(self.num_balls * [False])
         self._on_table[np.array(balls_on_table, dtype=np.int32)] = True
         self._collision_search_time_limit = collision_search_time_limit
@@ -203,7 +203,8 @@ class PoolPhysics(object):
         self.ball_events = {i: [self._BALL_REST_EVENTS[i]]
                             for i in self.balls_on_table}
         self.events = list(chain.from_iterable(self.ball_events.values()))
-        self._balls_at_rest = set(self.balls_on_table)
+        # self._balls_at_rest = set(self.balls_on_table)
+        # self._ball_rest_events = self.ball_events.copy()
         self._ball_motion_events = {}
         self._ball_spinning_events = {}
         self._collisions = {}
@@ -223,9 +224,9 @@ class PoolPhysics(object):
         self._on_table[:] = False
         self._on_table[self._balls_on_table] = True
 
-    @property
-    def balls_at_rest(self):
-        return self._balls_at_rest
+    # @property
+    # def balls_at_rest(self):
+    #     return self._balls_at_rest
 
     def add_cue(self, cue):
         self.cues = [cue]
@@ -463,7 +464,8 @@ class PoolPhysics(object):
             for k, v in self._collisions.items():
                 v.pop(i, None)
             if isinstance(event, BallStationaryEvent):
-                self._balls_at_rest.add(i)
+                # self._balls_at_rest.add(i)
+                # self._ball_rest_events[i] = event
                 self._ball_motion_events.pop(i, None)
                 if isinstance(event, BallSpinningEvent):
                     self._ball_spinning_events[i] = event
@@ -472,8 +474,9 @@ class PoolPhysics(object):
             elif isinstance(event, BallMotionEvent):
                 self._ball_motion_events[i] = event
                 self._collisions[i] = {}
-                if i in self._balls_at_rest:
-                    self._balls_at_rest.remove(i)
+                # self._ball_rest_events.pop(i, None)
+                # if i in self._balls_at_rest:
+                #     self._balls_at_rest.remove(i)
         for child_event in event.child_events:
             self._add_event(child_event)
 
@@ -699,6 +702,15 @@ class PoolPhysics(object):
                         break
             i += 1
         return roots[2*npairs:]
+
+    def _datum_match(self):
+        bot = np.array(self.balls_on_table, dtype=np.int)
+        bot.sort()
+
+        intervals = np.array(sorted(tuple(*ball_events[i][-1].interval, i) for i in bot))
+        for ii, i in enumerate(bot):
+            for jj, j in enumerate(bot[ii+1:]):
+                jj = ii + jj + 1
 
 
     def glyph_meshes(self, t):
