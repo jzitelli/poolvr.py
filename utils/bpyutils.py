@@ -1,5 +1,4 @@
 import logging
-
 _logger = logging.getLogger(__name__)
 
 
@@ -33,6 +32,7 @@ def bake_all_faces(fp_image, fp_scene=None, mode="full render"):
 
     #bpy.ops.image.save_as(save_as_render=False, filepath='pybake.png', relative_path=True)
     #bpy.ops.object.mode_set()
+
 
 def create_material():
     if bpy is None:
