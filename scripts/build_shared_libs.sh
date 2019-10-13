@@ -22,10 +22,9 @@ gcc -shared -static -o $project_root"/poolvr/physics/poly_solvers.dll" \
 echo '
 building fpoly_solvers.dll...
 '
-gfortran -shared -static -o $project_root"/poolvr/physics/fpoly_solvers.dll" \
-	 -ffree-line-length-none \
+gfortran -shared -static \
 	 -v \
-     $project_root"/poolvr/physics/fpoly_solvers.f90"
+	 -o $project_root"/poolvr/physics/fpoly_solvers.dll" $project_root"/poolvr/physics/poly_solvers.f90"
 
 
 rm *.mod

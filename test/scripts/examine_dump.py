@@ -5,7 +5,7 @@ _DEBUG_LOGGING_FORMAT = '### %(asctime).19s.%(msecs).3s [%(levelname)s] %(name)s
 logging.basicConfig(format=_DEBUG_LOGGING_FORMAT, level=logging.INFO)
 logger = logging.getLogger(__name__)
 import numpy as np
-from poolvr.physics.events import PhysicsEvent, BallCollisionEvent, BallMotionEvent, BallSpinningEvent, BallStationaryEvent
+from poolvr.physics.events import PhysicsEvent, BallCollisionEvent, BallMotionEvent, BallSpinningEvent, BallStationaryEvent, BallEvent
 from poolvr.physics.poly_solvers import f_find_collision_time, quartic_solve, f_quartic_solve, c_quartic_solve
 from utils import plot_distance, sorrted, printit
 
@@ -24,21 +24,25 @@ j_events = ball_events[j]
 collisions = [e for e in physics.events if isinstance(e, BallCollisionEvent)]
 i_collisions = [c for c in collisions if c.i == i or c.j == i]
 j_collisions = [c for c in collisions if c.i == j or c.j == j]
+before = [e for e in collisions if e.t < physics.t_penetrated]
+after  = [e for e in collisions if e.t >= physics.t_penetrated]
+n_before = min(5, len(before))
 
 
-# logger.info('''
-# ball i events:
-
-# %s
-# ''', PhysicsEvent.events_str(sorted(i_events + i_collisions)))
-# logger.info('''
-# ball j events:
-
-# %s
-# ''', PhysicsEvent.events_str(sorted(j_events + j_collisions)))
+logger.info('last %d collisions before penetration at t = %s:\n\n%s',
+            n_before, physics.t_penetrated,
+            printit(before[-n_before:]))
+logger.info('first collision after penetration at t = %s:\n\n%s',
+            physics.t_penetrated, printit(after[:1]))
 
 
-plot_distance(physics, physics.i, physics.j)
+plot_distance(physics, physics.i, physics.j, t0=before[-n_before].t, t1=after[1].t)
+
+
+def do_next_event():
+    next_event = physics._determine_next_event()
+    logger.info('next event: %s', next_event)
+    physics._add_event(next_event)
 
 
 def do_ij(e_i, e_j):
@@ -94,26 +98,29 @@ for event in physics.events:
         event.T = event.T_orig
 
 
-
 t = physics.t_penetrated
-events = physics.events = [e for e in physics.events if e.t < t]
-
-
-for i, events in list(physics.ball_events.items()):
-    physics.ball_events[i] = [e for e in events if e.t < t]
+n = 6
+logger.info('restoring state to: %d events before time %s',
+            n, t)
+events = [e for e in physics.events if e.t < t][:-n]
+physics.events = events
+physics.ball_events.clear()
 for e in physics.events:
-    if isinstance(e, BallMotionEvent):
-        physics._ball_motion_events[e.i] = e
-        physics._ball_spinning_events.pop(e.i, None)
-        if e.i in physics._balls_at_rest:
-            physics._balls_at_rest.remove(e.i)
-    elif isinstance(e, BallStationaryEvent):
-        physics._ball_motion_events.pop(e.i, None)
-        if isinstance(e, BallSpinningEvent):
-            physics._ball_spinning_events[e.i] = e
+    if isinstance(e, BallEvent):
+        i = e.i
+        if i not in physics.ball_events:
+            physics.ball_events[i] = [e]
         else:
-            physics._ball_spinning_events.pop(e.i, None)
-            physics._balls_at_rest.add(e.i)
+            physics.ball_events[i].append(e)
+        if isinstance(e, BallMotionEvent):
+            physics._ball_motion_events[i] = e
+            physics._ball_spinning_events.pop(i, None)
+        elif isinstance(e, BallStationaryEvent):
+            physics._ball_motion_events.pop(i, None)
+            if isinstance(e, BallSpinningEvent):
+                physics._ball_spinning_events[i] = e
+            else:
+                physics._ball_spinning_events.pop(i, None)
 for i in physics._ball_motion_events.keys():
     physics._collisions[i] = {}
 physics._rail_collisions = {}
@@ -121,12 +128,6 @@ physics._rail_collisions = {}
 
 # logger.info('physics._ball_motion_events:\n%s',
 #             '\n'.join('%s: %s' % it for it in sorted(physics._ball_motion_events.items())))
-n = 6
-logger.info('last %d events before penetration by %d,%d at t = %s:\n%s',
-            n, physics.i, physics.j,
-            t, PhysicsEvent.events_str(physics.events[-n:]))
-
-def do_next_event():
-    next_event = physics._determine_next_event()
-    logger.info('next event: %s', next_event)
-    physics._add_event(next_event)
+# logger.info('last %d events before penetration by %d,%d at t = %s:\n%s',
+#             n, physics.i, physics.j,
+#             t, PhysicsEvent.events_str(physics.events[-n:]))

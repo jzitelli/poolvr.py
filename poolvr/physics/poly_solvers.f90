@@ -3,7 +3,7 @@ MODULE poly_solvers
   IMPLICIT NONE
 
   real(c_double), parameter :: ZERO_TOLERANCE = 1.d-14
-  real(c_double), parameter :: IMAG_TOLERANCE = 1.d-11
+  real(c_double), parameter :: IMAG_TOLERANCE = 5.d-8
   real(c_double), parameter :: IMAG_TOLERANCE_SQRD = IMAG_TOLERANCE**2
   real(c_double), parameter :: PI = acos(-1.d0)
   real(c_double), parameter :: PIx2 = 2*PI
@@ -121,36 +121,30 @@ CONTAINS
     real(c_double), dimension(3,3), intent(in) :: a_i, a_j
     real(c_double), value, intent(in) :: R, t0, t1
     real(c_double), dimension(3,3) :: a_ji
-    real(c_double), dimension(5) :: P
-    real(c_double) :: a_x, a_y, b_x, b_y, c_x, c_y
-    ! real(c_double) :: t, v_ijy
-    ! real(c_double), dimension(3) :: r_i, r_j, v_i, v_j, omega_i, omega_j
+    real(c_double), dimension(0:4) :: P
+    real(c_double), dimension(3) :: r_i, r_j, v_i, v_j, omega_i, omega_j
+    real(c_double) :: t, v_ijy
     a_ji = a_i - a_j
-    a_x = a_ji(1,3)
-    a_y = a_ji(3,3)
-    b_x = a_ji(1,2)
-    b_y = a_ji(3,2)
-    c_x = a_ji(1,1)
-    c_y = a_ji(3,1)
-    p(5) = a_x*a_x + a_y*a_y
-    p(4) = 2 * (a_x*b_x + a_y*b_y)
-    p(3) = b_x*b_x + b_y*b_y + 2 * (a_x*c_x + a_y*c_y)
-    p(2) = 2 * (b_x*c_x + b_y*c_y)
-    p(1) = c_x*c_x + c_y*c_y - 4 * R*R
-    find_collision_time = find_min_quartic_root_in_real_interval(P, t0, t1)
-    ! t = find_min_quartic_root_in_real_interval(P, t0, t1)
-    ! if (t .ne. huge(1.d0)) then
-    !    r_i = a_i(:,1) + t*a_i(:,2) + t**2*a_i(:,3)
-    !    r_j = a_j(:,1) + t*a_j(:,2) + t**2*a_j(:,3)
-    !    v_i = a_i(:,2) + 2*t*a_i(:,3)
-    !    v_j = a_j(:,2) + 2*t*a_j(:,3)
-    !    v_ijy = dot_product(v_i-v_j, r_j-r_i) / (2*R)
-    !    if (v_ijy < 1.d-7) then
-    !       find_collision_time = huge(1.d0)
-    !       return
-    !    endif
-    ! endif
-    ! find_collision_time = t
+    p(4) = dot_product(a_ji(:,3), a_ji(:,3))
+    p(3) = 2 * dot_product(a_ji(:,3), a_ji(:,2))
+    p(2) = dot_product(a_ji(:,2), a_ji(:,2)) + 2 * dot_product(a_ji(:,3), a_ji(:,1))
+    p(1) = 2 * dot_product(a_ji(:,2), a_ji(:,1))
+    p(0) = dot_product(a_ji(:,1), a_ji(:,1)) - 4*R*R
+    ! PRINT *, "P =", P
+    t = find_min_quartic_root_in_real_interval(P, t0, t1)
+    if (t .ne. huge(1.d0)) then
+       r_i = a_i(:,1) + t*a_i(:,2) + t**2*a_i(:,3)
+       r_j = a_j(:,1) + t*a_j(:,2) + t**2*a_j(:,3)
+       v_i = a_i(:,2) + 2*t*a_i(:,3)
+       v_j = a_j(:,2) + 2*t*a_j(:,3)
+       v_ijy = dot_product(v_j-v_i, r_j-r_i) / (2*R)
+       if (v_ijy > 0) then
+          ! PRINT *, "t =", t, " v_ijy =", v_ijy
+          find_collision_time = huge(1.d0)
+          return
+       endif
+    endif
+    find_collision_time = t
   end function find_collision_time
 
 END MODULE poly_solvers

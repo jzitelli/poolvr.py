@@ -16,7 +16,7 @@ from math import sqrt
 import logging
 _logger = logging.getLogger(__name__)
 import numpy as np
-from numpy import dot
+from numpy import dot, array, float64
 
 
 from ..table import PoolTable
@@ -27,14 +27,16 @@ from .events import (CueStrikeEvent,
                      BallRestEvent,
                      BallMotionEvent,
                      BallSlidingEvent,
+                     BallRollingEvent,
                      BallCollisionEvent,
                      MarlowBallCollisionEvent,
                      SimpleBallCollisionEvent,
                      SimulatedBallCollisionEvent,
                      FSimulatedBallCollisionEvent,
                      RailCollisionEvent,
-                     CornerCollisionEvent)
-from .poly_solvers import f_find_collision_time as find_collision_time, f_quartic_solve as quartic_solve
+                     CornerCollisionEvent,
+                     BallsInContactEvent)
+from .poly_solvers import f_find_collision_time as find_collision_time, f_quartic_solve, c_quartic_solve, quartic_solve
 from . import collisions
 
 
@@ -49,6 +51,17 @@ BALL_COLLISION_MODELS = {
     'simulated': SimulatedBallCollisionEvent,
     'fsimulated': FSimulatedBallCollisionEvent
 }
+
+
+def sorrted(roots):
+    from poolvr.physics.poly_solvers import sort_complex_conjugate_pairs
+    roots.sort()
+    sort_complex_conjugate_pairs(roots)
+    return roots
+
+
+def printit(roots):
+    return ',  '.join('%5.17f + %5.17fj' % (r.real, r.imag) if r.imag else '%5.17f' % r for r in roots)
 
 
 class PoolPhysics(object):
@@ -110,7 +123,6 @@ class PoolPhysics(object):
         self.g = g
         self.t = 0.0
         self._balls_on_table = balls_on_table
-        # self._balls_at_rest = set(balls_on_table)
         self._on_table = np.array(self.num_balls * [False])
         self._on_table[np.array(balls_on_table, dtype=np.int32)] = True
         self._collision_search_time_limit = collision_search_time_limit
@@ -203,12 +215,14 @@ class PoolPhysics(object):
         self.ball_events = {i: [self._BALL_REST_EVENTS[i]]
                             for i in self.balls_on_table}
         self.events = list(chain.from_iterable(self.ball_events.values()))
-        # self._balls_at_rest = set(self.balls_on_table)
-        # self._ball_rest_events = self.ball_events.copy()
         self._ball_motion_events = {}
         self._ball_spinning_events = {}
         self._collisions = {}
         self._rail_collisions = {}
+        self._collision_events = {i: [] for i in self.balls_on_table}
+        self._contacts = {}
+        self._bounce_cnt = {(i,j): 0 for i in self.balls_on_table
+                            for j in self.balls_on_table if j > i}
 
     @property
     def ball_collision_model(self):
@@ -223,10 +237,6 @@ class PoolPhysics(object):
         self._balls_on_table.sort()
         self._on_table[:] = False
         self._on_table[self._balls_on_table] = True
-
-    # @property
-    # def balls_at_rest(self):
-    #     return self._balls_at_rest
 
     def add_cue(self, cue):
         self.cues = [cue]
@@ -290,7 +300,8 @@ class PoolPhysics(object):
     def balls_at_rest_time(self):
         """The time at which all balls have come to rest."""
         return self.events[-1].t \
-            if self.events and isinstance(self.events[-1], BallRestEvent) \
+            if self.events and isinstance(self.events[-1], BallRestEvent) and not (self._ball_motion_events
+                                                                                   or self._ball_spinning_events) \
             else None
 
     def step(self, dt):
@@ -327,7 +338,17 @@ class PoolPhysics(object):
                 t = perf_counter()
                 dt = t - lt; lt = t
                 T -= dt
-            return
+            if self.t >= self.events[-1].t:
+                _logger.warning('STALLING TO CATCH UP SIMULATION!')
+                lt = perf_counter()
+                while self._ball_motion_events or self._ball_spinning_events:
+                    event = self._determine_next_event()
+                    if event:
+                        self._add_event(event)
+                        if event.t >= self.t:
+                            _logger.warning('WAITED %s SECONDS FOR SIMULATION TO CATCH UP!', perf_counter() - lt)
+                            return
+
 
     def eval_positions(self, t, balls=None, out=None):
         """
@@ -444,19 +465,54 @@ class PoolPhysics(object):
         self._on_cue_ball_collide = cb
 
     def _add_event(self, event):
+        _logger.info('next event time: %5.17f,  delta t: %s', event.t, event.t - self.events[-1].t)
         self.events.append(event)
         if isinstance(event, BallCollisionEvent):
-            e_i, e_j = event.e_i, event.e_j
-            e_i.T_orig = e_i.T
-            e_j.T_orig = e_j.T
-            e_i.T = event.t - e_i.t
-            e_j.T = event.t - e_j.t
+            i, j = event.i, event.j
+            ii, jj = pair = (min(i,j),max(i,j))
+            c = self._contacts.pop(i, None)
+            c = self._contacts.pop(j, c)
+            for v in self._contacts.values():
+                c = v.pop(i, c)
+                c = v.pop(j, c)
+            if c is None:
+                if self._collision_events[ii] and self._collision_events[jj] \
+                   and self._collision_events[ii][-1] is self._collision_events[jj][-1] \
+                   and event.t - self._collision_events[ii][-1].t < 0.01:
+                    self._bounce_cnt[pair] += 1
+                    _logger.info('%d,%d bounce count: %d', *pair, self._bounce_cnt[pair])
+            else:
+                pair = set(pair)
+                for k in self._bounce_cnt.keys():
+                    if pair & set(k):
+                        _logger.info('reset bounce count for %d,%d', *k)
+                        self._bounce_cnt[k] = 0
+            self._collision_events[ii].append(event)
+            self._collision_events[jj].append(event)
+        elif isinstance(event, BallsInContactEvent):
+            i, j = event.i, event.j
+            ii, jj = pair = (min(i,j),max(i,j))
+            if i not in self._contacts:
+                self._contacts[i] = {j: event}
+            else:
+                self._contacts[i][j] = event
+            if j not in self._contacts:
+                self._contacts[j] = {i: event}
+            else:
+                self._contacts[j][i] = event
+            self._bounce_cnt[pair] = 0
         elif isinstance(event, BallEvent):
             i = event.i
             ball_events = self.ball_events[i]
+            if event.parent_event and i in self._contacts \
+               and not isinstance(event.parent_event, BallsInContactEvent):
+                self._contacts.pop(i)
+                for v in self._contacts.values():
+                    v.pop(i, None)
             if ball_events:
                 last_ball_event = ball_events[-1]
                 if event.t < last_ball_event.t + last_ball_event.T:
+                    last_ball_event.T_orig = last_ball_event.T
                     last_ball_event.T = event.t - last_ball_event.t
             ball_events.append(event)
             self._rail_collisions.pop(i, None)
@@ -464,8 +520,6 @@ class PoolPhysics(object):
             for k, v in self._collisions.items():
                 v.pop(i, None)
             if isinstance(event, BallStationaryEvent):
-                # self._balls_at_rest.add(i)
-                # self._ball_rest_events[i] = event
                 self._ball_motion_events.pop(i, None)
                 if isinstance(event, BallSpinningEvent):
                     self._ball_spinning_events[i] = event
@@ -474,9 +528,6 @@ class PoolPhysics(object):
             elif isinstance(event, BallMotionEvent):
                 self._ball_motion_events[i] = event
                 self._collisions[i] = {}
-                # self._ball_rest_events.pop(i, None)
-                # if i in self._balls_at_rest:
-                #     self._balls_at_rest.remove(i)
         for child_event in event.child_events:
             self._add_event(child_event)
 
@@ -502,9 +553,23 @@ class PoolPhysics(object):
                 t_min = rail_collision[0]
                 next_rail_collision = rail_collision
             collisions = self._collisions[i]
+            contacts = self._contacts.get(i, {})
             for j in self.balls_on_table:
                 if j in self._ball_motion_events and j <= i:
                     continue
+                if j in contacts:
+                    continue
+                # if contact_event is not None and j in (contact_event.i, contact_event.j):
+                #     skip = False
+                #     for e in ball_events[j][::-1]:
+                #         if e.parent_event is contact_event:
+                #             skip = True
+                #             break
+                #         elif isinstance(e.parent_event, (BallCollisionEvent, RailCollisionEvent)):
+                #             break
+                #     if skip:
+                #         contact_event = None
+                #         continue
                 e_j = ball_events[j][-1]
                 t0 = max(e_i.t, e_j.t)
                 if t_min <= t0:
@@ -528,6 +593,53 @@ class PoolPhysics(object):
                                           side=side)
         elif next_collision is not None:
             t_c, e_i, e_j = next_collision
+            # intervene to fix some numerical crazies:
+            i, j = e_i.i, e_j.i
+            pair = (min(i,j),max(i,j))
+            if self._bounce_cnt[pair] >= 4 and t_c - self._collision_events[i][-1].t < 0.01:
+                tau_i = t_c - e_i.t
+                tau_j = t_c - e_j.t
+                v_i = e_i.eval_velocity(tau_i)
+                v_j = e_j.eval_velocity(tau_j)
+                r_i = e_i.eval_position(tau_i)
+                r_j = e_j.eval_position(tau_j)
+                y_loc = (r_j - r_i)/(2*self.ball_radius)
+                v_iy = dot(v_i, y_loc)
+                v_jy = dot(v_j, y_loc)
+                v_ijy = v_jy - v_iy
+                _logger.info('self._bounce_cnt[(%d,%d)] = %d\nt_c - self._collision_events[i][-1].t = %s\nv_ijy = %s',
+                             *pair, self._bounce_cnt[pair], t_c - self._collision_events[i][-1].t, v_ijy)
+                if abs(v_ijy) < 1e-6:
+                    v_i -= v_iy * y_loc
+                    v_j -= v_jy * y_loc
+                    v_i += 0.5*(v_iy + v_jy) * y_loc
+                    v_j += 0.5*(v_iy + v_jy) * y_loc
+                    x_loc = array((y_loc[2], 0.0, -y_loc[0]))
+                    if dot(v_i, v_i) == 0:
+                        e_i = BallRestEvent(t_c, i, r_0=r_i)
+                    else:
+                        omega_i = e_i.eval_angular_velocity(tau_i)
+                        omega_i -= dot(omega_i, x_loc) * x_loc
+                        omega_i += 0.5*(v_iy + v_jy)/self.ball_radius * x_loc
+                        u_i = v_i + self.ball_radius * array((omega_i[2], 0.0, -omega_i[0]), dtype=float64)
+                        if dot(u_i, u_i) == 0:
+                            e_i = BallRollingEvent(t_c, i, r_0=r_i, v_0=v_i, omega_0_y=omega_i[1])
+                        else:
+                            e_i = BallSlidingEvent(t_c, i, r_0=r_i, v_0=v_i, omega_0=omega_i)
+                    if dot(v_j, v_j) == 0:
+                        e_j = BallRestEvent(t_c, j, r_0=r_j)
+                    else:
+                        omega_j = e_j.eval_angular_velocity(tau_j)
+                        omega_j -= dot(omega_j, x_loc) * x_loc
+                        omega_j += 0.5*(v_iy + v_jy)/self.ball_radius * x_loc
+                        u_j = v_j + self.ball_radius * array((omega_j[2], 0.0, -omega_j[0]), dtype=float64)
+                        if dot(u_j, u_j) == 0:
+                            e_j = BallRollingEvent(t_c, j, r_0=r_j, v_0=v_j, omega_0_y=omega_j[1])
+                        else:
+                            e_j = BallSlidingEvent(t_c, j, r_0=r_j, v_0=v_j, omega_0=omega_j)
+                    contact_event = BallsInContactEvent(e_i, e_j)
+                    _logger.info('no more bouncing you two! i,j = %d,%d\ncontact event: %s', *pair, contact_event)
+                    return contact_event
             return self._ball_collision_event_class(t_c, e_i, e_j,
                                                     **self._ball_collision_model_kwargs)
         else:
@@ -553,6 +665,46 @@ class PoolPhysics(object):
         a_i = e_i.global_linear_motion_coeffs
         a_j = e_j.global_linear_motion_coeffs
         t_c = find_collision_time(a_i, a_j, self.ball_radius, t0, t1)
+        # if set((e_i.i,e_j.i)) == set((11,12)):
+        #     a_ji = a_i - a_j
+        #     a_x, a_y = a_ji[2, ::2]
+        #     b_x, b_y = a_ji[1, ::2]
+        #     c_x, c_y = a_ji[0, ::2]
+        #     p = np.empty(5, dtype=np.float64)
+        #     p[4] = a_x**2 + a_y**2
+        #     p[3] = 2 * (a_x*b_x + a_y*b_y)
+        #     p[2] = b_x**2 + b_y**2 + 2*(a_x*c_x + a_y*c_y)
+        #     p[1] = 2 * (b_x*c_x + b_y*c_y)
+        #     p[0] = c_x**2 + c_y**2 - 4 * self.ball_radius**2
+            # nproots = sorrted(np.roots(p[::-1]))
+            # froots = sorrted(f_quartic_solve(p))
+            # croots = sorrted(c_quartic_solve(p))
+            # roots = sorrted(quartic_solve(p))
+#             _logger.info('''
+# i,j = %d,%d:
+#     e_i: %s
+#     e_j: %s
+
+#     p = %s
+
+#     t0, t1 = %s, %s
+
+#     np.roots(p[::-1])  = %s
+#     f_quartic_solve(p) = %s
+#     c_quartic_solve(p) = %s
+#     quartic_solve(p)   = %s
+
+#     t_c = %s
+# ''',
+#                          e_i.i, e_j.i,
+#                          e_i, e_j,
+#                          printit(p),
+#                          t0, t1,
+#                          printit(nproots),
+#                          printit(froots),
+#                          printit(croots),
+#                          printit(roots),
+#                          t_c)
         if t_c is not None:
             tau_i = t_c - e_i.t
             tau_j = t_c - e_j.t
@@ -562,7 +714,9 @@ class PoolPhysics(object):
             v_i = e_i.eval_velocity(tau_i)
             v_j = e_j.eval_velocity(tau_j)
             v_ij = v_j - v_i
-            if np.dot(v_ij, r_ij) >= 0:
+            if np.dot(v_ij, r_ij) > 0:
+                if set((e_i.i,e_j.i)) == set((11,12)):
+                    _logger.info('np.dot(v_ij, r_ij) = %s', np.dot(v_ij, r_ij))
                 return None
         return t_c
 
@@ -666,7 +820,7 @@ class PoolPhysics(object):
                 - R_sqrd
             p[1] = 2*(a0a1 - dot(a1, r_c))
             p[2] = 2*(a0a2 - dot(a2, r_c)) + a1a1
-            tau_cp = min((t.real for t in self._filter_roots(quartic_solve(p, only_real=True)
+            tau_cp = min((t.real for t in self._filter_roots(f_quartic_solve(p, only_real=True)
                                                              if self._use_quartic_solver else
                                                              np.roots(p[::-1]))
                           if 0.0 < t.real < tau_min
@@ -703,14 +857,13 @@ class PoolPhysics(object):
             i += 1
         return roots[2*npairs:]
 
-    def _datum_match(self):
-        bot = np.array(self.balls_on_table, dtype=np.int)
-        bot.sort()
-
-        intervals = np.array(sorted(tuple(*ball_events[i][-1].interval, i) for i in bot))
-        for ii, i in enumerate(bot):
-            for jj, j in enumerate(bot[ii+1:]):
-                jj = ii + jj + 1
+    # def _datum_match(self):
+    #     bot = np.array(self.balls_on_table, dtype=np.int)
+    #     bot.sort()
+    #     intervals = np.array(sorted(tuple(*ball_events[i][-1].interval, i) for i in bot))
+    #     for ii, i in enumerate(bot):
+    #         for jj, j in enumerate(bot[ii+1:]):
+    #             jj = ii + jj + 1
 
 
     def glyph_meshes(self, t):

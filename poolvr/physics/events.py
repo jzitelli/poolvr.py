@@ -13,6 +13,10 @@ _k = array([0, 1, 0],        # upward-pointing basis vector :math:`\hat{k}`
            dtype=float64)    # of any ball-centered frame, following the convention of Marlow
 
 
+def printit(roots):
+    return ',  '.join('%5.17f + %5.17fj' % (r.real, r.imag) if r.imag else '%5.17f' % r for r in roots)
+
+
 class PhysicsEvent(object):
     ball_radius = 0.02625
     ball_mass = 0.1406
@@ -25,9 +29,6 @@ class PhysicsEvent(object):
     g = 9.81 # magnitude of acceleration due to gravity
     _ZERO_TOLERANCE = 1e-8
     _ZERO_TOLERANCE_SQRD = _ZERO_TOLERANCE**2
-    # _ZERO_VELOCITY_CLIP = 0.0000001
-    # _ZERO_VELOCITY_CLIP_SQRD = _ZERO_VELOCITY_CLIP**2
-    # _ZERO_ANGULAR_VELOCITY_CLIP = 0.00001
     def __init__(self, t, T=0.0, parent_event=None, **kwargs):
         """
         Base class of pool physics events.
@@ -515,17 +516,33 @@ class BallCollisionEvent(PhysicsEvent):
     def __str__(self):
         return '<' + super().__str__()[:-1] + '''
  i,j = %s,%s
+ r_i     = %s
+ r_j     = %s
+ v_i0    = %s   ||v_i0|| = %s
+ v_j0    = %s   ||v_j0|| = %s
  v_ij_y0 = %s
- v_ij_y1 = %s>>''' % (self.i, self.j,
-                     self._v_ij_y0, self._v_ij_y1)
+ v_ij_y1 = %s
+ v_i1    = %s   ||v_i1|| = %s
+ v_j1    = %s   ||v_j1|| = %s
+>>''' % (self.i, self.j,
+         printit(self._r_i),
+         printit(self._r_j),
+         printit(self._v_i), sqrt(dot(self._v_i, self._v_i)),
+         printit(self._v_j), sqrt(dot(self._v_j, self._v_j)),
+         self._v_ij_y0,
+         self._v_ij_y1,
+         printit(self._v_i_1), sqrt(dot(self._v_i_1, self._v_i_1)),
+         printit(self._v_j_1), sqrt(dot(self._v_j_1, self._v_j_1)))
     def __lt__(self, other):
-        return self.t <= other.t \
-            if not isinstance(other, BallCollisionEvent) \
+        if not isinstance(other, PhysicsEvent):
+            return self.t < other
+        return self.t <= other.t if not isinstance(other, BallCollisionEvent) \
             else self.t < other.t
     def __gt__(self, other):
-        return self.t >= other.t \
-            if not isinstance(other, BallCollisionEvent) \
-            else self.t > other.t
+        if not isinstance(other, PhysicsEvent):
+            return self.t > other
+        return self.t > other.t if not isinstance(other, BallCollisionEvent) \
+            else self.t >= other.t
     @property
     def child_events(self):
         if self._child_events is None:
@@ -567,12 +584,10 @@ class SimpleBallCollisionEvent(BallCollisionEvent):
     def __init__(self, t, e_i, e_j, v_factor=0.98):
         """Simple one-parameter elastic collision model with no friction between balls or any other surface."""
         super().__init__(t, e_i, e_j)
-        r_i, r_j = self._r_i, self._r_j
-        r_ij = r_i - r_j
-        self._i = _i = r_ij / sqrt(dot(r_ij, r_ij))
+        y_loc = self._y_loc
         v_i, v_j = self._v_i, self._v_j
-        v_ix = dot(v_i, _i) * _i
-        v_jx = dot(v_j, _i) * _i
+        v_ix = dot(v_i, y_loc) * y_loc
+        v_jx = dot(v_j, y_loc) * y_loc
         v_iy = v_i - v_ix
         v_jy = v_j - v_jx
         v_ix_1 = 0.5 * ((1 - v_factor) * v_ix + (1 + v_factor) * v_jx)
@@ -580,7 +595,7 @@ class SimpleBallCollisionEvent(BallCollisionEvent):
         v_i_1 = v_iy + v_ix_1
         v_j_1 = v_jy + v_jx_1
         self._v_i_1, self._v_j_1 = v_i_1, v_j_1
-        self._v_ij_y1 = dot(v_j_1 - v_i_1, _i)
+        self._v_ij_y1 = dot(v_j_1 - v_i_1, y_loc)
         omega_i, omega_j = self._omega_i, self._omega_j
         self._omega_i_1, self._omega_j_1 = omega_i.copy(), omega_j.copy()
         self._child_events = None
@@ -662,3 +677,32 @@ class SimulatedBallCollisionEvent(BallCollisionEvent):
 
 class FSimulatedBallCollisionEvent(SimulatedBallCollisionEvent):
     collide_balls = staticmethod(collide_balls_f90)
+
+
+class BallsInContactEvent(PhysicsEvent):
+    def __init__(self, e_i, e_j):
+        assert e_i.t == e_j.t
+        t = e_i.t
+        T = min(e_i.T, e_j.T)
+        super().__init__(t, T=T)
+        self.i, self.j = e_i.i, e_j.i
+        e_i._parent_event = self
+        e_j._parent_event = self
+        nme = e_i.next_motion_event
+        while nme:
+            nme._parent_event = self
+            nme = nme.next_motion_event
+        nme = e_j.next_motion_event
+        while nme:
+            nme._parent_event = self
+            nme = nme.next_motion_event
+        self._child_events = (e_i, e_j)
+    @property
+    def child_events(self):
+        return self._child_events
+    def __str__(self):
+        return super().__str__()[:-1] + '''
+ i,j = %s,%s
+ e_i = %s
+ e_j = %s
+>''' % (self.i, self.j, *self._child_events)

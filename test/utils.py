@@ -1,7 +1,9 @@
 import logging
+_logger = logging.getLogger(__name__)
 import os
 from os import makedirs
 import os.path as path
+from bisect import bisect
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
@@ -14,10 +16,8 @@ from poolvr.physics.events import (CueStrikeEvent,
                                    BallMotionEvent, BallRestEvent,
                                    RailCollisionEvent, CornerCollisionEvent, BallCollisionEvent,
                                    MarlowBallCollisionEvent, SimpleBallCollisionEvent,
-                                   SimulatedBallCollisionEvent, FSimulatedBallCollisionEvent)
-
-
-_logger = logging.getLogger(__name__)
+                                   SimulatedBallCollisionEvent, FSimulatedBallCollisionEvent,
+                                   BallsInContactEvent)
 
 
 EVENT_COLORS = {CueStrikeEvent: 'blue',
@@ -31,7 +31,8 @@ EVENT_COLORS = {CueStrikeEvent: 'blue',
                 SimulatedBallCollisionEvent: 'blue',
                 FSimulatedBallCollisionEvent: 'blue',
                 RailCollisionEvent: 'green',
-                CornerCollisionEvent: 'orange'}
+                CornerCollisionEvent: 'orange',
+                BallsInContactEvent: 'black'}
 BALL_COLORS = {0: 'white',
                1: 'yellow',
                2: 'blue',
@@ -42,6 +43,21 @@ BALL_COLORS = {0: 'white',
                7: 'magenta',
                8: 'black'}
 BALL_COLORS.update({i: BALL_COLORS[i-8] for i in range(9, 16)})
+INF = float('inf')
+
+
+def sorrted(roots):
+    from poolvr.physics.poly_solvers import sort_complex_conjugate_pairs
+    roots.sort()
+    sort_complex_conjugate_pairs(roots)
+    return roots
+
+
+def printit(it):
+    from poolvr.physics.events import PhysicsEvent
+    if isinstance(it, list) and it and isinstance(it[0], PhysicsEvent):
+        return PhysicsEvent.events_str(it)
+    return ',  '.join('%5.10f + %5.10fj' % (r.real, r.imag) for r in it)
 
 
 def catches_tcl_errors(func):
@@ -54,17 +70,6 @@ def catches_tcl_errors(func):
         except TclError as err:
             _logger.warn(err)
     return wrapper
-
-
-def sorrted(roots):
-    from poolvr.physics.poly_solvers import sort_complex_conjugate_pairs
-    roots.sort()
-    sort_complex_conjugate_pairs(roots)
-    return roots
-
-
-def printit(roots):
-    return ',  '.join('%5.10f + %5.10fj' % (r.real, r.imag) for r in roots)
 
 
 @catches_tcl_errors
@@ -442,7 +447,9 @@ def plot_collision_angular_velocity_maps(omega_i1s, omega_j1s,
 @catches_tcl_errors
 def plot_distance(physics, i, j,
                   t0=None, t1=None,
-                  show=True, filename=None):
+                  nt=40000,
+                  semilog=True,
+                  show=True):
     from numpy import linalg
     ball_events = physics.ball_events
     i_events = ball_events.get(i, [])
@@ -450,21 +457,25 @@ def plot_distance(physics, i, j,
     if not (i_events or j_events):
         return
     if t0 is None:
-        t0 = 0.0
+        t0 = physics.events[0].t
+    if t1 is None:
+        t1 = physics.events[-1].t if physics.events[-1].T == INF else physics.events[-1].t + physics.events[-1].T
+    # if t1 is None:
+    #     t1 = max(i_events[-1].t if i_events else t0,
+    #              j_events[-1].t if j_events else t0)
+    contacts = [e for e in physics.events if isinstance(e, BallsInContactEvent)
+                and set((i,j)) & set((e.i,e.j)) and t0 <= e.t <= t1]
     collisions = [e for e in physics.events if isinstance(e, BallCollisionEvent)
-                  and set((i,j)) & set((e.i,e.j)) and e.t >= t0]
+                  and set((i,j)) & set((e.i,e.j)) and t0 <= e.t <= t1]
     i_collisions = [e for e in collisions if i in (e.i, e.j)]
     j_collisions = [e for e in collisions if j in (e.i, e.j)]
-    i_events = [e for e in sorted(i_events + i_collisions) if e.t >= t0]
-    j_events = [e for e in sorted(j_events + j_collisions) if e.t >= t0]
-    if t1 is None:
-        t1 = max(i_events[-1].t if i_events else t0,
-                 j_events[-1].t if j_events else t0)
-    ts = np.linspace(t0, t1, 2000)
+    i_events = [e for e in sorted(i_events + i_collisions) if t0 <= e.t <= t1]
+    j_events = [e for e in sorted(j_events + j_collisions) if t0 <= e.t <= t1]
+    ts = np.linspace(t0, t1, int(np.ceil(nt*(t1-t0))))
     events = sorted(i_events + j_events)
     ts = np.concatenate([[a.t] + list(ts[(ts > a.t) & (ts < b.t)]) + [b.t]
                          for a, b in zip(events[:-1], events[1:])])
-    plt.figure()
+    fig = plt.figure()
     plt.title('distance b/t balls  %d  and  %d' % (i, j))
     plt.xlabel('t (seconds)')
     plt.ylabel('distance (meters)')
@@ -479,13 +490,28 @@ def plot_distance(physics, i, j,
     plt.hlines(2*physics.ball_radius, ts[0], ts[-1], linestyles='--', label='ball diameter')
     for e in collisions:
         plt.text(e.t, 2*physics.ball_radius, str(e.i), color=BALL_COLORS[e.i], ha='right')
-        plt.text(e.t, 2*physics.ball_radius, '%d' % e.j, color=BALL_COLORS[e.j], ha='left')
+        plt.text(e.t, 2*physics.ball_radius, '%d' % e.j, color=BALL_COLORS[e.j], ha='left', va='top')
+    for e in contacts:
+        plt.axvline(e.t, color=EVENT_COLORS[type(e)],
+                    label="%d,%d contact" % (e.i, e.j),
+                    linestyle='-')
+        plt.text(e.t, 2*physics.ball_radius, str(e.i), color=BALL_COLORS[e.i], ha='right')
+        plt.text(e.t, 2*physics.ball_radius, str(e.j), color=BALL_COLORS[e.j], ha='left', va='top')
     positions = np.array([physics.eval_positions(t) for t in ts])
     deltas = positions[:,j] - positions[:,i]
-    plt.plot(ts, linalg.norm(deltas, axis=-1))
+    distances = linalg.norm(deltas, axis=-1)
+    if semilog:
+        plt.semilogy(ts, distances, label=r"$\|\| \vec{r}_{ij}) \|\|$")
+    else:
+        plt.plot(ts, distances, label=r"$\|\| \vec{r}_{ij}) \|\|$")
+    # plt.xticks(ts[::10],
+    #            ('%5.17f' % t for t in ts))
+    # plt.yticks(np.logspace(2*physics.ball_radius, 2.2*physics.ball_radius, 10),
+    #            ('%2.17f' % d for d in distances))
     plt.legend()
-    plt.show()
-    # plt.close()
+    if show:
+        plt.show()
+    return fig
 
 
 def gen_filename(name, ext, directory="."):
@@ -544,7 +570,13 @@ def check_ball_distances(pool_physics, t=None, filename=None, nt=1000):
                     physics.j = e_j.i
                     physics.t_penetrated = t
                     _logger.error('balls %d, %d penetrated at t=%s', physics.i, physics.j, t)
-                    plot_distance(pool_physics, physics.i, physics.j)
+                    i_e = bisect(physics.events, t)
+                    # before, after = physics.events[:i_e], physics.events[i_e:]
+                    # if before:
+                    #     t0 = before[-min(len(before), 16)].t
+                    # else:
+                    #     t0 = physics.events[0].t
+                    plot_distance(physics, physics.i, physics.j, t0=max(physics.events[0].t, t-0.005), t1=t+0.004)
                     class BallsPenetratedInsanity(Exception):
                         def __init__(self, physics, *args, **kwargs):
                             fname = '%s.%s.%s.dump' % (self.__class__.__name__.split('.')[-1],

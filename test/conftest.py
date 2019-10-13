@@ -89,7 +89,8 @@ def pool_physics_realtime(pool_table, request, ball_collision_model):
     from poolvr.physics import PoolPhysics
     return PoolPhysics(initial_positions=pool_table.calc_racked_positions(),
                        ball_collision_model=ball_collision_model,
-                       collision_search_time_limit=0.005)
+                       collision_search_time_limit=0.005,
+                       collision_search_time_forward=2/90.0)
 
 
 @pytest.fixture
