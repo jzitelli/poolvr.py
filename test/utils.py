@@ -473,8 +473,8 @@ def plot_distance(physics, i, j,
     j_events = [e for e in sorted(j_events + j_collisions) if t0 <= e.t <= t1]
     ts = np.linspace(t0, t1, int(np.ceil(nt*(t1-t0))))
     events = sorted(i_events + j_events)
-    ts = np.concatenate([[a.t] + list(ts[(ts > a.t) & (ts < b.t)]) + [b.t]
-                         for a, b in zip(events[:-1], events[1:])])
+    ts = np.concatenate([[a.t] + list(ts[(a.t < ts) & (ts < b.t)]) + [b.t]
+                         for a, b in zip(events[:-1], events[1:])] + [list(ts[events[-1].t < ts])])
     fig = plt.figure()
     plt.title('distance b/t balls  %d  and  %d' % (i, j))
     plt.xlabel('t (seconds)')
