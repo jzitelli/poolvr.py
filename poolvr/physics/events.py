@@ -88,6 +88,8 @@ class BallEvent(PhysicsEvent):
         return self.__class__ == other.__class__ and self.t == other.t and self.T == other.T and self.i == other.i
     def __str__(self):
         return super().__str__()[:-1] + " i=%d>" % self.i
+    def __repr__(self):
+        return '%s(%d @ %s) at %x' % (self.__class__.__name__.split('.')[-1], self.i, self.t, id(self))
 
 
 class BallStationaryEvent(BallEvent):
@@ -509,6 +511,7 @@ class BallCollisionEvent(PhysicsEvent):
         self._r_i, self._r_j = e_i.eval_position(tau_i), e_j.eval_position(tau_j)
         self._v_i, self._v_j = e_i.eval_velocity(tau_i), e_j.eval_velocity(tau_j)
         self._r_ij = r_ij = self._r_j - self._r_i
+        self._i = r_ij / sqrt(sum(r_ij**2))
         self._v_ij = v_ij = self._v_j - self._v_i
         self._y_loc = y_loc = 0.5 * r_ij / self.ball_radius
         self._v_ij_y0 = dot(v_ij, y_loc)
@@ -533,6 +536,8 @@ class BallCollisionEvent(PhysicsEvent):
          self._v_ij_y1,
          printit(self._v_i_1), sqrt(dot(self._v_i_1, self._v_i_1)),
          printit(self._v_j_1), sqrt(dot(self._v_j_1, self._v_j_1)))
+    def __repr__(self):
+        return '%s(%d,%d @ %s, v_ij_0=%s, v_ij_1=%s) at %x' % (self.__class__.__name__.split('.')[-1], self.i, self.j, self.t, self._v_ij_y0, self._v_ij_y1, id(self))
     def __lt__(self, other):
         if not isinstance(other, PhysicsEvent):
             return self.t < other
@@ -633,29 +638,6 @@ class SimpleBallCollisionEvent(BallCollisionEvent):
                 child_events.append(e_1)
             self._child_events = tuple(child_events)
         return self._child_events
-
-
-class MarlowBallCollisionEvent(BallCollisionEvent):
-    c_b = 4000.0 # ball material's speed of sound
-    E_Y_b = 2.4e9 # ball material's Young's modulus of elasticity
-    def __init__(self, t, e_i, e_j):
-        """Marlow collision model"""
-        super().__init__(t, e_i, e_j)
-        v_i, v_j = self._v_i, self._v_j
-        v_ij = v_j - v_i
-        v_ij_mag = np.linalg.norm(v_ij)
-        delta_t = 284e-6 / v_ij_mag**0.294
-        s_max = 1.65765 * (v_ij_mag / self.c_b)**0.8
-        F_max = 1.48001 * self.ball_radius**2 * self.E_Y_b * s_max**1.5
-        r_i, r_j = self._r_i, self._r_j
-        r_ij = r_j - r_i
-        self._i = _i = r_ij / np.linalg.norm(r_ij)
-        J = max(0.5 * F_max * delta_t,
-                abs(self.ball_mass * dot(v_ij, _i))) # missing 2 factor?
-        v_i_1 = v_i - (J / self.ball_mass) * _i
-        v_j_1 = v_j + (J / self.ball_mass) * _i
-        self._v_i_1, self._v_j_1 = v_i_1, v_j_1
-        self._omega_i_1, self._omega_j_1 = self._omega_i, self._omega_j
 
 
 class SimulatedBallCollisionEvent(BallCollisionEvent):

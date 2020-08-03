@@ -257,7 +257,8 @@ def test_break_hard_realtime(pool_physics_realtime,
                  len([e for e in events if isinstance(e, BallRestEvent)]),
                  len([e for e in events if isinstance(e, RailCollisionEvent)]),
                  len([e for e in events if isinstance(e, BallCollisionEvent)]))
-    check_ball_distances(physics, filename=request.node.originalname)
+    if not request.config.getoption('--no-distance-check'):
+        check_ball_distances(physics, filename=request.node.originalname)
 
 
 def test_break_and_following_shot(pool_physics,
@@ -307,7 +308,8 @@ def test_strike_ball_english(pool_physics,
     M = 0.54
     events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
     _logger.info('strike on %d resulted in %d events', 0, len(events))
-    check_ball_distances(physics, filename=request.node.originalname)
+    if not request.config.getoption('--no-distance-check'):
+        check_ball_distances(physics, filename=request.node.originalname)
     # _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
     #               PhysicsEvent.events_str(events))
 
@@ -331,7 +333,8 @@ def test_strike_ball_less_english(pool_physics,
     M = 0.54
     events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
     _logger.info('strike on %d resulted in %d events', 0, len(events))
-    check_ball_distances(physics, filename=request.node.originalname)
+    if not request.config.getoption('--no-distance-check'):
+        check_ball_distances(physics, filename=request.node.originalname)
     # _logger.debug('strike on %d resulted in %d events:\n\n%s\n', 0, len(events),
     #               PhysicsEvent.events_str(events))
 

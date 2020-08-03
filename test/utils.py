@@ -15,8 +15,7 @@ from poolvr.physics.events import (CueStrikeEvent,
                                    BallSlidingEvent, BallRollingEvent, BallSpinningEvent,
                                    BallMotionEvent, BallRestEvent,
                                    RailCollisionEvent, CornerCollisionEvent, BallCollisionEvent,
-                                   MarlowBallCollisionEvent, SimpleBallCollisionEvent,
-                                   SimulatedBallCollisionEvent, FSimulatedBallCollisionEvent,
+                                   SimpleBallCollisionEvent, SimulatedBallCollisionEvent, FSimulatedBallCollisionEvent,
                                    BallsInContactEvent)
 
 
@@ -26,7 +25,6 @@ EVENT_COLORS = {CueStrikeEvent: 'blue',
                 BallSpinningEvent: 'red',
                 BallRestEvent: 'red',
                 BallCollisionEvent: 'blue',
-                MarlowBallCollisionEvent: 'blue',
                 SimpleBallCollisionEvent: 'blue',
                 SimulatedBallCollisionEvent: 'blue',
                 FSimulatedBallCollisionEvent: 'blue',
