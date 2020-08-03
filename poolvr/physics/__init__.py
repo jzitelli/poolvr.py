@@ -525,11 +525,6 @@ class PoolPhysics(object):
                     collisions[j] = self._find_collision_time(e_i, e_j)
                 t_c = collisions[j]
                 if t_c is not None and t0 < t_c < t_min:
-                    # i_events = self._collision_events.get(i, [])
-                    # j_events = self._collision_events.get(j, [])
-                    # if i_events and j_events and j in (i_events[-1].i, i_events[-1].j) and i in (j_events[-1].i, j_events[-1].j) and i_events[-1]._v_ij_y1 < 1e-6:
-                    #     _logger.info(i_events[-1])
-                    #     continue
                     t_min = t_c
                     next_collision = (t_c, e_i, e_j)
                     next_rail_collision = None
@@ -722,14 +717,6 @@ class PoolPhysics(object):
                         break
             i += 1
         return roots[2*npairs:]
-
-    # def _datum_match(self):
-    #     bot = np.array(self.balls_on_table, dtype=np.int)
-    #     bot.sort()
-    #     intervals = np.array(sorted(tuple(*ball_events[i][-1].interval, i) for i in bot))
-    #     for ii, i in enumerate(bot):
-    #         for jj, j in enumerate(bot[ii+1:]):
-    #             jj = ii + jj + 1
 
 
     def glyph_meshes(self, t):
