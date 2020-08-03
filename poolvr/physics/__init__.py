@@ -547,18 +547,6 @@ class PoolPhysics(object):
             t_c, e_i, e_j = next_collision
             next_collision_event = self._ball_collision_event_class(t_c, e_i, e_j,
                                                                     **self._ball_collision_model_kwargs)
-            i,j = next_collision_event.i, next_collision_event.j
-            # i_events = self._collision_events.get(i, [])
-            # j_events = self._collision_events.get(j, [])
-            # if i_events and j_events and j in (i_events[-1].i, i_events[-1].j) and i in (j_events[-1].i, j_events[-1].j) and i_events[-1]._v_ij_y1 == 0:
-            #     _logger.info(i_events[-1])
-            #     return next_motion_event
-            # pair = (min(i,j), max(i,j))
-            # if pair in self._collision_events:
-            #     _logger.info(self._collision_events[pair])
-            # self._collision_events[]
-            # if abs(next_collision_event._v_ij_y1) < 1e-7:
-            #     _logger.info(next_collision_event)
             return next_collision_event
         else:
             return next_motion_event
