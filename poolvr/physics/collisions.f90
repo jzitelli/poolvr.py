@@ -26,7 +26,7 @@ CONTAINS
     double precision, dimension(3), intent(out) :: v_j1, omega_j1
     double precision, dimension(3,3) :: G, G_T
     double precision, dimension(3) :: r_ij, deltaOm_i, deltaOm_j, y_loc, x_loc
-    double precision :: r_ij_mag_sqrd, r_ij_mag, v_ix, v_iy, v_jx, v_jy
+    double precision :: v_ix, v_iy, v_jx, v_jy
     double precision :: omega_ix, omega_iy, omega_iz, omega_jx, omega_jy, omega_jz
     double precision :: u_iR_x, u_iR_y, u_jR_x, u_jR_y, u_iR_xy_mag, u_jR_xy_mag
     double precision :: u_ijC_x, u_ijC_z, u_ijC_xz_mag, v_ijy, v_ijy0
@@ -36,9 +36,7 @@ CONTAINS
     real(c_double), dimension(3) :: u
     real(c_double), dimension(3,3) :: a_i1, a_j1
     r_ij = r_j - r_i
-    r_ij_mag_sqrd = sum(r_ij**2)
-    r_ij_mag = sqrt(r_ij_mag_sqrd)
-    y_loc = r_ij / r_ij_mag
+    y_loc = r_ij / (2*R)
     x_loc(1) = -y_loc(3)
     x_loc(2) = 0
     x_loc(3) = y_loc(1)
@@ -153,8 +151,10 @@ CONTAINS
        if (W_c == huge(1.d0) .and. v_ijy > 0) then
           W_c = W
           W_f = (1 + e**2) * W_c
+          ! PRINT *, "end of compression phase, W_c =", W, "deltaP = ", deltaP
        end if
     end do
+    ! PRINT *, "end of restitution phase"
     v_i1 = MATMUL(G_T, (/ v_ix, v_iy, 0.d0 /))
     v_j1 = MATMUL(G_T, (/ v_jx, v_jy, 0.d0 /))
     omega_i1 = MATMUL(G_T, omega_i1)

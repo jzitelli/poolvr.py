@@ -27,14 +27,13 @@ from .events import (CueStrikeEvent,
                      BallRestEvent,
                      BallMotionEvent,
                      BallSlidingEvent,
-                     BallRollingEvent,
                      BallCollisionEvent,
                      SimpleBallCollisionEvent,
                      SimulatedBallCollisionEvent,
                      FSimulatedBallCollisionEvent,
                      RailCollisionEvent,
                      CornerCollisionEvent)
-from .poly_solvers import f_find_collision_time as find_collision_time, f_quartic_solve, c_quartic_solve, quartic_solve
+from .poly_solvers import f_find_collision_time as find_collision_time, f_quartic_solve
 from . import collisions
 
 
@@ -103,7 +102,7 @@ class PoolPhysics(object):
         self._ball_collision_event_class = BALL_COLLISION_MODELS[ball_collision_model]
         self.num_balls = num_balls
         # allocate for lower-level memory management:
-        self._BALL_REST_EVENTS = [BallRestEvent(0.0, i, r=np.zeros(3, dtype=np.float64))
+        self._BALL_REST_EVENTS = [BallRestEvent(0.0, i, r=np.zeros(3, dtype=float64))
                                   for i in range(self.num_balls)]
         if table is None:
             table = PoolTable(num_balls=num_balls, ball_radius=ball_radius)
@@ -120,8 +119,8 @@ class PoolPhysics(object):
         self.g = g
         self.t = 0.0
         self._balls_on_table = balls_on_table
-        self._on_table = np.array(self.num_balls * [False])
-        self._on_table[np.array(balls_on_table, dtype=np.int32)] = True
+        self._on_table = array(self.num_balls * [False])
+        self._on_table[array(balls_on_table, dtype=np.int32)] = True
         self._collision_search_time_limit = collision_search_time_limit
         self._collision_search_time_forward = collision_search_time_forward
         if (collision_search_time_limit is not None and not np.isinf(collision_search_time_limit)) \
@@ -131,15 +130,15 @@ class PoolPhysics(object):
             self._realtime = False
         self._enable_occlusion = enable_occlusion
         self._use_quartic_solver = use_quartic_solver
-        self._p = np.empty(5, dtype=np.float64)
-        self._mask = np.array(4*[True])
+        self._p = np.empty(5, dtype=float64)
+        self._mask = array(4*[True])
         self._rhsx = 0.5*table.W - ball_radius
         self._rhsz = 0.5*table.L - ball_radius
         self._bndx = min(0.5*table.W - 0.999*ball_radius,
                          0.5*table.W - table.M_cp/SQRT2)
         self._bndz = min(0.5*table.L - 0.999*ball_radius,
                          0.5*table.L - table.M_cp/SQRT2)
-        self._r_cp = np.empty((4,2,3), dtype=np.float64)
+        self._r_cp = np.empty((4,2,3), dtype=float64)
         self._r_cp[...,1] = table.H + self.ball_radius
         self._r_cp[0,0,::2] = ( -(0.5*table.W - table.M_cp/SQRT2),  -0.5*table.L                     )
         self._r_cp[0,1,::2] = (  (0.5*table.W - table.M_cp/SQRT2),  -0.5*table.L                     )
@@ -170,10 +169,10 @@ class PoolPhysics(object):
             self._ball_collision_model_kwargs = ball_collision_model_kwargs
         else:
             self._ball_collision_model_kwargs = {}
-        self._taus = np.zeros((num_balls, 3), dtype=np.float64)
+        self._taus = np.zeros((num_balls, 3), dtype=float64)
         self._taus[:,0] = 1
-        self._a = np.zeros((num_balls, 3, 3), dtype=np.float64)
-        self._b = np.zeros((num_balls, 2, 3), dtype=np.float64)
+        self._a = np.zeros((num_balls, 3, 3), dtype=float64)
+        self._b = np.zeros((num_balls, 2, 3), dtype=float64)
         self._F = np.zeros(num_balls, dtype=np.int)
         self.reset(ball_positions=ball_positions, balls_on_table=balls_on_table)
 
@@ -229,7 +228,7 @@ class PoolPhysics(object):
         return self._balls_on_table
     @balls_on_table.setter
     def balls_on_table(self, balls):
-        self._balls_on_table = np.array(balls, dtype=np.int32)
+        self._balls_on_table = array(balls, dtype=np.int32)
         self._balls_on_table.sort()
         self._on_table[:] = False
         self._on_table[self._balls_on_table] = True
@@ -358,7 +357,7 @@ class PoolPhysics(object):
         else:
             num_balls = len(balls)
         if out is None:
-            out = np.zeros((num_balls, 3), dtype=np.float64)
+            out = np.zeros((num_balls, 3), dtype=float64)
         a = self._a
         taus = self._taus
         for ii, i in enumerate(balls):
@@ -388,7 +387,7 @@ class PoolPhysics(object):
         else:
             num_balls = len(balls)
         if out is None:
-            out = np.zeros((num_balls, 3), dtype=np.float64)
+            out = np.zeros((num_balls, 3), dtype=float64)
         a = self._a
         taus = self._taus
         for ii, i in enumerate(balls):
@@ -417,7 +416,7 @@ class PoolPhysics(object):
         else:
             num_balls = len(balls)
         if out is None:
-            out = np.zeros((num_balls, 3), dtype=np.float64)
+            out = np.zeros((num_balls, 3), dtype=float64)
         b = self._b
         taus = self._taus
         for ii, i in enumerate(balls):
@@ -440,7 +439,7 @@ class PoolPhysics(object):
         if balls is None:
             balls = self.balls_on_table
         if out is None:
-            out = np.zeros(len(balls), dtype=np.float64)
+            out = np.zeros(len(balls), dtype=float64)
         velocities = self.eval_velocities(t, balls=balls)
         omegas = self.eval_angular_velocities(t, balls=balls)
         return 0.5 * self.ball_mass * (velocities**2).sum() + 0.5 * self.ball_I * (omegas**2).sum()
@@ -566,19 +565,17 @@ class PoolPhysics(object):
         a_i = e_i.global_linear_motion_coeffs
         a_j = e_j.global_linear_motion_coeffs
         t_c = find_collision_time(a_i, a_j, self.ball_radius, t0, t1)
-        if t_c is not None:
-            tau_i = t_c - e_i.t
-            tau_j = t_c - e_j.t
-            r_i = e_i.eval_position(tau_i)
-            r_j = e_j.eval_position(tau_j)
-            r_ij = r_j - r_i
-            v_i = e_i.eval_velocity(tau_i)
-            v_j = e_j.eval_velocity(tau_j)
-            v_ij = v_j - v_i
-            if np.dot(v_ij, r_ij) > 0:
-                if set((e_i.i,e_j.i)) == set((11,12)):
-                    _logger.info('np.dot(v_ij, r_ij) = %s', np.dot(v_ij, r_ij))
-                return None
+        # if t_c is not None:
+        #     tau_i = t_c - e_i.t
+        #     tau_j = t_c - e_j.t
+        #     r_i = e_i.eval_position(tau_i)
+        #     r_j = e_j.eval_position(tau_j)
+        #     r_ij = r_j - r_i
+        #     v_i = e_i.eval_velocity(tau_i)
+        #     v_j = e_j.eval_velocity(tau_j)
+        #     v_ij = v_j - v_i
+        #     if np.dot(v_ij, r_ij) > 0:
+        #         return None
         return t_c
 
     def _find_rail_collision(self, e_i):
@@ -765,7 +762,7 @@ class PoolPhysics(object):
                 glyphs = [(v, sqrt(dot(v, v)), self._velocity_meshes),
                           (omega, sqrt(dot(omega, omega)), self._angular_velocity_meshes)]
                 if isinstance(event, BallSlidingEvent):
-                    u = v + R * np.array((omega[2], 0.0, -omega[0]), dtype=np.float64)
+                    u = v + R * array((omega[2], 0.0, -omega[0]), dtype=float64)
                     glyphs.append((u, sqrt(dot(u, u)), self._slip_velocity_meshes))
                 for (vec, vec_mag, vec_meshes) in glyphs:
                     if vec_mag > self._ZERO_TOLERANCE:

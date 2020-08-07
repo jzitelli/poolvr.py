@@ -106,7 +106,7 @@ def main(window_size=(800,600),
     game.reset(balls_on_table=balls_on_table)
     if render_method == 'lambert':
         technique = LAMBERT_TECHNIQUE
-    elif render_method == 'ega':
+    else: #elif render_method == 'ega':
         technique = EGA_TECHNIQUE
     table_mesh = game.table.export_mesh(surface_technique=technique,
                                         cushion_technique=technique,

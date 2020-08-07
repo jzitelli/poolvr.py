@@ -511,7 +511,6 @@ class BallCollisionEvent(PhysicsEvent):
         self._r_i, self._r_j = e_i.eval_position(tau_i), e_j.eval_position(tau_j)
         self._v_i, self._v_j = e_i.eval_velocity(tau_i), e_j.eval_velocity(tau_j)
         self._r_ij = r_ij = self._r_j - self._r_i
-        self._i = r_ij / sqrt(sum(r_ij**2))
         self._v_ij = v_ij = self._v_j - self._v_i
         self._y_loc = y_loc = 0.5 * r_ij / self.ball_radius
         self._v_ij_y0 = dot(v_ij, y_loc)

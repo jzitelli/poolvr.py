@@ -61,7 +61,7 @@ def parse_args():
                         default=','.join(str(n) for n in range(16)))
     parser.add_argument('--render-method', metavar='<render method name>',
                         help='OpenGL rendering method/style to use, one of: "ega", "lambert", "billboards", "raycast"',
-                        default='lambert')
+                        default='raycast')
     args = parser.parse_args()
     args.msaa = int(args.msaa)
     args.balls_on_table = [int(n) for n in args.balls_on_table.split(',')]
