@@ -279,10 +279,10 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
     from poolvr.game import PoolGame
     from poolvr.gl_rendering import set_matrix_from_quaternion
     logging.getLogger('poolvr.gl_rendering').setLevel(logging.WARNING)
-    if render_method == 'ega':
-        from poolvr.gl_techniques import EGA_TECHNIQUE as technique
-    elif render_method == 'lambert':
+    if render_method == 'lambert':
         from poolvr.gl_techniques import LAMBERT_TECHNIQUE as technique
+    else:
+        from poolvr.gl_techniques import EGA_TECHNIQUE as technique
     physics = pool_physics
     table = pool_table
     game = PoolGame(physics=pool_physics, table=table)
@@ -308,11 +308,37 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
         meshes = [table_mesh] + ball_meshes + ball_shadow_meshes
     else:
         glyphs = False
-    for mesh in meshes:
-        mesh.init_gl(force=True)
     ball_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_meshes]
     ball_mesh_rotations = [mesh.world_matrix[:3,:3].T for mesh in ball_meshes]
     ball_shadow_mesh_positions = [mesh.world_matrix[3,:3] for mesh in ball_shadow_meshes]
+    if render_method == 'raycast':
+        ball_mesh_positions = np.zeros((game.num_balls, 3), dtype=np.float32)
+        ball_quaternions = np.zeros((game.num_balls, 4), dtype=np.float32)
+        ball_quaternions[:,3] = 1
+        from poolvr.gl_rendering import FragBox
+        def on_use(material,
+                   camera_matrix=None,
+                   znear=None,
+                   projection_lrbt=None,
+                   window_size=None,
+                   **frame_data):
+            material.values['u_camera'] = camera_matrix
+            material.values['u_projection_lrbt'] = projection_lrbt
+            material.values['u_znear'] = znear
+            material.values['iResolution'] = window_size
+        import poolvr
+        fragbox = FragBox(os.path.join(os.path.dirname(poolvr.__file__),
+                                       'shaders', 'sphere_projection_fs.glsl'),
+                          on_use=on_use)
+        fragbox.material.values['ball_positions'] = ball_mesh_positions
+        fragbox.material.values['ball_quaternions'] = ball_quaternions
+        fragbox.material.values['cue_world_matrix'] = np.eye(4, dtype=np.float32)
+        fragbox.material.values['cue_world_matrix'][3,0] = 1000.0
+        fragbox.material.values['cue_length'] = 0.1
+        fragbox.material.values['cue_radius'] = 0.01
+        meshes = [table_mesh, fragbox]
+    for mesh in meshes:
+        mesh.init_gl(force=True)
     init_keyboard(window)
     theta = 0.0
     def process_keyboard_input(dt, camera_world_matrix):

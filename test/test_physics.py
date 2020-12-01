@@ -367,6 +367,25 @@ def test_corner_collision(pool_physics,
                   PhysicsEvent.events_str(events=events))
 
 
+def test_degenerate_collision(pool_physics, gl_rendering, request):
+    physics = pool_physics
+    ball_positions = physics.eval_positions(0.0)
+    ball_velocities = physics.eval_velocities(0.0)
+    ball_positions[0] = (5.18317963e-05,  7.69200000e-01, -5.03094033e-01)
+    ball_positions[1] = (-0.02813103,  0.7692,     -0.45880025)
+    ball_velocities[0] = (0.00064499,  0,         -0.00113027)
+    ball_velocities[1] = (-0.00423094,  0,         -0.00423761)
+    physics.reset(balls_on_table=[0, 1],
+                  ball_positions=ball_positions)
+    t_j = 0.570942120832911 - 0.570232363842049
+    e_i = BallRollingEvent(0.0, 0, ball_positions[0], ball_velocities[0])
+    e_j = BallRollingEvent(t_j, 1, ball_positions[1], ball_velocities[1])
+    physics._add_event(e_i)
+    physics.add_event_sequence(e_j)
+    if not request.config.getoption('--no-distance-check'):
+        check_ball_distances(physics, filename=request.node.originalname, t0=t_j, nt=64*4000)
+
+
 # def test_pocket_scratch(pool_physics,
 #                         gl_rendering,
 #                         plot_motion_timelapse,
@@ -383,74 +402,3 @@ def test_corner_collision(pool_physics,
 #                                    omega_0=np.zeros(3, dtype=np.float64))
 #     events = physics.add_event_sequence(start_event)
 #     _logger.debug('%d events added:\n\n%s\n', len(events), PhysicsEvent.events_str(events=events))
-
-
-# def test_occlusion(pool_physics, plot_occlusion, request):
-#     physics = pool_physics
-#     assert (physics._occ_ij == ~np.array([[0,1,1,1,1,1,1,0,0,0,1,0,0,1,0,1],
-#                                           [1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0],
-#                                           [1,1,0,1,0,0,1,1,0,0,0,0,0,0,0,0],
-#                                           [1,0,1,0,1,0,0,1,1,0,0,0,0,0,0,0],
-#                                           [1,0,0,1,0,1,0,0,1,1,0,0,0,0,0,0],
-#                                           [1,0,0,0,1,0,0,0,0,1,0,0,0,0,0,0],
-#                                           [1,1,1,0,0,0,0,1,0,0,1,0,0,0,0,0],
-#                                           [0,0,1,1,0,0,1,0,1,0,1,1,0,0,0,0],
-#                                           [0,0,0,1,1,0,0,1,0,1,0,1,1,0,0,0],
-#                                           [0,0,0,0,1,1,0,0,1,0,0,0,1,0,0,0],
-#                                           [1,0,0,0,0,0,1,1,0,0,0,1,0,1,0,0],
-#                                           [0,0,0,0,0,0,0,1,1,0,1,0,1,1,1,0],
-#                                           [0,0,0,0,0,0,0,0,1,1,0,1,0,0,1,0],
-#                                           [1,0,0,0,0,0,0,0,0,0,1,1,0,0,1,1],
-#                                           [0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,1],
-#                                           [1,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0]], dtype=np.bool)).all()
-
-
-# def test_updating_occlusion(pool_physics,
-#                             plot_motion_timelapse,
-#                             plot_initial_positions,
-#                             plot_final_positions,
-#                             request):
-#     show_plots, save_plots = request.config.getoption('--show-plots'), request.config.getoption('--save-plots')
-#     if not (show_plots or save_plots):
-#         return
-#     import matplotlib.pyplot as plt
-#     physics = pool_physics
-#     plt.imshow(physics._occ_ij)
-#     if show_plots:
-#         plt.show()
-#     if save_plots:
-#         try:
-#             filename = os.path.join(os.path.dirname(__file__), 'plots', 'test_updating_occlusion_0.png')
-#             dirname = os.path.dirname(filename)
-#             if not os.path.exists(dirname):
-#                 os.makedirs(dirname, exist_ok=True)
-#             plt.savefig(filename)
-#             _logger.info('saved plot to "%s"', filename)
-#         except Exception as err:
-#             _logger.error(err)
-#     plt.close()
-#     ball_positions = physics.eval_positions(0.0)
-#     r_c = ball_positions[0].copy()
-#     r_c[2] += physics.ball_radius
-#     V = np.array((-0.01, 0.0, -1.8), dtype=np.float64)
-#     M = 0.54
-#     from time import perf_counter
-#     t0 = perf_counter()
-#     events = physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
-#     t1 = perf_counter()
-#     _logger.info('evaluation time: %s', t1-t0)
-#     _logger.debug('strike on %d resulted in %d events', 0, len(events))
-#     plt.imshow(physics._occ_ij)
-#     if show_plots:
-#         plt.show()
-#     if save_plots:
-#         try:
-#             filename = os.path.join(os.path.dirname(__file__), 'plots', 'test_updating_occlusion_1.png')
-#             dirname = os.path.dirname(filename)
-#             if not os.path.exists(dirname):
-#                 os.makedirs(dirname, exist_ok=True)
-#             plt.savefig(filename)
-#             _logger.info('saved plot to "%s"', filename)
-#         except Exception as err:
-#             _logger.error(err)
-#     plt.close()

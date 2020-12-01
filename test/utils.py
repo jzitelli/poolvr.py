@@ -446,7 +446,7 @@ def plot_collision_angular_velocity_maps(omega_i1s, omega_j1s,
 def plot_distance(physics, i, j,
                   t0=None, t1=None,
                   nt=40000,
-                  semilog=True,
+                  semilog=False,
                   show=True):
     from numpy import linalg
     ball_events = physics.ball_events
@@ -538,20 +538,26 @@ def git_head_hash():
     return ret.stdout.decode().strip()
 
 
-def check_ball_distances(pool_physics, t=None, filename=None, nt=1000):
+def check_ball_distances(pool_physics, t=None, filename=None, nt=4000, t0=None):
     from numpy import sqrt, dot, linspace
     import pickle
     physics = pool_physics
+    if t0 is None:
+        t0 = physics.events[0].t
     if t is None:
-        T = physics.events[-1].t - physics.events[0].t
-        ts = linspace(physics.events[0].t, physics.events[-1].t, int(np.ceil(T * nt)))
+        T = physics.events[-1].t - t0
+        ts = linspace(t0, physics.events[-1].t, int(np.ceil(T * nt)))
     else:
         ts = [t]
     _logger.info('checking %s times (from %s to %s)...', len(ts), ts[0], ts[-1])
     for t in ts:
         positions = physics.eval_positions(t)
         for i, r_i in enumerate(positions):
+            if i not in physics.balls_on_table:
+                continue
             for j, r_j in enumerate(positions[i+1:]):
+                if j not in physics.balls_on_table:
+                    continue
                 r_ij = r_j - r_i
                 d = sqrt(dot(r_ij, r_ij))
                 if d < 2*physics.ball_radius:
@@ -567,13 +573,7 @@ def check_ball_distances(pool_physics, t=None, filename=None, nt=1000):
                     physics.i = e_i.i
                     physics.j = e_j.i
                     physics.t_penetrated = t
-                    _logger.error('balls %d, %d penetrated at t=%s', physics.i, physics.j, t)
-                    i_e = bisect(physics.events, t)
-                    # before, after = physics.events[:i_e], physics.events[i_e:]
-                    # if before:
-                    #     t0 = before[-min(len(before), 16)].t
-                    # else:
-                    #     t0 = physics.events[0].t
+                    _logger.error('balls %d, %d penetrated at t=%s, distance / diameter = %s', physics.i, physics.j, t, d / (2*physics.ball_radius))
                     plot_distance(physics, physics.i, physics.j, t0=max(physics.events[0].t, t-0.005), t1=t+0.004)
                     class BallsPenetratedInsanity(Exception):
                         def __init__(self, physics, *args, **kwargs):
