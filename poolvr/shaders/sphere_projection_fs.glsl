@@ -135,13 +135,14 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
 		      );
 
   float tmin = 10000.0;
-  vec3  nor = vec3(0.0);
+  vec3 nor = vec3(0.0);
   float occ = 1.0;
-  vec3  pos = vec3(0.0);
+  vec3 pos = vec3(0.0);
   vec3 sur = vec3(1.0);
   vec4 sph = vec4(0.0, 0.0, 0.0, ball_radius);
   int imin = -1;
   float h, ss;
+
   for (int i = 0; i < 16; i++) {
     sph.xyz = ball_positions[i];
     h = iSphere( ro, rd, sph );
@@ -165,7 +166,13 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       sph.xyz = ball_positions[j];
       occ *= oSphere( pos, nor, sph );
     }
-    sur = table_color;
+    float h2 = iCylinder( pos, nor, cue_world_matrix, cue_length, cue_radius );
+    if (h2 > 0.0) {
+      occ *= 0.5;
+      sur = 0.4 * table_color;
+    } else {
+      sur = table_color;
+    }
   }
 
   h = iCylinder( ro, rd, cue_world_matrix, cue_length, cue_radius );
