@@ -139,14 +139,14 @@ def main(window_size=(800,600),
             material.values['iResolution'] = window_size
         import poolvr
         fragbox = FragBox(os.path.join(os.path.dirname(poolvr.__file__),
-                                       'shaders', 'sphere_projection_fs.glsl'),
+                                       'shaders', 'iq_pool.glsl'), #'sphere_projection_fs.glsl'),
                           on_use=on_use)
         fragbox.material.values['ball_positions'] = ball_mesh_positions
         fragbox.material.values['ball_quaternions'] = ball_quaternions
         fragbox.material.values['cue_world_matrix'] = cue.world_matrix
         fragbox.material.values['cue_length'] = cue.length
         fragbox.material.values['cue_radius'] = cue.radius
-        meshes = [table_mesh, fragbox]
+        meshes = [fragbox]
 
     else:
         ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
