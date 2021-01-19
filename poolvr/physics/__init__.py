@@ -16,7 +16,7 @@ from math import sqrt
 import logging
 _logger = logging.getLogger(__name__)
 import numpy as np
-from numpy import dot, array, float64
+from numpy import dot, array, float64, cross
 
 
 from ..table import PoolTable
@@ -32,7 +32,8 @@ from .events import (CueStrikeEvent,
                      SimulatedBallCollisionEvent,
                      FSimulatedBallCollisionEvent,
                      RailCollisionEvent,
-                     CornerCollisionEvent)
+                     CornerCollisionEvent,
+                     SegmentCollisionEvent)
 from .poly_solvers import f_find_collision_time as find_collision_time, f_quartic_solve
 from . import collisions
 
@@ -47,6 +48,8 @@ BALL_COLLISION_MODELS = {
     'simulated': SimulatedBallCollisionEvent,
     'fsimulated': FSimulatedBallCollisionEvent
 }
+_k = array([0, 1, 0],        # upward-pointing basis vector :math:`\hat{k}`
+           dtype=float64)    # of any ball-centered frame, following the convention of Marlow
 
 
 def sorrted(roots):
@@ -162,6 +165,54 @@ class PoolPhysics(object):
             ( 0,  1,  self._rhsx, self._bndz, self._r_cp[1], self._r_cp_len_sqrd[1] ),
             ( 2,  1,  self._rhsz, self._bndx, self._r_cp[2], self._r_cp_len_sqrd[2] ),
             ( 0, -1, -self._rhsx, self._bndz, self._r_cp[3], self._r_cp_len_sqrd[3] )
+        )
+        corners = np.empty((24,3))
+        corners[...,1] = table.H + self.ball_radius
+        corners[0,::2] = -(0.5*table.W + 2*INCH2METER - table.T_cp/SQRT2), 0.5*table.L + 2*INCH2METER
+        corners[1,::2] = -(0.5*table.W - table.M_cp/SQRT2),                0.5*table.L
+        corners[2,::2] =  (0.5*table.W - table.M_cp/SQRT2),                0.5*table.L
+        corners[3,::2] =  (0.5*table.W + 2*INCH2METER - table.T_cp/SQRT2), 0.5*table.L + 2*INCH2METER
+        corners[4,::2] =  (0.5*table.W + 2*INCH2METER),                    0.5*table.L + 2*INCH2METER - table.T_cp/SQRT2
+        corners[5,::2] =  (0.5*table.W),                                   0.5*table.L - table.M_cp/SQRT2
+        corners[6,::2] =  (0.5*table.W),                0.5*table.M_sp
+        corners[7,::2] =  (0.5*table.W + 2*INCH2METER), 0.5*table.T_sp
+        corners[8,::2] =  (0.5*table.W + 2*INCH2METER), -0.5*table.T_sp
+        corners[9,::2] =  (0.5*table.W), -0.5*table.M_sp
+        corners[10,::2] = corners[5,0], -corners[5,2]
+        corners[11,::2] = corners[4,0], -corners[4,2]
+        corners[12,::2] = corners[3,0], -corners[3,2]
+        corners[13,::2] = corners[2,0], -corners[2,2]
+        corners[14,::2] = corners[1,0], -corners[1,2]
+        corners[15,::2] = corners[0,0], -corners[0,2]
+        corners[16,::2] = -corners[11,0], corners[11,2]
+        corners[17,::2] = -corners[10,0], corners[10,2]
+        corners[18,::2] = -corners[9,0], corners[9,2]
+        corners[19,::2] = -corners[8,0], corners[8,2]
+        corners[20,::2] = -corners[7,0], corners[7,2]
+        corners[21,::2] = -corners[6,0], corners[6,2]
+        corners[22,::2] = -corners[5,0], corners[5,2]
+        corners[23,::2] = -corners[4,0], corners[4,2]
+        self._corners = corners
+        tangents = [c1 - c0 / np.linalg.norm(c1 - c0) for c0, c1 in zip(corners[:-1], corners[1:])]
+        self._segments = (
+            (corners[0], corners[1], -cross(tangents[0], _k), tangents[0]),
+            (corners[1], corners[2], -cross(tangents[1], _k), tangents[1]),
+            (corners[2], corners[3], -cross(tangents[2], _k), tangents[2]),
+            (corners[4], corners[5], -cross(tangents[4], _k), tangents[4]),
+            (corners[5], corners[6], -cross(tangents[5], _k), tangents[5]),
+            (corners[6], corners[7], -cross(tangents[6], _k), tangents[6]),
+            (corners[8], corners[9], -cross(tangents[8], _k), tangents[8]),
+            (corners[9], corners[10], -cross(tangents[9], _k), tangents[9]),
+            (corners[10], corners[11], -cross(tangents[10], _k), tangents[10]),
+            (corners[12], corners[13], -cross(tangents[12], _k), tangents[12]),
+            (corners[13], corners[14], -cross(tangents[13], _k), tangents[13]),
+            (corners[14], corners[15], -cross(tangents[14], _k), tangents[14]),
+            (corners[16], corners[17], -cross(tangents[16], _k), tangents[16]),
+            (corners[17], corners[18], -cross(tangents[17], _k), tangents[17]),
+            (corners[18], corners[19], -cross(tangents[18], _k), tangents[18]),
+            (corners[20], corners[21], -cross(tangents[20], _k), tangents[20]),
+            (corners[21], corners[22], -cross(tangents[21], _k), tangents[21]),
+            (corners[22], corners[23], -cross(tangents[22], _k), tangents[22]),
         )
         self._velocity_meshes = None
         self._angular_velocity_meshes = None
@@ -528,15 +579,18 @@ class PoolPhysics(object):
                     next_collision = (t_c, e_i, e_j)
                     next_rail_collision = None
         if next_rail_collision is not None:
-            if type(next_rail_collision[-1]) is tuple:
-                t, i, (side, i_c) = next_rail_collision
-                return CornerCollisionEvent(t=t, e_i=ball_events[i][-1],
-                                            side=side, i_c=i_c,
-                                            r_c=self._r_cp[side,i_c])
-            else:
-                t, i, side = next_rail_collision
-                return RailCollisionEvent(t=t, e_i=ball_events[i][-1],
-                                          side=side)
+            t, e_i, seg = next_rail_collision
+            _logger.info('t = %s, i = %s, seg = %s', t, e_i.i, seg)
+            return SegmentCollisionEvent(t, e_i, seg, self._segments[seg][-2], self._segments[seg][-1])
+            # if type(next_rail_collision[-1]) is tuple:
+            #     t, i, (side, i_c) = next_rail_collision
+            #     return CornerCollisionEvent(t=t, e_i=ball_events[i][-1],
+            #                                 side=side, i_c=i_c,
+            #                                 r_c=self._r_cp[side,i_c])
+            # else:
+            #     t, i, side = next_rail_collision
+            #     return RailCollisionEvent(t=t, e_i=ball_events[i][-1],
+            #                               side=side)
         elif next_collision is not None:
             t_c, e_i, e_j = next_collision
             next_collision_event = self._ball_collision_event_class(t_c, e_i, e_j,
@@ -588,72 +642,113 @@ class PoolPhysics(object):
         the quadratic equation expressing the distance of space
         (along the normal axis) between the ball and the cushion.
         """
-        a = e_i._a
+        # a = e_i._a
         T = e_i.T
         tau_min = T
-        side_min = None
-        cp_min = None
-        for side, (j, sgn, rhs, bnd, r_cs, r_cs_mag_sqrd) in enumerate(self._rail_tuples):
-            if e_i.parent_event and isinstance(e_i.parent_event, (RailCollisionEvent, CornerCollisionEvent)) \
-               and e_i.parent_event.side == side:
+        # side_min = None
+        # cp_min = None
+        seg_min = None
+        for i_seg, (r_0, r_1, nor, tan) in enumerate(self._segments):
+            if e_i.parent_event and isinstance(e_i.parent_event, SegmentCollisionEvent) and e_i.parent_event.seg == i_seg:
                 continue
-            if sgn * a[1,j] <= 0 \
-               or abs(a[1,j]) * tau_min < rhs - a[0,j]:
-                continue
-            check_corners = False
-            k = 2 - j
-            if abs(a[2,j]) < 1e-15:
-                if abs(a[1,j]) > 1e-15:
-                    tau = (rhs - a[0,j]) / a[1,j]
-                    if 0 < tau < tau_min:
-                        check_corners = True
-                        r = e_i.eval_position(tau)
-                        if abs(r[k]) < bnd:
-                            tau_min = tau
-                            side_min = side
-                            cp_min = None
-            else:
-                d = a[1,j]**2 - 4*a[2,j]*(a[0,j] - rhs)
-                if d > 1e-15:
-                    pn = sqrt(d)
-                    tau_p = (-a[1,j] + pn) / (2*a[2,j])
-                    tau_n = (-a[1,j] - pn) / (2*a[2,j])
-                    if 0 < tau_n < tau_min and 0 < tau_p < tau_min:
-                        tau_a = min(tau_n, tau_p)
-                        r = e_i.eval_position(tau_a)
-                        if abs(r[k]) < bnd:
-                            tau_min = tau_a
-                            side_min = side
-                            cp_min = None
-                        else:
-                            check_corners = True
-                    elif 0 < tau_n < tau_min:
-                        r = e_i.eval_position(tau_n)
-                        if abs(r[k]) < bnd:
-                            tau_min = tau_n
-                            side_min = side
-                            cp_min = None
-                        else:
-                            check_corners = True
-                    elif 0 < tau_p < tau_min:
-                        r = e_i.eval_position(tau_p)
-                        if abs(r[k]) < bnd:
-                            tau_min = tau_p
-                            side_min = side
-                            cp_min = None
-                        else:
-                            check_corners = True
-            if check_corners:
-                check_corners = False
-                tau_cp, i_c_min = self._find_corner_collision_time(e_i, side, tau_min)
-                if tau_cp is not None:
-                    tau_min = tau_cp
-                    side_min = side
-                    cp_min = i_c_min
-        if cp_min is not None:
-            return (e_i.t + tau_min, e_i.i, (side_min, cp_min))
-        elif side_min is not None:
-            return (e_i.t + tau_min, e_i.i, side_min)
+            tau_n, tau_p = self._find_segment_collision_time(e_i, r_0, r_1, nor, tan)
+            tau_n, tau_p = min(tau_n, tau_p), max(tau_n, tau_p)
+            if 0 < tau_n < tau_min:
+                r = e_i.eval_position(tau_n)
+                if 0 < dot(r - r_0, tan) < dot(r_1 - r_0, tan) and 0 < dot(r - r_0, nor):
+                    tau_min = tau_n
+                    seg_min = i_seg
+                    continue
+            if 0 < tau_p < tau_min:
+                r = e_i.eval_position(tau_p)
+                if 0 < dot(r - r_0, tan) < dot(r_1 - r_0, tan) and 0 < dot(r - r_0, nor):
+                    tau_min = tau_p
+                    seg_min = i_seg
+        if seg_min is not None:
+            _logger.info('seg_min = %s, tau_min = %s', seg_min, tau_min)
+            return e_i.t + tau_min, e_i, seg_min
+        # for side, (j, sgn, rhs, bnd, r_cs, r_cs_mag_sqrd) in enumerate(self._rail_tuples):
+        #     if e_i.parent_event and isinstance(e_i.parent_event, (RailCollisionEvent, CornerCollisionEvent)) \
+        #        and e_i.parent_event.side == side:
+        #         continue
+        #     if sgn * a[1,j] <= 0 \
+        #        or abs(a[1,j]) * tau_min < rhs - a[0,j]:
+        #         continue
+        #     check_corners = False
+        #     k = 2 - j
+        #     if abs(a[2,j]) < 1e-15:
+        #         if abs(a[1,j]) > 1e-15:
+        #             tau = (rhs - a[0,j]) / a[1,j]
+        #             if 0 < tau < tau_min:
+        #                 check_corners = True
+        #                 r = e_i.eval_position(tau)
+        #                 if abs(r[k]) < bnd:
+        #                     tau_min = tau
+        #                     side_min = side
+        #                     cp_min = None
+        #     else:
+        #         d = a[1,j]**2 - 4*a[2,j]*(a[0,j] - rhs)
+        #         if d > 1e-15:
+        #             pn = sqrt(d)
+        #             tau_p = (-a[1,j] + pn) / (2*a[2,j])
+        #             tau_n = (-a[1,j] - pn) / (2*a[2,j])
+        #             if 0 < tau_n < tau_min and 0 < tau_p < tau_min:
+        #                 tau_a = min(tau_n, tau_p)
+        #                 r = e_i.eval_position(tau_a)
+        #                 if abs(r[k]) < bnd:
+        #                     tau_min = tau_a
+        #                     side_min = side
+        #                     cp_min = None
+        #                 else:
+        #                     check_corners = True
+        #             elif 0 < tau_n < tau_min:
+        #                 r = e_i.eval_position(tau_n)
+        #                 if abs(r[k]) < bnd:
+        #                     tau_min = tau_n
+        #                     side_min = side
+        #                     cp_min = None
+        #                 else:
+        #                     check_corners = True
+        #             elif 0 < tau_p < tau_min:
+        #                 r = e_i.eval_position(tau_p)
+        #                 if abs(r[k]) < bnd:
+        #                     tau_min = tau_p
+        #                     side_min = side
+        #                     cp_min = None
+        #                 else:
+        #                     check_corners = True
+        #     if check_corners:
+        #         check_corners = False
+        #         tau_cp, i_c_min = self._find_corner_collision_time(e_i, side, tau_min)
+        #         if tau_cp is not None:
+        #             tau_min = tau_cp
+        #             side_min = side
+        #             cp_min = i_c_min
+        # if cp_min is not None:
+        #     return (e_i.t + tau_min, e_i.i, (side_min, cp_min))
+        # elif side_min is not None:
+        #     return (e_i.t + tau_min, e_i.i, side_min)
+
+    def _find_segment_collision_time(self, e_i, r_0, r_1, nor, tan):
+        a0, a1, a2 = e_i._a
+        A = dot(a2, nor)
+        B = dot(a1, nor)
+        C = dot((a0 - r_0), nor) - self.ball_radius
+        DD = B**2 - 4*A*C
+        if DD < 0:
+            return -1.0, -1.0
+        D = sqrt(DD)
+        tau_p = 0.5 * (-B + D) / A
+        tau_n = 0.5 * (-B - D) / A
+        return tau_n, tau_p
+        # if tau_n > 0:
+        #     r = e_i.eval_position(tau_n)
+        #     if 0 < dot(r - r_0, tan) < dot(r_1 - r_0, tan):
+        #         return tau_n
+        # if tau_p > 0:
+        #     r = e_i.eval_position(tau_p)
+        #     if 0 < dot(r - r_0, tan) < dot(r_1 - r_0, tan):
+        #         return tau_p
 
     def _find_corner_collision_time(self, e_i, side, tau_min):
         tau_min = min(tau_min, e_i.T)

@@ -54,9 +54,7 @@ def main(window_size=(800,600),
 
     Performs initializations/setups; starts the render loop; performs shutdowns on exit.
     """
-    _logger.debug('configuration:\n%s',
-                  '\n'.join('%s: %s' % it for it in
-                            chain(dict(locals()).items(), kwargs.items())))
+    _logger.info('configuration:\n%s', '\n'.join('  %s: %s' % it for it in chain(dict(locals()).items(), kwargs.items())))
     window, fallback_renderer = setup_glfw(window_size=window_size,
                                            double_buffered=novr,
                                            multisample=multisample,
@@ -138,15 +136,15 @@ def main(window_size=(800,600),
             material.values['u_znear'] = znear
             material.values['iResolution'] = window_size
         import poolvr
-        fragbox = FragBox(os.path.join(os.path.dirname(poolvr.__file__),
-                                       'shaders', 'iq_pool.glsl'), #'sphere_projection_fs.glsl'),
-                          on_use=on_use)
+        #shader_path = os.path.join(os.path.dirname(poolvr.__file__), 'shaders', 'iq_pool.glsl')
+        shader_path = os.path.join(os.path.dirname(poolvr.__file__), 'shaders', 'sphere_projection_fs.glsl')
+        fragbox = FragBox(shader_path, on_use=on_use)
         fragbox.material.values['ball_positions'] = ball_mesh_positions
         fragbox.material.values['ball_quaternions'] = ball_quaternions
         fragbox.material.values['cue_world_matrix'] = cue.world_matrix
         fragbox.material.values['cue_length'] = cue.length
         fragbox.material.values['cue_radius'] = cue.radius
-        meshes = [fragbox]
+        meshes = [fragbox, table_mesh]
 
     else:
         ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
@@ -185,6 +183,15 @@ def main(window_size=(800,600),
     def on_keydown(window, key, scancode, action, mods):
         if key == glfw.KEY_R and action == glfw.PRESS:
             reset()
+        elif key == glfw.KEY_SPACE and action == glfw.PRESS:
+            r = game.ball_positions[1] - game.ball_positions[0]
+            r_mag = np.linalg.norm(r)
+            r_c = game.ball_positions[0] - r / r_mag * game.ball_radius
+            v_c = 1.1 * r / r_mag + 0.03 * np.random.rand(3)
+            physics.strike_ball(game.t, 0, game.ball_positions[0], r_c, v_c, cue.mass)
+            #last_contact_t = game.t
+            #contact_last_frame = True
+
     set_on_keydown_callback(window, on_keydown)
     theta = 0.0
     def process_keyboard_input(dt, camera_world_matrix):

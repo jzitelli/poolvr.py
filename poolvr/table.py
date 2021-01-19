@@ -41,7 +41,8 @@ class PoolTable(object):
                  A=60*DEG2RAD,
                  C=60*DEG2RAD,
                  # corner pocket params:
-                 M_cp=5*INCH2METER,
+                 # M_cp=5*INCH2METER,
+                 M_cp=10*INCH2METER,
                  T_cp=4.125*INCH2METER,
                  S_cp=1.75*INCH2METER,
                  D_cp=2.5*INCH2METER,

@@ -56,7 +56,8 @@ const vec3 table_color = vec3(0.0, float(0xaa)/0xff, 0.0);
 const vec3 lig = normalize( vec3(0.0,8.0,0.0) );
 
 vec3 rotateByQuaternion(inout vec3 v, in vec4 q) {
-  v += 2 * cross(q.xyz, cross(q.xyz, v) + q.w * v);
+  vec3 t = 2*cross(q.xyz, v);
+  v += q.w * t + cross(q.xyz, t);
   return v;
 }
 
@@ -79,11 +80,11 @@ float iCylinder( in vec3 ro, in vec3 rd, in mat4 cue_world_matrix, in float h, i
   float B = dot(ro_loc.xz, rd_loc.xz);
   float C = dot(ro_loc.xz, ro_loc.xz) - rad*rad;
   float DD = B*B - A*C;
-  if (DD < 0.0) {
+  if (DD <= 0.0) {
     return -1.0;
-  } else if (DD == 0.0) {
-    return -B/A;
-  }
+  }//  else if (DD == 0.0) {
+  //   return -B/A;
+  // }
   float D = sqrt(DD);
   float tm = (-B-D)/A;
   float tp = (-B+D)/A;

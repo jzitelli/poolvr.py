@@ -452,6 +452,47 @@ class RailCollisionEvent(BallEvent):
         return super().__str__()[:-1] + " side=%d>" % self.side
 
 
+class SegmentCollisionEvent(BallEvent):
+    kappa = 0.6
+    def __init__(self, t, e_i, seg, nor, tan):
+        super().__init__(t, e_i.i)
+        self.e_i = e_i
+        self.seg = seg
+        self.nor = nor
+        self.tan = tan
+        self._child_events = None
+    @property
+    def child_events(self):
+        if self._child_events is None:
+            R = self.ball_radius
+            e_i = self.e_i
+            tau = self.t - e_i.t
+            v_1 = e_i.eval_velocity(tau)
+            omega_1 = e_i.eval_angular_velocity(tau)
+            v_1 -= (1 + self.kappa) * dot(v_1, self.nor) * self.nor
+            om = dot(omega_1, self.tan)
+            omega_1 -= (om + sign(om) * dot(v_1, self.nor) / R) * self.tan
+            # j_var = self._J_VAR[side]
+            # i_var = 2 - j_var
+            # v_1[j_var] *= -self.kappa
+            # omega_1[j_var] *= 0.8
+            # omega_1[i_var] = -sign(omega_1[i_var]) * abs(v_1[j_var]) / R
+            if isinstance(e_i, BallSlidingEvent) \
+               and abs(dot(v_1, self.tan)) / R <= abs(dot(omega_1, self.nor)):
+                self._child_events = (BallSlidingEvent(self.t, e_i.i,
+                                                       r_0=e_i.eval_position(tau),
+                                                       v_0=v_1,
+                                                       omega_0=omega_1,
+                                                       parent_event=self),)
+            else:
+                self._child_events = (BallRollingEvent(self.t, e_i.i,
+                                                       r_0=e_i.eval_position(tau),
+                                                       v_0=v_1,
+                                                       parent_event=self),)
+        return self._child_events
+    def __str__(self):
+        return super().__str__()[:-1] + " seg=%d>" % self.seg
+
 class CornerCollisionEvent(BallEvent):
     kappa = 0.6 # coefficient of restitution
     def __init__(self, t, e_i, side, i_c, r_c):
