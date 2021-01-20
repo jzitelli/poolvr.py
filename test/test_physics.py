@@ -366,6 +366,28 @@ def test_corner_collision(pool_physics,
     _logger.debug('%d events added:\n\n%s\n', len(events),
                   PhysicsEvent.events_str(events=events))
 
+#@pytest.mark.parametrize("segment", list(range(18)))
+def test_segment_collision(pool_physics, gl_rendering, request):
+    segment = 0
+    physics = pool_physics
+    ball_positions = physics.eval_positions(0.0)
+    ball_positions[0,::2] = 0
+    physics.reset(balls_on_table=[0],
+                  ball_positions=ball_positions)
+    segments = physics._segments
+    seg = segment
+    r_c = 0.5 * (segments[seg][0] + segments[seg][1])
+    v_0 = r_c - ball_positions[0]
+    v_0[1] = 0
+    v_0 /= np.linalg.norm(v_0)
+    v_0 *= 3
+    start_event = BallSlidingEvent(0, 0,
+                                   r_0=ball_positions[0],
+                                   v_0=v_0,
+                                   omega_0=np.zeros(3, dtype=np.float64))
+    events = physics.add_event_sequence(start_event)
+    _logger.debug('%d events added:\n\n%s\n', len(events),
+                  PhysicsEvent.events_str(events=events))
 
 def test_degenerate_collision(pool_physics, gl_rendering, request):
     physics = pool_physics

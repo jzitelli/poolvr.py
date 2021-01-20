@@ -91,6 +91,36 @@ class PoolTable(object):
         self.pocket_positions = np.zeros((6, 3), dtype=np.float64)
         self.pocket_positions[:,1] = H
         self._almost_ball_radius = 0.999*ball_radius
+        corners = np.empty((24,2))
+        w = 0.5 * W
+        l = 0.5 * L
+        b = self.w
+        T_s, M_s, T_c, M_c = self.T_sp, self.M_sp, self.T_cp, self.M_cp
+        corners[0] = -(w + b) + T_c/SQRT2, -(l + b)
+        corners[1] = -w + M_c/SQRT2, -l
+        corners[2] = w - M_c/SQRT2, -l
+        corners[3] = w + b - T_c/SQRT2, -(l + b)
+        corners[4] = w + b, -(l + b) + T_c/SQRT2,
+        corners[5] = w, -l + M_c/SQRT2
+        corners[6] = w, -M_s/2
+        corners[7] = w + b, -T_s/2
+        corners[8] = corners[7,0], -corners[7,1]
+        corners[9] = corners[6,0], -corners[6,1]
+        corners[10] = corners[5,0], -corners[5,1]
+        corners[11] = corners[4,0], -corners[4,1]
+        corners[12] = corners[3,0], -corners[3,1]
+        corners[13] = corners[2,0], -corners[2,1]
+        corners[14] = corners[1,0], -corners[1,1]
+        corners[15] = corners[0,0], -corners[0,1]
+        corners[16] = -corners[11,0], corners[11,1]
+        corners[17] = -corners[10,0], corners[10,1]
+        corners[18] = -corners[9,0], corners[9,1]
+        corners[19] = -corners[8,0], corners[8,1]
+        corners[20] = -corners[7,0], corners[7,1]
+        corners[21] = -corners[6,0], corners[6,1]
+        corners[22] = -corners[5,0], corners[5,1]
+        corners[23] = -corners[4,0], corners[4,1]
+        self._corners = corners
 
     def is_position_in_bounds(self, r):
         """ r: position vector; R: ball radius """
@@ -149,60 +179,20 @@ class PoolTable(object):
         H = self.H
         h = self.h
         w = self.w
-        T_cp = self.T_cp
-        M_cp = self.M_cp
-        T_sp = self.T_sp
-        M_sp = self.M_sp
-        self.headCushionGeom = HexaPrimitive(vertices=np.array(
-            [# bottom quad:
-             [[-(0.5*W + w - T_cp/SQRT2),      0, -0.5*L - w],
-              [    -(0.5*W - M_cp/SQRT2), 0.95*h, -0.5*L    ],
-              [     (0.5*W - M_cp/SQRT2), 0.95*h, -0.5*L    ],
-              [ (0.5*W + w - T_cp/SQRT2),      0, -0.5*L - w]],
-             # top quad:
-             [[-(0.5*W + w - T_cp/SQRT2), 1.3*h, -0.5*L - w],
-              [    -(0.5*W - M_cp/SQRT2),     h, -0.5*L    ],
-              [     (0.5*W - M_cp/SQRT2),     h, -0.5*L    ],
-              [ (0.5*W + w - T_cp/SQRT2), 1.3*h, -0.5*L - w]]
-            ], dtype=np.float32))
-        self.headCushionGeom.attributes['vertices'].reshape(-1,3)[...,1] += H
-        R = np.array([[-1, 0,  0],
-                      [ 0, 1,  0],
-                      [ 0, 0, -1]], dtype=np.float32)
-        self.footCushionGeom = HexaPrimitive(vertices=np.dot(self.headCushionGeom.attributes['vertices'].reshape(-1,3), R.T).reshape(2,4,3))
-        vs = self.headCushionGeom.attributes['vertices'].copy()
-        vs[:,2] += 0.5*L
-        R = np.array([[0, 0, -1],
-                      [0, 1,  0],
-                      [1, 0,  0]], dtype=np.float32)
-        sideCushionGeom = HexaPrimitive(vertices=np.array(
-            [#bottom quad:
-             [[0.5*W + w,      0, -(0.5*L + w - T_cp/SQRT2)],
-              [    0.5*W, 0.95*h,     -(0.5*L - M_cp/SQRT2)],
-              [    0.5*W, 0.95*h,                 -0.5*M_sp],
-              [0.5*W + w,      0,                 -0.5*T_sp]],
-             # top quad:
-             [[0.5*W + w, 1.3*h, -(0.5*L + w - T_cp/SQRT2)],
-              [    0.5*W,     h,     -(0.5*L - M_cp/SQRT2)],
-              [    0.5*W,     h,                 -0.5*M_sp],
-              [0.5*W + w, 1.3*h,                 -0.5*T_sp]]
-            ], dtype=np.float32))
-        sideCushionGeom.attributes['vertices'][...,1] += H
-        sideCushionGeoms = [sideCushionGeom]
-        sideCushionGeoms.append(HexaPrimitive(vertices=sideCushionGeoms[-1].attributes['vertices'].copy()))
-        sideCushionGeoms[-1].attributes['vertices'][...,2] *= -1
-        sideCushionGeoms[-1].attributes['vertices'][0,:] = sideCushionGeoms[-1].attributes['vertices'][0,::-1]
-        sideCushionGeoms[-1].attributes['vertices'][1,:] = sideCushionGeoms[-1].attributes['vertices'][1,::-1]
-        sideCushionGeoms.append(HexaPrimitive(vertices=sideCushionGeoms[-1].attributes['vertices'].copy()))
-        sideCushionGeoms[-1].attributes['vertices'][...,0] *= -1
-        sideCushionGeoms[-1].attributes['vertices'][0,:] = sideCushionGeoms[-1].attributes['vertices'][0,::-1]
-        sideCushionGeoms[-1].attributes['vertices'][1,:] = sideCushionGeoms[-1].attributes['vertices'][1,::-1]
-        sideCushionGeoms.append(HexaPrimitive(vertices=sideCushionGeoms[-1].attributes['vertices'].copy()))
-        sideCushionGeoms[-1].attributes['vertices'][...,2] *= -1
-        sideCushionGeoms[-1].attributes['vertices'][0,:] = sideCushionGeoms[-1].attributes['vertices'][0,::-1]
-        sideCushionGeoms[-1].attributes['vertices'][1,:] = sideCushionGeoms[-1].attributes['vertices'][1,::-1]
-        self.cushionGeoms = [self.headCushionGeom,
-                             self.footCushionGeom] + sideCushionGeoms
+        corners = self._corners
+        cushionGeoms = [HexaPrimitive(vertices=np.array(
+                            [# bottom quad:
+                             [[corners[i+0,0],      H, corners[i+0,1]],
+                              [corners[i+1,0], 0.95*h+H, corners[i+1,1]],
+                              [corners[i+2,0], 0.95*h+H, corners[i+2,1]],
+                              [corners[i+3,0],      H, corners[i+3,1]]],
+                             # top quad:
+                             [[corners[i+0,0], 1.3*h+H, corners[i+0,1]],
+                              [corners[i+1,0],     h+H, corners[i+1,1]],
+                              [corners[i+2,0],     h+H, corners[i+2,1]],
+                              [corners[i+3,0], 1.3*h+H, corners[i+3,1]]]
+                            ], dtype=np.float32)) for i in (0, 4, 8, 12, 16, 20)]
+        self.cushionGeoms = cushionGeoms
         headRailGeom = BoxPrimitive(W + 2*(w + self.width_rail), 1.3*h, self.width_rail)
         headRailGeom.attributes['vertices'][...,1] += H + 0.5*1.3*h
         headRailGeom.attributes['vertices'][...,2] -= 0.5*L + w + 0.5*self.width_rail
