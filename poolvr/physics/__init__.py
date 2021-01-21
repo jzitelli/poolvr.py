@@ -31,7 +31,6 @@ from .events import (CueStrikeEvent,
                      SimpleBallCollisionEvent,
                      SimulatedBallCollisionEvent,
                      FSimulatedBallCollisionEvent,
-                     RailCollisionEvent,
                      CornerCollisionEvent,
                      SegmentCollisionEvent)
 from .poly_solvers import f_find_collision_time as find_collision_time, f_quartic_solve
@@ -138,25 +137,9 @@ class PoolPhysics(object):
         corners[...,::2] = table._corners
         self._corners = corners
         tangents = [(c1 - c0) / np.linalg.norm(c1 - c0) for c0, c1 in zip(corners[:-1], corners[1:])]
-        self._segments = (
-            (corners[0], corners[1], -cross(tangents[0], _k), tangents[0]),
-            (corners[1], corners[2], -cross(tangents[1], _k), tangents[1]),
-            (corners[2], corners[3], -cross(tangents[2], _k), tangents[2]),
-            (corners[4], corners[5], -cross(tangents[4], _k), tangents[4]),
-            (corners[5], corners[6], -cross(tangents[5], _k), tangents[5]),
-            (corners[6], corners[7], -cross(tangents[6], _k), tangents[6]),
-            (corners[8], corners[9], -cross(tangents[8], _k), tangents[8]),
-            (corners[9], corners[10], -cross(tangents[9], _k), tangents[9]),
-            (corners[10], corners[11], -cross(tangents[10], _k), tangents[10]),
-            (corners[12], corners[13], -cross(tangents[12], _k), tangents[12]),
-            (corners[13], corners[14], -cross(tangents[13], _k), tangents[13]),
-            (corners[14], corners[15], -cross(tangents[14], _k), tangents[14]),
-            (corners[16], corners[17], -cross(tangents[16], _k), tangents[16]),
-            (corners[17], corners[18], -cross(tangents[17], _k), tangents[17]),
-            (corners[18], corners[19], -cross(tangents[18], _k), tangents[18]),
-            (corners[20], corners[21], -cross(tangents[20], _k), tangents[20]),
-            (corners[21], corners[22], -cross(tangents[21], _k), tangents[21]),
-            (corners[22], corners[23], -cross(tangents[22], _k), tangents[22]),
+        self._segments = tuple(
+            (corners[i], corners[i+1], cross(tangents[i], _k), tangents[i])
+            for i in (0,1,2,4,5,6,8,9,10,12,13,14,16,17,18,20,21,22)
         )
         self._velocity_meshes = None
         self._angular_velocity_meshes = None
@@ -524,17 +507,7 @@ class PoolPhysics(object):
                     next_rail_collision = None
         if next_rail_collision is not None:
             t, e_i, seg = next_rail_collision
-            _logger.info('t = %s, i = %s, seg = %s', t, e_i.i, seg)
             return SegmentCollisionEvent(t, e_i, seg, self._segments[seg][-2], self._segments[seg][-1])
-            # if type(next_rail_collision[-1]) is tuple:
-            #     t, i, (side, i_c) = next_rail_collision
-            #     return CornerCollisionEvent(t=t, e_i=ball_events[i][-1],
-            #                                 side=side, i_c=i_c,
-            #                                 r_c=self._r_cp[side,i_c])
-            # else:
-            #     t, i, side = next_rail_collision
-            #     return RailCollisionEvent(t=t, e_i=ball_events[i][-1],
-            #                               side=side)
         elif next_collision is not None:
             t_c, e_i, e_j = next_collision
             next_collision_event = self._ball_collision_event_class(t_c, e_i, e_j,
