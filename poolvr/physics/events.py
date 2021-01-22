@@ -494,10 +494,9 @@ class SegmentCollisionEvent(BallEvent):
 
 class CornerCollisionEvent(BallEvent):
     kappa = 0.6 # coefficient of restitution
-    def __init__(self, t, e_i, side, i_c, r_c):
+    def __init__(self, t, e_i, i_c, r_c):
         super().__init__(t, e_i.i)
         self.e_i = e_i
-        self.side = side
         self.i_c = i_c
         self.r_c = r_c.copy()
         tau = self.t - e_i.t
@@ -538,8 +537,8 @@ class CornerCollisionEvent(BallEvent):
                                                        parent_event=self),)
         return self._child_events
     def __str__(self):
-        return super().__str__()[:-1] + " side=%d i_c=%d r_c=%s v_0=%s v_1=%s omega_0=%s omega_1=%s>" % (
-            self.side, self.i_c, self.r_c, self.v_0, self.v_1, self.omega_0, self.omega_1)
+        return super().__str__()[:-1] + " i_c=%s r_c=%s v_0=%s v_1=%s omega_0=%s omega_1=%s>" % (
+            self.i_c, self.r_c, self.v_0, self.v_1, self.omega_0, self.omega_1)
 
 
 class BallCollisionEvent(PhysicsEvent):

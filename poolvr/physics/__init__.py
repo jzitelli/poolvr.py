@@ -507,6 +507,9 @@ class PoolPhysics(object):
                     next_rail_collision = None
         if next_rail_collision is not None:
             t, e_i, seg = next_rail_collision
+            if seg >= 18:
+                cor = seg - 18
+                return CornerCollisionEvent(t, e_i, cor, self._corners[cor])
             return SegmentCollisionEvent(t, e_i, seg, self._segments[seg][-2], self._segments[seg][-1])
         elif next_collision is not None:
             t_c, e_i, e_j = next_collision
@@ -562,6 +565,7 @@ class PoolPhysics(object):
         T = e_i.T
         tau_min = T
         seg_min = None
+        cor_min = None
         for i_seg, (r_0, r_1, nor, tan) in enumerate(self._segments):
             if e_i.parent_event and isinstance(e_i.parent_event, SegmentCollisionEvent) and e_i.parent_event.seg == i_seg:
                 continue
@@ -578,8 +582,16 @@ class PoolPhysics(object):
                 if 0 < dot(r - r_0, tan) < dot(r_1 - r_0, tan) and 0 < dot(r - r_0, nor):
                     tau_min = tau_p
                     seg_min = i_seg
+        for i_c, r_c in enumerate(self._corners):
+            tau = self._find_corner_collision_time(r_c, e_i, tau_min)
+            if 0 < tau < tau_min:
+                seg_min = None
+                cor_min = i_c
+                tau_min = tau
         if seg_min is not None:
             return e_i.t + tau_min, e_i, seg_min
+        if cor_min is not None:
+            return e_i.t + tau_min, e_i, 18 + cor_min
 
     def _find_segment_collision_time(self, e_i, r_0, r_1, nor, tan):
         a0, a1, a2 = e_i._a
@@ -594,7 +606,7 @@ class PoolPhysics(object):
         tau_n = 0.5 * (-B - D) / A
         return tau_n, tau_p
 
-    def _find_corner_collision_time(self, e_i, side, tau_min):
+    def _find_corner_collision_time(self, r_c, e_i, tau_min):
         tau_min = min(tau_min, e_i.T)
         if tau_min <= 0:
             return None, None
@@ -607,32 +619,21 @@ class PoolPhysics(object):
         p = self._p
         p[4] = dot(a2, a2)
         p[3] = 2*dot(a1, a2)
-        i_c_min = None
-        r_cs, r_cs_mag_sqrd = self._r_cp[side], self._r_cp_len_sqrd[side]
-        for i_c, (r_c, r_c_mag_sqrd) in enumerate([(r_cs[0], r_cs_mag_sqrd[0]),
-                                                   (r_cs[1], r_cs_mag_sqrd[1])]):
-            p[0] = r_c_mag_sqrd \
-                - 2*dot(a0, r_c) \
-                + a0a0 \
-                - R_sqrd
-            p[1] = 2*(a0a1 - dot(a1, r_c))
-            p[2] = 2*(a0a2 - dot(a2, r_c)) + a1a1
-            tau_cp = min((t.real for t in self._filter_roots(f_quartic_solve(p, only_real=True)
-                                                             if self._use_quartic_solver else
-                                                             np.roots(p[::-1]))
-                          if 0.0 < t.real < tau_min
-                          and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
-                       default=None)
-            if tau_cp is not None:
-                # r = e_i.eval_position(tau_cp)
-                # if dot(r, r) <= r_c_mag_sqrd:
-                #     tau_min = tau_cp
-                #     i_c_min = i_c
-                tau_min = tau_cp
-                i_c_min = i_c
-        if i_c_min is None:
-            return None, None
-        return tau_min, i_c_min
+        r_c_mag_sqrd = dot(r_c,r_c)
+        p[0] = r_c_mag_sqrd \
+             - 2*dot(a0, r_c) \
+             + a0a0 - R_sqrd
+        p[1] = 2*(a0a1 - dot(a1, r_c))
+        p[2] = 2*(a0a2 - dot(a2, r_c)) + a1a1
+        tau_cp = min((t.real for t in self._filter_roots(f_quartic_solve(p, only_real=True)
+                                                         if self._use_quartic_solver else
+                                                         np.roots(p[::-1]))
+                      if 0.0 < t.real < tau_min
+                      and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
+                     default=None)
+        if tau_cp is not None:
+            return tau_cp
+        return -1.0
 
     def _filter_roots(self, roots):
         "filter out any complex-conjugate pairs of roots"
