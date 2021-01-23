@@ -42,17 +42,18 @@ class PoolTable(object):
                  C=60*DEG2RAD,
                  # corner pocket params:
                  # M_cp=5*INCH2METER,
-                 M_cp=10*INCH2METER,
-                 T_cp=4.125*INCH2METER,
+                 M_cp=7.5*INCH2METER,
+                 # T_cp=4.125*INCH2METER,
+                 T_cp=4*INCH2METER,
                  S_cp=1.75*INCH2METER,
                  D_cp=2.5*INCH2METER,
                  r_cpc=2.625*INCH2METER,
                  r_cpd=0.1875*INCH2METER,
                  # side pocket params:
-                 M_sp=5.5*INCH2METER,
-                 T_sp=4.625*INCH2METER,
+                 M_sp=6.5*INCH2METER,
+                 T_sp=4.25*INCH2METER,
                  S_sp=0,
-                 D_sp=2*INCH2METER,
+                 D_sp=1.25*INCH2METER,
                  r_spc=2*INCH2METER,
                  r_spd=0.1875*INCH2METER,
                  width_rail=None,
@@ -88,8 +89,6 @@ class PoolTable(object):
         self.ball_diameter = 2*ball_radius
         self.num_balls = num_balls
         self.ball_colors = ball_colors
-        self.pocket_positions = np.zeros((6, 3), dtype=np.float64)
-        self.pocket_positions[:,1] = H
         self._almost_ball_radius = 0.999*ball_radius
         corners = np.empty((24,2))
         w = 0.5 * W
@@ -121,6 +120,24 @@ class PoolTable(object):
         corners[22] = -corners[5,0], corners[5,1]
         corners[23] = -corners[4,0], corners[4,1]
         self._corners = corners
+        self.pocket_positions = np.zeros((6, 3), dtype=np.float64)
+        self.pocket_positions[:,1] = H
+        D_s, D_c = self.D_sp, self.D_cp
+        R_c = 2*self.ball_radius
+        R_s = 2.75*self.ball_radius
+        self.R_c, self.R_s = R_c, R_s
+        self.pocket_positions[0,::2] = 0.5 * (corners[22] + corners[1])  + (D_c + R_c) * np.array([-np.cos(np.pi/4), -np.sin(np.pi/4)])
+        self.pocket_positions[1,::2] = 0.5 * (corners[2] + corners[5])   + (D_c + R_c) * np.array([ np.cos(np.pi/4), -np.sin(np.pi/4)])
+        self.pocket_positions[2,::2] = 0.5 * (corners[6] + corners[9])   + (D_s + R_s) * np.array([1.0, 0.0])
+        self.pocket_positions[3,::2] = 0.5 * (corners[10] + corners[13]) + (D_c + R_c) * np.array([ np.cos(np.pi/4), np.sin(np.pi/4)])
+        self.pocket_positions[4,::2] = 0.5 * (corners[14] + corners[17]) + (D_c + R_c) * np.array([-np.cos(np.pi/4), np.sin(np.pi/4)])
+        self.pocket_positions[5,::2] = 0.5 * (corners[18] + corners[21]) + (D_s + R_s) * np.array([-1.0, 0.0])
+
+    def corner_to_pocket(self, i_c):
+        return (i_c + 2) % 24 // 4
+
+    def pocket_to_corner(self, i_p):
+        return i_p * 4 - 2
 
     def is_position_in_bounds(self, r):
         """ r: position vector; R: ball radius """
@@ -153,7 +170,7 @@ class PoolTable(object):
                     rail_material=None,
                     rail_technique=None):
         from .gl_rendering import Mesh, Material
-        from .gl_primitives import PlanePrimitive, HexaPrimitive, BoxPrimitive
+        from .gl_primitives import PlanePrimitive, HexaPrimitive, BoxPrimitive, CylinderPrimitive
         from .gl_techniques import EGA_TECHNIQUE
         if surface_technique is None:
             surface_technique = EGA_TECHNIQUE
@@ -174,8 +191,6 @@ class PoolTable(object):
         surface = PlanePrimitive(width=width+2*w, depth=length+2*w)
         surface.attributes['vertices'][:,1] = self.H
         surface.alias('vertices', 'a_position')
-        L = self.L
-        W = self.W
         H = self.H
         h = self.h
         w = self.w
@@ -193,25 +208,61 @@ class PoolTable(object):
                               [corners[i+3,0], 1.3*h+H, corners[i+3,1]]]
                             ], dtype=np.float32)) for i in (0, 4, 8, 12, 16, 20)]
         self.cushionGeoms = cushionGeoms
-        headRailGeom = BoxPrimitive(W + 2*(w + self.width_rail), 1.3*h, self.width_rail)
-        headRailGeom.attributes['vertices'][...,1] += H + 0.5*1.3*h
-        headRailGeom.attributes['vertices'][...,2] -= 0.5*L + w + 0.5*self.width_rail
-        footRailGeom = HexaPrimitive(vertices=headRailGeom.attributes['vertices'].copy().reshape(2,4,3))
-        footRailGeom.attributes['vertices'][...,2] *= -1
-        footRailGeom.attributes['vertices'][0,:] = footRailGeom.attributes['vertices'][0,::-1]
-        footRailGeom.attributes['vertices'][1,:] = footRailGeom.attributes['vertices'][1,::-1]
-        leftSideRailGeom = BoxPrimitive(self.width_rail, 1.3*h, L + 2*w)
-        leftSideRailGeom.attributes['vertices'][...,0] -= 0.5*W + w + 0.5*self.width_rail
-        leftSideRailGeom.attributes['vertices'][...,1] += H + 0.5*1.3*h
-        rightSideRailGeom = BoxPrimitive(self.width_rail, 1.3*h, L + 2*w)
-        rightSideRailGeom.attributes['vertices'][...,0] += 0.5*W + w + 0.5*self.width_rail
-        rightSideRailGeom.attributes['vertices'][...,1] += H + 0.5*1.3*h
-        self.railGeoms = [headRailGeom, footRailGeom, leftSideRailGeom, rightSideRailGeom]
-        for geom in self.cushionGeoms + self.railGeoms:
+        w_r = self.width_rail
+        railGeoms = [
+            HexaPrimitive(vertices=np.array(
+                [# bottom quad:
+                 [[corners[0,0],      H, corners[0,1]],
+                  [corners[3,0],      H, corners[3,1]],
+                  [corners[3,0],      H, corners[3,1] - w_r],
+                  [corners[0,0],      H, corners[0,1] - w_r]],
+                 # top quad:
+                 [[corners[0,0],     1.3*h+H, corners[0,1]],
+                  [corners[3,0],     1.3*h+H, corners[3,1]],
+                  [corners[3,0],     1.3*h+H, corners[3,1] - w_r],
+                  [corners[0,0],     1.3*h+H, corners[0,1] - w_r]]
+                ], dtype=np.float32)),
+            HexaPrimitive(vertices=np.array(
+                [# bottom quad:
+                 [[corners[4,0],      H, corners[4,1]],
+                  [corners[7,0],      H, corners[7,1]],
+                  [corners[7,0] + w_r,      H, corners[7,1]],
+                  [corners[4,0] + w_r,      H, corners[4,1]]],
+                 # top quad:
+                 [[corners[4,0],     1.3*h+H, corners[4,1]],
+                  [corners[7,0],     1.3*h+H, corners[7,1]],
+                  [corners[7,0] + w_r,     1.3*h+H, corners[7,1]],
+                  [corners[4,0] + w_r,     1.3*h+H, corners[4,1]]]
+                ], dtype=np.float32)),
+            HexaPrimitive(vertices=np.array(
+                [# bottom quad:
+                 [[corners[8,0],      H, corners[8,1]],
+                  [corners[11,0],      H, corners[11,1]],
+                  [corners[11,0] + w_r,      H, corners[11,1]],
+                  [corners[8,0] + w_r,      H, corners[8,1]]],
+                 # top quad:
+                 [[corners[8,0],     1.3*h+H, corners[8,1]],
+                  [corners[11,0],     1.3*h+H, corners[11,1]],
+                  [corners[11,0] + w_r,     1.3*h+H, corners[11,1]],
+                  [corners[8,0] + w_r,     1.3*h+H, corners[8,1]]]
+                ], dtype=np.float32)),
+        ]
+        railGeoms2 = [HexaPrimitive(vertices=g.attributes['vertices'].copy().reshape(2,4,3)) for g in railGeoms]
+        for g in railGeoms2:
+            g.attributes['vertices'][...,::2] *= -1
+        self.railGeoms = railGeoms + railGeoms2
+        self.pocketGeoms = []
+        for i_p in range(6):
+            pocket_prim = CylinderPrimitive(self.R_s if i_p in (2,5) else self.R_c, 0.01)
+            pocket_prim.attributes['vertices'][...,1] += H
+            pocket_prim.attributes['vertices'][...,::2] += self.pocket_positions[i_p,::2]
+            self.pocketGeoms.append(pocket_prim)
+        for geom in self.cushionGeoms + self.railGeoms + self.pocketGeoms:
             geom.alias('vertices', 'a_position')
         return Mesh({surface_material: [surface],
                      cushion_material: self.cushionGeoms,
-                     rail_material   : self.railGeoms})
+                     rail_material   : self.railGeoms,
+                     Material(EGA_TECHNIQUE, values={'u_color': [0.0,0.0,0.0,0.0]}) : self.pocketGeoms})
 
     def export_ball_meshes(self,
                            striped_balls=tuple(range(9,16)),

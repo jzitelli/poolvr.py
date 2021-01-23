@@ -339,19 +339,23 @@ def test_strike_ball_less_english(pool_physics,
     #               PhysicsEvent.events_str(events))
 
 
-@pytest.mark.parametrize("side,i_c", [(s, i) for s in range(4) for i in range(2)])
+@pytest.mark.parametrize("i_c", list(range(24)))
 def test_corner_collision(pool_physics,
                           gl_rendering,
                           plot_motion_timelapse,
                           plot_energy,
-                          side, i_c):
+                          i_c):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
     ball_positions[0,::2] = 0
+    pocket = physics.table.corner_to_pocket(i_c)
+    corners = physics._corners
+    i0 = physics.table.pocket_to_corner(pocket)
+    ball_positions[0] = 0.5 * (corners[i0] + corners[i0 + 3])
     physics.reset(balls_on_table=[0],
                   ball_positions=ball_positions)
     R = physics.ball_radius
-    r_c = physics._r_cp[side,i_c]
+    r_c = physics._corners[i_c]
     r_i = r_c + R * np.array([np.sign(r_c[0])*np.cos(10*DEG2RAD),
                               0.0,
                               np.sign(r_c[2])*np.sin(10*DEG2RAD)])
