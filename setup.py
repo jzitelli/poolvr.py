@@ -2,7 +2,7 @@
 from setuptools import setup, Extension
 from codecs import open
 from os import path, listdir
-from Cython.Build import cythonize
+#from Cython.Build import cythonize
 from sys import exec_prefix
 
 here = path.dirname(path.abspath(__file__))
