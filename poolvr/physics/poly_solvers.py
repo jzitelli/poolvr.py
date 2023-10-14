@@ -24,8 +24,12 @@ _IMAG_TOLERANCE = 1e-12
 _IMAG_TOLERANCE_SQRD = _IMAG_TOLERANCE**2
 
 
-_lib = ctypes.cdll.LoadLibrary(path.join(path.dirname(path.abspath(__file__)),
-                                         'poly_solvers.dll'))
+try:
+    _lib = ctypes.cdll.LoadLibrary(path.join(path.dirname(path.abspath(__file__)),
+                                             '_poly_solvers.so'))
+except:
+    _lib = ctypes.cdll.LoadLibrary(path.join(path.dirname(path.abspath(__file__)),
+                                             'poly_solvers.dll'))
 _lib.quartic_solve.argtypes = (c_double_p,
                                c_double_complex_p)
 _lib.find_min_quartic_root_in_real_interval.argtypes = (c_double_p,
@@ -39,8 +43,12 @@ _lib.sort_complex_conjugate_pairs.argtypes = [c_double_complex_p]
 _lib.sort_complex_conjugate_pairs.restype = c_int
 
 
-_flib = ctypes.cdll.LoadLibrary(path.join(path.dirname(path.abspath(__file__)),
-                                          'fpoly_solvers.dll'))
+try:
+    _flib = ctypes.cdll.LoadLibrary(path.join(path.dirname(path.abspath(__file__)),
+                                              '_fpoly_solvers.so'))
+except:
+    _flib = ctypes.cdll.LoadLibrary(path.join(path.dirname(path.abspath(__file__)),
+                                              'fpoly_solvers.dll'))
 _flib.quartic_solve.argtypes = (c_double_p,
                                 c_double_complex_p)
 _flib.find_min_quartic_root_in_real_interval.argtypes = (c_double_p,

@@ -28,8 +28,12 @@ INF = float('inf')
 _k = array([0, 1, 0], dtype=np.float64)
 
 
-_lib = ctypes.cdll.LoadLibrary(path.join(path.dirname(path.abspath(__file__)),
-                                         'collisions.dll'))
+try:
+    _lib = ctypes.cdll.LoadLibrary(path.join(path.dirname(path.abspath(__file__)),
+                                             '_collisions.so'))
+except:
+    _lib = ctypes.cdll.LoadLibrary(path.join(path.dirname(path.abspath(__file__)),
+                                             'collisions.dll'))
 _lib.collide_balls.argtypes = (ctypes.c_double,
                                c_double_p,
                                c_double_p,
@@ -41,7 +45,9 @@ _lib.collide_balls.argtypes = (ctypes.c_double,
                                c_double_p,
                                c_double_p,
                                c_double_p)
+
 _lib.print_params.argtypes = []
+
 _module_vars = ('M', 'R', 'mu_s', 'mu_b', 'e')
 _M, _R, _mu_s, _mu_b, _e = [ctypes.c_double.in_dll(_lib, p)
                             for p in _module_vars]
