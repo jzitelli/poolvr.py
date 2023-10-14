@@ -24,8 +24,7 @@ DEG2RAD = np.pi/180
 
 def test_strike_ball(pool_physics,
                      plot_motion_timelapse,
-                     plot_energy,
-                     gl_rendering):
+                     plot_energy):
     physics = pool_physics
     physics.reset(balls_on_table=[0])
     ball_positions = physics.eval_positions(0.0)
@@ -45,8 +44,7 @@ def test_strike_ball(pool_physics,
 
 def test_ball_collision(pool_physics,
                         plot_motion_timelapse,
-                        plot_energy,
-                        gl_rendering):
+                        plot_energy):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
     ball_positions[1] = ball_positions[0]
@@ -69,8 +67,7 @@ def test_ball_collision(pool_physics,
 
 def test_angled_ball_collision(pool_physics,
                                plot_motion_timelapse,
-                               plot_energy,
-                               gl_rendering):
+                               plot_energy):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
     ball_positions[1] = ball_positions[0]
@@ -98,8 +95,7 @@ def test_angled_ball_collision(pool_physics,
 
 def test_sliding_ball_collision(pool_physics,
                                 plot_motion_timelapse,
-                                plot_energy,
-                                gl_rendering):
+                                plot_energy):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
     ball_positions[1] = ball_positions[0]
@@ -123,7 +119,6 @@ def test_sliding_ball_collision(pool_physics,
 def test_break(pool_physics,
                plot_motion_timelapse,
                plot_energy,
-               gl_rendering,
                request):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
@@ -166,7 +161,6 @@ def test_break(pool_physics,
 def test_break_hard(pool_physics,
                     plot_motion_timelapse,
                     plot_energy,
-                    gl_rendering,
                     request):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
@@ -213,7 +207,6 @@ def test_break_hard(pool_physics,
 def test_break_hard_realtime(pool_physics_realtime,
                              plot_motion_timelapse,
                              plot_energy,
-                             gl_rendering,
                              request):
     physics = pool_physics_realtime
     nevents = len(physics.events)
@@ -262,7 +255,6 @@ def test_break_hard_realtime(pool_physics_realtime,
 
 
 def test_break_and_following_shot(pool_physics,
-                                  gl_rendering,
                                   request):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
@@ -290,7 +282,6 @@ def test_break_and_following_shot(pool_physics,
 
 
 def test_strike_ball_english(pool_physics,
-                             gl_rendering,
                              plot_motion_timelapse,
                              request):
     physics = pool_physics
@@ -315,7 +306,6 @@ def test_strike_ball_english(pool_physics,
 
 
 def test_strike_ball_less_english(pool_physics,
-                                  gl_rendering,
                                   plot_motion_timelapse,
                                   request):
     physics = pool_physics
@@ -341,7 +331,6 @@ def test_strike_ball_less_english(pool_physics,
 
 @pytest.mark.parametrize("i_c", list(range(24)))
 def test_corner_collision(pool_physics,
-                          gl_rendering,
                           plot_motion_timelapse,
                           plot_energy,
                           i_c):
@@ -372,7 +361,7 @@ def test_corner_collision(pool_physics,
 
 
 @pytest.mark.parametrize("segment", list(range(18)))
-def test_segment_collision(pool_physics, gl_rendering, request, segment):
+def test_segment_collision(pool_physics, request, segment):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
     ball_positions[0,::2] = 0
@@ -394,7 +383,7 @@ def test_segment_collision(pool_physics, gl_rendering, request, segment):
                   PhysicsEvent.events_str(events=events))
 
 
-def test_degenerate_collision(pool_physics, gl_rendering, request):
+def test_degenerate_collision(pool_physics, request):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
     ball_velocities = physics.eval_velocities(0.0)
@@ -414,7 +403,6 @@ def test_degenerate_collision(pool_physics, gl_rendering, request):
 
 
 # def test_pocket_scratch(pool_physics,
-#                         gl_rendering,
 #                         plot_motion_timelapse,
 #                         plot_energy):
 #     physics = pool_physics
