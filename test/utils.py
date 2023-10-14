@@ -8,7 +8,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
-
+import sys
+sys.path.append('..')
+import poolvr
 from poolvr.table import PoolTable
 from poolvr.physics.events import (CueStrikeEvent,
                                    BallEvent,
@@ -59,7 +61,10 @@ def printit(it):
 
 
 def catches_tcl_errors(func):
-    from tkinter import TclError
+    try:
+        from tkinter import TclError
+    except:
+        TclError = Exception
     from functools import wraps
     @wraps(func)
     def wrapper(*args, **kwargs):
