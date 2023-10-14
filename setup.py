@@ -31,9 +31,8 @@ setup(
     keywords='virtual reality vr pool billiards pyopenvr openvr event based physics cue table pocket bumper rail',
     install_requires=['openvr', 'numpy', 'pyopengl', 'pillow'], # 'cyglfw3'],
     extras_require={},
-    package_data={
-        'poolvr': [path.join('shaders', filename) for filename in listdir(path.join('poolvr', 'shaders'))],
-    },
+    # package_data={
+    # },
     data_files=[],
     scripts=[path.join('scripts', 'gen_assets.py')],
     entry_points={
