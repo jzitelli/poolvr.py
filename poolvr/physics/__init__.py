@@ -151,7 +151,7 @@ class PoolPhysics(object):
         self._taus[:,0] = 1
         self._a = np.zeros((num_balls, 3, 3), dtype=float64)
         self._b = np.zeros((num_balls, 2, 3), dtype=float64)
-        self._F = np.zeros(num_balls, dtype=np.int)
+        self._F = np.zeros(num_balls, dtype=np.int32)
         self.reset(ball_positions=ball_positions, balls_on_table=balls_on_table)
 
     @classmethod
