@@ -4,28 +4,12 @@ _logger = logging.getLogger(__name__)
 import numpy as np
 
 
-# TODO: pkgutils way
-TEXTURES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                            os.path.pardir,
-                            'textures')
-
-
 INCH2METER = 0.0254
 SQRT2 = np.sqrt(2)
 DEG2RAD = np.pi/180
 
 
 class PoolTable(object):
-    BALL_COLORS = [0xddddde,
-                   0xeeee00,
-                   0x0000ee,
-                   0xee0000,
-                   0xee00ee,
-                   0xee7700,
-                   0x00ee00,
-                   0xbb2244,
-                   0x111111]
-    BALL_COLORS = BALL_COLORS + BALL_COLORS[1:-1]
     def __init__(self,
                  L=100*INCH2METER,
                  H=29.25*INCH2METER,
@@ -58,8 +42,7 @@ class PoolTable(object):
                  r_spd=0.1875*INCH2METER,
                  width_rail=None,
                  ball_radius=1.125*INCH2METER,
-                 num_balls=len(BALL_COLORS),
-                 ball_colors=BALL_COLORS,
+                 num_balls=16,
                  **kwargs):
         self.L = L
         self.H = H
@@ -88,7 +71,6 @@ class PoolTable(object):
         self.ball_radius = ball_radius
         self.ball_diameter = 2*ball_radius
         self.num_balls = num_balls
-        self.ball_colors = ball_colors
         self._almost_ball_radius = 0.999*ball_radius
         corners = np.empty((24,2))
         w = 0.5 * W
@@ -263,59 +245,6 @@ class PoolTable(object):
                      cushion_material: self.cushionGeoms,
                      rail_material   : self.railGeoms,
                      Material(EGA_TECHNIQUE, values={'u_color': [0.0,0.0,0.0,0.0]}) : self.pocketGeoms})
-
-    def export_ball_meshes(self,
-                           striped_balls=tuple(range(9,16)),
-                           use_bb_particles=False,
-                           technique=None):
-        from .gl_rendering import Mesh, Material, Texture
-        from .gl_primitives import SpherePrimitive, CirclePrimitive
-        from .gl_techniques import EGA_TECHNIQUE
-        from .billboards import BillboardParticles
-        if technique is None:
-            technique = EGA_TECHNIQUE
-        num_balls = self.num_balls
-        ball_quaternions = np.zeros((num_balls, 4), dtype=np.float32)
-        ball_quaternions[:,3] = 1
-        if use_bb_particles:
-            ball_billboards = BillboardParticles(Texture(os.path.join(TEXTURES_DIR, 'sphere_bb_alpha.png')),
-                                                 Texture(os.path.join(TEXTURES_DIR, 'sphere_bb_normal.png')),
-                                                 num_particles=num_balls,
-                                                 scale=2*self.ball_radius / 0.975,
-                                                 color=np.array([[(c & 0xff0000) / 0xff0000,
-                                                                  (c & 0x00ff00) / 0x00ff00,
-                                                                  (c & 0x0000ff) / 0x0000ff]
-                                                                 for c in self.ball_colors],
-                                                                dtype=np.float32))
-            return [ball_billboards]
-        else:
-            ball_materials = [Material(technique, values={'u_color': [(c & 0xff0000) / 0xff0000,
-                                                                      (c & 0x00ff00) / 0x00ff00,
-                                                                      (c & 0x0000ff) / 0x0000ff, 0.0]})
-                              for c in self.ball_colors]
-            sphere_prim = SpherePrimitive(radius=self.ball_radius)
-            sphere_prim.attributes['a_position'] = sphere_prim.attributes['vertices']
-            if striped_balls is None:
-                striped_balls = set()
-            else:
-                stripe_prim = SpherePrimitive(radius=1.001*self.ball_radius,
-                                              heightSegments=4,
-                                              thetaStart=np.pi/3, thetaLength=np.pi/3)
-                stripe_prim.attributes['a_position'] = stripe_prim.attributes['vertices']
-            circle_prim = CirclePrimitive(radius=self.ball_radius, num_radial=16)
-            circle_prim.attributes['a_position'] = circle_prim.attributes['vertices']
-            shadow_material = Material(EGA_TECHNIQUE, values={'u_color': [0.01, 0.03, 0.001, 0.0]})
-            ball_meshes = [Mesh({material        : [sphere_prim]})
-                           if i not in striped_balls else
-                           Mesh({ball_materials[0] : [sphere_prim],
-                                 material          : [stripe_prim]})
-                           for i, material in enumerate(ball_materials)]
-            ball_shadow_meshes = [Mesh({shadow_material : [circle_prim]})
-                                  for i in range(num_balls)]
-            for i, mesh in enumerate(ball_meshes):
-                mesh.shadow_mesh = ball_shadow_meshes[i]
-                mesh.shadow_mesh.world_position[:] = self.H + 0.001
-            return ball_meshes
 
     def calc_racked_positions(self, d=None,
                               out=None):
