@@ -83,8 +83,6 @@ class PoolPhysics(object):
                  ball_collision_model_kwargs=None,
                  table=None,
                  enable_occlusion=False,
-                 collision_search_time_limit=None,
-                 collision_search_time_forward=None,
                  use_quartic_solver=True,
                  **kwargs):
         r"""
@@ -121,13 +119,6 @@ class PoolPhysics(object):
         self._balls_on_table = balls_on_table
         self._on_table = array(self.num_balls * [False])
         self._on_table[array(balls_on_table, dtype=np.int32)] = True
-        self._collision_search_time_limit = collision_search_time_limit
-        self._collision_search_time_forward = collision_search_time_forward
-        if (collision_search_time_limit is not None and not np.isinf(collision_search_time_limit)) \
-           or (collision_search_time_forward is not None and not np.isinf(collision_search_time_forward)):
-            self._realtime = True
-        else:
-            self._realtime = False
         self._enable_occlusion = enable_occlusion
         self._use_quartic_solver = use_quartic_solver
         self._p = np.empty(5, dtype=float64)
@@ -211,9 +202,6 @@ class PoolPhysics(object):
         self._on_table[:] = False
         self._on_table[self._balls_on_table] = True
 
-    def add_cue(self, cue):
-        self.cues = [cue]
-
     def strike_ball(self, t, i, r_i, r_c, V, M):
         r"""
         Strike ball *i* at game time *t*.
@@ -227,10 +215,7 @@ class PoolPhysics(object):
             return
         #assert abs(np.linalg.norm(r_c - r_i) - self.ball_radius) < self._ZERO_TOLERANCE, 'abs(np.linalg.norm(r_c - r_i) - self.ball_radius) = %s' % abs(np.linalg.norm(r_c - r_i) - self.ball_radius)
         event = CueStrikeEvent(t, i, r_i, r_c, V, M)
-        if self._realtime:
-            return self.add_event_sequence_realtime(event)
-        else:
-            return self.add_event_sequence(event)
+        return self.add_event_sequence(event)
 
     def add_event_sequence(self, event):
         num_events = len(self.events)
@@ -238,34 +223,6 @@ class PoolPhysics(object):
         while self._ball_motion_events or self._ball_spinning_events:
             event = self._determine_next_event()
             self._add_event(event)
-        num_added_events = len(self.events) - num_events
-        return self.events[-num_added_events:]
-
-    def add_event_sequence_realtime(self, event):
-        num_events = len(self.events)
-        self._add_event(event)
-        T, T_f = self._collision_search_time_limit, self._collision_search_time_forward
-        lt = perf_counter()
-        if T is None or np.isinf(T):
-            while self._ball_motion_events or self._ball_spinning_events:
-                event = self._determine_next_event()
-                self._add_event(event)
-                if event.t - self.t > T_f:
-                    break
-        elif T_f is not None and not np.isinf(T_f):
-            while T > 0 and (self._ball_motion_events or self._ball_spinning_events):
-                event = self._determine_next_event()
-                self._add_event(event)
-                if event.t - self.t > T_f:
-                    break
-                t = perf_counter()
-                T -= t - lt; lt = t
-        else:
-            while T > 0 and (self._ball_motion_events or self._ball_spinning_events):
-                event = self._determine_next_event()
-                self._add_event(event)
-                t = perf_counter()
-                T -= t - lt; lt = t
         num_added_events = len(self.events) - num_events
         return self.events[-num_added_events:]
 
@@ -278,50 +235,7 @@ class PoolPhysics(object):
             else None
 
     def step(self, dt):
-        if self._realtime:
-            self._step_realtime(dt)
-        else:
-            self.t += dt
-
-    def _step_realtime(self, dt):
         self.t += dt
-        if not (self._ball_motion_events or self._ball_spinning_events):
-            return
-        T, T_f = self._collision_search_time_limit, self._collision_search_time_forward
-        if T_f is None:
-            t_max = INF
-        else:
-            t_max = self.t + T_f
-        if T is None or np.isinf(T):
-            while self._ball_motion_events or self._ball_spinning_events:
-                event = self._determine_next_event()
-                if event:
-                    self._add_event(event)
-                    if event.t >= t_max:
-                        return
-            return
-        else:
-            lt = perf_counter()
-            while T > 0 and (self._ball_motion_events or self._ball_spinning_events):
-                event = self._determine_next_event()
-                if event:
-                    self._add_event(event)
-                    if event.t >= t_max:
-                        return
-                t = perf_counter()
-                dt = t - lt; lt = t
-                T -= dt
-            if self.t >= self.events[-1].t:
-                _logger.warning('STALLING TO CATCH UP SIMULATION!')
-                lt = perf_counter()
-                while self._ball_motion_events or self._ball_spinning_events:
-                    event = self._determine_next_event()
-                    if event:
-                        self._add_event(event)
-                        if event.t >= self.t:
-                            _logger.warning('WAITED %s SECONDS FOR SIMULATION TO CATCH UP!', perf_counter() - lt)
-                            return
-
 
     def eval_positions(self, t, balls=None, out=None):
         """

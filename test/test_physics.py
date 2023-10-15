@@ -203,57 +203,6 @@ def test_break_hard(pool_physics,
     #               PhysicsEvent.events_str(events))
 
 
-@pytest.mark.skip
-def test_break_hard_realtime(pool_physics_realtime,
-                             plot_motion_timelapse,
-                             plot_energy,
-                             request):
-    physics = pool_physics_realtime
-    nevents = len(physics.events)
-    ball_positions = physics.eval_positions(0.0)
-    r_c = ball_positions[0].copy()
-    r_c[2] += 0.5 * np.sqrt(2.0) * physics.ball_radius
-    r_c[1] += 0.5 * np.sqrt(2.0) * physics.ball_radius
-    V = np.array((-0.006, 0.0, -3.4), dtype=np.float64)
-    M = 0.54
-    outname = gen_filename('test_break_hard_realtime.%s.%s' % (physics.ball_collision_model, git_head_hash()),
-                           'pstats',
-                           directory=os.path.join(_here, 'pstats'))
-    from time import perf_counter
-    import cProfile
-    pr = cProfile.Profile()
-    pr.enable()
-    t0 = perf_counter()
-    physics.strike_ball(0.0, 0, ball_positions[0], r_c, V, M)
-    lt = perf_counter()
-    while physics._ball_motion_events or physics._ball_spinning_events:
-        t = perf_counter()
-        dt = t - lt
-        lt = t
-        physics.step(dt)
-    t1 = perf_counter()
-    pr.dump_stats(outname)
-    _logger.info('evaluation time: %s', t1-t0)
-    _logger.info('...dumped stats to "%s"', outname)
-    events = physics.events[nevents:]
-    _logger.info('\n'.join(['strike on %d resulted in %d events:',
-                            '  %d BallSlidingEvents',
-                            '  %d BallRollingEvents',
-                            '  %d BallSpinningEvents',
-                            '  %d BallRestEvents',
-                            '  %d RailCollisionEvents',
-                            '  %d BallCollisionEvents']),
-                 0, len(events),
-                 len([e for e in events if isinstance(e, BallSlidingEvent)]),
-                 len([e for e in events if isinstance(e, BallRollingEvent)]),
-                 len([e for e in events if isinstance(e, BallSpinningEvent)]),
-                 len([e for e in events if isinstance(e, BallRestEvent)]),
-                 len([e for e in events if isinstance(e, RailCollisionEvent)]),
-                 len([e for e in events if isinstance(e, BallCollisionEvent)]))
-    if not request.config.getoption('--no-distance-check'):
-        check_ball_distances(physics, filename=request.node.originalname)
-
-
 def test_break_and_following_shot(pool_physics,
                                   request):
     physics = pool_physics
