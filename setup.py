@@ -11,7 +11,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name='poolvr.py',
+    name='poolvr',
     version='0.0.1',
     description='Python VR pool simulator',
     packages=['poolvr'],
@@ -28,23 +28,10 @@ setup(
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
     ],
-    keywords='virtual reality vr pool billiards pyopenvr openvr event based physics cue table pocket bumper rail',
-    install_requires=['openvr', 'numpy', 'pyopengl', 'pillow'], # 'cyglfw3'],
+    keywords='pool billiards event based physics',
+    install_requires=['numpy', 'pillow'],
     extras_require={},
     # package_data={
     # },
     data_files=[],
-    scripts=[path.join('scripts', 'gen_assets.py')],
-    entry_points={
-        'console_scripts': [
-            'poolvr = poolvr.__main__:main'
-        ]
-    },
-    # ext_modules=cythonize([Extension('poolvr.physics.coll', [path.join('poolvr', 'physics', 'coll.pyx')],
-    #                                  include_dirs=[path.join(exec_prefix, 'lib', 'site-packages', 'numpy', 'core', 'include'), '.'],
-    #                                  libraries=['collisions'],
-    #                                  library_dirs=[path.join(here, 'poolvr', 'physics')])],
-    #                                  # extra_compile_args=["-Zi", "/O2"],
-    #                                  # extra_link_args=["-debug"])],
-    #                        language_level=3)
 )
