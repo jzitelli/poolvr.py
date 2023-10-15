@@ -46,7 +46,7 @@ _lib.collide_balls.argtypes = (ctypes.c_double,
                                c_double_p,
                                c_double_p)
 
-_lib.print_params.argtypes = []
+#_lib.print_params.argtypes = []
 
 _module_vars = ('M', 'R', 'mu_s', 'mu_b', 'e')
 _M, _R, _mu_s, _mu_b, _e = [ctypes.c_double.in_dll(_lib, p)
@@ -67,7 +67,8 @@ def set_params(**params):
 
 
 def print_params():
-    _lib.print_params()
+    pass
+    # _lib.print_params()
 
 
 def collide_balls_f90(r_i, v_i, omega_i,

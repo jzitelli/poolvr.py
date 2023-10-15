@@ -24,6 +24,7 @@ CONTAINS
     double precision, dimension(3), intent(in) :: r_j, v_j, omega_j
     double precision, dimension(3), intent(out) :: v_i1, omega_i1
     double precision, dimension(3), intent(out) :: v_j1, omega_j1
+    double precision, dimension(3) :: omega_i1_t, omega_j1_t
     double precision, dimension(3,3) :: G, G_T
     double precision, dimension(3) :: r_ij, deltaOm_i, deltaOm_j, y_loc, x_loc
     double precision :: v_ix, v_iy, v_jx, v_jy
@@ -66,8 +67,14 @@ CONTAINS
     v_ijy = v_jy - v_iy
     ! omega_i1 = (/ omega_ix, omega_iy, omega_iz /)
     ! omega_j1 = (/ omega_jx, omega_jy, omega_jz /)
-    omega_i1 = matmul(G, omega_i)
-    omega_j1 = matmul(G, omega_j)
+    !omega_i1 = matmul(G, omega_i)
+    omega_i1(1) = dot_product(G(1,:), omega_i)
+    omega_i1(2) = dot_product(G(2,:), omega_i)
+    omega_i1(3) = dot_product(G(3,:), omega_i)    
+    !omega_j1 = matmul(G, omega_j)
+    omega_j1(1) = dot_product(G(1,:), omega_j)
+    omega_j1(2) = dot_product(G(2,:), omega_j)
+    omega_j1(3) = dot_product(G(3,:), omega_j)
     W = 0
     W_f = huge(1.d0)
     W_c = huge(1.d0)
@@ -155,10 +162,29 @@ CONTAINS
        end if
     end do
     ! PRINT *, "end of restitution phase"
-    v_i1 = MATMUL(G_T, (/ v_ix, v_iy, 0.d0 /))
-    v_j1 = MATMUL(G_T, (/ v_jx, v_jy, 0.d0 /))
-    omega_i1 = MATMUL(G_T, omega_i1)
-    omega_j1 = MATMUL(G_T, omega_j1)
+    ! v_i1 = MATMUL(G_T, (/ v_ix, v_iy, 0.d0 /))
+    ! v_j1 = MATMUL(G_T, (/ v_jx, v_jy, 0.d0 /))
+    ! omega_i1 = MATMUL(G_T, omega_i1)
+    ! omega_j1 = MATMUL(G_T, omega_j1)
+    
+    v_i1(1) = dot_product(G_T(1,:), (/ v_ix, v_iy, 0.d0 /))
+    v_i1(2) = dot_product(G_T(2,:), (/ v_ix, v_iy, 0.d0 /))
+    v_i1(3) = dot_product(G_T(3,:), (/ v_ix, v_iy, 0.d0 /))
+
+    v_j1(1) = dot_product(G_T(1,:), (/ v_jx, v_jy, 0.d0 /))
+    v_j1(2) = dot_product(G_T(2,:), (/ v_jx, v_jy, 0.d0 /))
+    v_j1(3) = dot_product(G_T(3,:), (/ v_jx, v_jy, 0.d0 /))
+
+    omega_i1_t = omega_i1
+    omega_i1(1) = dot_product(G_T(1,:), omega_i1_t)
+    omega_i1(2) = dot_product(G_T(2,:), omega_i1_t)
+    omega_i1(3) = dot_product(G_T(3,:), omega_i1_t)
+
+    omega_j1_t = omega_j1
+    omega_j1(1) = dot_product(G_T(1,:), omega_j1_t)
+    omega_j1(2) = dot_product(G_T(2,:), omega_j1_t)
+    omega_j1(3) = dot_product(G_T(3,:), omega_j1_t)
+    
     ! if (sum(v_i1**2) < ZERO_VELOCITY_CLIP_SQRD) then
     !    if (abs(omega_i1(2)) < ZERO_ANGULAR_VELOCITY_CLIP) then
     !       PRINT *, "i -> BallRestEvent"
@@ -209,10 +235,10 @@ CONTAINS
     calc_motion_coefficients(:,3) = -0.5 * mu_s * grav * u / sqrt(sum(u**2))
   end function calc_motion_coefficients
 
-  SUBROUTINE print_params () BIND(C)
-    WRITE(*,*)
-    WRITE(*, FMT=1) M,R,e,mu_b,mu_s
-    1 FORMAT("M=",E10.5, "  R=",E10.5, "  e=",E10.5, "  mu_b=",E10.5, "  mu_s=",E10.5)
-  END SUBROUTINE PRINT_PARAMS
+  ! SUBROUTINE print_params () BIND(C)
+  !   WRITE(*,*)
+  !   WRITE(*, FMT=1) M,R,e,mu_b,mu_s
+  !   1 FORMAT("M=",E10.5, "  R=",E10.5, "  e=",E10.5, "  mu_b=",E10.5, "  mu_s=",E10.5)
+  ! END SUBROUTINE PRINT_PARAMS
 
 END MODULE COLLISIONS
