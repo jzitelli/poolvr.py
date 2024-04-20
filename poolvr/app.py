@@ -3,7 +3,7 @@ import sys
 import logging
 from itertools import chain
 import numpy as np
-import cyglfw3 as glfw
+import glfw
 
 
 _logger = logging.getLogger('poolvr')

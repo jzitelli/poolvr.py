@@ -4,7 +4,7 @@ OpenGL.ERROR_CHECKING = False
 OpenGL.ERROR_LOGGING = False
 OpenGL.ERROR_ON_COPY = True
 import OpenGL.GL as gl
-import cyglfw3 as glfw
+import glfw
 
 
 _logger = logging.getLogger('poolvr')
@@ -18,22 +18,22 @@ def setup_glfw(title="poolvr.py 0.0.1",
                double_buffered=False,
                multisample=4,
                fullscreen=False):
-    if not glfw.Init():
+    if not glfw.init():
         raise Exception('failed to initialize glfw')
     if not double_buffered:
-        glfw.WindowHint(glfw.DOUBLEBUFFER, False)
-        glfw.SwapInterval(0)
+        glfw.window_hint(glfw.DOUBLEBUFFER, False)
+        glfw.swap_interval(0)
     if multisample:
-        glfw.WindowHint(glfw.SAMPLES, multisample)
+        glfw.window_hint(glfw.SAMPLES, multisample)
     width, height = window_size
     if fullscreen:
-        window = glfw.CreateWindow(width, height, title, glfw.GetPrimaryMonitor())
+        window = glfw.create_window(width, height, title, glfw.get_primary_monitor(), None)
     else:
-        window = glfw.CreateWindow(width, height, title)
+        window = glfw.create_window(width, height, title, None, None)
     if not window:
-        glfw.Terminate()
+        glfw.terminate()
         raise Exception('failed to create glfw window')
-    glfw.MakeContextCurrent(window)
+    glfw.make_context_current(window)
     _logger.info('GL_VERSION: %s', gl.glGetString(gl.GL_VERSION))
     renderer = OpenGLRenderer(window_size=(width, height), znear=0.1, zfar=1000)
     def on_resize(renderer, window, width, height):
@@ -42,7 +42,7 @@ def setup_glfw(title="poolvr.py 0.0.1",
         renderer.update_projection_matrix()
     from functools import partial
     on_resize = partial(on_resize, renderer)
-    glfw.SetWindowSizeCallback(window, on_resize)
+    glfw.set_window_size_callback(window, on_resize)
     renderer.init_gl()
     on_resize(window, window_size[0], window_size[1])
     return window, renderer
@@ -55,7 +55,7 @@ def capture_window(window,
     if not filename.endswith('.png'):
         filename += '.png'
     _logger.info('saving screen capture...')
-    mWidth, mHeight = glfw.GetWindowSize(window)
+    mWidth, mHeight = glfw.get_window_size(window)
     gl.glPixelStorei(gl.GL_PACK_ALIGNMENT, 1)
     pixels = gl.glReadPixels(0, 0, mWidth, mHeight, gl.GL_RGB, gl.GL_UNSIGNED_BYTE)
     pil_image = PIL.Image.frombytes('RGB', (mWidth, mHeight), pixels)

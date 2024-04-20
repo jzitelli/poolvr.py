@@ -1,5 +1,5 @@
 from collections import defaultdict
-import cyglfw3 as glfw
+import glfw
 
 
 MOUSE_MOVE_SPEED = 0.07

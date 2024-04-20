@@ -1,9 +1,9 @@
 from collections import defaultdict
-from cyglfw3 import (SetKeyCallback, SetWindowShouldClose,
-                     PRESS, RELEASE,
-                     KEY_ESCAPE, KEY_R,
-                     KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN,
-                     KEY_W, KEY_S, KEY_A, KEY_D, KEY_Q, KEY_Z)
+from glfw import (set_key_callback, set_window_should_close,
+                  PRESS, RELEASE,
+                  KEY_ESCAPE, KEY_R,
+                  KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN,
+                  KEY_W, KEY_S, KEY_A, KEY_D, KEY_Q, KEY_Z)
 import OpenGL.GL as gl
 
 
@@ -14,7 +14,7 @@ _on_keydown_cb = None
 
 
 def init_keyboard(window):
-    SetKeyCallback(window, __on_keydown)
+    set_key_callback(window, __on_keydown)
 
 
 def set_on_keydown_callback(window, cb):
@@ -24,7 +24,7 @@ def set_on_keydown_callback(window, cb):
 
 def __on_keydown(window, key, scancode, action, mods):
     if key == KEY_ESCAPE and action == PRESS:
-        SetWindowShouldClose(window, gl.GL_TRUE)
+        set_window_should_close(window, gl.GL_TRUE)
     elif action == PRESS:
         key_state[key] = True
     elif action == RELEASE:
