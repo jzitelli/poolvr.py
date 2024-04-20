@@ -208,7 +208,7 @@ def main(window_size=(800,600),
           + dist*(key_state[KEY_D]-key_state[KEY_A]) * camera_world_matrix[0,:3] \
           + dist*(key_state[KEY_Q]-key_state[KEY_Z]) * camera_world_matrix[1,:3]
     def process_input(dt):
-        glfw.PollEvents()
+        glfw.poll_events()
         process_keyboard_input(dt, camera_world_matrix)
         process_mouse_input(dt, cue)
     if isinstance(renderer, OpenVRRenderer):
@@ -235,10 +235,10 @@ def main(window_size=(800,600),
     contact_last_frame = False
     nframes = 0
     max_frame_time = 0.0
-    lt = glfw.GetTime()
+    lt = glfw.get_time()
     glyph_meshes = []
-    while not glfw.WindowShouldClose(window):
-        t = glfw.GetTime()
+    while not glfw.window_should_close(window):
+        t = glfw.get_time()
         dt = t - lt
         lt = t
         process_input(dt)
@@ -287,7 +287,7 @@ def main(window_size=(800,600),
                 cue.shadow_mesh.update()
             # sdf_text.set_text("%9.3f" % dt)
             # sdf_text.update_gl()
-        glfw.SwapBuffers(window)
+        glfw.swap_buffers(window)
 
         if not contact_last_frame:
             if game.t - last_contact_t >= 2:
@@ -315,7 +315,7 @@ def main(window_size=(800,600),
 
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:
-            st = glfw.GetTime()
+            st = glfw.get_time()
         nframes += 1
 
     if nframes > 1:
@@ -327,6 +327,6 @@ def main(window_size=(800,600),
 
     renderer.shutdown()
     _logger.info('...shut down renderer')
-    glfw.DestroyWindow(window)
-    glfw.Terminate()
+    glfw.destroy_window(window)
+    glfw.terminate()
     _logger.info('GOODBYE')
