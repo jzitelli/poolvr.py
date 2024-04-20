@@ -8,7 +8,7 @@ VR pool simulator written in Python (using [pyopenvr](https://github.com/cmbruns
 ### REQUIREMENTS:
 
 - Python 3.5 or higher
-- [cyglfw3](https://github.com/adamlwgriffiths/cyglfw3)
+- [glfw](https://github.com/FlorianRhiem/pyGLFW)
 - [pyopengl](http://pyopengl.sourceforge.net)
 - [numpy](http://www.numpy.org)
 - [pillow](https://python-pillow.org)
@@ -37,23 +37,6 @@ VR pool simulator written in Python (using [pyopenvr](https://github.com/cmbruns
 1. Install the required dependencies.
    You can probably install most of the required packages via `pip`
    with the following exceptions:
-
-   `cyflw3`: If `pip install cyglfw3` fails,
-   you may try building the package yourself::
-   
-     1. Build or download the `glfw` library binary for your platform:
-     The easiest way is to download pre-compiled binaries
-     from the official `glfw` site:
-     [http://www.glfw.org/download.html]
-
-     2. Clone and build the cyglfw3 package:
-     ```
-     git clone https://github.com/jzitelli/cyglfw3.git
-     cd cyglfw3
-     python setup.py build_py build_ext \
-     --include-dirs=<path to glfw include dir> --library-dirs=<path to glfw dll dir>
-     python setup.py install
-     ```
 
    `ode`: If `pip install ode` fails,
    you may try building the package yourself::
