@@ -270,7 +270,7 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
     OpenGL.ERROR_CHECKING = False
     OpenGL.ERROR_LOGGING = False
     OpenGL.ERROR_ON_COPY = True
-    import cyglfw3 as glfw
+    import glfw
     from poolvr.glfw_app import setup_glfw, capture_window
     from poolvr.app import KB_MOVE_SPEED, KB_TURN_SPEED
     from poolvr.keyboard_controls import (init_keyboard, key_state,
@@ -355,7 +355,7 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
           + dist*(key_state[KEY_D]-key_state[KEY_A]) * camera_world_matrix[0,:3] \
           + dist*(key_state[KEY_Q]-key_state[KEY_Z]) * camera_world_matrix[1,:3]
     def process_input(dt):
-        glfw.PollEvents()
+        glfw.poll_events()
         process_keyboard_input(dt, camera_world_matrix)
     if should_render:
         t_end = physics.events[-1].t if physics.events else 5.0
@@ -365,9 +365,9 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
     stdout.flush()
     nframes = 0
     max_frame_time = 0.0
-    lt = glfw.GetTime()
-    while not glfw.WindowShouldClose(window) and (keep_render_window or game.t < t_end):
-        t = glfw.GetTime()
+    lt = glfw.get_time()
+    while not glfw.window_should_close(window) and (keep_render_window or game.t < t_end):
+        t = glfw.get_time()
         dt = t - lt
         lt = t
         process_input(dt)
@@ -383,9 +383,9 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
                 ball_shadow_mesh_positions[i][0::2] = pos[0::2]
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:
-            st = glfw.GetTime()
+            st = glfw.get_time()
         nframes += 1
-        glfw.SwapBuffers(window)
+        glfw.swap_buffers(window)
     if nframes > 1:
         _logger.info('''...exited render loop:
         average FPS: %f
@@ -406,12 +406,12 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
                 ball_mesh_positions[i][:] = pos
                 set_matrix_from_quaternion(game.ball_quaternions[i], out=ball_mesh_rotations[i])
                 ball_shadow_mesh_positions[i][0::2] = pos[0::2]
-        glfw.SwapBuffers(window)
+        glfw.swap_buffers(window)
         capture_window(window, filename=os.path.join(os.path.dirname(__file__), 'screenshots',
                                                      title.replace(' ', '_') + '.png'))
     renderer.shutdown()
-    glfw.DestroyWindow(window)
-    glfw.Terminate()
+    glfw.destroy_window(window)
+    glfw.terminate()
 
 
 @pytest.fixture
@@ -472,15 +472,15 @@ def render_meshes(request):
           + dist*(key_state[KEY_D]-key_state[KEY_A]) * camera_world_matrix[0,:3] \
           + dist*(key_state[KEY_Q]-key_state[KEY_Z]) * camera_world_matrix[1,:3]
     def process_input(dt):
-        glfw.PollEvents()
+        glfw.poll_events()
         process_keyboard_input(dt, camera_world_matrix)
     _logger.info('entering render loop...')
     stdout.flush()
     nframes = 0
     max_frame_time = 0.0
-    lt = glfw.GetTime()
-    while not glfw.WindowShouldClose(window):
-        t = glfw.GetTime()
+    lt = glfw.get_time()
+    while not glfw.window_should_close(window):
+        t = glfw.get_time()
         dt = t - lt
         lt = t
         process_input(dt)
@@ -488,9 +488,9 @@ def render_meshes(request):
             pass
         max_frame_time = max(max_frame_time, dt)
         if nframes == 0:
-            st = glfw.GetTime()
+            st = glfw.get_time()
         nframes += 1
-        glfw.SwapBuffers(window)
+        glfw.swap_buffers(window)
     if nframes > 1:
         _logger.info('''...exited render loop:
         average FPS: %f
@@ -505,10 +505,10 @@ def render_meshes(request):
     if should_screenshot:
         with renderer.render(meshes=meshes, dt=0.0):
             pass
-        glfw.SwapBuffers(window)
+        glfw.swap_buffers(window)
         capture_window(window,
                        filename=os.path.join(os.path.dirname(__file__), 'screenshots',
                                              title.replace(' ', '_') + '.png'))
     renderer.shutdown()
-    glfw.DestroyWindow(window)
-    glfw.Terminate()
+    glfw.destroy_window(window)
+    glfw.terminate()

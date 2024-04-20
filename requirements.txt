@@ -1,8 +1,10 @@
 numpy
 pyopengl
 openvr
+glfw
 pillow
 sounddevice
 soundfile
 pytest
 matplotlib
+setuptools

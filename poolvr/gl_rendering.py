@@ -645,7 +645,7 @@ class OpenGLRenderer(object):
     def init_gl(self, clear_color=(0.0, 0.0, 0.0, 0.0)):
         gl.glClearColor(*clear_color)
         gl.glEnable(gl.GL_DEPTH_TEST)
-        gl.glViewport(0, 0, self.window_size[0], self.window_size[1])
+        gl.glViewport(0, 0, int(self.window_size[0]), int(self.window_size[1]))
     @contextmanager
     def render(self, meshes=None, **kwargs):
         """
