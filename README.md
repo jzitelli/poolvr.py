@@ -17,8 +17,8 @@ VR pool simulator written in Python (using [pyopenvr](https://github.com/cmbruns
 
 - [pyopenvr](https://github.com/cmbruns/pyopenvr)
   for VR
-- [ode](https://ode):
-  Python-bindings to the [Open Dynamics Engine](https://ode)
+- [ode](https://ode.org):
+  Python-bindings to the [Open Dynamics Engine](https://ode.org)
   which provides a time-stepped pool physics simulation
   (rather than the internal event-based simulation)
 - [sounddevice](https://pypi.org/project/sounddevice)
