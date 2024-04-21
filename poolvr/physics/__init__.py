@@ -141,6 +141,32 @@ class PoolPhysics(object):
             (corners[i], corners[i+1], cross(tangents[i], _k), tangents[i])
             for i in (0,1,2,4,5,6,8,9,10,12,13,14,16,17,18,20,21,22)
         )
+        self._corner_to_segments = (
+            (0,),
+            (0,1),
+            (1,2),
+            (2,),
+            (3,),
+            (3,4),
+            (4,5),
+            (5,),
+            (6,),
+            (6,7),
+            (7,8),
+            (8,),
+            (9,),
+            (9,10),
+            (10,11),
+            (11,),
+            (12,),
+            (12,13),
+            (13,14),
+            (14,),
+            (15,),
+            (15,16),
+            (16,17),
+            (17,)
+        )
         self._velocity_meshes = None
         self._angular_velocity_meshes = None
         if ball_collision_model_kwargs:
