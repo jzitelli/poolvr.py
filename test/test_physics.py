@@ -357,21 +357,24 @@ def test_corner_collision(pool_physics,
     seg_b = physics._segments[i_b]
     n_a, n_b = seg_a[2], seg_b[2]
     n = n_a + n_b
-    n /= np.sqrt(sum(n**2))
+    n /= np.linalg.norm(n)
     r_c = physics._corners[i_c]
     R = physics.ball_radius
     ball_positions[0] = r_c + 4*R*n
-    physics.reset(#balls_on_table=[0],
-                  ball_positions=ball_positions)
+    physics.reset(ball_positions=ball_positions)
     v_0 = -n * 1
     start_event = BallSlidingEvent(0, 0,
                                    r_0=ball_positions[0],
                                    v_0=v_0,
                                    omega_0=np.zeros(3, dtype=np.float64))
     events = physics.add_event_sequence(start_event)
-    assert any(isinstance(e, CornerCollisionEvent) for e in events)
     _logger.info('%d events added:\n\n%s\n', len(events),
                  PhysicsEvent.events_str(events=events))
+    assert any(isinstance(e, CornerCollisionEvent) for e in events)
+    cce = next(e for e in events if isinstance(e, CornerCollisionEvent))
+    v_1 = cce.child_events[0].eval_velocity(0.0)
+    # expect to rebound heading in the exact opposite direction:
+    assert 0.9999 < abs(np.dot(v_1, n)) / np.linalg.norm(v_1)
 
 
 @pytest.mark.parametrize("segment", list(range(18)))

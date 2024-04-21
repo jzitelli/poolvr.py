@@ -591,6 +591,8 @@ class PoolPhysics(object):
                     tau_min = tau_p
                     seg_min = i_seg
         for i_c, r_c in enumerate(self._corners):
+            if e_i.parent_event and isinstance(e_i.parent_event, CornerCollisionEvent) and e_i.parent_event.i_c == i_c:
+                continue
             tau = self._find_corner_collision_time(r_c, e_i, tau_min)
             if 0 < tau < tau_min:
                 seg_min = None
