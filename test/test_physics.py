@@ -43,6 +43,28 @@ def test_strike_ball(pool_physics,
     assert isinstance(events[3], BallRestEvent)
 
 
+def test_initially_stationary_sliding_ball(pool_physics,
+                                           gl_rendering,
+                                           plot_energy):
+    physics = pool_physics
+    ball_positions = physics.eval_positions(0.0)
+    R = physics.ball_radius
+    physics.reset(balls_on_table=[0])
+    omega_0 = np.zeros(3, dtype=np.float64)
+    omega_0[0] = -1.0/R
+    start_event = BallSlidingEvent(0, 0,
+                                   r_0=ball_positions[0],
+                                   v_0=np.zeros(3, dtype=np.float64),
+                                   omega_0=omega_0)
+    events = physics.add_event_sequence(start_event)
+    _logger.info('%d events added:\n\n%s\n', len(events),
+                 PhysicsEvent.events_str(events=events))
+    assert 3 == len(events)
+    assert isinstance(events[0], BallSlidingEvent)
+    assert isinstance(events[1], BallRollingEvent)
+    assert isinstance(events[2], BallRestEvent)
+
+
 def test_ball_collision(pool_physics,
                         plot_motion_timelapse,
                         plot_energy,
