@@ -104,7 +104,7 @@ class BoxMesh(SingleMaterialMesh):
 
 
 class CylinderPrimitive(Primitive):
-    def __init__(self, radius=0.5, height=1.0, num_radial=12):
+    def __init__(self, radius=0.5, height=1.0, num_radial=24):
         self.radius = radius
         self.height = height
         self.num_radial = num_radial

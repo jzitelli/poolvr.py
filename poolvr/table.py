@@ -253,7 +253,7 @@ class PoolTable(object):
         self.railGeoms = railGeoms + railGeoms2
         self.pocketGeoms = []
         for i_p in range(6):
-            pocket_prim = CylinderPrimitive(self.R_s if i_p in (2,5) else self.R_c, 0.01)
+            pocket_prim = CylinderPrimitive(self.R_s if i_p in (2,5) else self.R_c, 0.002)
             pocket_prim.attributes['vertices'][...,1] += H
             pocket_prim.attributes['vertices'][...,::2] += self.pocket_positions[i_p,::2]
             self.pocketGeoms.append(pocket_prim)
