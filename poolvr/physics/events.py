@@ -513,9 +513,10 @@ class CornerCollisionEvent(BallEvent):
         v_1x,  v_1y  =  dot(v_1, i_loc),  -self.kappa * dot(v_1, j_loc)
         self.v_1 = v_1 = v_1x * i_loc \
                        + v_1y * j_loc
-        self.omega_1 = dot(omega_1, j_loc) * j_loc \
-                     + omega_1[1] * _k \
-                     - v_1y / self.ball_radius * i_loc
+        # self.omega_1 = dot(omega_1, j_loc) * j_loc \
+        #              + omega_1[1] * _k \
+        #              - v_1y / self.ball_radius * i_loc
+        self.omega_1 = omega_1[1] * _k
         self._child_events = None
     @property
     def child_events(self):
