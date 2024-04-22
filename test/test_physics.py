@@ -15,7 +15,7 @@ from poolvr.physics.events import (PhysicsEvent,
                                    CornerCollisionEvent,
                                    BallSpinningEvent,
                                    BallCollisionEvent,
-                                   RailCollisionEvent)
+                                   SegmentCollisionEvent)
 
 
 _here = os.path.dirname(__file__)
@@ -170,14 +170,16 @@ def test_break(pool_physics,
                             '  %d BallRollingEvents',
                             '  %d BallSpinningEvents',
                             '  %d BallRestEvents',
-                            '  %d RailCollisionEvents',
+                            '  %d SegmentCollisionEvents',
+                            '  %d CornerCollisionEvents',
                             '  %d BallCollisionEvents']),
                  0, len(events),
                  len([e for e in events if isinstance(e, BallSlidingEvent)]),
                  len([e for e in events if isinstance(e, BallRollingEvent)]),
                  len([e for e in events if isinstance(e, BallSpinningEvent)]),
                  len([e for e in events if isinstance(e, BallRestEvent)]),
-                 len([e for e in events if isinstance(e, RailCollisionEvent)]),
+                 len([e for e in events if isinstance(e, SegmentCollisionEvent)]),
+                 len([e for e in events if isinstance(e, CornerCollisionEvent)]),
                  len([e for e in events if isinstance(e, BallCollisionEvent)]))
     if not request.config.getoption('--no-distance-check'):
         check_ball_distances(physics, filename=request.node.originalname)
@@ -216,14 +218,16 @@ def test_break_hard(pool_physics,
                             '  %d BallRollingEvents',
                             '  %d BallSpinningEvents',
                             '  %d BallRestEvents',
-                            '  %d RailCollisionEvents',
+                            '  %d SegmentCollisionEvents',
+                            '  %d CornerCollisionEvents',
                             '  %d BallCollisionEvents']),
                  0, len(events),
                  len([e for e in events if isinstance(e, BallSlidingEvent)]),
                  len([e for e in events if isinstance(e, BallRollingEvent)]),
                  len([e for e in events if isinstance(e, BallSpinningEvent)]),
                  len([e for e in events if isinstance(e, BallRestEvent)]),
-                 len([e for e in events if isinstance(e, RailCollisionEvent)]),
+                 len([e for e in events if isinstance(e, SegmentCollisionEvent)]),
+                 len([e for e in events if isinstance(e, CornerCollisionEvent)]),
                  len([e for e in events if isinstance(e, BallCollisionEvent)]))
     if not request.config.getoption('--no-distance-check'):
         check_ball_distances(physics, filename=request.node.originalname)
@@ -270,14 +274,14 @@ def test_break_hard_realtime(pool_physics_realtime,
                             '  %d BallRollingEvents',
                             '  %d BallSpinningEvents',
                             '  %d BallRestEvents',
-                            '  %d RailCollisionEvents',
+                            '  %d SegmentCollisionEvents',
                             '  %d BallCollisionEvents']),
                  0, len(events),
                  len([e for e in events if isinstance(e, BallSlidingEvent)]),
                  len([e for e in events if isinstance(e, BallRollingEvent)]),
                  len([e for e in events if isinstance(e, BallSpinningEvent)]),
                  len([e for e in events if isinstance(e, BallRestEvent)]),
-                 len([e for e in events if isinstance(e, RailCollisionEvent)]),
+                 len([e for e in events if isinstance(e, SegmentCollisionEvent)]),
                  len([e for e in events if isinstance(e, BallCollisionEvent)]))
     if not request.config.getoption('--no-distance-check'):
         check_ball_distances(physics, filename=request.node.originalname)
