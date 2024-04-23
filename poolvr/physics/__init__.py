@@ -577,7 +577,7 @@ class PoolPhysics(object):
         for i_seg, (r_0, r_1, nor, tan) in enumerate(self._segments):
             if e_i.parent_event and isinstance(e_i.parent_event, SegmentCollisionEvent) and e_i.parent_event.seg == i_seg:
                 continue
-            tau_n, tau_p = self._find_segment_collision_time(e_i, r_0, r_1, nor, tan)
+            tau_n, tau_p = self._find_segment_collision_time(e_i, r_0, r_1, nor)
             tau_n, tau_p = min(tau_n, tau_p), max(tau_n, tau_p)
             if 0 < tau_n < tau_min:
                 r = e_i.eval_position(tau_n)
@@ -603,9 +603,11 @@ class PoolPhysics(object):
         if cor_min is not None:
             return e_i.t + tau_min, e_i, 18 + cor_min
 
-    def _find_segment_collision_time(self, e_i, r_0, r_1, nor, tan):
+    def _find_segment_collision_time(self, e_i, r_0, r_1, nor):
         a0, a1, a2 = e_i._a
         A = dot(a2, nor)
+        if A == 0:
+            return -1.0, -1.0
         B = dot(a1, nor)
         C = dot((a0 - r_0), nor) - self.ball_radius
         DD = B**2 - 4*A*C

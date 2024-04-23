@@ -556,19 +556,19 @@ def check_ball_distances(pool_physics, t=None, filename=None, nt=4000, t0=None):
         ts = [t]
     _logger.info('checking %s times (from %s to %s)...', len(ts), ts[0], ts[-1])
     for t in ts:
-        positions = physics.eval_positions(t)
         events_at_t = {e.i: e for e in physics.find_active_events(t)}
-        for i, r_i in enumerate(positions):
+        for i in range(physics.num_balls):
             if i not in physics.balls_on_table:
                 continue
             e_i = events_at_t[i]
-            for jj, r_j in enumerate(positions[i+1:]):
-                j = jj + i + 1
+            r_i = e_i.eval_position(t - e_i.t)
+            for j in range(i+1, physics.num_balls):
                 if j not in physics.balls_on_table:
                     continue
                 e_j = events_at_t[j]
                 if isinstance(e_i, BallStationaryEvent) and isinstance(e_j, BallStationaryEvent):
                     continue
+                r_j = e_j.eval_position(t - e_j.t)
                 r_ij = r_j - r_i
                 dd = dot(r_ij, r_ij)
                 if dd < (2*physics.ball_radius)**2:
