@@ -128,12 +128,6 @@ class BallStationaryEvent(BallEvent):
         else:
             out[:] = 0
         return out
-    def eval_slip_velocity(self, tau, out=None):
-        if out is None:
-            out = zeros(3, dtype=float64)
-        else:
-            out[:] = 0
-        return out
     def __str__(self):
         return super().__str__()[:-1] + '\n r=%s>' % self._r
 
@@ -279,19 +273,8 @@ class BallMotionEvent(BallEvent):
         if out is None:
             out = empty(3, dtype=float64)
         out[:] = self._b[0] + tau * self._b[1]
-        if self._b[0,1] >= 0:
-            out[1] = max(0, out[1])
-        else:
-            out[1] = min(0, out[1])
-        return out
-    def eval_surface_velocity(self, tau, rd, v=None, omega=None, out=None):
-        if v is None:
-            v = self.eval_velocity(tau)
-        if omega is None:
-            omega = self.eval_angular_velocity(tau)
-        if out is None:
-            out = empty(3, dtype=float64)
-        out[:] = v - self.ball_radius / sqrt(dot(rd, rd)) * cross(rd, omega)
+        if sign(out[1]) != sign(self._b[0,1]):
+            out[1] = 0
         return out
     def eval_position_and_velocity(self, tau, out=None):
         if out is None:
@@ -314,8 +297,7 @@ class BallRollingEvent(BallMotionEvent):
         super().__init__(t, i, T=T, r_0=r_0, v_0=v_0, omega_0=omega_0, **kwargs)
         self._a[2] = -0.5 * self.mu_r * self.g * v_0 / v_0_mag
         self._b[1,::2] = -omega_0[::2] / T
-        self._b[1,1] = -sign(omega_0_y) * 5 / 7 * self.mu_r * self.g / R
-        #self._b[1,1] = -sign(omega_0_y) * 5 / 2 * self.mu_sp * self.g / R
+        self._b[1,1] = -sign(omega_0_y) * 5 * self.mu_sp * self.g / (2 * R)
         self._next_motion_event = None
     @property
     def next_motion_event(self):
@@ -328,12 +310,6 @@ class BallRollingEvent(BallMotionEvent):
                 self._next_motion_event = BallSpinningEvent(t + T, i, r_0=self.eval_position(T),
                                                             omega_0_y=omega_1[1])
         return self._next_motion_event
-    def eval_slip_velocity(self, tau, out=None, **kwargs):
-        if out is None:
-            out = zeros(3, dtype=float64)
-        else:
-            out[:] = 0
-        return out
 
 
 class BallSlidingEvent(BallMotionEvent):

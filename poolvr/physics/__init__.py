@@ -410,15 +410,7 @@ class PoolPhysics(object):
             events = events[:bisect(events, t)]
             if events:
                 e = events[-1]
-                taus[ii,1] = t - e.t
-                if isinstance(e, BallMotionEvent):
-                    b[ii] = e._b
-                elif isinstance(e, BallSpinningEvent):
-                    b[ii,:,::2] = 0
-                    b[ii,:,1] = (e._omega_0_y, e._b)
-                elif isinstance(e, BallStationaryEvent):
-                    b[ii] = 0
-        np.einsum('ijk,ij->ik', b[:num_balls], taus[:num_balls,:2], out=out[:num_balls])
+                e.eval_angular_velocity(t - e.t, out=out[ii])
         return out
 
     def eval_energy(self, t, balls=None, out=None):
