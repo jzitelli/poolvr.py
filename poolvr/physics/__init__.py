@@ -436,7 +436,7 @@ class PoolPhysics(object):
             balls = range(self.num_balls)
         for i in balls:
             events = self.ball_events.get(i, [])
-            for e in events[:bisect(events, t)][::-1]:
+            for e in reversed(events[:bisect(events, t)]):
                 if t <= e.t + e.T:
                     active_events.append(e)
                     break

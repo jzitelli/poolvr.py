@@ -15,7 +15,7 @@ from poolvr.table import PoolTable
 from poolvr.physics.events import (CueStrikeEvent,
                                    BallEvent,
                                    BallSlidingEvent, BallRollingEvent, BallSpinningEvent,
-                                   BallMotionEvent, BallRestEvent,
+                                   BallMotionEvent, BallRestEvent, BallStationaryEvent,
                                    SegmentCollisionEvent, CornerCollisionEvent, BallCollisionEvent,
                                    SimpleBallCollisionEvent, SimulatedBallCollisionEvent, FSimulatedBallCollisionEvent,
                                    BallsInContactEvent)
@@ -557,27 +557,27 @@ def check_ball_distances(pool_physics, t=None, filename=None, nt=4000, t0=None):
     _logger.info('checking %s times (from %s to %s)...', len(ts), ts[0], ts[-1])
     for t in ts:
         positions = physics.eval_positions(t)
+        events_at_t = {e.i: e for e in physics.find_active_events(t)}
         for i, r_i in enumerate(positions):
             if i not in physics.balls_on_table:
                 continue
-            for j, r_j in enumerate(positions[i+1:]):
+            e_i = events_at_t[i]
+            for jj, r_j in enumerate(positions[i+1:]):
+                j = jj + i + 1
                 if j not in physics.balls_on_table:
                     continue
+                e_j = events_at_t[j]
+                if isinstance(e_i, BallStationaryEvent) and isinstance(e_j, BallStationaryEvent):
+                    continue
                 r_ij = r_j - r_i
-                d = sqrt(dot(r_ij, r_ij))
-                if d < 2*physics.ball_radius:
-                    e_i, e_j = (e for e in physics.find_active_events(t)
-                                if e.i == i or e.i == i + j + 1)
-                    if isinstance(e_i, BallMotionEvent):
-                        if isinstance(e_j, BallMotionEvent) and e_j.i < e_i.i:
-                            e_i, e_j = e_j, e_i
-                    else:
-                        e_i, e_j = e_j, e_i
+                dd = dot(r_ij, r_ij)
+                if dd < (2*physics.ball_radius)**2:
                     physics.e_i = e_i
                     physics.e_j = e_j
                     physics.i = e_i.i
                     physics.j = e_j.i
                     physics.t_penetrated = t
+                    d = sqrt(dd)
                     _logger.error('balls %d, %d penetrated at t=%s, distance / diameter = %s', physics.i, physics.j, t, d / (2*physics.ball_radius))
                     plot_distance(physics, physics.i, physics.j, t0=max(physics.events[0].t, t-0.005), t1=t+0.004)
                     class BallsPenetratedInsanity(Exception):
