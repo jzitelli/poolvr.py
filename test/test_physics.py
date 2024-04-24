@@ -371,7 +371,6 @@ inner_corners = [1, 2, 5, 6, 9, 10, 13, 14, 17, 18, 21, 22]
 @pytest.mark.parametrize("i_c", inner_corners)
 def test_corner_collision(pool_physics,
                           gl_rendering,
-                          plot_motion_timelapse,
                           plot_energy,
                           i_c):
     physics = pool_physics
@@ -387,7 +386,8 @@ def test_corner_collision(pool_physics,
     r_c = physics._corners[i_c]
     R = physics.ball_radius
     ball_positions[0] = r_c + 4*R*n
-    physics.reset(ball_positions=ball_positions)
+    physics.reset(balls_on_table=[0],
+                  ball_positions=ball_positions)
     v_0 = -n * 1
     start_event = BallSlidingEvent(0, 0,
                                    r_0=ball_positions[0],
@@ -403,20 +403,18 @@ def test_corner_collision(pool_physics,
     assert 0.9999 < abs(np.dot(v_1, n)) / np.linalg.norm(v_1)
 
 
-@pytest.mark.parametrize("segment", list(range(18)))
-def test_segment_collision(pool_physics, gl_rendering, request, segment):
+@pytest.mark.parametrize("i_seg", list(range(18)))
+def test_segment_collision(pool_physics, gl_rendering, request, i_seg):
     physics = pool_physics
+    R = physics.ball_radius
     ball_positions = physics.eval_positions(0.0)
-    ball_positions[0,::2] = 0
     physics.reset(balls_on_table=[0],
                   ball_positions=ball_positions)
-    segments = physics._segments
-    seg = segment
-    r_c = 0.5 * (segments[seg][0] + segments[seg][1])
-    v_0 = r_c - ball_positions[0]
-    v_0[1] = 0
-    v_0 /= np.linalg.norm(v_0)
-    v_0 *= 3
+    segment = physics._segments[i_seg]
+    r_a, r_b, nor, tan = segment
+    ball_positions[0] = 0.5*(r_a + r_b) + 1.5*R*nor
+    physics.reset(ball_positions=ball_positions, balls_on_table=[0])
+    v_0 = -0.4 * nor
     start_event = BallSlidingEvent(0, 0,
                                    r_0=ball_positions[0],
                                    v_0=v_0,
@@ -424,6 +422,11 @@ def test_segment_collision(pool_physics, gl_rendering, request, segment):
     events = physics.add_event_sequence(start_event)
     _logger.debug('%d events added:\n\n%s\n', len(events),
                   PhysicsEvent.events_str(events=events))
+    assert any(isinstance(e, SegmentCollisionEvent) for e in events)
+    sce = next(e for e in events if isinstance(e, SegmentCollisionEvent))
+    v_1 = sce.child_events[0].eval_velocity(0.0)
+    # expect to rebound heading in the exact opposite direction:
+    assert 0.9999 < abs(np.dot(v_1, nor)) / np.linalg.norm(v_1)
 
 
 def test_degenerate_collision(pool_physics, gl_rendering, request):
@@ -443,21 +446,3 @@ def test_degenerate_collision(pool_physics, gl_rendering, request):
     physics.add_event_sequence(e_j)
     if not request.config.getoption('--no-distance-check'):
         check_ball_distances(physics, filename=request.node.originalname, t0=t_j, nt=64*4000)
-
-
-# def test_pocket_scratch(pool_physics,
-#                         gl_rendering,
-#                         plot_motion_timelapse,
-#                         plot_energy):
-#     physics = pool_physics
-#     ball_positions = physics.eval_positions(0.0)
-#     physics.reset(balls_on_table=[0],
-#                   ball_positions=ball_positions)
-#     r_p = np.array(physics.table.pocket_positions[0])
-#     r_0p = r_p - ball_positions[0]
-#     v_0 = 1.9 * r_0p / np.sqrt(np.dot(r_0p, r_0p))
-#     start_event = BallSlidingEvent(0, 0, r_0=ball_positions[0],
-#                                    v_0=v_0,
-#                                    omega_0=np.zeros(3, dtype=np.float64))
-#     events = physics.add_event_sequence(start_event)
-#     _logger.debug('%d events added:\n\n%s\n', len(events), PhysicsEvent.events_str(events=events))

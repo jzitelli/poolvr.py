@@ -199,25 +199,28 @@ def plot_motion_timelapse(physics, table=None,
     ylim = -0.5*table.L, 0.5*table.L
     if positions_ts.size:
         positions_ts[:,bot,2] *= -1
-        xlim = min(xlim[0], *positions_ts[:,bot,0].ravel()), max(xlim[1], *positions_ts[:,bot,0].ravel())
-        ylim = min(ylim[0], *positions_ts[:,bot,2].ravel()), max(ylim[1], *positions_ts[:,bot,2].ravel())
-    plt.gca().set_xlim(*xlim)
-    plt.gca().set_ylim(*ylim)
-    plt.gca().set_aspect('equal')
-    plt.gca().add_patch(plt.Rectangle((xlim[0], ylim[0]),
-                                      xlim[1]-xlim[0], ylim[1]-ylim[0],
-                                      color='#141414'))
-    plt.gca().add_patch(plt.Rectangle((-0.5*table.W, -0.5*table.L),
-                                      table.W, table.L,
-                                      color='#013216'))
+        # xlim = min(xlim[0], *positions_ts[:,bot,0].ravel()), max(xlim[1], *positions_ts[:,bot,0].ravel())
+        # ylim = min(ylim[0], *positions_ts[:,bot,2].ravel()), max(ylim[1], *positions_ts[:,bot,2].ravel())
+    ax = plt.gca()
+    ax.set_xlim(*xlim)
+    ax.set_ylim(*ylim)
+    ax.set_aspect('equal')
+    ax.add_patch(plt.Rectangle((xlim[0], ylim[0]),
+                               xlim[1]-xlim[0], ylim[1]-ylim[0],
+                               color='#141414'))
+    ax.add_patch(plt.Rectangle((-0.5*table.W, -0.5*table.L),
+                               table.W, table.L,
+                               color='#013216'))
     for i_t, t in enumerate(ts):
         positions = positions_ts[i_t]
         for i in physics.balls_on_table:
-            plt.gca().add_patch(plt.Circle(positions[i,::2], physics.ball_radius,
-                                           color=ball_colors[i],
-                                           alpha=13/nt,
-                                           linewidth=0.001,
-                                           antialiased=True))
+            if abs(positions[i,0]) > 0.5*table.W or abs(positions[i,2]) > 0.5*table.L:
+                continue
+            ax.add_patch(plt.Circle(positions[i,::2], physics.ball_radius,
+                                    color=ball_colors[i],
+                                    alpha=13/nt,
+                                    linewidth=0.001,
+                                    antialiased=True))
     for i in physics.balls_on_table:
         start_event, end_event = physics.ball_events[i][0], physics.ball_events[i][-1]
         if nt == 0:
@@ -226,52 +229,54 @@ def plot_motion_timelapse(physics, table=None,
             else:
                 r = end_event.eval_position(t_1)
             r[2] *= -1
-            plt.gca().add_patch(plt.Circle(r[::2], physics.ball_radius,
-                                           color=ball_colors[i],
-                                           fill=True,
-                                           linewidth=0.001,
-                                           antialiased=True))
-            plt.gca().add_patch(plt.Circle(r[::2], physics.ball_radius,
-                                           color='black',
-                                           fill=False,
-                                           linestyle='solid',
-                                           linewidth=0.18,
-                                           antialiased=True))
+            ax.add_patch(plt.Circle(r[::2], physics.ball_radius,
+                                    color=ball_colors[i],
+                                    fill=True,
+                                    linewidth=0.001,
+                                    antialiased=True))
+            ax.add_patch(plt.Circle(r[::2], physics.ball_radius,
+                                    color='black',
+                                    fill=False,
+                                    linestyle='solid',
+                                    linewidth=0.18,
+                                    antialiased=True))
         else:
             r_0, r_1 = start_event.eval_position(t_0), end_event.eval_position(t_1)
             r_0[2] *= -1; r_1[2] *= -1
-            plt.gca().add_patch(plt.Circle(r_0[::2], physics.ball_radius,
-                                           color=ball_colors[i],
-                                           fill=True,
-                                           linewidth=0.001,
-                                           antialiased=True))
-            plt.gca().add_patch(plt.Circle(r_1[::2], physics.ball_radius,
-                                           color=ball_colors[i],
-                                           fill=True,
-                                           linewidth=0.001,
-                                           antialiased=True))
-            plt.gca().add_patch(plt.Circle(r_0[::2], physics.ball_radius,
-                                           color='black',
-                                           fill=False,
-                                           linestyle='dashed',
-                                           linewidth=0.18,
-                                           antialiased=True))
+            ax.add_patch(plt.Circle(r_0[::2], physics.ball_radius,
+                                    color=ball_colors[i],
+                                    fill=True,
+                                    linewidth=0.001,
+                                    antialiased=True))
+            ax.add_patch(plt.Circle(r_0[::2], physics.ball_radius,
+                                    color='black',
+                                    fill=False,
+                                    linestyle='dashed',
+                                    linewidth=0.18,
+                                    antialiased=True))
+            ax.add_patch(plt.Circle(r_1[::2], physics.ball_radius,
+                                    color=ball_colors[i],
+                                    fill=True,
+                                    linewidth=0.001,
+                                    antialiased=True))
     for i in physics.balls_on_table:
         last_event = physics.ball_events[i][-1]
         r_1 = last_event.eval_position(t_1)
         r_1[2] *= -1
-        plt.gca().add_patch(plt.Circle(r_1[::2], physics.ball_radius,
-                                       color='black',
-                                       fill=False,
-                                       linestyle='solid',
-                                       linewidth=0.18,
-                                       antialiased=True))
+        if abs(r_1[0]) > 0.5*table.W or abs(r_1[2]) > 0.5*table.L:
+            continue
+        ax.add_patch(plt.Circle(r_1[::2], physics.ball_radius,
+                                color='black',
+                                fill=False,
+                                linestyle='solid',
+                                linewidth=0.18,
+                                antialiased=True))
     if filename:
         dirname = os.path.dirname(filename)
         if not os.path.exists(dirname):
             os.makedirs(dirname, exist_ok=True)
         try:
-            plt.savefig(filename, dpi=1200)
+            plt.savefig(filename, dpi=600)
             _logger.info('...saved figure to %s', filename)
         except Exception as err:
             _logger.warning('error saving figure:\n%s', err)
@@ -297,11 +302,12 @@ def plot_energy(physics, title=None, nt=1000,
     plt.xlabel('$t$ (seconds)')
     plt.ylabel('energy (Joules)')
     labeled = set()
-    for e in events:
+    for e in reversed(events):
         typee = e.__class__.__name__
         if type(e) in EVENT_COLORS:
             plt.axvline(e.t, color=EVENT_COLORS[type(e)],
-                        label=typee if typee not in labeled else None)
+                        label=typee if typee not in labeled else None,
+                        ls='--' if isinstance(e, BallCollisionEvent) else '-')
             labeled.add(typee)
     ts = np.linspace(t_0, t_1, nt)
     ts = np.concatenate([[a.t] + list(ts[(ts >= a.t) & (ts < b.t)]) + [b.t]
