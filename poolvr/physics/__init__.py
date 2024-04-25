@@ -33,7 +33,7 @@ from .events import (CueStrikeEvent,
                      FSimulatedBallCollisionEvent,
                      CornerCollisionEvent,
                      SegmentCollisionEvent)
-from .poly_solvers import f_find_collision_time as find_collision_time, f_quartic_solve
+from .poly_solvers import find_collision_time, quartic_solve
 from . import collisions
 
 
@@ -629,7 +629,7 @@ class PoolPhysics(object):
              + a0a0 - R_sqrd
         p[1] = 2*(a0a1 - dot(a1, r_c))
         p[2] = 2*(a0a2 - dot(a2, r_c)) + a1a1
-        tau_cp = min((t.real for t in self._filter_roots(f_quartic_solve(p, only_real=True)
+        tau_cp = min((t.real for t in self._filter_roots(quartic_solve(p, only_real=True)
                                                          if self._use_quartic_solver else
                                                          np.roots(p[::-1]))
                       if 0.0 < t.real < tau_min
