@@ -33,7 +33,7 @@ from .events import (CueStrikeEvent,
                      FSimulatedBallCollisionEvent,
                      CornerCollisionEvent,
                      SegmentCollisionEvent)
-from .poly_solvers import find_collision_time, quartic_solve
+from .poly_solvers import find_collision_time, quartic_solve, find_corner_collision_time
 from . import collisions
 
 
@@ -585,7 +585,7 @@ class PoolPhysics(object):
         for i_c, r_c in enumerate(self._corners):
             if e_i.parent_event and isinstance(e_i.parent_event, CornerCollisionEvent) and e_i.parent_event.i_c == i_c:
                 continue
-            tau = self._find_corner_collision_time(r_c, e_i, tau_min)
+            tau = self._find_corner_collision_time(r_c, e_i._a, tau_min)
             if 0 < tau < tau_min:
                 seg_min = None
                 cor_min = i_c
@@ -610,34 +610,34 @@ class PoolPhysics(object):
         tau_n = 0.5 * (-B - D) / A
         return tau_n, tau_p
 
-    def _find_corner_collision_time(self, r_c, e_i, tau_min):
-        tau_min = min(tau_min, e_i.T)
-        if tau_min <= 0:
-            return None, None
-        a0, a1, a2 = e_i._a
-        a0a0 = dot(a0, a0)
-        a1a1 = dot(a1, a1)
-        a0a1 = dot(a0, a1)
-        a0a2 = dot(a0, a2)
-        R_sqrd = self.ball_radius**2
-        p = self._p
-        p[4] = dot(a2, a2)
-        p[3] = 2*dot(a1, a2)
-        r_c_mag_sqrd = dot(r_c,r_c)
-        p[0] = r_c_mag_sqrd \
-             - 2*dot(a0, r_c) \
-             + a0a0 - R_sqrd
-        p[1] = 2*(a0a1 - dot(a1, r_c))
-        p[2] = 2*(a0a2 - dot(a2, r_c)) + a1a1
-        tau_cp = min((t.real for t in self._filter_roots(quartic_solve(p, only_real=True)
-                                                         if self._use_quartic_solver else
-                                                         np.roots(p[::-1]))
-                      if 0.0 < t.real < tau_min
-                      and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
-                     default=None)
-        if tau_cp is not None:
-            return tau_cp
-        return -1.0
+    def _find_corner_collision_time(self, r_c, a, tau_min):
+        tau = find_corner_collision_time(r_c, a, self.ball_radius, tau_min)
+        if tau is None:
+            return -1.0
+        return tau
+        # a0, a1, a2 = a
+        # a0a0 = dot(a0, a0)
+        # a1a1 = dot(a1, a1)
+        # a0a1 = dot(a0, a1)
+        # a0a2 = dot(a0, a2)
+        # R_sqrd = self.ball_radius**2
+        # p = self._p
+        # p[4] = dot(a2, a2)
+        # p[3] = 2*dot(a1, a2)
+        # p[0] = dot(r_c,r_c) \
+        #      - 2*dot(a0, r_c) \
+        #      + a0a0 - R_sqrd
+        # p[1] = 2*(a0a1 - dot(a1, r_c))
+        # p[2] = 2*(a0a2 - dot(a2, r_c)) + a1a1
+        # tau_cp = min((t.real for t in self._filter_roots(quartic_solve(p, only_real=True)
+        #                                                  if self._use_quartic_solver else
+        #                                                  np.roots(p[::-1]))
+        #               if 0.0 < t.real < tau_min
+        #               and t.imag**2 / (t.real**2 + t.imag**2) < self._IMAG_TOLERANCE_SQRD),
+        #              default=None)
+        # if tau_cp is not None:
+        #     return tau_cp
+        # return -1.0
 
     def _filter_roots(self, roots):
         "filter out any complex-conjugate pairs of roots"

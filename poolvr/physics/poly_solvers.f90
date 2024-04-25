@@ -147,4 +147,18 @@ CONTAINS
     find_collision_time = t
   end function find_collision_time
 
+  real(c_double) function find_corner_collision_time(r_c, a, R, tau_min) BIND(C)
+    implicit none
+    real(c_double), dimension(3), intent(in) :: r_c
+    real(c_double), dimension(3,3), intent(in) :: a
+    real(c_double), value, intent(in) :: R, tau_min
+    real(c_double), dimension(0:4) :: P
+    real(c_double) :: tau
+    p(4) = dot_product(a(:,3), a(:,3))
+    p(3) = 2 * dot_product(a(:,2), a(:,3))
+    p(2) = 2 * (dot_product(a(:,1), a(:,3)) - dot_product(a(:,3), r_c)) + dot_product(a(:,2), a(:,2))
+    p(1) = 2 * (dot_product(a(:,1), a(:,2)) - dot_product(a(:,2), r_c))
+    p(0) = dot_product(r_c, r_c) - 2 * dot_product(a(:,1), r_c) + dot_product(a(:,1), a(:,1)) - R**2
+    find_corner_collision_time = find_min_quartic_root_in_real_interval(P, 0.d0, tau_min)
+  end function find_corner_collision_time
 END MODULE poly_solvers

@@ -32,13 +32,21 @@ except:
                                              'poly_solvers.dll'))
 _lib.quartic_solve.argtypes = (c_double_p,
                                c_double_complex_p)
+
 _lib.find_min_quartic_root_in_real_interval.argtypes = (c_double_p,
                                                         c_double, c_double)
 _lib.find_min_quartic_root_in_real_interval.restype = c_double
+
 _lib.find_collision_time.argtypes = (c_double_p,
                                      c_double_p,
                                      c_double, c_double, c_double)
 _lib.find_collision_time.restype = c_double
+
+_lib.find_corner_collision_time.argtypes = (c_double_p,
+                                            c_double_p,
+                                            c_double, c_double)
+_lib.find_corner_collision_time.restype = c_double
+
 _lib.sort_complex_conjugate_pairs.argtypes = [c_double_complex_p]
 _lib.sort_complex_conjugate_pairs.restype = c_int
 
@@ -49,6 +57,14 @@ def find_collision_time(a_i, a_j, R, t0, t1):
                                  R, t0, t1)
     if t < t1:
         return t
+
+
+def find_corner_collision_time(r_c, a, R, tau_min):
+    tau = _lib.find_corner_collision_time(cast(r_c.ctypes.data, c_double_p),
+                                          cast(a.ctypes.data, c_double_p),
+                                          R, tau_min)
+    if tau < tau_min:
+        return tau
 
 
 def find_min_quartic_root_in_real_interval(p, t0, t1):
