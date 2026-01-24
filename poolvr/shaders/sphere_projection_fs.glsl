@@ -31,6 +31,7 @@ uniform float ball_radius = 1.125*0.0254;
 uniform mat4 cue_world_matrix = mat4(1.0);
 uniform float cue_radius;
 uniform float cue_length;
+uniform int cue_visible = 1;  // 1 = visible, 0 = hidden
 const vec3 ball_colors[16] = vec3[16](
   vec3(0.8666667,0.8666667,0.87058824),
   vec3(0.93333334,0.93333334,0.0),
@@ -167,24 +168,30 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
       sph.xyz = ball_positions[j];
       occ *= oSphere( pos, nor, sph );
     }
-    float h2 = iCylinder( pos, nor, cue_world_matrix, cue_length, cue_radius );
-    if (h2 > 0.0) {
-      occ *= 0.5;
-      sur = 0.4 * table_color;
+    if (cue_visible != 0) {
+      float h2 = iCylinder( pos, nor, cue_world_matrix, cue_length, cue_radius );
+      if (h2 > 0.0) {
+        occ *= 0.5;
+        sur = 0.4 * table_color;
+      } else {
+        sur = table_color;
+      }
     } else {
       sur = table_color;
     }
   }
 
-  h = iCylinder( ro, rd, cue_world_matrix, cue_length, cue_radius );
-  if ( h > 0.0 && h < tmin ) {
-    pos = ro + h*rd;
-    tmin = h;
-    imin = -1;
-    nor = pos - cue_world_matrix[3].xyz;
-    nor -= dot(nor,cue_world_matrix[1].xyz) * cue_world_matrix[1].xyz;
-    nor = normalize(nor);
-    sur = vec3(0.7, 0.3, 0.05);
+  if (cue_visible != 0) {
+    h = iCylinder( ro, rd, cue_world_matrix, cue_length, cue_radius );
+    if ( h > 0.0 && h < tmin ) {
+      pos = ro + h*rd;
+      tmin = h;
+      imin = -1;
+      nor = pos - cue_world_matrix[3].xyz;
+      nor -= dot(nor,cue_world_matrix[1].xyz) * cue_world_matrix[1].xyz;
+      nor = normalize(nor);
+      sur = vec3(0.7, 0.3, 0.05);
+    }
   }
 
   if (tmin == 10000.0) {

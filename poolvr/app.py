@@ -2,11 +2,18 @@ import os.path
 import sys
 import logging
 from itertools import chain
+from enum import Enum, auto
 import numpy as np
 import glfw
 
 
 _logger = logging.getLogger('poolvr')
+
+
+class GameState(Enum):
+    AIMING = auto()    # Mouse orbits cue around ball
+    SHOOTING = auto()  # Spacebar held, mouse pulls cue back/forward
+    WAITING = auto()   # Balls moving, cue hidden
 
 
 from .glfw_app import setup_glfw
@@ -144,6 +151,8 @@ def main(window_size=(800,600),
         fragbox.material.values['cue_world_matrix'] = cue.world_matrix
         fragbox.material.values['cue_length'] = cue.length
         fragbox.material.values['cue_radius'] = cue.radius
+        cue_visible_uniform = np.array([1], dtype=np.int32)  # 1=visible, 0=hidden
+        fragbox.material.values['cue_visible'] = cue_visible_uniform
         meshes = [fragbox, table_mesh]
 
     else:
@@ -165,32 +174,150 @@ def main(window_size=(800,600),
         if i not in balls_on_table:
             mesh.visible = False
             ball_shadow_meshes[i].visible = False
+
+    # Helper function to set cue visibility across all render modes
+    def set_cue_visible(visible):
+        cue.visible = visible
+        cue.shadow_mesh.visible = visible
+        if render_method == 'raycast':
+            cue_visible_uniform[0] = 1 if visible else 0
+
     camera_world_matrix = fallback_renderer.camera_matrix
     camera_position = camera_world_matrix[3,:3]
     camera_position[1] = game.table.H + 0.6
     camera_position[2] = game.table.L - 0.1
     last_contact_t = float('-inf')
+
+    # Game state for mouse/keyboard control (non-VR mode)
+    game_state = GameState.AIMING
+    aim_theta = 0.0          # Orbit angle around ball (radians)
+    cue_pullback = 0.0       # Pullback distance (meters)
+    cursor_pos = [0.0, 0.0]  # Last cursor position
+
+    # Constants for mouse/keyboard control
+    MOUSE_AIM_SENSITIVITY = 0.005
+    MOUSE_PULLBACK_SENSITIVITY = 0.003
+    MAX_PULLBACK = 0.3
+    CUE_OFFSET = 0.05        # Gap from cue tip to ball
+    CAMERA_DISTANCE = 0.8    # Camera behind ball
+    CAMERA_HEIGHT = 0.25     # Camera above table
+    STRIKE_SPEED_MULT = 5.0
+
+    def update_cue_position():
+        """Position cue to aim at cue ball based on orbit angle."""
+        nonlocal aim_theta, cue_pullback
+        ball_pos = game.ball_positions[0]
+
+        # Aim direction (pointing toward ball)
+        aim_dir = np.array([-np.sin(aim_theta), 0, -np.cos(aim_theta)])
+
+        # Cue tip position (offset from ball)
+        tip_dist = physics.ball_radius + CUE_OFFSET + cue_pullback
+        cue_tip = ball_pos - aim_dir * tip_dist
+
+        # Cue center (half-length back from tip)
+        cue_center = cue_tip - aim_dir * (cue.length / 2)
+        cue_center[1] = table.H + 0.001  # Keep at table height
+
+        # Update position
+        cue.position[:] = cue_center
+
+        # Update rotation to align cue Y-axis with aim direction
+        # Build orthonormal basis with aim_dir as Y
+        y_axis = aim_dir
+        x_axis = np.array([np.cos(aim_theta), 0, -np.sin(aim_theta)])
+        z_axis = np.array([0, -1, 0])
+
+        cue.world_matrix[:3, 0] = x_axis
+        cue.world_matrix[:3, 1] = y_axis
+        cue.world_matrix[:3, 2] = z_axis
+
+    def update_camera_behind_cue():
+        """Position camera behind the cue, looking at cue ball."""
+        nonlocal aim_theta
+        ball_pos = game.ball_positions[0]
+        aim_dir = np.array([-np.sin(aim_theta), 0, -np.cos(aim_theta)])
+
+        # Camera position: behind the cue
+        cam_pos = ball_pos - aim_dir * CAMERA_DISTANCE
+        cam_pos[1] = table.H + CAMERA_HEIGHT
+
+        # Look direction toward ball
+        forward = ball_pos - cam_pos
+        forward_norm = np.linalg.norm(forward)
+        if forward_norm > 0:
+            forward /= forward_norm
+
+        # Build camera basis (right, up, -forward for OpenGL)
+        right = np.cross(forward, np.array([0, 1, 0]))
+        right_norm = np.linalg.norm(right)
+        if right_norm > 0:
+            right /= right_norm
+        up = np.cross(right, forward)
+
+        camera_world_matrix[:3, 0] = right
+        camera_world_matrix[:3, 1] = up
+        camera_world_matrix[:3, 2] = -forward
+        camera_world_matrix[3, :3] = cam_pos
+
+    def execute_strike():
+        """Execute a cue strike based on current pullback."""
+        nonlocal aim_theta, cue_pullback
+        ball_pos = game.ball_positions[0].copy()
+        aim_dir = np.array([-np.sin(aim_theta), 0, -np.cos(aim_theta)])
+
+        # Contact point on ball surface
+        r_c = ball_pos - aim_dir * physics.ball_radius
+
+        # Strike velocity proportional to pullback
+        strike_speed = cue_pullback * STRIKE_SPEED_MULT
+        v_c = aim_dir * strike_speed
+
+        physics.strike_ball(game.t, 0, ball_pos, r_c, v_c, cue.mass)
+
     def reset():
         nonlocal last_contact_t
         nonlocal balls_on_table
+        nonlocal game_state, cue_pullback, aim_theta
         game.reset(balls_on_table=balls_on_table)
         last_contact_t = float('-inf')
-        cue.position[0] = 0
-        cue.position[1] = game.table.H + 0.001
-        cue.position[2] = game.table.L * 0.3
+        if novr:
+            # Reset game state for non-VR mouse controls
+            game_state = GameState.AIMING
+            cue_pullback = 0.0
+            aim_theta = 0.0
+            set_cue_visible(True)
+            update_cue_position()
+            update_camera_behind_cue()
+        else:
+            cue.position[0] = 0
+            cue.position[1] = game.table.H + 0.001
+            cue.position[2] = game.table.L * 0.3
+
     process_mouse_input = init_mouse(window)
     init_keyboard(window)
+
     def on_keydown(window, key, scancode, action, mods):
+        nonlocal game_state, cue_pullback
         if key == glfw.KEY_R and action == glfw.PRESS:
             reset()
+        elif key == glfw.KEY_SPACE and novr:
+            # Non-VR mouse/keyboard controls
+            if action == glfw.PRESS and game_state == GameState.AIMING:
+                game_state = GameState.SHOOTING
+                cue_pullback = 0.0
+            elif action == glfw.RELEASE and game_state == GameState.SHOOTING:
+                if cue_pullback > 0.01:  # Minimum pullback to strike
+                    execute_strike()
+                game_state = GameState.WAITING
+                set_cue_visible(False)
         elif key == glfw.KEY_SPACE and action == glfw.PRESS:
+            # VR mode - original behavior
             r = game.ball_positions[1] - game.ball_positions[0]
             r_mag = np.linalg.norm(r)
             r_c = game.ball_positions[0] - r / r_mag * game.ball_radius
             v_c = 1.1 * r / r_mag + 0.03 * np.random.rand(3)
             physics.strike_ball(game.t, 0, game.ball_positions[0], r_c, v_c, cue.mass)
-            #last_contact_t = game.t
-            #contact_last_frame = True
 
     set_on_keydown_callback(window, on_keydown)
     theta = 0.0
@@ -207,10 +334,48 @@ def main(window_size=(800,600),
             dist*(key_state[KEY_S]-key_state[KEY_W]) * camera_world_matrix[2,:3] \
           + dist*(key_state[KEY_D]-key_state[KEY_A]) * camera_world_matrix[0,:3] \
           + dist*(key_state[KEY_Q]-key_state[KEY_Z]) * camera_world_matrix[1,:3]
+
     def process_input(dt):
+        nonlocal game_state, aim_theta, cue_pullback, cursor_pos
         glfw.poll_events()
-        process_keyboard_input(dt, camera_world_matrix)
-        process_mouse_input(dt, cue)
+
+        if novr:
+            # Non-VR mouse/keyboard controls
+            pos = glfw.get_cursor_pos(window)
+            dx, dy = pos[0] - cursor_pos[0], pos[1] - cursor_pos[1]
+            cursor_pos = list(pos)
+
+            if game_state == GameState.AIMING:
+                # Mouse X orbits cue around ball
+                aim_theta += dx * MOUSE_AIM_SENSITIVITY
+                update_cue_position()
+                update_camera_behind_cue()
+
+            elif game_state == GameState.SHOOTING:
+                # Mouse Y pulls cue back
+                cue_pullback += dy * MOUSE_PULLBACK_SENSITIVITY
+                cue_pullback = np.clip(cue_pullback, 0, MAX_PULLBACK)
+                update_cue_position()
+
+            elif game_state == GameState.WAITING:
+                # Check if balls have come to rest
+                rest_time = physics.balls_at_rest_time
+                if rest_time is not None:
+                    game_state = GameState.AIMING
+                    set_cue_visible(True)
+                    cue_pullback = 0.0
+                    update_cue_position()
+                    update_camera_behind_cue()
+        else:
+            # VR mode - original behavior
+            process_keyboard_input(dt, camera_world_matrix)
+            process_mouse_input(dt, cue)
+
+    # Initial cue/camera positioning for non-VR mode
+    if novr:
+        cursor_pos = list(glfw.get_cursor_pos(window))
+        update_cue_position()
+        update_camera_behind_cue()
     if isinstance(renderer, OpenVRRenderer):
         from .vr_input import calc_cue_transformation, calc_cue_contact_velocity, axis_callbacks, button_press_callbacks
         button_press_callbacks[openvr.k_EButton_ApplicationMenu] = reset
