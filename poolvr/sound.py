@@ -9,7 +9,7 @@ _logger = logging.getLogger(__name__)
 
 try:
     import sounddevice as sd
-except ImportError as err:
+except (ImportError, OSError) as err:
     sd = None
     _logger.error('could not import sounddevice:\n%s', err)
 try:

@@ -1,5 +1,4 @@
 #version 120
-precision highp float;
 
 uniform vec4 u_light_position = vec4(0.1, 1.0, 0.9, 1.0);
 uniform vec3 u_light_intensity = vec3(1, 1, 1);

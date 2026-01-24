@@ -1,5 +1,4 @@
-precision highp float;
-
+#version 120
 uniform vec4 u_color;
 
 varying vec3 v_position;

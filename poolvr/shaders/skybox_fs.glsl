@@ -1,4 +1,4 @@
-precision highp float;
+#version 120
 uniform samplerCube u_map;
 varying vec3 v_texcoord;
 void main(void) {

@@ -1,4 +1,4 @@
-precision highp float;
+#version 120
 uniform sampler2D u_fonttex;
 uniform vec4 u_color;
 varying vec2 v_texcoord0;

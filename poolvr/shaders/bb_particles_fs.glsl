@@ -1,5 +1,4 @@
-precision highp float;
-
+#version 120
 uniform sampler2D map;
 uniform sampler2D u_normal;
 uniform vec3 u_light = vec3(1.0, -2.0, -0.5);

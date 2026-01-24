@@ -1,4 +1,4 @@
-precision highp float;
+#version 120
 uniform mat4 u_modelview;
 uniform mat4 u_projection;
 attribute vec3 a_position;
