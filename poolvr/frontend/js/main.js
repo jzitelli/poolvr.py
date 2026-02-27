@@ -28,9 +28,9 @@ async function main() {
   const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.01, 50);
 
   // --- Lighting ---
-  const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+  const ambient = new THREE.AmbientLight(0xffffff, 0.1);
   scene.add(ambient);
-  const pointLight = new THREE.PointLight(0xffffff, 1.0, 20);
+  const pointLight = new THREE.PointLight(0xffffff, 8, 20);
   scene.add(pointLight);
 
   // --- Create simulation ---

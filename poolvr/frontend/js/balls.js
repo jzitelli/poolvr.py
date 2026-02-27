@@ -55,9 +55,9 @@ export function createBallMeshes(numBalls, ballRadius, H) {
     if (i >= 9 && i <= 15) {
       // Striped ball
       const tex = createStripeTexture(color);
-      mat = new THREE.MeshPhongMaterial({ map: tex });
+      mat = new THREE.MeshPhongMaterial({ map: tex, flatShading: true });
     } else {
-      mat = new THREE.MeshPhongMaterial({ color });
+      mat = new THREE.MeshPhongMaterial({ color, flatShading: true });
     }
     const mesh = new THREE.Mesh(sphereGeom, mat);
     mesh.castShadow = true;
