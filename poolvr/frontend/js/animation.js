@@ -94,7 +94,8 @@ export class AnimationEngine {
 
   /**
    * Evaluate ball angular velocity at time t, writing into outVec3.
-   * Uses omega_0 from motion events (constant per-event approximation).
+   * For sliding/rolling events: omega(tau) = b[0] + tau * b[1],
+   * with omega_y clamped to zero when it changes sign.
    */
   evalAngularVelocity(ballIndex, t, outVec3) {
     const evt = this._findEvent(ballIndex, t);
@@ -103,7 +104,6 @@ export class AnimationEngine {
     if (type === 'BallRestEvent') {
       outVec3.set(0, 0, 0);
     } else if (type === 'BallSpinningEvent') {
-      // Spins around Y only, decelerating to zero over duration T
       const omega0 = evt.omega_0_y || 0;
       if (evt.T != null) {
         const tau = t - evt.t;
@@ -112,9 +112,16 @@ export class AnimationEngine {
       } else {
         outVec3.set(0, omega0, 0);
       }
-    } else if (evt.omega_0) {
-      // BallSlidingEvent / BallRollingEvent - use omega_0
-      outVec3.set(evt.omega_0[0], evt.omega_0[1], evt.omega_0[2]);
+    } else if (evt.b) {
+      // BallSlidingEvent / BallRollingEvent: omega(tau) = b[0] + tau * b[1]
+      const tau = t - evt.t;
+      const b = evt.b;
+      let ox = b[0][0] + tau * b[1][0];
+      let oy = b[0][1] + tau * b[1][1];
+      let oz = b[0][2] + tau * b[1][2];
+      // Clamp omega_y to zero when it changes sign
+      if (Math.sign(oy) !== Math.sign(b[0][1])) oy = 0;
+      outVec3.set(ox, oy, oz);
     } else {
       outVec3.set(0, 0, 0);
     }

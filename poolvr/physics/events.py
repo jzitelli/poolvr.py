@@ -309,6 +309,7 @@ class BallMotionEvent(BallEvent):
         d['v_0'] = self._v_0.tolist()
         d['omega_0'] = self._omega_0.tolist()
         d['a'] = self._a.tolist()
+        d['b'] = self._b.tolist()
         return d
     def __str__(self):
         return super().__str__()[:-1] + '\n r_0=%s\n v_0=%s\n a=%s\n omega_0=%s>' % (self._r_0, self._v_0, self.acceleration, self._omega_0)
