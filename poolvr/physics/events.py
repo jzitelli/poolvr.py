@@ -60,6 +60,12 @@ class PhysicsEvent(object):
     @staticmethod
     def events_str(events, sep='\n\n' + 48*'-' + '\n\n'):
         return sep.join('%3d: %s' % (i_e, e) for i_e, e in enumerate(events))
+    def to_dict(self):
+        return {
+            'type': self.__class__.__name__,
+            't': self.t,
+            'T': self.T if self.T != float('inf') else None,
+        }
     def __lt__(self, other):
         if isinstance(other, PhysicsEvent):
             return self.t < other.t
@@ -81,6 +87,10 @@ class BallEvent(PhysicsEvent):
     def __init__(self, t, i, **kwargs):
         super().__init__(t, **kwargs)
         self.i = i
+    def to_dict(self):
+        d = super().to_dict()
+        d['ball_index'] = self.i
+        return d
     @property
     def next_motion_event(self):
         return None
@@ -135,6 +145,10 @@ class BallStationaryEvent(BallEvent):
 class BallRestEvent(BallStationaryEvent):
     def __init__(self, t, i, **kwargs):
         super().__init__(t, i, T=float('inf'), **kwargs)
+    def to_dict(self):
+        d = super().to_dict()
+        d['r_0'] = self._r_0.tolist()
+        return d
     def eval_angular_velocity(self, tau, out=None):
         if out is None:
             out = zeros(3, dtype=float64)
@@ -151,6 +165,11 @@ class BallSpinningEvent(BallStationaryEvent):
         T = abs(omega_0_y / self._b)
         super().__init__(t, i, r_0=r_0, T=T, **kwargs)
         self._next_motion_event = None
+    def to_dict(self):
+        d = super().to_dict()
+        d['r_0'] = self._r_0.tolist()
+        d['omega_0_y'] = self._omega_0_y
+        return d
     @property
     def next_motion_event(self):
         if self._next_motion_event is None:
@@ -284,6 +303,13 @@ class BallMotionEvent(BallEvent):
         dot(taus, a, out=out[0])
         out[1] = a[1] + 2*tau*a[2]
         return out
+    def to_dict(self):
+        d = super().to_dict()
+        d['r_0'] = self._r_0.tolist()
+        d['v_0'] = self._v_0.tolist()
+        d['omega_0'] = self._omega_0.tolist()
+        d['a'] = self._a.tolist()
+        return d
     def __str__(self):
         return super().__str__()[:-1] + '\n r_0=%s\n v_0=%s\n a=%s\n omega_0=%s>' % (self._r_0, self._v_0, self.acceleration, self._omega_0)
 
@@ -375,6 +401,12 @@ class CueStrikeEvent(BallEvent):
     @property
     def child_events(self):
         return self._child_events
+    def to_dict(self):
+        d = super().to_dict()
+        d['contact_point'] = self.Q.tolist()
+        d['cue_velocity'] = self.V.tolist()
+        d['cue_mass'] = self.M
+        return d
     def __str__(self):
         return super().__str__()[:-1] + '\n Q=%s\n V=%s\n M=%s>' % (self.Q, self.V, self.M)
 
@@ -415,6 +447,12 @@ class SegmentCollisionEvent(BallEvent):
                                                        v_0=v_1,
                                                        parent_event=self),)
         return self._child_events
+    def to_dict(self):
+        d = super().to_dict()
+        d['segment_index'] = self.seg
+        d['position'] = self.r.tolist()
+        d['contact_point'] = self.r_c.tolist()
+        return d
     def __str__(self):
         return super().__str__()[:-1] + " seg=%d r=%s r_c=%s>" % (self.seg, self.r, self.r_c)
 
@@ -464,6 +502,12 @@ class CornerCollisionEvent(BallEvent):
                                                        omega_0_y=self.omega_1[1],
                                                        parent_event=self),)
         return self._child_events
+    def to_dict(self):
+        d = super().to_dict()
+        d['corner_index'] = self.i_c
+        d['corner_position'] = self.r_c.tolist()
+        d['ball_position'] = self.r_i.tolist()
+        return d
     def __str__(self):
         return super().__str__()[:-1] + " i_c=%s r_c=%s v_0=%s v_1=%s omega_0=%s omega_1=%s>" % (
             self.i_c, self.r_c, self.v_0, self.v_1, self.omega_0, self.omega_1)
@@ -483,6 +527,17 @@ class BallCollisionEvent(PhysicsEvent):
         self._x_loc = array((-y_loc[2], 0.0, y_loc[0]), dtype=float64)
         self._v_ij_y0 = dot(v_ij, y_loc)
         self._omega_i, self._omega_j = e_i.eval_angular_velocity(tau_i), e_j.eval_angular_velocity(tau_j)
+    def to_dict(self):
+        d = super().to_dict()
+        d['ball_i'] = self.i
+        d['ball_j'] = self.j
+        d['r_i'] = self._r_i.tolist()
+        d['r_j'] = self._r_j.tolist()
+        d['v_i_before'] = self._v_i.tolist()
+        d['v_j_before'] = self._v_j.tolist()
+        d['v_i_after'] = self._v_i_1.tolist()
+        d['v_j_after'] = self._v_j_1.tolist()
+        return d
     def __str__(self):
         return '<' + super().__str__()[:-1] + '''
  i,j = %s,%s
