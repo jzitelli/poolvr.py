@@ -7,6 +7,7 @@ import pytest
 
 PLOTS_DIR = os.path.join(os.path.dirname(__file__), 'plots')
 SCREENSHOTS_DIR = os.path.join(os.path.dirname(__file__), 'screenshots')
+GIFS_DIR = os.path.join(os.path.dirname(__file__), 'gifs')
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
 
@@ -45,6 +46,8 @@ def pytest_addoption(parser):
     parser.addoption('--no-distance-check',
                      help="disable checking that every pair of balls is separated by at least one ball diameter",
                      action="store_true")
+    parser.addoption('--save-gif', help="save animated GIF of offscreen-rendered test results",
+                     action="store_true", default=False)
 
 
 def pytest_generate_tests(metafunc):
@@ -509,6 +512,105 @@ def render_meshes(request):
         capture_window(window,
                        filename=os.path.join(os.path.dirname(__file__), 'screenshots',
                                              title.replace(' ', '_') + '.png'))
+    renderer.shutdown()
+    glfw.destroy_window(window)
+    glfw.terminate()
+
+
+@pytest.fixture
+def gif_rendering(pool_physics, pool_table, request):
+    if not request.config.getoption('--save-gif'):
+        yield
+        return
+    yield
+    import OpenGL
+    OpenGL.ERROR_CHECKING = False
+    OpenGL.ERROR_LOGGING = False
+    OpenGL.ERROR_ON_COPY = True
+    import OpenGL.GL as gl
+    import glfw
+    from PIL import Image
+    from poolvr.game import PoolGame
+    from poolvr.gl_rendering import set_matrix_from_quaternion
+    logging.getLogger('poolvr.gl_rendering').setLevel(logging.WARNING)
+    from poolvr.gl_techniques import LAMBERT_TECHNIQUE as technique
+    physics = pool_physics
+    table = pool_table
+    game = PoolGame(physics=physics, table=table)
+    # xres, yres = 640, 480
+    xres, yres = 480, 640
+    fps = 30
+    if not glfw.init():
+        raise Exception('failed to initialize glfw')
+    glfw.window_hint(glfw.VISIBLE, glfw.FALSE)
+    glfw.window_hint(glfw.DOUBLEBUFFER, True)
+    window = glfw.create_window(xres, yres, "gif_rendering", None, None)
+    if not window:
+        glfw.terminate()
+        raise Exception('failed to create hidden glfw window')
+    glfw.make_context_current(window)
+    from poolvr.gl_rendering import OpenGLRenderer
+    renderer = OpenGLRenderer(window_size=(xres, yres), znear=0.1, zfar=1000)
+    renderer.init_gl()
+    # top-down camera: looking straight down at the table
+    camera = renderer.camera_matrix
+    camera[:] = 0
+    camera[0, 0] = 1     # cam X = world X
+    camera[1, 2] = -1    # cam Y = world -Z (image "up" = toward head of table)
+    camera[2, 1] = 1     # cam Z = world Y (camera looks along -Z, i.e. down)
+    camera[3, 1] = table.H + 2.5  # position above the table
+    camera[3, 3] = 1
+    renderer.update_projection_matrix()
+    table_mesh = table.export_mesh(surface_technique=technique, cushion_technique=technique, rail_technique=technique)
+    ball_meshes = table.export_ball_meshes(technique=technique)
+    ball_shadow_meshes = [mesh.shadow_mesh for mesh in ball_meshes]
+    for ball_mesh, shadow_mesh, on_table in zip(ball_meshes, ball_shadow_meshes, physics._on_table):
+        if not on_table:
+            ball_mesh.visible = False
+            shadow_mesh.visible = False
+    meshes = [table_mesh] + ball_meshes + ball_shadow_meshes
+    ball_mesh_positions = [mesh.world_matrix[3, :3] for mesh in ball_meshes]
+    ball_mesh_rotations = [mesh.world_matrix[:3, :3].T for mesh in ball_meshes]
+    ball_shadow_mesh_positions = [mesh.world_matrix[3, :3] for mesh in ball_shadow_meshes]
+    for mesh in meshes:
+        mesh.init_gl(force=True)
+    # determine simulation end time
+    t_end = 0.0
+    if physics.events:
+        last = physics.events[-1]
+        t_end = last.t
+        if last.T < float('inf'):
+            t_end += last.T
+    dt = 1.0 / fps
+    frames = []
+    while game.t <= t_end:
+        game.step(dt)
+        for i, pos in enumerate(game.ball_positions):
+            ball_mesh_positions[i][:] = pos
+            set_matrix_from_quaternion(game.ball_quaternions[i], out=ball_mesh_rotations[i])
+            ball_shadow_mesh_positions[i][0::2] = pos[0::2]
+        with renderer.render(meshes=meshes):
+            pass
+        glfw.swap_buffers(window)
+        gl.glPixelStorei(gl.GL_PACK_ALIGNMENT, 1)
+        pixels = gl.glReadPixels(0, 0, xres, yres, gl.GL_RGB, gl.GL_UNSIGNED_BYTE)
+        image = Image.frombytes('RGB', (xres, yres), pixels)
+        image = image.transpose(Image.FLIP_TOP_BOTTOM)
+        frames.append(image)
+
+    # save the animated GIF
+    if frames:
+        if not os.path.exists(GIFS_DIR):
+            os.makedirs(GIFS_DIR, exist_ok=True)
+        param_str = request.node.name[len(request.node.originalname)+1:-1]
+        filename = '.'.join([request.node.originalname, param_str, 'gif'])
+        filepath = os.path.join(GIFS_DIR, filename)
+        duration_ms = int(1000 / fps)
+        frames[0].save(filepath, save_all=True, append_images=frames[1:],
+                       #duration=20,
+                       duration=duration_ms,
+                       loop=0)
+        _logger.info('saved animated GIF to "%s" (%d frames)', filepath, len(frames))
     renderer.shutdown()
     glfw.destroy_window(window)
     glfw.terminate()

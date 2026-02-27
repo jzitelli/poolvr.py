@@ -25,7 +25,8 @@ DEG2RAD = np.pi/180
 def test_strike_ball(pool_physics,
                      plot_motion_timelapse,
                      plot_energy,
-                     gl_rendering):
+                     gl_rendering,
+                     gif_rendering):
     physics = pool_physics
     physics.reset(balls_on_table=[0])
     ball_positions = physics.eval_positions(0.0)
@@ -68,7 +69,8 @@ def test_initially_stationary_sliding_ball(pool_physics,
 def test_ball_collision(pool_physics,
                         plot_motion_timelapse,
                         plot_energy,
-                        gl_rendering):
+                        gl_rendering,
+                        gif_rendering):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
     ball_positions[1] = ball_positions[0]
@@ -146,6 +148,7 @@ def test_break(pool_physics,
                plot_motion_timelapse,
                plot_energy,
                gl_rendering,
+               gif_rendering,
                request):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
@@ -191,6 +194,7 @@ def test_break_hard(pool_physics,
                     plot_motion_timelapse,
                     plot_energy,
                     gl_rendering,
+                    gif_rendering,
                     request):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
@@ -289,6 +293,7 @@ def test_break_hard_realtime(pool_physics_realtime,
 
 def test_break_and_following_shot(pool_physics,
                                   gl_rendering,
+                                  gif_rendering,
                                   request):
     physics = pool_physics
     ball_positions = physics.eval_positions(0.0)
