@@ -1,24 +1,37 @@
 import * as THREE from 'three';
 
-const State = { IDLE: 0, AIMING: 1, ANIMATING: 2 };
+// IDLE: orbit camera freely. Click cue ball → AIMING.
+// AIMING: aim line visible. Mouse left/right rotates shot direction. Space down → CHARGING.
+// CHARGING: power bar visible. Mouse up/down sets power. Space up → strike.
+// ANIMATING: waiting for physics to finish.
+const State = { IDLE: 0, AIMING: 1, CHARGING: 2, ANIMATING: 3 };
 
 export class AimingController {
-  constructor({ camera, domElement, ballMeshes, ballRadius, tableH, onStrike }) {
+  constructor({ camera, domElement, ballMeshes, ballRadius, tableH, orbitControls, onStrike }) {
     this.camera = camera;
     this.domElement = domElement;
     this.ballMeshes = ballMeshes;
     this.ballRadius = ballRadius;
     this.tableH = tableH;
+    this.orbitControls = orbitControls;
     this.onStrike = onStrike;
     this.state = State.IDLE;
 
     this._raycaster = new THREE.Raycaster();
     this._mouse = new THREE.Vector2();
-    this._aimStart = new THREE.Vector3();
-    this._aimEnd = new THREE.Vector3();
-    this._tablePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(tableH + ballRadius));
 
-    // Aiming line visual
+    // Aim angle (radians on XZ plane, 0 = +X direction)
+    this._aimAngle = 0;
+    this._aimSensitivity = 0.005;
+
+    // Power
+    this._power = 1.5;
+    this._maxPower = 4.0;
+    this._minPower = 0.2;
+    this._powerSensitivity = 0.008;
+
+    // Aim line visual
+    this._aimLineLength = 0.6;
     const lineGeom = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(), new THREE.Vector3(),
     ]);
@@ -29,131 +42,181 @@ export class AimingController {
     this._aimLine.visible = false;
     this._aimLine.frustumCulled = false;
 
-    // Power indicator (shown in HUD)
-    this._power = 0;
-    this._maxPower = 3.0;
-    this._minPower = 0.3;
+    // Power bar DOM
+    this._powerBar = document.getElementById('power-bar');
+    this._powerFill = document.getElementById('power-fill');
+    if (this._powerBar) this._powerBar.style.display = 'none';
 
     this._onMouseDown = this._onMouseDown.bind(this);
     this._onMouseMove = this._onMouseMove.bind(this);
-    this._onMouseUp = this._onMouseUp.bind(this);
+    this._onKeyDown = this._onKeyDown.bind(this);
+    this._onKeyUp = this._onKeyUp.bind(this);
     domElement.addEventListener('mousedown', this._onMouseDown);
     domElement.addEventListener('mousemove', this._onMouseMove);
-    domElement.addEventListener('mouseup', this._onMouseUp);
+    window.addEventListener('keydown', this._onKeyDown);
+    window.addEventListener('keyup', this._onKeyUp);
   }
 
   get aimLine() {
     return this._aimLine;
   }
 
-  get power() {
-    return this._power;
-  }
-
   setAnimating() {
     this.state = State.ANIMATING;
     this._aimLine.visible = false;
+    this._hidePowerBar();
+    if (this.orbitControls) this.orbitControls.enabled = true;
   }
 
   setIdle() {
     this.state = State.IDLE;
     this._aimLine.visible = false;
+    this._hidePowerBar();
+    if (this.orbitControls) this.orbitControls.enabled = true;
   }
 
-  _updateMouse(event) {
-    const rect = this.domElement.getBoundingClientRect();
-    this._mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    this._mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  _hidePowerBar() {
+    if (this._powerBar) this._powerBar.style.display = 'none';
   }
 
-  _getTableIntersection(event) {
-    this._updateMouse(event);
-    this._raycaster.setFromCamera(this._mouse, this.camera);
-    const target = new THREE.Vector3();
-    const hit = this._raycaster.ray.intersectPlane(this._tablePlane, target);
-    return hit ? target : null;
+  _showPowerBar() {
+    if (this._powerBar) this._powerBar.style.display = '';
+    this._updatePowerBar();
+  }
+
+  _updatePowerBar() {
+    if (this._powerFill) {
+      const pct = ((this._power - this._minPower) / (this._maxPower - this._minPower)) * 100;
+      this._powerFill.style.width = Math.max(0, Math.min(100, pct)) + '%';
+    }
+  }
+
+  _cueBallPos() {
+    const cueBall = this.ballMeshes[0]?.mesh;
+    return cueBall ? cueBall.position : null;
+  }
+
+  _aimDir() {
+    return new THREE.Vector3(Math.sin(this._aimAngle), 0, Math.cos(this._aimAngle));
+  }
+
+  _updateAimLine() {
+    const pos = this._cueBallPos();
+    if (!pos) return;
+    const dir = this._aimDir();
+    const start = pos;
+    const end = new THREE.Vector3().copy(pos).addScaledVector(dir, this._aimLineLength);
+    const positions = this._aimLine.geometry.attributes.position;
+    positions.setXYZ(0, start.x, start.y, start.z);
+    positions.setXYZ(1, end.x, end.y, end.z);
+    positions.needsUpdate = true;
+    this._aimLine.visible = true;
+  }
+
+  _initAimAngle() {
+    // Initialize aim angle to point from cue ball toward camera projected on XZ
+    const pos = this._cueBallPos();
+    if (!pos) return;
+    const camDir = new THREE.Vector3().subVectors(this.camera.position, pos);
+    camDir.y = 0;
+    if (camDir.length() > 0.001) {
+      camDir.normalize();
+      this._aimAngle = Math.atan2(camDir.x, camDir.z);
+    }
   }
 
   _onMouseDown(event) {
-    if (this.state !== State.IDLE || event.button !== 0) return;
-    this._updateMouse(event);
+    if (event.button !== 0) return;
+
+    if (this.state === State.AIMING || this.state === State.CHARGING) {
+      // Click while aiming cancels
+      this._cancel();
+      return;
+    }
+
+    if (this.state !== State.IDLE) return;
+
+    // Raycast to check cue ball click
+    const rect = this.domElement.getBoundingClientRect();
+    this._mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    this._mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     this._raycaster.setFromCamera(this._mouse, this.camera);
 
-    // Check if we clicked the cue ball (ball 0)
     const cueBall = this.ballMeshes[0]?.mesh;
     if (!cueBall) return;
     const intersects = this._raycaster.intersectObject(cueBall);
     if (intersects.length > 0) {
       this.state = State.AIMING;
-      this._aimStart.copy(cueBall.position);
-      this._aimLine.visible = true;
-      event.preventDefault();
-      event.stopPropagation();
+      if (this.orbitControls) this.orbitControls.enabled = false;
+      this._initAimAngle();
+      this._updateAimLine();
     }
   }
 
   _onMouseMove(event) {
-    if (this.state !== State.AIMING) return;
-    const tablePoint = this._getTableIntersection(event);
-    if (!tablePoint) return;
-    this._aimEnd.copy(tablePoint);
-
-    // Direction from cue ball toward mouse
-    const dir = new THREE.Vector3().subVectors(this._aimEnd, this._aimStart);
-    dir.y = 0;
-    const dist = dir.length();
-    if (dist < 0.001) return;
-
-    // Power from distance (clamped)
-    this._power = Math.min(this._maxPower, Math.max(this._minPower, dist * 3));
-
-    // Update aim line: from cue ball, extending in the shot direction
-    const normDir = dir.clone().normalize();
-    const lineEnd = this._aimStart.clone().add(normDir.clone().multiplyScalar(Math.min(dist, 1.0)));
-    const positions = this._aimLine.geometry.attributes.position;
-    positions.setXYZ(0, this._aimStart.x, this._aimStart.y, this._aimStart.z);
-    positions.setXYZ(1, lineEnd.x, lineEnd.y, lineEnd.z);
-    positions.needsUpdate = true;
-
-    // Update power bar in HUD
-    const powerBar = document.getElementById('power-fill');
-    if (powerBar) {
-      const pct = ((this._power - this._minPower) / (this._maxPower - this._minPower)) * 100;
-      powerBar.style.width = pct + '%';
+    if (this.state === State.AIMING) {
+      // Left/right mouse movement rotates aim
+      this._aimAngle -= event.movementX * this._aimSensitivity;
+      this._updateAimLine();
+    } else if (this.state === State.CHARGING) {
+      // Up/down mouse movement adjusts power (mouse up = more power)
+      this._power -= event.movementY * this._powerSensitivity;
+      this._power = Math.max(this._minPower, Math.min(this._maxPower, this._power));
+      this._updatePowerBar();
     }
   }
 
-  _onMouseUp(event) {
-    if (this.state !== State.AIMING) return;
-    const tablePoint = this._getTableIntersection(event);
-    if (!tablePoint) {
-      this.state = State.IDLE;
-      this._aimLine.visible = false;
+  _onKeyDown(event) {
+    if (event.code === 'Escape') {
+      if (this.state === State.AIMING || this.state === State.CHARGING) {
+        this._cancel();
+      }
       return;
     }
 
-    const dir = new THREE.Vector3().subVectors(tablePoint, this._aimStart);
-    dir.y = 0;
-    if (dir.length() < 0.01) {
-      this.state = State.IDLE;
-      this._aimLine.visible = false;
-      return;
-    }
-    dir.normalize();
+    if (event.code !== 'Space') return;
+    event.preventDefault();
 
+    if (this.state === State.AIMING) {
+      this.state = State.CHARGING;
+      this._showPowerBar();
+    }
+  }
+
+  _onKeyUp(event) {
+    if (event.code !== 'Space') return;
+    event.preventDefault();
+
+    if (this.state === State.CHARGING) {
+      this._fire();
+    }
+  }
+
+  _cancel() {
+    this.state = State.IDLE;
+    this._aimLine.visible = false;
+    this._hidePowerBar();
+    if (this.orbitControls) this.orbitControls.enabled = true;
+  }
+
+  _fire() {
+    const pos = this._cueBallPos();
+    if (!pos) { this._cancel(); return; }
+
+    const dir = this._aimDir();
     const speed = this._power;
-    const cueBallPos = this._aimStart;
 
-    // Strike parameters
     const cue_velocity = [dir.x * speed, 0, dir.z * speed];
     const contact_point = [
-      cueBallPos.x - dir.x * this.ballRadius,
-      cueBallPos.y,
-      cueBallPos.z - dir.z * this.ballRadius,
+      pos.x - dir.x * this.ballRadius,
+      pos.y,
+      pos.z - dir.z * this.ballRadius,
     ];
 
     this.state = State.ANIMATING;
     this._aimLine.visible = false;
+    this._hidePowerBar();
+    if (this.orbitControls) this.orbitControls.enabled = true;
 
     if (this.onStrike) {
       this.onStrike({
@@ -165,9 +228,18 @@ export class AimingController {
     }
   }
 
+  get isAiming() {
+    return this.state === State.AIMING;
+  }
+
+  get isCharging() {
+    return this.state === State.CHARGING;
+  }
+
   dispose() {
     this.domElement.removeEventListener('mousedown', this._onMouseDown);
     this.domElement.removeEventListener('mousemove', this._onMouseMove);
-    this.domElement.removeEventListener('mouseup', this._onMouseUp);
+    window.removeEventListener('keydown', this._onKeyDown);
+    window.removeEventListener('keyup', this._onKeyUp);
   }
 }

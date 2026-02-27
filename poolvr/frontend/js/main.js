@@ -91,6 +91,7 @@ async function main() {
     ballMeshes: ballObjs,
     ballRadius,
     tableH: H,
+    orbitControls: controls,
     onStrike: async (params) => {
       updateHUD('Striking...');
       try {
@@ -136,6 +137,10 @@ async function main() {
 
     if (animEngine.isPlaying) {
       updateHUD(`t = ${animEngine.simTime.toFixed(3)}s`);
+    } else if (aimController.isCharging) {
+      updateHUD('Hold SPACE + move mouse up/down to set power. Release SPACE to strike.');
+    } else if (aimController.isAiming) {
+      updateHUD('Move mouse left/right to aim. Hold SPACE to set power. ESC to cancel.');
     }
 
     if (justCompleted) {
@@ -155,15 +160,15 @@ async function main() {
         ballObjs[i].mesh.visible = visible;
         ballObjs[i].shadow.visible = visible;
       }
-      updateHUD(`Ready - ${onTable.size} balls on table. Click cue ball to aim.`);
+      updateHUD(`${onTable.size} balls on table. Click cue ball to aim.`);
     } catch (err) {
       console.error('Failed to check pocketed balls:', err);
-      updateHUD('Ready. Click cue ball to aim.');
+      updateHUD('Click cue ball to aim.');
     }
     aimController.setIdle();
   }
 
-  updateHUD('Ready. Click cue ball to aim.');
+  updateHUD('Click cue ball to aim.');
   animate();
 }
 
