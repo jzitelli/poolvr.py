@@ -119,19 +119,37 @@ async function main() {
   // --- Render loop ---
   const clock = new THREE.Clock();
   const tmpVec = new THREE.Vector3();
+  const tmpOmega = new THREE.Vector3();
 
   function animate() {
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
     controls.update();
 
+    const prevSimTime = animEngine.simTime;
     const justCompleted = animEngine.update(delta);
+    const simDt = animEngine.simTime - prevSimTime;
 
-    // Update ball positions
+    // Update ball positions and rotations
     for (let i = 0; i < numBalls; i++) {
       if (animEngine.evalPosition(i, animEngine.simTime, tmpVec)) {
         ballObjs[i].mesh.position.copy(tmpVec);
         ballObjs[i].shadow.position.set(tmpVec.x, H + 0.001, tmpVec.z);
+      }
+      // Quaternion integration (small time-step approximation from game.py)
+      if (simDt > 0) {
+        animEngine.evalAngularVelocity(i, animEngine.simTime, tmpOmega);
+        const q = ballObjs[i].mesh.quaternion;
+        const qw = q.w;
+        const qx = q.x, qy = q.y, qz = q.z;
+        const ox = tmpOmega.x, oy = tmpOmega.y, oz = tmpOmega.z;
+        // q.w -= 0.5 * dt * dot(omega, q.xyz)
+        q.w = qw - 0.5 * simDt * (ox * qx + oy * qy + oz * qz);
+        // q.xyz += 0.5 * dt * (qw * omega + cross(omega, q.xyz))
+        q.x = qx + 0.5 * simDt * (qw * ox + (oy * qz - oz * qy));
+        q.y = qy + 0.5 * simDt * (qw * oy + (oz * qx - ox * qz));
+        q.z = qz + 0.5 * simDt * (qw * oz + (ox * qy - oy * qx));
+        q.normalize();
       }
     }
 

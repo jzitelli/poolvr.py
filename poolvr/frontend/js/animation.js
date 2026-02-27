@@ -92,6 +92,34 @@ export class AnimationEngine {
     return true;
   }
 
+  /**
+   * Evaluate ball angular velocity at time t, writing into outVec3.
+   * Uses omega_0 from motion events (constant per-event approximation).
+   */
+  evalAngularVelocity(ballIndex, t, outVec3) {
+    const evt = this._findEvent(ballIndex, t);
+    if (!evt) { outVec3.set(0, 0, 0); return; }
+    const type = evt.type;
+    if (type === 'BallRestEvent') {
+      outVec3.set(0, 0, 0);
+    } else if (type === 'BallSpinningEvent') {
+      // Spins around Y only, decelerating to zero over duration T
+      const omega0 = evt.omega_0_y || 0;
+      if (evt.T != null) {
+        const tau = t - evt.t;
+        const frac = Math.max(0, 1 - tau / evt.T);
+        outVec3.set(0, omega0 * frac, 0);
+      } else {
+        outVec3.set(0, omega0, 0);
+      }
+    } else if (evt.omega_0) {
+      // BallSlidingEvent / BallRollingEvent - use omega_0
+      outVec3.set(evt.omega_0[0], evt.omega_0[1], evt.omega_0[2]);
+    } else {
+      outVec3.set(0, 0, 0);
+    }
+  }
+
   update(deltaSec) {
     if (!this.playing) return false;
     this.simTime += deltaSec * this.speed;
