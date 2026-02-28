@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 // IDLE: orbit camera freely. Click cue ball → AIMING.
 // AIMING: aim line visible. Mouse left/right rotates shot direction. Space down → CHARGING.
-// CHARGING: power bar visible. Mouse up/down sets power. Space up → strike.
+// CHARGING: mouse up/down moves cue stick back/forward. Cue contacts ball → strike.
 // ANIMATING: waiting for physics to finish.
 const State = { IDLE: 0, AIMING: 1, CHARGING: 2, ANIMATING: 3 };
 
@@ -24,11 +24,11 @@ export class AimingController {
     this._aimAngle = 0;
     this._aimSensitivity = 0.005;
 
-    // Power
-    this._power = 1.5;
-    this._maxPower = 4.0;
-    this._minPower = 0.2;
-    this._powerSensitivity = 0.008;
+    // Cue stick movement (charging mode)
+    this._cuePullBack = 0;           // meters behind default rest position
+    this._cueMoveSensitivity = 0.002; // mouse pixels to meters
+    this._cueVelocityScale = 0.4;    // mouse pixels to m/s for strike
+    this._cuePullBackMax = 0.4;      // max pull-back distance
 
     // Aim line visual
     this._aimLineLength = 0.6;
@@ -41,6 +41,23 @@ export class AimingController {
     );
     this._aimLine.visible = false;
     this._aimLine.frustumCulled = false;
+
+    // Cue stick visual (simple tapered cylinder)
+    const cueLength = 1.45;
+    const cueTipRadius = 0.005;
+    const cueButtRadius = 0.013;
+    const cueGeom = new THREE.CylinderGeometry(cueButtRadius, cueTipRadius, cueLength, 12);
+    // Shift so tip end is at local origin, body extends along +Y
+    cueGeom.translate(0, cueLength / 2, 0);
+    // Rotate so body extends along -Z (tip at origin)
+    cueGeom.rotateX(-Math.PI / 2);
+    // Offset tip away from group center by ball radius + small gap
+    cueGeom.translate(0, 0, -(this.ballRadius + 0.02));
+    this._cueStick = new THREE.Mesh(
+      cueGeom,
+      new THREE.MeshPhongMaterial({ color: 0xC19A6B }),
+    );
+    this._cueStick.visible = false;
 
     // Power bar DOM
     this._powerBar = document.getElementById('power-bar');
@@ -61,9 +78,14 @@ export class AimingController {
     return this._aimLine;
   }
 
+  get cueStick() {
+    return this._cueStick;
+  }
+
   setAnimating() {
     this.state = State.ANIMATING;
     this._aimLine.visible = false;
+    this._cueStick.visible = false;
     this._hidePowerBar();
     if (this.orbitControls) this.orbitControls.enabled = true;
   }
@@ -71,24 +93,13 @@ export class AimingController {
   setIdle() {
     this.state = State.IDLE;
     this._aimLine.visible = false;
+    this._cueStick.visible = false;
     this._hidePowerBar();
     if (this.orbitControls) this.orbitControls.enabled = true;
   }
 
   _hidePowerBar() {
     if (this._powerBar) this._powerBar.style.display = 'none';
-  }
-
-  _showPowerBar() {
-    if (this._powerBar) this._powerBar.style.display = '';
-    this._updatePowerBar();
-  }
-
-  _updatePowerBar() {
-    if (this._powerFill) {
-      const pct = ((this._power - this._minPower) / (this._maxPower - this._minPower)) * 100;
-      this._powerFill.style.width = Math.max(0, Math.min(100, pct)) + '%';
-    }
   }
 
   _cueBallPos() {
@@ -111,6 +122,21 @@ export class AimingController {
     positions.setXYZ(1, end.x, end.y, end.z);
     positions.needsUpdate = true;
     this._aimLine.visible = true;
+    this._updateCueStick();
+  }
+
+  _updateCueStick() {
+    const pos = this._cueBallPos();
+    if (!pos) return;
+    const dir = this._aimDir();
+    // Offset along -aimDir by _cuePullBack (positive = further from ball)
+    this._cueStick.position.set(
+      pos.x - dir.x * this._cuePullBack,
+      pos.y,
+      pos.z - dir.z * this._cuePullBack,
+    );
+    this._cueStick.rotation.y = this._aimAngle;
+    this._cueStick.visible = true;
   }
 
   _initAimAngle() {
@@ -159,10 +185,19 @@ export class AimingController {
       this._aimAngle -= event.movementX * this._aimSensitivity;
       this._updateAimLine();
     } else if (this.state === State.CHARGING) {
-      // Up/down mouse movement adjusts power (mouse up = more power)
-      this._power -= event.movementY * this._powerSensitivity;
-      this._power = Math.max(this._minPower, Math.min(this._maxPower, this._power));
-      this._updatePowerBar();
+      // Mouse down (positive movementY) = push cue forward toward ball
+      const prev = this._cuePullBack;
+      this._cuePullBack -= event.movementY * this._cueMoveSensitivity;
+      this._cuePullBack = Math.min(this._cuePullBack, this._cuePullBackMax);
+      // Contact when tip gap (0.02m built into geometry) is closed
+      const contactThreshold = -0.02;
+      if (this._cuePullBack <= contactThreshold && prev > contactThreshold) {
+        const speed = Math.max(event.movementY * this._cueVelocityScale, 0.2);
+        this._fire(speed);
+        return;
+      }
+      this._cuePullBack = Math.max(this._cuePullBack, contactThreshold);
+      this._updateCueStick();
     }
   }
 
@@ -179,7 +214,6 @@ export class AimingController {
 
     if (this.state === State.AIMING) {
       this.state = State.CHARGING;
-      this._showPowerBar();
     }
   }
 
@@ -188,24 +222,27 @@ export class AimingController {
     event.preventDefault();
 
     if (this.state === State.CHARGING) {
-      this._fire();
+      // Released spacebar without contact → return to aiming
+      this.state = State.AIMING;
+      this._cuePullBack = 0;
+      this._updateCueStick();
     }
   }
 
   _cancel() {
     this.state = State.IDLE;
     this._aimLine.visible = false;
+    this._cueStick.visible = false;
+    this._cuePullBack = 0;
     this._hidePowerBar();
     if (this.orbitControls) this.orbitControls.enabled = true;
   }
 
-  _fire() {
+  _fire(speed) {
     const pos = this._cueBallPos();
     if (!pos) { this._cancel(); return; }
 
     const dir = this._aimDir();
-    const speed = this._power;
-
     const cue_velocity = [dir.x * speed, 0, dir.z * speed];
     const contact_point = [
       pos.x - dir.x * this.ballRadius,
@@ -215,6 +252,8 @@ export class AimingController {
 
     this.state = State.ANIMATING;
     this._aimLine.visible = false;
+    this._cueStick.visible = false;
+    this._cuePullBack = 0;
     this._hidePowerBar();
     if (this.orbitControls) this.orbitControls.enabled = true;
 

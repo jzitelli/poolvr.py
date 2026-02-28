@@ -108,12 +108,22 @@ async function main() {
     },
   });
   scene.add(aimController.aimLine);
+  scene.add(aimController.cueStick);
 
   // --- Resize handler ---
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  // --- Speed slider ---
+  const speedSlider = document.getElementById('speed-slider');
+  const speedValue = document.getElementById('speed-value');
+  speedSlider.addEventListener('input', () => {
+    const v = parseFloat(speedSlider.value);
+    animEngine.speed = v;
+    speedValue.textContent = v.toFixed(1) + 'x';
   });
 
   // --- Render loop ---
