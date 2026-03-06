@@ -27,7 +27,7 @@ export class AimingController {
     // Cue stick movement (charging mode)
     this._cuePullBack = 0;           // meters behind default rest position
     this._cueMoveSensitivity = 0.002; // mouse pixels to meters
-    this._cueVelocityScale = 0.4;    // mouse pixels to m/s for strike
+    this._cueVelocityScale = 0.1;    // mouse pixels to m/s for strike
     this._cuePullBackMax = 0.4;      // max pull-back distance
 
     // Aim line visual
@@ -187,12 +187,12 @@ export class AimingController {
     } else if (this.state === State.CHARGING) {
       // Mouse down (positive movementY) = push cue forward toward ball
       const prev = this._cuePullBack;
-      this._cuePullBack -= event.movementY * this._cueMoveSensitivity;
+      this._cuePullBack += event.movementY * this._cueMoveSensitivity;
       this._cuePullBack = Math.min(this._cuePullBack, this._cuePullBackMax);
       // Contact when tip gap (0.02m built into geometry) is closed
       const contactThreshold = -0.02;
-      if (this._cuePullBack <= contactThreshold && prev > contactThreshold) {
-        const speed = Math.max(event.movementY * this._cueVelocityScale, 0.2);
+      if (event.movementY < 0 && this._cuePullBack <= contactThreshold && prev > contactThreshold) {
+        const speed = Math.max(-event.movementY * this._cueVelocityScale, 0.2);
         this._fire(speed);
         return;
       }

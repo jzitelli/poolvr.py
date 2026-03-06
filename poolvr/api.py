@@ -75,7 +75,7 @@ class PhysicsConfig(BaseModel):
     mu_b: float = 0.05
     e: float = 0.89
     g: float = 9.81
-    ball_collision_model: str = "simple"
+    ball_collision_model: str = "fsimulated"
     use_quartic_solver: bool = True
 
 
