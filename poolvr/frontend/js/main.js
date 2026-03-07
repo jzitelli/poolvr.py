@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createSimulation, getTableGeometry, strike, getSimulation } from './api.js';
 import { createTableMesh } from './table.js';
 import { createBallMeshes } from './balls.js';
-import { AnimationEngine } from './animation.js';
+import { AnimationEngine, computeNaiveTrajectory } from './animation.js';
 import { AimingController } from './controls.js';
 
 const hud = document.getElementById('hud');
@@ -39,6 +39,7 @@ async function main() {
   const simId = simData.sim_id;
   const initialPositions = simData.ball_positions;
   const numBalls = initialPositions.length;
+  const physicsConfig = simData.physics;
 
   // --- Fetch table geometry ---
   const tableGeom = await getTableGeometry(simId);
@@ -93,9 +94,22 @@ async function main() {
     tableH: H,
     orbitControls: controls,
     onStrike: async (params) => {
+      // Compute naive trajectory immediately and start playback
+      const cueBallPos = ballObjs[0].mesh.position;
+      const naive = computeNaiveTrajectory(
+        [cueBallPos.x, cueBallPos.y, cueBallPos.z],
+        params.cue_velocity, params.contact_point, params.cue_mass,
+        physicsConfig, animEngine.simTime,
+      );
+      const preStrikeSnap = animEngine.snapshot();
+      if (naive.events.length > 0) {
+        animEngine.addEvents(naive.events, naive.ballsAtRestTime);
+      }
       updateHUD('Striking...');
       try {
         const result = await strike(simId, params);
+        // Replace naive trajectory with backend events
+        animEngine.restore(preStrikeSnap);
         animEngine.addEvents(result.events, result.balls_at_rest_time);
         const eventCount = result.events.length;
         const restTime = result.balls_at_rest_time;
@@ -103,6 +117,7 @@ async function main() {
       } catch (err) {
         console.error('Strike failed:', err);
         updateHUD('Strike failed: ' + err.message);
+        animEngine.restore(preStrikeSnap);
         aimController.setIdle();
       }
     },
