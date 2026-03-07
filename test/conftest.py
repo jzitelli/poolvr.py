@@ -376,6 +376,10 @@ def gl_rendering(pool_physics, pool_table, request, meshes):
         else:
             glyph_meshes = []
         game.step(speed*dt)
+        # for ball_mesh, shadow_mesh, on_table in zip(ball_meshes, ball_shadow_meshes, physics._on_table):
+        #     if not on_table:
+        #         ball_mesh.visible = False
+        #         shadow_mesh.visible = False
         with renderer.render(meshes=meshes+glyph_meshes, dt=dt):
             for i, pos in enumerate(game.ball_positions):
                 ball_mesh_positions[i][:] = pos

@@ -32,7 +32,8 @@ from .events import (CueStrikeEvent,
                      SimulatedBallCollisionEvent,
                      FSimulatedBallCollisionEvent,
                      CornerCollisionEvent,
-                     SegmentCollisionEvent)
+                     SegmentCollisionEvent,
+                     BallPocketedEvent)
 from .poly_solvers import find_collision_time, quartic_solve, find_corner_collision_time
 from . import collisions
 
@@ -149,6 +150,11 @@ class PoolPhysics(object):
             (12,), (12,13), (13,14), (14,),
             (15,), (15,16), (16,17), (17,)
         )
+        pocket_positions = table.pocket_positions.copy()
+        pocket_positions[:,1] = table.H + ball_radius
+        self._pocket_positions = pocket_positions
+        self._pocket_radii = array([table.R_c, table.R_c, table.R_s,
+                                    table.R_c, table.R_c, table.R_s], dtype=float64)
         self._velocity_meshes = None
         self._angular_velocity_meshes = None
         if ball_collision_model_kwargs:
@@ -410,6 +416,8 @@ class PoolPhysics(object):
             events = events[:bisect(events, t)]
             if events:
                 e = events[-1]
+                if isinstance(e, BallPocketedEvent):
+                    continue
                 e.eval_angular_velocity(t - e.t, out=out[ii])
         return out
 
@@ -457,7 +465,12 @@ class PoolPhysics(object):
             self._collisions.pop(i, None)
             for k, v in self._collisions.items():
                 v.pop(i, None)
-            if isinstance(event, BallStationaryEvent):
+            if isinstance(event, BallPocketedEvent):
+                self._ball_motion_events.pop(i, None)
+                self._ball_spinning_events.pop(i, None)
+                # self._on_table[i] = False
+                # self._balls_on_table = array([b for b in self._balls_on_table if b != i], dtype=np.int32)
+            elif isinstance(event, BallStationaryEvent):
                 self._ball_motion_events.pop(i, None)
                 if isinstance(event, BallSpinningEvent):
                     self._ball_spinning_events[i] = event
@@ -507,6 +520,9 @@ class PoolPhysics(object):
                     next_rail_collision = None
         if next_rail_collision is not None:
             t, e_i, seg = next_rail_collision
+            if seg >= 42:
+                i_p = seg - 42
+                return BallPocketedEvent(t, e_i, i_p, self._pocket_positions[i_p])
             if seg >= 18:
                 cor = seg - 18
                 return CornerCollisionEvent(t, e_i, cor, self._corners[cor])
@@ -590,6 +606,18 @@ class PoolPhysics(object):
                 seg_min = None
                 cor_min = i_c
                 tau_min = tau
+        pocket_min = None
+        for i_p in range(6):
+            r_p = self._pocket_positions[i_p]
+            pocket_R = self._pocket_radii[i_p]
+            tau = find_corner_collision_time(r_p, e_i._a, pocket_R, tau_min)
+            if tau is not None and 0 < tau < tau_min:
+                seg_min = None
+                cor_min = None
+                pocket_min = i_p
+                tau_min = tau
+        if pocket_min is not None:
+            return e_i.t + tau_min, e_i, 42 + pocket_min
         if seg_min is not None:
             return e_i.t + tau_min, e_i, seg_min
         if cor_min is not None:

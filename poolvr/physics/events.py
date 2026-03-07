@@ -412,6 +412,27 @@ class CueStrikeEvent(BallEvent):
         return super().__str__()[:-1] + '\n Q=%s\n V=%s\n M=%s>' % (self.Q, self.V, self.M)
 
 
+class BallPocketedEvent(BallRestEvent):
+    def __init__(self, t, e_i, i_p, r_p):
+        super().__init__(t, e_i.i, r_0=r_p)
+        self.e_i = e_i
+        self.i_p = i_p
+        self.r_p = r_p.copy()
+        tau = self.t - e_i.t
+        self.r_i = e_i.eval_position(tau)
+    @property
+    def child_events(self):
+        return ()
+    def to_dict(self):
+        d = super().to_dict()
+        d['pocket_index'] = self.i_p
+        d['pocket_position'] = self.r_p.tolist()
+        d['ball_position'] = self.r_i.tolist()
+        return d
+    def __str__(self):
+        return super().__str__()[:-1] + " i_p=%d r_p=%s>" % (self.i_p, self.r_p)
+
+
 class SegmentCollisionEvent(BallEvent):
     kappa = 0.6
     def __init__(self, t, e_i, seg, nor, tan):

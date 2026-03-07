@@ -15,7 +15,8 @@ from poolvr.physics.events import (PhysicsEvent,
                                    CornerCollisionEvent,
                                    BallSpinningEvent,
                                    BallCollisionEvent,
-                                   SegmentCollisionEvent)
+                                   SegmentCollisionEvent,
+                                   BallPocketedEvent)
 
 
 _here = os.path.dirname(__file__)
@@ -401,6 +402,35 @@ def test_corner_collision(pool_physics,
     v_1 = cce.child_events[0].eval_velocity(0.0)
     # expect to rebound heading in the exact opposite direction:
     assert 0.9999 < abs(np.dot(v_1, n)) / np.linalg.norm(v_1)
+
+
+@pytest.mark.parametrize("i_p", list(range(6)))
+def test_pocket(pool_physics, i_p,
+                gl_rendering):
+    physics = pool_physics
+    ball_positions = physics.eval_positions(0.0)
+    r_p = physics._pocket_positions[i_p]
+    # start from table center, aimed directly at the pocket:
+    ball_positions[0] = np.array([0.0, r_p[1], 0.0])
+    direction = r_p - ball_positions[0]
+    direction[1] = 0
+    direction /= np.linalg.norm(direction)
+    physics.reset(balls_on_table=[0],
+                  ball_positions=ball_positions)
+    v_0 = direction * 2.0
+    start_event = BallSlidingEvent(0, 0,
+                                   r_0=ball_positions[0],
+                                   v_0=v_0,
+                                   omega_0=np.zeros(3, dtype=np.float64))
+    events = physics.add_event_sequence(start_event)
+    _logger.info('%d events added:\n\n%s\n', len(events),
+                 PhysicsEvent.events_str(events=events))
+    assert any(isinstance(e, BallPocketedEvent) for e in events), \
+        "expected BallPocketedEvent for pocket %d" % i_p
+    bpe = next(e for e in events if isinstance(e, BallPocketedEvent))
+    assert bpe.i_p == i_p
+    assert bpe.i == 0
+    assert not physics._on_table[0]
 
 
 @pytest.mark.parametrize("i_seg", list(range(18)))
