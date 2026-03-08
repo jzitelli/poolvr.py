@@ -74,29 +74,13 @@ def main(window_size=(800,600),
     init_sound()
 
     table = PoolTable()
-    if use_ode:
-        try:
-            from .ode_physics import ODEPoolPhysics
-            physics = ODEPoolPhysics(num_balls=16, table=table,
-                                     balls_on_table=balls_on_table)
-        except ImportError as err:
-            _logger.error('could not import ode_physics:\n%s', err)
-            ODEPoolPhysics = None
-            physics = PoolPhysics(num_balls=16, table=table,
-                                  ball_collision_model=ball_collision_model,
-                                  enable_sanity_check=False,
-                                  enable_occlusion=True,
-                                  balls_on_table=balls_on_table,
-                                  use_quartic_solver=use_quartic_solver,
-                                  **kwargs)
-    else:
-        physics = PoolPhysics(num_balls=16, table=table,
-                              ball_collision_model=ball_collision_model,
-                              enable_sanity_check=False,
-                              enable_occlusion=True,
-                              balls_on_table=balls_on_table,
-                              use_quartic_solver=use_quartic_solver,
-                              **kwargs)
+    physics = PoolPhysics(num_balls=16, table=table,
+                          ball_collision_model=ball_collision_model,
+                          enable_sanity_check=False,
+                          enable_occlusion=True,
+                          balls_on_table=balls_on_table,
+                          use_quartic_solver=use_quartic_solver,
+                          **kwargs)
     game = PoolGame(table=table,
                     physics=physics)
     cue = PoolCue()

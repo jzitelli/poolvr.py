@@ -7,7 +7,6 @@ import OpenGL.GL as gl
 
 from .gl_rendering import Primitive, Mesh, Material, CubeTexture
 from .gl_techniques import SKYBOX_TECHNIQUE
-from .fake_ode import ode_or_fake_it
 
 
 def triangulate_quad(quad_face, flip_normals=False):
@@ -68,16 +67,6 @@ class BoxPrimitive(HexaPrimitive):
                              [-0.5*w,  0.5*h, -0.5*l]], dtype=np.float32)
         HexaPrimitive.__init__(self, vertices=vertices)
 
-    @ode_or_fake_it
-    def create_ode_mass(self, total_mass):
-        mass = ode.Mass()
-        mass.setSphereTotal(total_mass, self.width, self.height, self.length)
-        return mass
-
-    @ode_or_fake_it
-    def create_ode_geom(self, space):
-        return ode.GeomBox(space=space, lengths=self.lengths)
-
 
 class HexaMesh(SingleMaterialMesh):
     def __init__(self, material, *args, **kwargs):
@@ -91,16 +80,6 @@ class BoxMesh(SingleMaterialMesh):
         primitive = BoxPrimitive(*args, **kwargs)
         super().__init__(material, [primitive])
         self.primitive = primitive
-
-    @ode_or_fake_it
-    def create_ode_body(self, world, space, total_mass):
-        body = ode.Body(world)
-        body.setMass(self.primitive.create_ode_mass(total_mass))
-        body.shape = "box"
-        body.boxsize = tuple(self.primitive.lengths)
-        geom = self.primitive.create_ode_geom(space)
-        geom.setBody(body)
-        return body
 
 
 class CylinderPrimitive(Primitive):
@@ -126,16 +105,6 @@ class CylinderPrimitive(Primitive):
                                   np.array([(len(vertices)-1, i+1, i+3) for i in range(0, 2*(num_radial-1), 2)], dtype=np.uint16).reshape(-1),
                                   np.array([(len(vertices)-1, 2*num_radial-1, 1)], dtype=np.uint16).reshape(-1)])
         Primitive.__init__(self, gl.GL_TRIANGLES, indices, vertices=vertices, normals=normals)
-
-    @ode_or_fake_it
-    def create_ode_mass(self, total_mass, direction=3):
-        mass = ode.Mass()
-        mass.setCylinderTotal(total_mass, direction, self.radius, self.height)
-        return mass
-
-    @ode_or_fake_it
-    def create_ode_geom(self, space):
-        return ode.GeomCylinder(space=space, radius=self.radius, length=self.height)
 
 
 class CylinderMesh(SingleMaterialMesh):
@@ -297,32 +266,12 @@ class SpherePrimitive(Primitive):
         Primitive.__init__(self, gl.GL_TRIANGLE_STRIP, indices,
                            vertices=vertices, uvs=uvs)
 
-    @ode_or_fake_it
-    def create_ode_mass(self, total_mass):
-        mass = ode.Mass()
-        mass.setSphereTotal(total_mass, self.radius)
-        return mass
-
-    @ode_or_fake_it
-    def create_ode_geom(self, space):
-        return ode.GeomSphere(space=space, radius=self.radius)
-
 
 class SphereMesh(SingleMaterialMesh):
     def __init__(self, material, *args, **kwargs):
         primitive = SpherePrimitive(*args, **kwargs)
         super().__init__(material, [primitive])
         self.primitive = primitive
-
-    @ode_or_fake_it
-    def create_ode_body(self, world, space, total_mass):
-        body = ode.Body(world)
-        body.setMass(self.primitive.create_ode_mass(total_mass))
-        body.shape = "sphere"
-        body.boxsize = tuple(self.primitive.lengths)
-        geom = self.primitive.create_ode_geom(space)
-        geom.setBody(body)
-        return body
 
 
 class ProjectedMesh(SingleMaterialMesh):

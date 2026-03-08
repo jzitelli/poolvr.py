@@ -23,9 +23,6 @@ def parse_args():
     parser.add_argument('--fullscreen',
                         help='create fullscreen window',
                         action='store_true')
-    parser.add_argument('-o', "--ode",
-                        help="use ODE for physics simulation instead of the default event-based physics engine",
-                        action="store_true")
     parser.add_argument("-c", "--collision-model", metavar='<name of collision model>',
                         help="set the ball-to-ball collision model to use (this parameter only applies to the event-based physics engine)",
                         default='simple')
@@ -98,7 +95,6 @@ def main():
     import poolvr.app
     poolvr.app.main(novr=args.novr,
                     ball_collision_model=args.collision_model,
-                    use_ode=args.ode,
                     multisample=args.msaa,
                     cube_map=args.cube_map,
                     speed=args.speed,

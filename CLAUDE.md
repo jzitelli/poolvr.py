@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-poolvr.py is a VR pool/billiards simulator written in Python. It features an event-based physics engine based on the paper "An Event-Based Pool Physics Simulator" by Leckie & Greenspan, with optional ODE (Open Dynamics Engine) integration for time-stepped simulation.
+poolvr.py is a VR pool/billiards simulator written in Python. It features an event-based physics engine based on the paper "An Event-Based Pool Physics Simulator" by Leckie & Greenspan.
 
 ## Build and Development Commands
 
