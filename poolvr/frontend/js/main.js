@@ -155,11 +155,24 @@ async function main() {
     const justCompleted = animEngine.update(delta);
     const simDt = animEngine.simTime - prevSimTime;
 
-    // Update ball positions and rotations
+    // Update ball positions, rotations, and pocket fade-out
+    const FADE_DURATION = 0.5; // seconds to fade out pocketed balls
     for (let i = 0; i < numBalls; i++) {
       if (animEngine.evalPosition(i, animEngine.simTime, tmpVec)) {
         ballObjs[i].mesh.position.copy(tmpVec);
         ballObjs[i].shadow.position.set(tmpVec.x, H + 0.001, tmpVec.z);
+      }
+      // Fade out pocketed balls
+      const pocketTime = animEngine.getPocketTime(i);
+      if (pocketTime !== null && animEngine.simTime >= pocketTime) {
+        const elapsed = animEngine.simTime - pocketTime;
+        const opacity = Math.max(0, 1 - elapsed / FADE_DURATION);
+        ballObjs[i].mesh.material.opacity = opacity;
+        ballObjs[i].shadow.material.opacity = 0.3 * opacity;
+        if (opacity <= 0) {
+          ballObjs[i].mesh.visible = false;
+          ballObjs[i].shadow.visible = false;
+        }
       }
       // Quaternion integration (small time-step approximation from game.py)
       if (simDt > 0) {
@@ -202,6 +215,8 @@ async function main() {
         const visible = onTable.has(i);
         ballObjs[i].mesh.visible = visible;
         ballObjs[i].shadow.visible = visible;
+        ballObjs[i].mesh.material.opacity = visible ? 1.0 : 0.0;
+        ballObjs[i].shadow.material.opacity = visible ? 0.3 : 0.0;
       }
       updateHUD(`${onTable.size} balls on table. Click cue ball to aim.`);
     } catch (err) {

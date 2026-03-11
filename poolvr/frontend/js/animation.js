@@ -173,6 +173,8 @@ export class AnimationEngine {
     // per-ball event lists, indexed by ball index
     this._ballEvents = {};
     this._numBalls = 0;
+    // per-ball pocket times: { ballIndex: time }
+    this._pocketTimes = {};
   }
 
   setInitialPositions(positions) {
@@ -190,6 +192,7 @@ export class AnimationEngine {
     this.simTime = 0;
     this.ballsAtRestTime = 0;
     this.playing = false;
+    this._pocketTimes = {};
   }
 
   addEvents(apiEvents, ballsAtRestTime) {
@@ -197,6 +200,7 @@ export class AnimationEngine {
     const motionTypes = new Set([
       'BallSlidingEvent', 'BallRollingEvent',
       'BallRestEvent', 'BallSpinningEvent',
+      'BallPocketedEvent',
     ]);
     for (const evt of apiEvents) {
       if (!motionTypes.has(evt.type)) continue;
@@ -204,6 +208,9 @@ export class AnimationEngine {
       if (bi == null) continue;
       if (!this._ballEvents[bi]) this._ballEvents[bi] = [];
       this._ballEvents[bi].push(evt);
+      if (evt.type === 'BallPocketedEvent') {
+        this._pocketTimes[bi] = evt.t;
+      }
     }
     // Sort each ball's events by time
     for (const bi in this._ballEvents) {
@@ -298,6 +305,13 @@ export class AnimationEngine {
     return false;
   }
 
+  /**
+   * Return the time at which a ball was pocketed, or null if not pocketed.
+   */
+  getPocketTime(ballIndex) {
+    return this._pocketTimes[ballIndex] ?? null;
+  }
+
   get isPlaying() {
     return this.playing;
   }
@@ -311,7 +325,11 @@ export class AnimationEngine {
     for (const bi in this._ballEvents) {
       copy[bi] = [...this._ballEvents[bi]];
     }
-    return { ballEvents: copy, ballsAtRestTime: this.ballsAtRestTime };
+    return {
+      ballEvents: copy,
+      ballsAtRestTime: this.ballsAtRestTime,
+      pocketTimes: { ...this._pocketTimes },
+    };
   }
 
   /**
@@ -324,5 +342,6 @@ export class AnimationEngine {
       this._ballEvents[bi] = [...snap.ballEvents[bi]];
     }
     this.ballsAtRestTime = snap.ballsAtRestTime;
+    this._pocketTimes = { ...snap.pocketTimes };
   }
 }
