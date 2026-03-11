@@ -414,12 +414,12 @@ class CueStrikeEvent(BallEvent):
 
 class BallPocketedEvent(BallRestEvent):
     def __init__(self, t, e_i, i_p, r_p):
-        super().__init__(t, e_i.i, r_0=r_p)
+        tau = t - e_i.t
+        self.r_i = e_i.eval_position(tau)
+        super().__init__(t, e_i.i, r_0=self.r_i)
         self.e_i = e_i
         self.i_p = i_p
         self.r_p = r_p.copy()
-        tau = self.t - e_i.t
-        self.r_i = e_i.eval_position(tau)
     @property
     def child_events(self):
         return ()
